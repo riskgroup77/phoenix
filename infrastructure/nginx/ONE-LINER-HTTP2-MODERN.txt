@@ -1,0 +1,13 @@
+Phoenix nginx — faqat phoenix-ilmiyfaoliyat-frontend (boshqa saytlarga tegmaydi)
+================================================================================
+
+SERVERDA BUTUN BIR QATOR (terminalga nusxa-qadoq):
+
+sudo bash -c "f=/etc/nginx/sites-available/phoenix-ilmiyfaoliyat-frontend; test -f \"\$f\" || exit 1; cp -a \"\$f\" \"\${f}.bak.\$(date +%Y%m%d%H%M%S)\"; sed -i 's/listen 443 ssl http2;/listen 443 ssl;/g' \"\$f\"; sed -i 's/listen \\[::\\]:443 ssl http2;/listen [::]:443 ssl;/g' \"\$f\"; grep -qE \"^[[:space:]]*http2 on;\" \"\$f\" || sed -i '/listen \\[::\\]:443 ssl;/a\\    http2 on;' \"\$f\"; nginx -t && systemctl reload nginx; echo OK"
+
+================================================================================
+Skript (loyihadan serverga nusxa oling):
+
+  sudo bash apply-phoenix-http2-modern.sh
+
+Yo'l: infrastructure/nginx/apply-phoenix-http2-modern.sh

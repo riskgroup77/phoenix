@@ -1,0 +1,41 @@
+ilmiyfaoliyat.uz ochilsa aidoktor (yoki boshqa ilova) — tez tekshiruv
+======================================================================
+
+1) Phoenix konfigda ROOT qayerga qarayapti (bu eng ko'p sabab):
+
+   sudo grep -nE 'root |server_name|listen 443' /etc/nginx/sites-available/phoenix-ilmiyfaoliyat-frontend
+
+   Kutiladi: server_name ilmiyfaoliyat.uz ... va root .../frontend/dist yoki sizning Phoenix build yo'lingiz.
+   Agar root aidoktor / boshqa loyiha papkasiga tushgan bo'lsa — NOTO'G'RI; nano bilan to'g'rilang.
+
+2) Qaysi sayt 443 da default_server (IP orqali ochilganda shu ochiladi):
+
+   sudo nginx -T 2>/dev/null | grep -nE 'listen.*443|default_server|server_name.*ilmiyfaoliyat|server_name.*aidoktor'
+
+3) server_name ziddiyati (ikki fayl bir xil domenni e'lon qilgan):
+
+   sudo nginx -t 2>&1
+   (conflicting server name degan ogohlantirish bo'lsa, birini olib tashlash yoki faqat bitta qoldirish kerak)
+
+4) DNS — domen IP ga tushyaptimi:
+
+   dig +short ilmiyfaoliyat.uz A
+
+5) Server ichidan SNI bilan tekshirish:
+
+   curl -sI --resolve ilmiyfaoliyat.uz:443:127.0.0.1 https://ilmiyfaoliyat.uz/ | head -15
+
+   Agar bu yerda to'g'ri bo'lsa, brauzerda muammo DNS yoki kesh.
+
+6) PHOENIX build yo'li topish (masalan):
+
+   sudo find /root /opt /phonix -maxdepth 5 -path '*/frontend/dist/index.html' 2>/dev/null
+
+   Keyin nginx root shu papkaga (dist gacha) qo'yiladi.
+
+================================================================================
+Tez tuzatish (faqat root noto'g'ri bo'lsa) — WEBROOT ni o'zgartiring:
+
+sudo sed -i 's|^[[:space:]]*root[[:space:]].*;|    root /TO'G'RI/YO'L/frontend/dist;|' /etc/nginx/sites-available/phoenix-ilmiyfaoliyat-frontend
+
+sudo nginx -t && sudo systemctl reload nginx

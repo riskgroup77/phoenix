@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phoenix Platform - Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background-color: #f8f8f8;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            color: #4CAF50;
+        }
+        .error {
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <h1>Phoenix Platform - Backend Connection Test</h1>
+    
+    <div class="container">
+        <h2>1. Test Backend Connection</h2>
+        <button onclick="testConnection()">Test Connection</button>
+        <div id="connection-result">Result will appear here...</div>
+    </div>
+    
+    <div class="container">
+        <h2>2. Test Authentication</h2>
+        <div>
+            <input type="text" id="phone" placeholder="Phone number" value=""><br>
+            <input type="password" id="password" placeholder="Password" value=""><br>
+            <button onclick="testLogin()">Test Login</button>
+        </div>
+        <div id="auth-result">Result will appear here...</div>
+    </div>
+    
+    <div class="container">
+        <h2>3. Test API Endpoints</h2>
+        <button onclick="testEndpoints()">Test All Endpoints</button>
+        <div id="endpoints-result">Result will appear here...</div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8000/api/v1/';
+        
+        // Helper function to make API requests
+        async function makeRequest(method, endpoint, data = null) {
+            const url = `${API_BASE_URL}${endpoint}`;
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            
+            // Add auth token if available
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            const options = {
+                method,
+                headers,
+                body: data ? JSON.stringify(data) : null,
+            };
+            
+            try {
+                const response = await fetch(url, options);
+                const result = await response.json().catch(() => ({}));
+                
+                if (!response.ok) {
+                    throw new Error(result.detail || 'Request failed');
+                }
+                
+                return { success: true, data: result };
+            } catch (error) {
+                return { 
+                    success: false, 
+                    error: error.message || 'An error occurred',
+                    status: error.response?.status
+                };
+            }
+        }
+        
+        // Test basic connection to backend
+        async function testConnection() {
+            const resultDiv = document.getElementById('connection-result');
+            resultDiv.innerHTML = 'Testing connection...';
+            
+            try {
+                const response = await fetch(API_BASE_URL + 'login/', {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Backend not reachable! Status: ${response.status}`);
+                }
+                
+                resultDiv.innerHTML = `
+                    <div class="success">✅ Successfully connected to backend!</div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">❌ Connection failed: ${error.message}</div>
+                    <p>Make sure the backend server is running at ${API_BASE_URL}</p>
+                `;
+            }
+        }
+        
+        // Test login functionality
+        async function testLogin() {
+            const phone = document.getElementById('phone').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('auth-result');
+            
+            if (!phone || !password) {
+                resultDiv.innerHTML = '<div class="error">Please enter both phone and password</div>';
+                return;
+            }
+            
+            console.log('Testing login...');
+            try {
+                const loginResponse = await fetch(API_BASE_URL + 'login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        phone: document.getElementById('phone').value,
+                        password: document.getElementById('password').value
+                    })
+                });
+                
+                const loginData = await loginResponse.json();
+                
+                if (!loginResponse.ok) {
+                    throw new Error(loginData.detail || 'Login failed');
+                }
+                
+                // Save tokens
+                if (data.access) {
+                    localStorage.setItem('access_token', data.access);
+                    if (data.refresh) {
+                        localStorage.setItem('refresh_token', data.refresh);
+                    }
+                }
+                
+                resultDiv.innerHTML = `
+                    <div class="success">✅ Login successful!</div>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">❌ Login failed: ${error.message}</div>
+                    <p>Check your credentials and try again.</p>
+                `;
+            }
+        }
+        
+        // Test various API endpoints
+        async function testEndpoints() {
+            const resultDiv = document.getElementById('endpoints-result');
+            resultDiv.innerHTML = 'Testing endpoints...';
+            
+            const results = {};
+            
+            // Test articles endpoint
+            try {
+                const response = await makeRequest('GET', '/articles/');
+                results.articles = {
+                    success: response.success,
+                    data: response.success ? 'Success' : response.error
+                };
+            } catch (error) {
+                results.articles = { success: false, error: error.message };
+            }
+            
+            // Test journals endpoint
+            try {
+                const response = await makeRequest('GET', '/journals/');
+                results.journals = {
+                    success: response.success,
+                    count: response.success ? (response.data?.results?.length || response.data?.length || 0) : 0
+                };
+            } catch (error) {
+                results.journals = { success: false, error: error.message };
+            }
+            
+            // Display results
+            let html = '<h3>Test Results:</h3><ul>';
+            for (const [endpoint, result] of Object.entries(results)) {
+                const status = result.success ? '✅' : '❌';
+                html += `<li>${status} ${endpoint}: ${result.success ? 'Success' : result.error}`;
+                if (result.count !== undefined) {
+                    html += ` (${result.count} items)`;
+                }
+                html += '</li>';
+            }
+            html += '</ul>';
+            
+            resultDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

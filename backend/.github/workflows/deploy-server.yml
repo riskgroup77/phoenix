@@ -1,0 +1,43 @@
+# Secrets (Settings → Actions):
+#   PHONIX_SSH_HOST, PHONIX_SSH_USER
+#   va PHONIX_SSH_PRIVATE_KEY yoki PHONIX_SSH_PASSWORD
+# Push to master yoki Actions → Run workflow
+
+name: Deploy to server
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: phonix-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: SSH — pull, build, restart
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PHONIX_SSH_HOST }}
+          username: ${{ secrets.PHONIX_SSH_USER }}
+          key: ${{ secrets.PHONIX_SSH_PRIVATE_KEY }}
+          password: ${{ secrets.PHONIX_SSH_PASSWORD }}
+          port: 22
+          command_timeout: 40m
+          script_stop: true
+          script: |
+            set -euo pipefail
+            URL="https://raw.githubusercontent.com/aiziyrak-coder/phonixB/master/deploy_phonix.sh"
+            if command -v curl >/dev/null 2>&1; then
+              curl -fsSL -o /tmp/phonix_deploy.sh "$URL"
+            else
+              wget -qO /tmp/phonix_deploy.sh "$URL"
+            fi
+            chmod +x /tmp/phonix_deploy.sh
+            export PHONIX_GIT_RESET=true
+            export PHONIX_FRONTEND_WEB_ROOT=/var/www/ilmiyfaoliyat
+            bash /tmp/phonix_deploy.sh

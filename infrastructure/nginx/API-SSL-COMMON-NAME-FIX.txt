@@ -1,0 +1,37 @@
+api.ilmiyfaoliyat.uz — ERR_CERT_COMMON_NAME_INVALID
+===================================================
+
+Brauzer boshqa domen uchun chiqarilgan sertifikatni ko‘rmoqda (SNI/noto‘g‘ri nginx blok).
+
+1) Serverda qaysi yo‘l ishlatilayotganini tekshiring:
+
+   sudo grep -n ssl_certificate /etc/nginx/sites-available/*api* /etc/nginx/sites-enabled/*api* 2>/dev/null
+
+2) Let's Encrypt papkalari:
+
+   sudo ls -la /etc/letsencrypt/live/
+
+   Agar `api.ilmiyfaoliyat.uz` o‘rniga `api.ilmiyfaoliyat.uz-0001` bo‘lsa — nginx konfigda `ssl_certificate` shu papkaga yo‘naltiring.
+
+3) Sertifikatni faqat API domen uchun chiqarish:
+
+   sudo certbot certonly --nginx -d api.ilmiyfaoliyat.uz
+
+   yoki mavjud blokni tekshirib:
+
+   sudo certbot renew --dry-run
+
+4) Nginx tekshiruv:
+
+   sudo nginx -t && sudo systemctl reload nginx
+
+5) Tekshirish:
+
+   openssl s_client -connect api.ilmiyfaoliyat.uz:443 -servername api.ilmiyfaoliyat.uz </dev/null 2>/dev/null | openssl x509 -noout -subject -dates
+
+   Subject ichida CN yoki SAN da `api.ilmiyfaoliyat.uz` bo‘lishi kerak.
+
+Namuna konf: infrastructure/nginx/phoenix-api-ilmiyfaoliyat.conf
+
+Avtomatik (papka nomini nginx ga moslash):
+  sudo bash /path/to/infrastructure/nginx/fix-api-ilmiyfaoliyat-ssl.sh

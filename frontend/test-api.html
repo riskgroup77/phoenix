@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>API Connection Test</h1>
+    <button onclick="testLogin()">Test Login</button>
+    <div id="result"></div>
+
+    <script>
+        async function testLogin() {
+            const resultDiv = document.getElementById('result');
+            try {
+                resultDiv.innerHTML = 'Testing login...';
+                
+                // Try to login with a test user
+                const response = await fetch('http://127.0.0.1:8000/api/v1/auth/login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        phone: '+998901234567',
+                        password: 'testpassword'
+                    })
+                });
+                
+                const data = await response.json();
+                resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                
+                if (data.access) {
+                    resultDiv.innerHTML += '<p style="color: green;">Login successful!</p>';
+                    
+                    // Try to get profile with the token
+                    try {
+                        const profileResponse = await fetch('http://127.0.0.1:8000/api/v1/auth/profile/', {
+                            headers: {
+                                'Authorization': `Bearer ${data.access}`
+                            }
+                        });
+                        
+                        const profileData = await profileResponse.json();
+                        resultDiv.innerHTML += `<h2>Profile Data:</h2><pre>${JSON.stringify(profileData, null, 2)}</pre>`;
+                    } catch (profileError) {
+                        resultDiv.innerHTML += `<p style="color: red;">Profile fetch error: ${profileError.message}</p>`;
+                    }
+                } else {
+                    resultDiv.innerHTML += '<p style="color: red;">Login failed</p>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

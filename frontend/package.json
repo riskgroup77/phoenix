@@ -1,0 +1,35 @@
+{
+  "name": "phoenix-scientific-8",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "node node_modules/vite/bin/vite.js build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@sentry/react": "^9.0.0",
+    "@google/genai": "^1.29.1",
+    "@types/react-toastify": "^4.0.2",
+    "axios": "^1.13.2",
+    "docx": "^9.6.1",
+    "file-saver": "^2.0.5",
+    "lucide-react": "^0.553.0",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.6",
+    "react-toastify": "^11.0.5",
+    "recharts": "^3.8.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "terser": "^5.46.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

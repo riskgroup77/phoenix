@@ -1,0 +1,89 @@
+📋 ADMIN VA EDITOR USERS YARATISH - SUMMARY
+
+✅ YARATILGAN FAYLLAR:
+
+1. Management Command:
+   └─ backend/apps/users/management/commands/create_test_users.py
+   └─ backend/apps/users/management/__init__.py
+   └─ backend/apps/users/management/commands/__init__.py
+
+2. Python Scripts (Asosiy):
+   └─ backend/create_admin_editor_users.py (RECOMMENDED)
+   └─ backend/create_test_users.py
+
+3. Helper Scripts:
+   └─ backend/create_users.sh (Linux/Mac)
+   └─ backend/create_users.bat (Windows)
+
+4. Database:
+   └─ backend/create_users.sql
+
+5. Documentation:
+   └─ backend/ADMIN_EDITOR_USERS.md
+   └─ backend/CREATE_TEST_USERS_GUIDE.md
+
+---
+
+👥 YARATILADI USERS (6 ta):
+
+1. SUPER ADMIN
+   Email: admin@ilmiyfaoliyat.uz
+   Phone: 998901001001
+   Password: Admin@123456
+   ✨ Django admin panel'ga kirishi mumkin
+
+2. JOURNAL ADMIN / EDITOR (Tahrirchi)
+   Email: editor@ilmiyfaoliyat.uz
+   Phone: 998901001002
+   Password: Editor@123456
+   ✨ Maqola boshqaruvi va review approval
+
+3. REVIEWER 1
+   Email: reviewer1@ilmiyfaoliyat.uz
+   Phone: 998901001003
+   Password: Reviewer@123456
+   ✨ Computer Science, IT specializations
+
+4. REVIEWER 2
+   Email: reviewer2@ilmiyfaoliyat.uz
+   Phone: 998901001004
+   Password: Reviewer@123456
+   ✨ Mathematics, Physics specializations
+
+5. AUTHOR (Muallif)
+   Email: author1@ilmiyfaoliyat.uz
+   Phone: 998901001005
+   Password: Author@123456
+   ✨ Maqola yozuvchi
+
+6. ACCOUNTANT (Buxgalter)
+   Email: accountant@ilmiyfaoliyat.uz
+   Phone: 998901001006
+   Password: Accountant@123456
+   ✨ To'lov boshqaruvi
+
+---
+
+🚀 ISHLATISH:
+
+Windows'da:
+   cd backend
+   create_users.bat
+
+Linux/Mac'da:
+   cd backend
+   bash create_users.sh
+
+Yoki Python orqali:
+   cd backend
+   python create_admin_editor_users.py
+
+Django command orqali:
+   cd backend
+   python manage.py create_test_users
+
+---
+
+✅ STATUS: TUGALLANDI
+
+Barcha admin va editor users yaratish uchun zarur fayllar, scriptlar va dokumentatsiyalar tayyor!

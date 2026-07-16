@@ -1,0 +1,13 @@
+phonixF — yangilash va nginx dist (bir qator)
+================================================
+
+Avval bir marta (agar yo'q bo'lsa):
+  sudo git clone https://github.com/aiziyrak-coder/phonixF.git /root/phonixF
+
+Har safar yangilash:
+
+cd /root/phonixF && git pull origin master && npm ci && export VITE_API_BASE_URL='https://api.ilmiyfaoliyat.uz/api/v1' VITE_MEDIA_URL='https://api.ilmiyfaoliyat.uz/media/' && npm run build && sudo rsync -a --delete dist/ /root/frontend/dist/ && sudo nginx -t && sudo systemctl reload nginx
+
+Skript bilan:
+
+cd /root/phonixF && bash scripts/deploy-production-ilmiyfaoliyat.sh

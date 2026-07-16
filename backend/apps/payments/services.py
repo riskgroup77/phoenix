@@ -1,0 +1,1098 @@
+"""
+Click Payment Integration Service
+
+Barcha to'lovlar bitta Click service orqali (Ilmiyfaoliyat.uz — service_id 82154).
+Callback URL'lar Click merchant panelda quyidagicha bo'lishi kerak:
+  Prepare: https://api.ilmiyfaoliyat.uz/api/v1/payments/click/prepare/
+  Complete: https://api.ilmiyfaoliyat.uz/api/v1/payments/click/complete/
+"""
+from django.conf import settings
+from django.utils import timezone
+import hashlib
+import time
+import requests
+import logging
+import uuid as uuid_module
+from .models import Transaction
+
+logger = logging.getLogger(__name__)
+
+def _click_timeout():
+    return int(getattr(settings, 'CLICK_HTTP_TIMEOUT_SEC', 45) or 45)
+
+
+def _find_transaction_by_merchant_trans_id(merchant_trans_id):
+    """
+    Find Transaction by merchant_trans_id (transaction_param from Click).
+    Click sends our transaction.id (UUID string). Normalize and try id then merchant_trans_id field.
+    """
+    if not merchant_trans_id:
+        return None
+    raw = str(merchant_trans_id).strip()
+    # Try as primary key (UUID) — support different casing
+    for val in (raw, raw.lower(), raw.upper()):
+        try:
+            uuid_val = uuid_module.UUID(val)
+            return Transaction.objects.get(id=uuid_val)
+        except (ValueError, Transaction.DoesNotExist):
+            pass
+    try:
+        return Transaction.objects.get(id=raw)
+    except (Transaction.DoesNotExist, ValueError):
+        pass
+    try:
+        return Transaction.objects.get(merchant_trans_id=raw)
+    except Transaction.DoesNotExist:
+        pass
+    try:
+        return Transaction.objects.get(merchant_trans_id=merchant_trans_id)
+    except Transaction.DoesNotExist:
+        return None
+
+
+def _fulfill_after_payment(transaction):
+    """Post-payment business logic (Click complete callback va sinxron tekshiruv)."""
+    service_type = getattr(transaction, 'service_type', None)
+    if service_type == 'udk_request':
+        try:
+            from apps.udc.fulfill import fulfill_udk_request
+            fulfill_udk_request(transaction)
+        except Exception as e:
+            logger.error('UDK fulfill failed: %s', e, exc_info=True)
+    if service_type == 'article_sample':
+        try:
+            from apps.articles.fulfill_sample import fulfill_article_sample
+            fulfill_article_sample(transaction)
+        except Exception as e:
+            logger.error('Article sample fulfill failed: %s', e, exc_info=True)
+    if service_type == 'doi_request':
+        try:
+            from apps.articles.fulfill_doi import fulfill_doi_request
+            fulfill_doi_request(transaction)
+        except Exception as e:
+            logger.error('DOI request fulfill failed: %s', e, exc_info=True)
+    if service_type == 'language_editing':
+        try:
+            from apps.articles.fulfill_plagiarism_payment import fulfill_language_editing_payment
+            fulfill_language_editing_payment(transaction)
+        except Exception as e:
+            logger.error('Language editing fulfill failed: %s', e, exc_info=True)
+    if service_type == 'publication_fee':
+        try:
+            from apps.articles.fulfill_publication_fee import fulfill_publication_fee
+            fulfill_publication_fee(transaction)
+        except Exception as e:
+            logger.error('Publication fee fulfill failed: %s', e, exc_info=True)
+
+
+class ClickPaymentService:
+    """Service for Click payment integration"""
+    
+    def __init__(self):
+        merchant_id_raw = settings.CLICK_MERCHANT_ID or '45730'
+        service_id_raw = settings.CLICK_SERVICE_ID or '82154'
+        secret_key_raw = (getattr(settings, 'CLICK_SECRET_KEY', None) or '').strip()
+        merchant_user_id_raw = settings.CLICK_MERCHANT_USER_ID or '63536'
+
+        self.merchant_id = str(merchant_id_raw).strip()
+        self.service_id = str(service_id_raw).strip()
+        self.secret_key = str(secret_key_raw).strip()
+        self.merchant_user_id = str(merchant_user_id_raw).strip()
+        self.api_url = "https://api.click.uz/v2/merchant"
+
+        self.service_secret_keys = {
+            k: v
+            for k, v in {
+                '82154': (getattr(settings, 'CLICK_SERVICE_82154_SECRET_KEY', '') or '').strip(),
+                '82155': (getattr(settings, 'CLICK_SERVICE_82155_SECRET_KEY', '') or '').strip(),
+                '89248': (getattr(settings, 'CLICK_SERVICE_89248_SECRET_KEY', '') or '').strip(),
+                '88045': (getattr(settings, 'CLICK_SERVICE_88045_SECRET_KEY', '') or '').strip(),
+            }.items()
+            if v
+        }
+
+        if not self.secret_key:
+            logger.error(
+                "CLICK_SECRET_KEY is empty — set it in .env (Click merchant). Service-specific keys may still work."
+            )
+        
+        # Validate that all required fields are set (non-empty after strip)
+        if not self.service_id:
+            logger.error("CLICK_SERVICE_ID is empty, using default: 82154")
+            self.service_id = '82154'
+        if not self.merchant_user_id:
+            logger.error("CLICK_MERCHANT_USER_ID is empty, using default: 63536")
+            self.merchant_user_id = '63536'
+        if not self.merchant_id:
+            logger.error("CLICK_MERCHANT_ID is empty, using default: 45730")
+            self.merchant_id = '45730'
+        
+        logger.info(f"ClickPaymentService initialized - service_id: {self.service_id}, merchant_user_id: {self.merchant_user_id}, merchant_id: {self.merchant_id}")
+    
+    def get_secret_key_for_service(self, service_id):
+        """Get secret key for specific service_id
+        
+        Click'dan kelgan service_id ga mos secret key qaytaradi
+        """
+        service_id_str = str(service_id).strip()
+        if service_id_str in self.service_secret_keys:
+            return self.service_secret_keys[service_id_str]
+        # Default secret key
+        return self.secret_key
+    
+    def generate_auth_header(self):
+        """Generate Auth header for Click API requests"""
+        timestamp = str(int(time.time()))
+        digest_string = timestamp + self.secret_key
+        digest = hashlib.sha1(digest_string.encode('utf-8')).hexdigest()
+        return f"{self.merchant_user_id}:{digest}:{timestamp}"
+    
+    def generate_signature(self, *args):
+        """Generate signature for Click request
+        According to Click API: sign_string = md5(args + secret_key)
+        Uses default secret key
+        """
+        # Concatenate all arguments as strings
+        sign_string = ''.join(str(arg) for arg in args)
+        # Append secret key
+        sign_string += self.secret_key
+        # Generate MD5 hash
+        return hashlib.md5(sign_string.encode('utf-8')).hexdigest()
+    
+    def generate_signature_with_key(self, secret_key, *args):
+        """Generate signature with specific secret key
+        
+        Args:
+            secret_key: Secret key to use for this signature
+            *args: Arguments to include in signature
+        """
+        # Concatenate all arguments as strings
+        sign_string = ''.join(str(arg) for arg in args)
+        # Append secret key
+        sign_string += secret_key
+        # Generate MD5 hash
+        return hashlib.md5(sign_string.encode('utf-8')).hexdigest()
+    
+    def create_invoice(self, service_id, amount, phone_number, merchant_trans_id):
+        """Create invoice (sчет-фактура) via Click API"""
+        url = f"{self.api_url}/invoice/create"
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Auth': self.generate_auth_header()
+        }
+        
+        # Ensure service_id is a valid integer string
+        # Use provided service_id or fallback to self.service_id
+        service_id_to_use = service_id if service_id else self.service_id
+        
+        try:
+            # Convert to string, strip whitespace, then to int
+            service_id_str = str(service_id_to_use).strip()
+            if not service_id_str:
+                logger.error(f"service_id is empty - provided: {service_id}, self.service_id: {self.service_id}")
+                return {
+                    'error_code': -1,
+                    'error_note': 'service_id is empty or invalid',
+                    'invoice_id': None,
+                    'invoice_url': None
+                }
+            service_id_int = int(service_id_str)
+        except (ValueError, TypeError) as e:
+            logger.error(f"Invalid service_id: {service_id_to_use} (type: {type(service_id_to_use)}), error: {e}")
+            return {
+                'error_code': -1,
+                'error_note': f'Invalid service_id: {service_id_to_use}',
+                'invoice_id': None,
+                'invoice_url': None
+            }
+        
+        # Ensure phone_number is in correct format (998XXXXXXXXX) and not empty
+        if not phone_number or phone_number.strip() == '':
+            logger.error(f"Phone number is empty - cannot create invoice")
+            return {
+                'error_code': -1,
+                'error_note': 'Phone number is required for invoice creation',
+                'invoice_id': None,
+                'invoice_url': None
+            }
+        
+        # Phone number should be in format 998XXXXXXXXX (12 digits total)
+        phone_str = str(phone_number).strip()
+        phone_digits = ''.join(filter(str.isdigit, phone_str))
+        
+        if not phone_digits or len(phone_digits) < 9:
+            logger.error(f"Invalid phone number format: {phone_number}")
+            return {
+                'error_code': -1,
+                'error_note': f'Invalid phone number format: {phone_number}. Phone number must be in format 998XXXXXXXXX',
+                'invoice_id': None,
+                'invoice_url': None
+            }
+        
+        # Ensure phone number is in 998XXXXXXXXX format
+        if phone_digits.startswith('998') and len(phone_digits) == 12:
+            formatted_phone = phone_digits
+        elif phone_digits.startswith('9') and len(phone_digits) == 9:
+            formatted_phone = '998' + phone_digits
+        elif len(phone_digits) >= 9:
+            formatted_phone = '998' + phone_digits[-9:]  # Take last 9 digits
+        else:
+            logger.error(f"Cannot format phone number: {phone_number}")
+            return {
+                'error_code': -1,
+                'error_note': f'Cannot format phone number: {phone_number}',
+                'invoice_id': None,
+                'invoice_url': None
+            }
+        
+        data = {
+            'service_id': service_id_int,
+            'amount': float(amount),
+            'phone_number': formatted_phone,
+            'merchant_trans_id': str(merchant_trans_id)
+        }
+        
+        logger.info(f"Creating invoice with formatted phone number: {formatted_phone} (original: {phone_number})")
+        
+        logger.info(f"Creating invoice via Click API: URL={url}, Data={data}")
+        
+        try:
+            response = requests.post(url, json=data, headers=headers, timeout=_click_timeout())
+            logger.info(f"Click API response status: {response.status_code}, content: {response.text[:500]}")
+            
+            # Try to parse JSON response
+            try:
+                result = response.json()
+            except ValueError:
+                # If response is not JSON, return error
+                logger.error(f"Click API returned non-JSON response: {response.text}")
+                return {
+                    'error_code': -1,
+                    'error_note': f'Invalid response from Click API: {response.text[:200]}',
+                    'invoice_id': None,
+                    'invoice_url': None
+                }
+            
+            # Check response status code
+            if response.status_code != 200:
+                error_code = result.get('error_code') or result.get('error') or -1
+                error_note = result.get('error_note') or result.get('error') or f'HTTP {response.status_code}'
+                logger.error(f"Click API error: {error_code} - {error_note}")
+                return {
+                    'error_code': error_code,
+                    'error_note': error_note,
+                    'invoice_id': None,
+                    'invoice_url': None
+                }
+            
+            # Check if result has error
+            if 'error_code' in result and result.get('error_code') != 0:
+                error_code = result.get('error_code', -1)
+                error_note = result.get('error_note') or result.get('error') or 'Unknown error'
+                logger.error(f"Click API returned error: {error_code} - {error_note}")
+                return {
+                    'error_code': error_code,
+                    'error_note': error_note,
+                    'invoice_id': result.get('invoice_id'),
+                    'invoice_url': None
+                }
+            
+            logger.info(f"Invoice created successfully: {result}")
+            return result
+            
+        except requests.exceptions.Timeout:
+            logger.error("Click API request timeout")
+            return {
+                'error_code': -1,
+                'error_note': 'Request timeout: Click API did not respond in time',
+                'invoice_id': None,
+                'invoice_url': None
+            }
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Click API connection error: {str(e)}")
+            return {
+                'error_code': -1,
+                'error_note': f'Connection error: Could not reach Click API - {str(e)}',
+                'invoice_id': None,
+                'invoice_url': None
+            }
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Click API request exception: {str(e)}")
+            return {
+                'error_code': -1,
+                'error_note': f'Request failed: {str(e)}',
+                'invoice_id': None,
+                'invoice_url': None
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error creating invoice: {str(e)}", exc_info=True)
+            return {
+                'error_code': -9,
+                'error_note': f'Unexpected error: {str(e)}',
+                'invoice_id': None,
+                'invoice_url': None
+            }
+    
+    def check_invoice_status(self, service_id, invoice_id):
+        """Check invoice status"""
+        url = f"{self.api_url}/invoice/status/{service_id}/{invoice_id}"
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Auth': self.generate_auth_header()
+        }
+        
+        response = requests.get(url, headers=headers, timeout=_click_timeout())
+        return response.json()
+    
+    def check_payment_status(self, service_id, payment_id):
+        """Check payment status"""
+        url = f"{self.api_url}/payment/status/{service_id}/{payment_id}"
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Auth': self.generate_auth_header()
+        }
+        
+        response = requests.get(url, headers=headers, timeout=_click_timeout())
+        return response.json()
+    
+    def check_payment_status_by_mti(self, service_id, merchant_trans_id, date):
+        """Check payment status by merchant_trans_id"""
+        url = f"{self.api_url}/payment/status_by_mti/{service_id}/{merchant_trans_id}/{date}"
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Auth': self.generate_auth_header()
+        }
+        
+        response = requests.get(url, headers=headers, timeout=_click_timeout())
+        return response.json()
+
+    @staticmethod
+    def _click_payment_is_paid(result):
+        """Click Merchant API javobida to'lov tasdiqlanganini aniqlash."""
+        if not isinstance(result, dict):
+            return False
+        error_code = result.get('error_code')
+        if error_code is not None:
+            try:
+                if int(error_code) != 0:
+                    return False
+            except (TypeError, ValueError):
+                return False
+        payment_status = result.get('payment_status')
+        if payment_status is not None:
+            try:
+                return int(payment_status) == 2
+            except (TypeError, ValueError):
+                pass
+        status = result.get('status')
+        if isinstance(status, str) and status.lower() in ('paid', 'confirmed', 'completed', 'success'):
+            return True
+        if isinstance(status, int) and status == 2:
+            return True
+        return False
+
+    def sync_transaction_from_click(self, transaction):
+        """Click API orqali to'lov holatini tekshirib, DB ni yangilash (callback kelmasa ham)."""
+        from django.db import transaction as db_transaction
+
+        if transaction.status == 'completed':
+            return {
+                'error_code': 0,
+                'error_note': 'Already completed',
+                'payment_status': 2,
+                'synced': True,
+            }
+
+        service_id = str(getattr(transaction, 'click_service_id', None) or self.service_id).strip()
+        merchant_trans_id = str(transaction.merchant_trans_id or transaction.id)
+        click_result = None
+
+        if transaction.click_paydoc_id:
+            try:
+                click_result = self.check_payment_status(service_id, transaction.click_paydoc_id)
+            except Exception as e:
+                logger.warning('Click check_payment_status failed: %s', e)
+
+        if not self._click_payment_is_paid(click_result):
+            created = transaction.created_at or timezone.now()
+            dates_to_try = []
+            for fmt in ('%Y-%m-%d', '%d.%m.%Y'):
+                dates_to_try.append(timezone.localtime(created).strftime(fmt))
+            seen = set()
+            for date_str in dates_to_try:
+                if date_str in seen:
+                    continue
+                seen.add(date_str)
+                try:
+                    candidate = self.check_payment_status_by_mti(
+                        service_id, merchant_trans_id, date_str
+                    )
+                    click_result = candidate
+                    if self._click_payment_is_paid(candidate):
+                        break
+                except Exception as e:
+                    logger.warning('Click status_by_mti failed (%s): %s', date_str, e)
+
+        if not self._click_payment_is_paid(click_result):
+            note = (click_result or {}).get('error_note') or 'Payment not completed yet'
+            ec = (click_result or {}).get('error_code', -1)
+            return {
+                'error_code': ec,
+                'error_note': note,
+                'payment_status': 0,
+                'synced': False,
+            }
+
+        paydoc = (
+            click_result.get('payment_id')
+            or click_result.get('click_paydoc_id')
+            or click_result.get('paydoc_id')
+            or transaction.click_paydoc_id
+        )
+        click_trans = click_result.get('click_trans_id') or transaction.click_trans_id
+
+        with db_transaction.atomic():
+            locked = Transaction.objects.select_for_update().get(pk=transaction.pk)
+            if locked.status != 'completed':
+                locked.status = 'completed'
+                locked.completed_at = timezone.now()
+                if paydoc:
+                    locked.click_paydoc_id = str(paydoc)
+                if click_trans:
+                    locked.click_trans_id = str(click_trans)
+                locked.error_note = ''
+                locked.save(
+                    update_fields=[
+                        'status',
+                        'completed_at',
+                        'click_paydoc_id',
+                        'click_trans_id',
+                        'error_note',
+                    ]
+                )
+            transaction = locked
+
+        _fulfill_after_payment(transaction)
+
+        return {
+            'error_code': 0,
+            'error_note': 'Success',
+            'payment_status': 2,
+            'synced': True,
+        }
+    
+    def reverse_payment(self, service_id, payment_id):
+        """Reverse (cancel) payment"""
+        url = f"{self.api_url}/payment/reversal/{service_id}/{payment_id}"
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Auth': self.generate_auth_header()
+        }
+        
+        response = requests.delete(url, headers=headers, timeout=_click_timeout())
+        return response.json()
+    
+    def request_card_token(self, service_id, card_number, expire_date, temporary=1):
+        """Request card token"""
+        url = f"{self.api_url}/card_token/request"
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+        data = {
+            'service_id': service_id,
+            'card_number': card_number,
+            'expire_date': expire_date,
+            'temporary': temporary
+        }
+        
+        response = requests.post(url, json=data, headers=headers, timeout=_click_timeout())
+        return response.json()
+    
+    def verify_card_token(self, service_id, card_token, sms_code):
+        """Verify card token"""
+        url = f"{self.api_url}/card_token/verify"
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Auth': self.generate_auth_header()
+        }
+        data = {
+            'service_id': service_id,
+            'card_token': card_token,
+            'sms_code': sms_code
+        }
+        
+        response = requests.post(url, json=data, headers=headers, timeout=_click_timeout())
+        return response.json()
+    
+    def pay_with_card_token(self, service_id, card_token, amount, merchant_trans_id):
+        """Pay with card token"""
+        url = f"{self.api_url}/card_token/payment"
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Auth': self.generate_auth_header()
+        }
+        data = {
+            'service_id': service_id,
+            'card_token': card_token,
+            'amount': amount,
+            'merchant_trans_id': merchant_trans_id
+        }
+        
+        response = requests.post(url, json=data, headers=headers, timeout=_click_timeout())
+        return response.json()
+    
+    def delete_card_token(self, service_id, card_token):
+        """Delete card token"""
+        url = f"{self.api_url}/card_token/{service_id}/{card_token}"
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Auth': self.generate_auth_header()
+        }
+        
+        response = requests.delete(url, headers=headers, timeout=_click_timeout())
+        return response.json()
+    
+    def create_direct_payment_url(self, transaction, use_invoice=False):
+        """Create direct payment URL without invoice (OSON TO'LOV)
+        
+        Args:
+            transaction: Transaction object
+            use_invoice: If True, try to create invoice first. If False, create direct URL.
+        
+        Returns:
+            dict with payment_url
+        """
+        # Ensure transaction has merchant_trans_id
+        if not transaction.merchant_trans_id:
+            transaction.merchant_trans_id = str(transaction.id)
+            transaction.save()
+        
+        # Get service_id as integer
+        try:
+            service_id_int = int(self.service_id)
+        except (ValueError, TypeError):
+            logger.error(f"Invalid service_id: {self.service_id}")
+            return {
+                'error_code': -1,
+                'error_note': f'Invalid service_id: {self.service_id}',
+                'payment_url': None
+            }
+        
+        # If use_invoice is False, create direct payment URL without invoice
+        if not use_invoice:
+            # Click — Установка кнопки оплаты (Вариант 1 — Переход по ссылке)
+            # https://my.click.uz/services/pay?service_id=&merchant_id=&amount=&transaction_param=&return_url=&card_type=
+            # Majburiy: merchant_id, service_id, transaction_param, amount. Ixtiyoriy: return_url, card_type
+            
+            from django.conf import settings as django_settings
+            from urllib.parse import quote
+
+            merchant_id_int = int(self.merchant_id)
+            transaction_param = str(transaction.id)  # transaction_param = merchant_trans_id (ID заказа)
+            amount_formatted = f"{float(transaction.amount):.2f}"  # Format: N.NN
+            
+            payment_url = (
+                f"https://my.click.uz/services/pay"
+                f"?merchant_id={merchant_id_int}"
+                f"&service_id={service_id_int}"
+                f"&transaction_param={transaction_param}"
+                f"&amount={amount_formatted}"
+            )
+            return_url = f"{getattr(django_settings, 'FRONTEND_BASE_URL', 'http://localhost:3000').rstrip('/')}/#/payment/click?transaction_id={transaction.id}"
+            payment_url += f"&return_url={quote(return_url)}"
+
+            logger.info(f"Direct payment URL created (Click format): {payment_url}")
+            logger.info(f"Parameters: merchant_id={merchant_id_int}, service_id={service_id_int}, transaction_param={transaction_param}, amount={amount_formatted}")
+            
+            return {
+                'error_code': 0,
+                'error_note': 'Success',
+                'payment_url': payment_url,
+                'invoice_id': None,
+                'merchant_trans_id': transaction_param,
+                'amount': float(transaction.amount),
+                'service_id': service_id_int,
+                'merchant_id': merchant_id_int,
+                'direct_payment': True  # Invoice yaratilmadi, to'g'ridan-to'g'ri URL
+            }
+        
+        # If use_invoice is True, try to create invoice (old method)
+        # Get user phone number from transaction user - format for Click (998XXXXXXXXX)
+        phone_number = None
+        if transaction.user and hasattr(transaction.user, 'phone'):
+            phone_raw = transaction.user.phone
+            if phone_raw:
+                # Remove any non-digit characters and ensure format is correct (Click requires 998XXXXXXXXX format)
+                phone_clean = ''.join(filter(str.isdigit, str(phone_raw)))
+                if phone_clean and len(phone_clean) >= 9:
+                    # If starts with 998, use as is, otherwise add 998 prefix
+                    if phone_clean.startswith('998'):
+                        phone_number = phone_clean
+                    elif phone_clean.startswith('9'):
+                        phone_number = '998' + phone_clean
+                    else:
+                        phone_number = '998' + phone_clean[-9:]  # Take last 9 digits and add 998
+                else:
+                    logger.warning(f"Invalid phone number format for user {transaction.user.id}: {phone_raw}")
+        
+        # If phone number is missing, return direct payment URL
+        if not phone_number:
+            logger.warning(f"No valid phone number found for user {transaction.user.id if transaction.user else 'unknown'}")
+            
+            # Try to create invoice with a test phone number (Click may accept this for testing)
+            # Test phone number: 998901234567 (Click test number)
+            test_phone = '998901234567'
+            logger.info(f"Attempting invoice creation with test phone number: {test_phone}")
+            
+            invoice_result_test = self.create_invoice(
+                service_id=service_id_int,
+                amount=float(transaction.amount),
+                phone_number=test_phone,
+                merchant_trans_id=str(transaction.id)
+            )
+            
+            invoice_error_code_test = invoice_result_test.get('error_code')
+            if invoice_error_code_test is not None:
+                try:
+                    invoice_error_code_test = int(invoice_error_code_test)
+                except (ValueError, TypeError):
+                    invoice_error_code_test = -1
+            
+            if invoice_error_code_test == 0:
+                # Invoice created with test phone number
+                invoice_id = invoice_result_test.get('invoice_id')
+                payment_url = invoice_result_test.get('invoice_url') or invoice_result_test.get('payment_url')
+                if not payment_url:
+                    # Create URL in Click format
+                    merchant_id_int = int(self.merchant_id)
+                    transaction_param = str(transaction.id)
+                    amount_formatted = f"{float(transaction.amount):.2f}"
+                    payment_url = (
+                        f"https://my.click.uz/services/pay"
+                        f"?merchant_id={merchant_id_int}"
+                        f"&service_id={service_id_int}"
+                        f"&transaction_param={transaction_param}"
+                        f"&amount={amount_formatted}"
+                    )
+                logger.info(f"Invoice created with test phone, payment URL: {payment_url}")
+                return {
+                    'error_code': 0,
+                    'error_note': 'Success (invoice created with test phone number)',
+                    'payment_url': payment_url,
+                    'invoice_id': invoice_id,
+                    'merchant_trans_id': str(transaction.id),
+                    'amount': float(transaction.amount),
+                    'service_id': service_id_int,
+                    'warning': 'Invoice created with test phone number (998901234567). User should use their actual Click-registered phone number.'
+                }
+            
+            # If test phone also fails, use direct payment URL (invoice yaratmasdan)
+            test_error_note = invoice_result_test.get('error_note') or invoice_result_test.get('error') or 'Failed to create invoice with test phone'
+            logger.warning(f"Invoice creation failed: {test_error_note}")
+            logger.info("Using direct payment URL instead (without invoice)")
+            
+            # Create direct payment URL without invoice (Click format)
+            merchant_id_int = int(self.merchant_id)
+            transaction_param = str(transaction.id)
+            amount_formatted = f"{float(transaction.amount):.2f}"
+            
+            payment_url = (
+                f"https://my.click.uz/services/pay"
+                f"?merchant_id={merchant_id_int}"
+                f"&service_id={service_id_int}"
+                f"&transaction_param={transaction_param}"
+                f"&amount={amount_formatted}"
+            )
+            
+            return {
+                'error_code': 0,
+                'error_note': 'Success (direct payment URL, invoice yaratilmadi)',
+                'payment_url': payment_url,
+                'invoice_id': None,
+                'merchant_trans_id': transaction_param,
+                'amount': float(transaction.amount),
+                'service_id': service_id_int,
+                'merchant_id': merchant_id_int,
+                'direct_payment': True,
+                'warning': 'Invoice yaratilmadi, lekin to\'g\'ridan-to\'g\'ri to\'lov URL yaratildi. User Click sahifasida karta ma\'lumotlarini kiritishi mumkin.'
+            }
+        
+        # Create invoice via Click API (recommended method)
+        try:
+            service_id_int = int(self.service_id)
+        except (ValueError, TypeError):
+            logger.error(f"Invalid service_id: {self.service_id}")
+            return {
+                'error_code': -1,
+                'error_note': f'Invalid service_id: {self.service_id}',
+                'payment_url': None
+            }
+        
+        # Create invoice via Click API
+        invoice_result = self.create_invoice(
+            service_id=service_id_int,
+            amount=float(transaction.amount),
+            phone_number=phone_number,
+            merchant_trans_id=str(transaction.id)
+        )
+        
+        logger.info(f"Invoice creation result: {invoice_result}")
+        
+        # Check if invoice was created successfully
+        invoice_error_code = invoice_result.get('error_code')
+        
+        # Convert error_code to int for comparison
+        if invoice_error_code is not None:
+            try:
+                invoice_error_code = int(invoice_error_code)
+            except (ValueError, TypeError):
+                invoice_error_code = -1
+        
+        if invoice_error_code == 0:
+            # Invoice created successfully - use invoice_url or payment_url from response
+            invoice_id = invoice_result.get('invoice_id')
+            payment_url = invoice_result.get('invoice_url') or invoice_result.get('payment_url') or invoice_result.get('url')
+            
+            # If no payment URL in response, construct it manually based on Click documentation
+            # Click payment URL format: https://my.click.uz/services/pay?merchant_id={merchant_id}&service_id={service_id}&transaction_param={transaction_param}&amount={amount}
+            if not payment_url:
+                merchant_id_int = int(self.merchant_id)
+                transaction_param = str(transaction.id)
+                amount_formatted = f"{float(transaction.amount):.2f}"
+                
+                payment_url = (
+                    f"https://my.click.uz/services/pay"
+                    f"?merchant_id={merchant_id_int}"
+                    f"&service_id={service_id_int}"
+                    f"&transaction_param={transaction_param}"
+                    f"&amount={amount_formatted}"
+                )
+                if invoice_id:
+                    payment_url += f"&invoice_id={invoice_id}"
+                logger.info(f"Constructed payment URL manually (Click format): {payment_url}")
+            
+            logger.info(f"Payment URL from invoice (success): {payment_url}, invoice_id: {invoice_id}")
+            
+            return {
+                'error_code': 0,
+                'error_note': 'Success',
+                'payment_url': payment_url,
+                'invoice_id': invoice_id,
+                'merchant_trans_id': str(transaction.id),
+                'amount': float(transaction.amount),
+                'service_id': service_id_int
+            }
+        else:
+            # Invoice creation failed - cannot proceed without invoice
+            error_note = invoice_result.get('error_note') or invoice_result.get('error') or invoice_result.get('error_msg') or 'Failed to create invoice'
+            logger.error(f"Invoice creation failed: {invoice_error_code} - {error_note}")
+            logger.error(f"Invoice creation is REQUIRED for Click payments. Cannot proceed without invoice.")
+            logger.error(f"User phone number: {phone_number}, Transaction ID: {transaction.id}")
+            logger.error(f"IMPORTANT: User must register their phone number ({phone_number}) in Click system before making payments.")
+            logger.error(f"IMPORTANT: Ensure callback URLs are configured in Click merchant panel (merchant.click.uz)")
+            logger.error(f"Callback URLs should be:")
+            logger.error(f"  Prepare: https://api.ilmiyfaoliyat.uz/api/v1/payments/click/prepare/")
+            logger.error(f"  Complete: https://api.ilmiyfaoliyat.uz/api/v1/payments/click/complete/")
+            
+            # Invoice creation failed - use direct payment URL instead
+            logger.warning(f"Invoice creation failed: {invoice_error_code} - {error_note}")
+            logger.info("Using direct payment URL instead (without invoice)")
+            
+            # Create direct payment URL without invoice (Click format)
+            merchant_id_int = int(self.merchant_id)
+            transaction_param = str(transaction.id)
+            amount_formatted = f"{float(transaction.amount):.2f}"
+            
+            payment_url = (
+                f"https://my.click.uz/services/pay"
+                f"?merchant_id={merchant_id_int}"
+                f"&service_id={service_id_int}"
+                f"&transaction_param={transaction_param}"
+                f"&amount={amount_formatted}"
+            )
+            
+            return {
+                'error_code': 0,
+                'error_note': 'Success (direct payment URL, invoice yaratilmadi)',
+                'payment_url': payment_url,
+                'invoice_id': None,
+                'merchant_trans_id': transaction_param,
+                'amount': float(transaction.amount),
+                'service_id': service_id_int,
+                'merchant_id': merchant_id_int,
+                'direct_payment': True,
+                'warning': f'Invoice yaratilmadi ({error_note}), lekin to\'g\'ridan-to\'g\'ri to\'lov URL yaratildi. User Click sahifasida karta ma\'lumotlarini kiritishi mumkin.'
+            }
+    
+    def prepare_payment(self, transaction, use_invoice=False):
+        """Prepare payment data for Click (OSON TO'LOV - invoice yaratmasdan)
+        
+        Args:
+            transaction: Transaction object
+            use_invoice: If True, try to create invoice. If False, create direct payment URL (default: False)
+        
+        Returns:
+            dict with payment_url
+        """
+        return self.create_direct_payment_url(transaction, use_invoice=use_invoice)
+    
+    def handle_prepare(self, data):
+        """Handle Click prepare request
+        According to Click API documentation:
+        sign_string = md5(click_trans_id + service_id + SECRET_KEY + merchant_trans_id + amount + action + sign_time)
+        
+        IMPORTANT: SECRET_KEY comes AFTER service_id and BEFORE merchant_trans_id!
+        click_paydoc_id is NOT included in signature for Prepare callback.
+        """
+        try:
+            click_trans_id = data.get('click_trans_id')
+            service_id = data.get('service_id')
+            click_paydoc_id = data.get('click_paydoc_id')  # Present but NOT in signature
+            merchant_trans_id = data.get('merchant_trans_id')
+            amount = data.get('amount')
+            action = data.get('action')
+            sign_time = data.get('sign_time')
+            sign_string = data.get('sign_string')
+            
+            # Get secret key for this specific service_id (Click'dan kelgan)
+            service_secret_key = self.get_secret_key_for_service(service_id)
+            logger.debug("Click prepare: service_id=%s secret_key_len=%s", service_id, len(service_secret_key or ""))
+
+            # Verify signature - Click dokumentatsiyasiga ko'ra:
+            # md5(click_trans_id + service_id + SECRET_KEY + merchant_trans_id + amount + action + sign_time)
+
+            logger.debug("=== SIGNATURE DEBUG START ===")
+            logger.debug("click_trans_id=%s service_id=%s", click_trans_id, service_id)
+            logger.debug("merchant_trans_id=%s amount=%s action=%s sign_time=%s", merchant_trans_id, amount, action, sign_time)
+            logger.debug("Received sign_string=%s", sign_string)
+            
+            # To'g'ri signature generatsiya - Click dokumentatsiyasiga ko'ra
+            # Format: md5(click_trans_id + service_id + SECRET_KEY + merchant_trans_id + amount + action + sign_time)
+            sign_parts = [
+                str(click_trans_id),
+                str(service_id),
+                service_secret_key,  # SECRET_KEY service_id dan keyin!
+                str(merchant_trans_id),
+                str(amount),
+                str(action),
+                str(sign_time)
+            ]
+            sign_string_to_hash = ''.join(sign_parts)
+            _safe_parts = [str(p) if i != 2 else "***" for i, p in enumerate(sign_parts)]
+            logger.debug("Sign parts (secret redacted): %s len=%s", _safe_parts, len(sign_string_to_hash))
+
+            expected_sign = hashlib.md5(sign_string_to_hash.encode('utf-8')).hexdigest()
+
+            logger.debug("Expected=%s received=%s", expected_sign, sign_string)
+            logger.debug("=== SIGNATURE DEBUG END ===")
+            
+            if sign_string != expected_sign:
+                logger.error(f"Signature mismatch! Expected: {expected_sign}, Got: {sign_string}")
+                logger.error(f"Please check: 1) Secret key is correct for service_id={service_id}, 2) Parameter order matches Click documentation")
+                logger.error(f"Correct format: md5(click_trans_id + service_id + SECRET_KEY + merchant_trans_id + amount + action + sign_time)")
+                return {'error': -1, 'error_note': 'Invalid signature'}
+            
+            # Find transaction - merchant_trans_id = transaction_param (bizning transaction.id)
+            transaction = _find_transaction_by_merchant_trans_id(merchant_trans_id)
+            if not transaction:
+                logger.warning(f"Transaction not found for merchant_trans_id={merchant_trans_id}")
+                if sign_string == expected_sign:
+                    logger.info(f"Test payment (merchant_trans_id={merchant_trans_id}). Signature OK.")
+                    return {
+                        'click_trans_id': click_trans_id,
+                        'merchant_trans_id': str(merchant_trans_id),
+                        'merchant_prepare_id': str(merchant_trans_id),
+                        'error': 0,
+                        'error_note': 'Success (test payment)'
+                    }
+                return {'error': -5, 'error_note': 'Transaction not found'}
+            
+            # Check amount — Click usually sends soums; sometimes tiyin (1 sum = 100 tiyin). Allow small tolerance.
+            try:
+                click_amount = float(amount)
+            except (TypeError, ValueError):
+                click_amount = 0
+            our_amount = float(transaction.amount)
+            amount_ok = abs(click_amount - our_amount) <= 0.02
+            if not amount_ok and click_amount >= 100 and our_amount > 0:
+                # Try tiyin: Click might send amount * 100
+                if abs((click_amount / 100) - our_amount) <= 0.02:
+                    amount_ok = True
+            if not amount_ok:
+                logger.warning(f"Amount mismatch: Click sent {amount}, we have {transaction.amount}")
+                return {'error': -2, 'error_note': f'Invalid amount: expected {our_amount}, got {amount}'}
+            
+            # Save Click transaction ID and prepare status
+            transaction.click_trans_id = click_trans_id
+            if click_paydoc_id:
+                transaction.click_paydoc_id = str(click_paydoc_id)
+            transaction.merchant_trans_id = str(transaction.id) if not transaction.merchant_trans_id else transaction.merchant_trans_id
+            # Save service_id for complete callback (complete'da service_id kelmaydi)
+            transaction.click_service_id = str(service_id)
+            transaction.status = 'pending'  # Still pending until complete
+            transaction.save()
+            
+            return {
+                'click_trans_id': click_trans_id,
+                'merchant_trans_id': str(transaction.id),
+                'merchant_prepare_id': str(transaction.id),
+                'error': 0,
+                'error_note': 'Success'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in handle_prepare: {str(e)}", exc_info=True)
+            return {'error': -9, 'error_note': f'Server xatolik: {str(e)}'}
+    
+    def handle_complete(self, data):
+        """Handle Click complete request
+        According to Click API documentation:
+        sign_string = md5(click_trans_id + service_id + SECRET_KEY + merchant_trans_id + merchant_prepare_id + amount + action + sign_time)
+        
+        IMPORTANT: SECRET_KEY comes AFTER service_id and BEFORE merchant_trans_id!
+        error parameter is NOT included in signature!
+        """
+        from django.db import transaction as db_transaction
+        
+        try:
+            click_trans_id = data.get('click_trans_id')
+            service_id = data.get('service_id')  # Complete'da ham service_id keladi!
+            merchant_trans_id = data.get('merchant_trans_id')
+            merchant_prepare_id = data.get('merchant_prepare_id')
+            amount = data.get('amount')
+            action = data.get('action')
+            error = data.get('error')
+            sign_time = data.get('sign_time')
+            sign_string = data.get('sign_string')
+            
+            # Find transaction (same logic as prepare — UUID / merchant_trans_id)
+            transaction = _find_transaction_by_merchant_trans_id(merchant_trans_id)
+            if not transaction:
+                return {'error': -5, 'error_note': 'Transaction not found'}
+
+            # Get service_id from request or transaction (saved during prepare) or use default
+            service_id_for_complete = service_id or getattr(transaction, 'click_service_id', None) or self.service_id
+
+            # Get secret key for this service
+            service_secret_key = self.get_secret_key_for_service(service_id_for_complete)
+            logger.debug(
+                "Click complete: service_id=%s secret_key_len=%s",
+                service_id_for_complete,
+                len(service_secret_key or ""),
+            )
+
+            logger.debug("=== COMPLETE SIGNATURE DEBUG START ===")
+            logger.debug(
+                "click_trans_id=%s merchant_trans_id=%s merchant_prepare_id=%s",
+                click_trans_id,
+                merchant_trans_id,
+                merchant_prepare_id,
+            )
+            logger.debug("amount=%s action=%s sign_time=%s error=%s", amount, action, sign_time, error)
+            logger.debug("Received sign_string=%s", sign_string)
+            
+            sign_parts = [
+                str(click_trans_id),
+                str(service_id_for_complete),
+                service_secret_key,  # SECRET_KEY service_id dan keyin!
+                str(merchant_trans_id),
+                str(merchant_prepare_id),
+                str(amount),
+                str(action),
+                str(sign_time)
+            ]
+            sign_string_to_hash = ''.join(sign_parts)
+            _safe_complete = [str(p) if i != 2 else "***" for i, p in enumerate(sign_parts)]
+            logger.debug("Complete sign parts (secret redacted): %s", _safe_complete)
+
+            expected_sign = hashlib.md5(sign_string_to_hash.encode('utf-8')).hexdigest()
+
+            logger.debug("Complete signature: expected=%s received=%s", expected_sign, sign_string)
+            logger.debug("=== COMPLETE SIGNATURE DEBUG END ===")
+            
+            if sign_string and sign_string != expected_sign:
+                logger.error(f"Complete signature mismatch! Expected: {expected_sign}, Got: {sign_string}")
+                logger.error(f"Correct format: md5(click_trans_id + service_id + SECRET_KEY + merchant_trans_id + merchant_prepare_id + amount + action + sign_time)")
+                return {'error': -1, 'error_note': 'Invalid signature'}
+
+            # Click may send error as int 0 or string "0"
+            try:
+                error_int = int(error) if error is not None else -1
+            except (TypeError, ValueError):
+                error_int = -1
+
+            # select_for_update() faqat atomic() ichida (PostgreSQL); aks holda xatolik va Click "to'lov xatosi" ko'rsatadi
+            skip_fulfill = False
+            with db_transaction.atomic():
+                locked = Transaction.objects.select_for_update().get(pk=transaction.pk)
+                if error_int == 0 and locked.status == 'completed':
+                    logger.info(
+                        'Click complete idempotent: transaction %s allaqachon completed',
+                        locked.id,
+                    )
+                    transaction = locked
+                    skip_fulfill = True
+                elif error_int == 0:
+                    locked.status = 'completed'
+                    locked.completed_at = timezone.now()
+                    locked.click_paydoc_id = data.get('click_paydoc_id', locked.click_paydoc_id or '')
+                    locked.click_trans_id = click_trans_id
+                    locked.error_note = ''
+                    locked.save(
+                        update_fields=['status', 'completed_at', 'click_paydoc_id', 'click_trans_id', 'error_note']
+                    )
+                    logger.info("Transaction %s status updated to '%s'", locked.id, locked.status)
+                    transaction = locked
+                else:
+                    if locked.status == 'completed':
+                        logger.warning(
+                            'Click complete: failure callback for already-completed transaction %s — ignored',
+                            locked.id,
+                        )
+                        transaction = locked
+                        skip_fulfill = True
+                    else:
+                        locked.status = 'failed'
+                        locked.error_note = str(data.get('error_note', ''))[:500]
+                        locked.save(
+                            update_fields=['status', 'completed_at', 'click_paydoc_id', 'click_trans_id', 'error_note']
+                        )
+                        logger.info("Transaction %s status updated to '%s'", locked.id, locked.status)
+                        transaction = locked
+
+            if skip_fulfill:
+                return {
+                    'click_trans_id': click_trans_id,
+                    'merchant_trans_id': str(transaction.id),
+                    'merchant_confirm_id': str(transaction.id),
+                    'error': 0,
+                    'error_note': 'Success',
+                }
+
+            if error_int == 0:
+                _fulfill_after_payment(transaction)
+            
+            return {
+                'click_trans_id': click_trans_id,
+                'merchant_trans_id': str(transaction.id),
+                'merchant_confirm_id': str(transaction.id),
+                'error': 0,
+                'error_note': 'Success'
+            }
+            
+        except Transaction.DoesNotExist:
+            logger.error(f"Transaction not found in handle_complete: merchant_trans_id={merchant_trans_id}")
+            return {'error': -5, 'error_note': 'Transaction not found'}
+        except Exception as e:
+            import traceback
+            logger.error(f"Error in handle_complete: {str(e)}", exc_info=True)
+            return {'error': -9, 'error_note': f'Server xatolik: {str(e)}'}

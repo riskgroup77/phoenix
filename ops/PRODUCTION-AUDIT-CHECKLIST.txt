@@ -1,0 +1,21 @@
+Phoenix / ilmiyfaoliyat.uz — production audit checklist (qisqa)
+================================================================
+
+[ ] Server .env: SECRET_KEY production qiymat, DEBUG=False
+[ ] Server .env: GEMINI_API_KEY (yoki GOOGLE_API_KEY) — repoda yo‘q
+[ ] Server .env: CLICK_SECRET_KEY va CLICK_SERVICE_* kalitlari to‘ldirilgan
+[ ] Server .env: UDK_PAYMENT_ENABLED=true (to‘lov bepul ketmasin)
+[ ] Nginx: ilmiyfaoliyat.uz uchun 443 + to‘g‘ri Let’s Encrypt chain
+[ ] Nginx: api-ilmiyfaoliyat.uz alohida site-enabled
+[ ] PostgreSQL: kuchli parol, faqat lokal/tor ichidan
+[ ] Git: root parol / API kalit / Click secret repoda yo‘q (git log tekshiruv)
+[ ] SSH: parol o‘rniga kalit, root login ixtiyoriy o‘chirish
+[ ] Click: prepare/complete loglarida signature xatolari yo‘qligi
+[ ] certbot renew: cron yoki systemd timer
+
+Eslatma: maxfiy kalitlar chatda ham yozilmasin — rotatsiya qiling.
+
+Git tarixida eski parol/kalit bo‘lishi mumkin — production uchun:
+  - server root parolini almashtiring
+  - Click merchant secretlarni Click paneldan yangilang
+  - Gemini kalitni Google Cloud’da revoke + yangi kalit

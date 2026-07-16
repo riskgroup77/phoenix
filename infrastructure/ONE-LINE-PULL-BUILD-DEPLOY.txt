@@ -1,0 +1,22 @@
+================================================================================
+SERVER (CDCGroupNew): bitta qator — phonixF pull + build + dist + nginx reload
+================================================================================
+OLDIN: phonixF reposi serverda bo'lishi kerak. Agar yo'q bo'lsa:
+
+  sudo git clone https://github.com/aiziyrak-coder/phonixF.git /root/phonixF
+
+Keyin (yo'llarni o'zgartiring agar boshqa papkada bo'lsa):
+
+PHONIX_FRONTEND_REPO=/root/phonixF NGINX_FRONTEND_ROOT=/root/frontend/dist bash /root/phonixF/infrastructure/deploy-frontend-ilmiyfaoliyat.sh
+
+--------------------------------------------------------------------------------
+Skript yo'q bo'lsa (faqat bir qator):
+
+cd /root/phonixF && git pull origin master && npm ci && export VITE_API_BASE_URL='https://api.ilmiyfaoliyat.uz/api/v1' VITE_MEDIA_URL='https://api.ilmiyfaoliyat.uz/media/' && npm run build && sudo rsync -a --delete dist/ /root/frontend/dist/ && sudo nginx -t && sudo systemctl reload nginx
+
+--------------------------------------------------------------------------------
+Eslatma: /root/frontend — avvalgi "JSTI" loyihasi bo'lishi mumkin; dist faqat yuqoridagi build bilan almashtiriladi. Manba kod /root/phonixF da.
+
+================================================================================
+GitHub: yerning kompyuteridan push qilgandan keyin serverda git pull uchun.
+================================================================================
