@@ -2,7 +2,7 @@
 
 # Phoenix Scientific Platform - Xavfsiz Deployment Script
 # Bu script faqat Phoenix dasturini yangilaydi va boshqa dasturlarga tasir qilmaydi
-# GitHub: https://github.com/aiziyrak-coder/phonixB
+# GitHub: https://github.com/riskgroup77/phoenix (monorepo)
 #
 # MUHIM: Nginx konfiglarini avtomatik sed qilmaymiz — boshqa saytlar buzilishining oldini oladi.
 #        API proxy port: PHONIX_BACKEND_PORT (default 8050) — systemd va nginx bilan moslang.
@@ -13,8 +13,7 @@ set -e  # Xatolik bo'lsa to'xtatish
 # KONFIGURATSIYA - Faqat Phoenix uchun
 # ============================================
 DEPLOY_DIR="/phonix"
-BACKEND_REPO="https://github.com/aiziyrak-coder/phonixB.git"
-FRONTEND_REPO="https://github.com/aiziyrak-coder/phonixF.git"
+MONO_REPO="https://github.com/riskgroup77/phoenix.git"
 SERVICE_NAME="phoenix-backend"
 # Loopback port — 8000 boshqa xizmatlar bilan to'qnashmasin; PHONIX_BACKEND_PORT bilan o'zgartirish mumkin
 BACKEND_PORT="${PHONIX_BACKEND_PORT:-8050}"
@@ -26,29 +25,16 @@ API_DOMAIN="api.ilmiyfaoliyat.uz"
 # FUNKTSIYALAR
 # ============================================
 
-git_update_backend() {
+git_update_monorepo() {
     if [ "${PHONIX_GIT_RESET:-false}" = "true" ]; then
         echo "   Git fetch + reset --hard (PHONIX_GIT_RESET)..."
-        cp -a .env /tmp/.env.phonix.bak 2>/dev/null || true
+        cp -a backend/.env /tmp/.env.phonix.bak 2>/dev/null || true
         git fetch origin master 2>/dev/null || git fetch origin main
         git reset --hard origin/master 2>/dev/null || git reset --hard origin/main
         if [ -f /tmp/.env.phonix.bak ]; then
-            cp -a /tmp/.env.phonix.bak .env
-            echo "   .env tiklandi"
+            cp -a /tmp/.env.phonix.bak backend/.env
+            echo "   backend/.env tiklandi"
         fi
-    else
-        echo "   Git pull qilinmoqda..."
-        git stash 2>/dev/null || true
-        git pull origin master || git pull origin main || error_exit "Git pull xatolik"
-        git stash pop 2>/dev/null || true
-    fi
-}
-
-git_update_frontend() {
-    if [ "${PHONIX_GIT_RESET:-false}" = "true" ]; then
-        echo "   Git fetch + reset --hard (PHONIX_GIT_RESET)..."
-        git fetch origin master 2>/dev/null || git fetch origin main
-        git reset --hard origin/master 2>/dev/null || git reset --hard origin/main
     else
         echo "   Git pull qilinmoqda..."
         git stash 2>/dev/null || true
@@ -126,20 +112,23 @@ echo ""
 create_backup
 echo ""
 
-# 3. Backend yangilash
-echo "📦 Backend yangilanmoqda..."
+# 3. Monorepo yangilash
+echo "📦 Loyiha (monorepo) yangilanmoqda..."
 cd ${DEPLOY_DIR}
 
-if [ -d "backend/.git" ]; then
-    cd backend
-    git_update_backend
+if [ -d ".git" ]; then
+    git_update_monorepo
 else
-    echo "   Backend clone qilinmoqda..."
+    echo "   Monorepo clone qilinmoqda..."
+    cd /
+    [ -d "${DEPLOY_DIR}" ] && rm -rf "${DEPLOY_DIR}"
+    git clone ${MONO_REPO} ${DEPLOY_DIR} || error_exit "Monorepo clone xatolik"
     cd ${DEPLOY_DIR}
-    [ -d "backend" ] && rm -rf backend
-    git clone ${BACKEND_REPO} backend || error_exit "Backend clone xatolik"
-    cd backend
 fi
+
+# 4. Backend
+echo "📦 Backend sozlanmoqda..."
+cd ${DEPLOY_DIR}/backend
 
 # Virtual environment
 if [ ! -d "venv" ]; then
@@ -170,20 +159,9 @@ deactivate
 echo "✅ Backend yangilandi"
 echo ""
 
-# 4. Frontend yangilash
+# 5. Frontend
 echo "📦 Frontend yangilanmoqda..."
-cd ${DEPLOY_DIR}
-
-if [ -d "frontend/.git" ]; then
-    cd frontend
-    git_update_frontend
-else
-    echo "   Frontend clone qilinmoqda..."
-    cd ${DEPLOY_DIR}
-    [ -d "frontend" ] && rm -rf frontend
-    git clone ${FRONTEND_REPO} frontend || error_exit "Frontend clone xatolik"
-    cd frontend
-fi
+cd ${DEPLOY_DIR}/frontend
 
 # Dependencies va build
 echo "   Dependencies o'rnatilmoqda..."
@@ -208,7 +186,7 @@ fi
 echo "✅ Frontend yangilandi"
 echo ""
 
-# 5. Service restart (Graceful)
+# 6. Service restart (Graceful)
 echo "🔄 Service restart qilinmoqda..."
 
 # Graceful restart - avval reload, agar ishlamasa restart
