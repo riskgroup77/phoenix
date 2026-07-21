@@ -141,10 +141,15 @@ source venv/bin/activate
 pip install --upgrade pip -q
 pip install -r requirements.txt gunicorn -q || error_exit "Dependencies o'rnatish xatolik"
 
-# .env faylini saqlab qolish
-if [ ! -f .env ] && [ -f "${BACKUP_DIR}/.env" ]; then
-    echo "   .env fayli restore qilinmoqda..."
-    cp ${BACKUP_DIR}/.env .env
+# .env faylini saqlab qolish / birinchi marta yaratish
+if [ ! -f .env ]; then
+    if [ -f "${BACKUP_DIR}/.env" ]; then
+        echo "   .env fayli restore qilinmoqda..."
+        cp ${BACKUP_DIR}/.env .env
+    elif [ -f env.production.example ]; then
+        echo "   .env env.production.example dan yaratilmoqda..."
+        cp env.production.example .env
+    fi
 fi
 
 # Migrations
