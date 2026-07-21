@@ -41,7 +41,9 @@ def main() -> int:
     try:
         sftp = client.open_sftp()
         try:
-            sftp.put(str(BOOTSTRAP_LOCAL), REMOTE_BOOTSTRAP)
+            content = BOOTSTRAP_LOCAL.read_text(encoding="utf-8").replace("\r\n", "\n")
+            with sftp.open(REMOTE_BOOTSTRAP, "w") as remote:
+                remote.write(content)
             sftp.chmod(REMOTE_BOOTSTRAP, 0o755)
         finally:
             sftp.close()

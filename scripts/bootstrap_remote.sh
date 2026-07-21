@@ -60,7 +60,7 @@ else
 fi
 
 # 5. Systemd (faqat phoenix-backend)
-sudo_cmd tee /etc/systemd/system/phoenix-backend.service > /dev/null <<EOF
+cat > /tmp/phoenix-backend.service <<EOF
 [Unit]
 Description=Phoenix Scientific Platform Backend (Gunicorn)
 After=network.target docker.service
@@ -81,11 +81,49 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
-
+sudo_cmd cp /tmp/phoenix-backend.service /etc/systemd/system/phoenix-backend.service
 sudo_cmd systemctl daemon-reload
 sudo_cmd systemctl enable phoenix-backend
 
-# 6. Nginx — faqat Phoenix konfiglari qo'shiladi
+# 6. Nginx — avval SSL sertifikat olish (HTTP), keyin to'liq HTTPS konfig
+sudo_cmd mkdir -p /var/www/certbot
+
+cat > /tmp/phoenix-certbot-temp.conf <<'EOF'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ilmiyfaoliyat.uz www.ilmiyfaoliyat.uz api.ilmiyfaoliyat.uz;
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    location / {
+        return 444;
+    }
+}
+EOF
+sudo_cmd cp /tmp/phoenix-certbot-temp.conf /etc/nginx/sites-available/phoenix-certbot-temp.conf
+sudo_cmd ln -sf /etc/nginx/sites-available/phoenix-certbot-temp.conf /etc/nginx/sites-enabled/phoenix-certbot-temp.conf
+# Eski buzilgan phoenix HTTPS konfiglarni vaqtincha olib tashlash
+sudo_cmd rm -f /etc/nginx/sites-enabled/phoenix-ilmiyfaoliyat-frontend.conf
+sudo_cmd rm -f /etc/nginx/sites-enabled/phoenix-api-ilmiyfaoliyat.conf
+sudo_cmd nginx -t
+sudo_cmd systemctl reload nginx
+
+# 7. SSL sertifikatlar (webroot — nginx plugin emas)
+if ! sudo_cmd test -f /etc/letsencrypt/live/ilmiyfaoliyat.uz/fullchain.pem; then
+  echo "SSL: ilmiyfaoliyat.uz (webroot)..."
+  echo "$SUDO_PW" | sudo -S certbot certonly --webroot -w /var/www/certbot \
+    -d ilmiyfaoliyat.uz -d www.ilmiyfaoliyat.uz \
+    --non-interactive --agree-tos -m admin@ilmiyfaoliyat.uz 2>&1 | tail -15 || true
+fi
+if ! sudo_cmd test -f /etc/letsencrypt/live/api.ilmiyfaoliyat.uz/fullchain.pem; then
+  echo "SSL: api.ilmiyfaoliyat.uz (webroot)..."
+  echo "$SUDO_PW" | sudo -S certbot certonly --webroot -w /var/www/certbot \
+    -d api.ilmiyfaoliyat.uz \
+    --non-interactive --agree-tos -m admin@ilmiyfaoliyat.uz 2>&1 | tail -15 || true
+fi
+
+# 8. To'liq Phoenix nginx konfiglari (HTTPS)
 for conf in phoenix-ilmiyfaoliyat-frontend.conf phoenix-api-ilmiyfaoliyat.conf; do
   src="$REMOTE_DIR/infrastructure/nginx/$conf"
   if [ -f "$src" ]; then
@@ -94,6 +132,7 @@ for conf in phoenix-ilmiyfaoliyat-frontend.conf phoenix-api-ilmiyfaoliyat.conf; 
     echo "Nginx: $conf ulandi"
   fi
 done
+sudo_cmd rm -f /etc/nginx/sites-enabled/phoenix-certbot-temp.conf
 
 # Eski nginx (<1.25): http2 on; o'rniga listen ... http2
 for conf in phoenix-ilmiyfaoliyat-frontend.conf phoenix-api-ilmiyfaoliyat.conf; do
@@ -107,21 +146,7 @@ done
 sudo_cmd nginx -t
 sudo_cmd systemctl reload nginx
 
-# 7. SSL (faqat ilmiyfaoliyat domenlari)
-if ! sudo_cmd test -f /etc/letsencrypt/live/ilmiyfaoliyat.uz/fullchain.pem; then
-  echo "SSL: ilmiyfaoliyat.uz..."
-  echo "$SUDO_PW" | sudo -S certbot certonly --nginx \
-    -d ilmiyfaoliyat.uz -d www.ilmiyfaoliyat.uz \
-    --non-interactive --agree-tos -m admin@ilmiyfaoliyat.uz 2>&1 | tail -15 || true
-fi
-if ! sudo_cmd test -f /etc/letsencrypt/live/api.ilmiyfaoliyat.uz/fullchain.pem; then
-  echo "SSL: api.ilmiyfaoliyat.uz..."
-  echo "$SUDO_PW" | sudo -S certbot certonly --nginx \
-    -d api.ilmiyfaoliyat.uz \
-    --non-interactive --agree-tos -m admin@ilmiyfaoliyat.uz 2>&1 | tail -15 || true
-fi
-
-# 8. Deploy
+# 9. Deploy
 cd "$REMOTE_DIR"
 export PHONIX_GIT_RESET=true
 export PHONIX_BACKEND_PORT="$BACKEND_PORT"

@@ -138,6 +138,7 @@ fi
 
 echo "   Dependencies o'rnatilmoqda..."
 source venv/bin/activate
+export DJANGO_SETTINGS_MODULE=config.settings
 pip install --upgrade pip -q
 pip install -r requirements.txt gunicorn -q || error_exit "Dependencies o'rnatish xatolik"
 
