@@ -9,6 +9,16 @@
 
 set -e  # Xatolik bo'lsa to'xtatish
 
+# Masofadan deploy: SUDO_PW yoki PHONIX_SSH_PASSWORD (bootstrap bilan bir xil)
+SUDO_PW="${SUDO_PW:-${PHONIX_SSH_PASSWORD:-}}"
+sudo_cmd() {
+    if [ -n "$SUDO_PW" ]; then
+        echo "$SUDO_PW" | sudo -S "$@"
+    else
+        sudo "$@"
+    fi
+}
+
 # ============================================
 # KONFIGURATSIYA - Faqat Phoenix uchun
 # ============================================
@@ -185,7 +195,7 @@ if [ -n "${PHONIX_FRONTEND_WEB_ROOT:-}" ] && [ -d "dist" ]; then
     mkdir -p "${PHONIX_FRONTEND_WEB_ROOT}"
     rsync -a --delete dist/ "${PHONIX_FRONTEND_WEB_ROOT}/" || error_exit "rsync static xatolik"
     if command -v nginx >/dev/null 2>&1; then
-        sudo nginx -t 2>/dev/null && sudo systemctl reload nginx 2>/dev/null || true
+        sudo_cmd nginx -t 2>/dev/null && sudo_cmd systemctl reload nginx 2>/dev/null || true
     fi
 fi
 
@@ -198,17 +208,17 @@ echo "🔄 Service restart qilinmoqda..."
 # Graceful restart - avval reload, agar ishlamasa restart
 if systemctl is-active --quiet ${SERVICE_NAME}; then
     echo "   Service reload qilinmoqda..."
-    sudo systemctl reload ${SERVICE_NAME} 2>/dev/null || sudo systemctl restart ${SERVICE_NAME}
+    sudo_cmd systemctl reload ${SERVICE_NAME} 2>/dev/null || sudo_cmd systemctl restart ${SERVICE_NAME}
 else
     echo "   Service start qilinmoqda..."
-    sudo systemctl start ${SERVICE_NAME}
+    sudo_cmd systemctl start ${SERVICE_NAME}
 fi
 
 # Service status
 sleep 2
 echo ""
 echo "📊 Service status:"
-sudo systemctl status ${SERVICE_NAME} --no-pager | head -15
+sudo_cmd systemctl status ${SERVICE_NAME} --no-pager | head -15
 
 # 6. Tekshirish
 echo ""

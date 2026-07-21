@@ -36,9 +36,11 @@ def _remote_deploy_command() -> str:
     export_web = ""
     if web_root:
         export_web = f"export PHONIX_FRONTEND_WEB_ROOT={shlex.quote(web_root)}; "
+    sudo_pw = (os.environ.get("PHONIX_SSH_PASSWORD") or os.environ.get("SUDO_PW") or "").strip()
+    export_sudo = f"export SUDO_PW={shlex.quote(sudo_pw)}; " if sudo_pw else ""
     return (
         f"set -e; mkdir -p {REMOTE_DIR}; chmod +x {REMOTE_SCRIPT} 2>/dev/null || true; "
-        f"cd {REMOTE_DIR} && {export_web}PHONIX_GIT_RESET=true bash {REMOTE_SCRIPT}"
+        f"cd {REMOTE_DIR} && {export_sudo}{export_web}PHONIX_GIT_RESET=true bash {REMOTE_SCRIPT}"
     )
 
 VERIFY_CORS = (
