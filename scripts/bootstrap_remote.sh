@@ -95,6 +95,18 @@ for conf in phoenix-ilmiyfaoliyat-frontend.conf phoenix-api-ilmiyfaoliyat.conf; 
   fi
 done
 
+# Eski nginx (<1.25): http2 on; o'rniga listen ... http2
+for conf in phoenix-ilmiyfaoliyat-frontend.conf phoenix-api-ilmiyfaoliyat.conf; do
+  f="/etc/nginx/sites-available/$conf"
+  if [ -f "$f" ]; then
+    sudo_cmd sed -i '/^[[:space:]]*http2 on;/d' "$f"
+    sudo_cmd sed -i 's/listen 443 ssl;$/listen 443 ssl http2;/' "$f"
+    sudo_cmd sed -i 's/listen \[::\]:443 ssl;$/listen [::]:443 ssl http2;/' "$f"
+  fi
+done
+sudo_cmd nginx -t
+sudo_cmd systemctl reload nginx
+
 # 7. SSL (faqat ilmiyfaoliyat domenlari)
 if ! sudo_cmd test -f /etc/letsencrypt/live/ilmiyfaoliyat.uz/fullchain.pem; then
   echo "SSL: ilmiyfaoliyat.uz..."
@@ -108,10 +120,6 @@ if ! sudo_cmd test -f /etc/letsencrypt/live/api.ilmiyfaoliyat.uz/fullchain.pem; 
     -d api.ilmiyfaoliyat.uz \
     --non-interactive --agree-tos -m admin@ilmiyfaoliyat.uz 2>&1 | tail -15 || true
 fi
-
-# Nginx test + reload (boshqa saytlarga tegmaydi)
-sudo_cmd nginx -t
-sudo_cmd systemctl reload nginx
 
 # 8. Deploy
 cd "$REMOTE_DIR"
