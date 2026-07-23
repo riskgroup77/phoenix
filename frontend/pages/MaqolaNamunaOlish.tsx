@@ -148,23 +148,23 @@ const MaqolaNamunaOlish: React.FC = () => {
 
   /* Ko‘k tugma (To‘lov qilish va yuborish) bilan bir xil fokus / chegara palitrasi; brauzer :invalid qizilini bosish */
   const inputClass =
-    'w-full px-3 py-2 rounded-lg bg-white/[0.08] border border-slate-300/80 text-slate-900 placeholder-slate-400 ' +
-    'outline-none transition-all duration-150 hover:border-blue-400/40 ' +
+    'w-full px-3 py-2 rounded-lg bg-white/[0.92] dark:bg-slate-800/90 border border-slate-300/80 dark:border-slate-600/80 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 ' +
+    'outline-none transition-all duration-150 hover:border-blue-400/40 dark:hover:border-blue-400/50 ' +
     'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500/70 ' +
     'invalid:border-blue-500/45 invalid:ring-1 invalid:ring-blue-500/25 invalid:shadow-none';
-  const labelClass = 'block text-sm font-medium mb-1 text-slate-700';
+  const labelClass = 'block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300';
 
   if (loading) {
     return (
       <div className="container mx-auto p-6">
-        <p className="text-slate-900">Narxlar yuklanmoqda…</p>
+        <p className="text-slate-900 dark:text-slate-100">Narxlar yuklanmoqda…</p>
       </div>
     );
   }
 
   const selectOpt = (opts: readonly { value: string; label: string }[]) =>
     opts.map((opt) => (
-      <option key={opt.value || 'empty'} value={opt.value} className="bg-white/50 text-slate-900">
+      <option key={opt.value || 'empty'} value={opt.value} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
         {opt.label}
       </option>
     ));
@@ -173,12 +173,12 @@ const MaqolaNamunaOlish: React.FC = () => {
     <div className="w-full min-h-screen px-4 sm:px-6 lg:px-8 py-6">
       <div className="max-w-[1600px] mx-auto">
         <div className="flex items-start gap-4 mb-6">
-          <div className="p-3 rounded-xl bg-blue-600/20 border border-blue-500/30 shrink-0">
-            <FileText className="h-8 w-8 text-blue-800" />
+          <div className="p-3 rounded-xl bg-blue-600/20 dark:bg-blue-500/25 border border-blue-500/30 dark:border-blue-400/35 shrink-0">
+            <FileText className="h-8 w-8 text-blue-800 dark:text-blue-300" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold mb-2 text-slate-900">Maqola namuna olish</h1>
-            <p className="text-slate-600 max-w-3xl">
+            <h1 className="text-3xl font-bold mb-2 text-slate-900 dark:text-slate-50">Maqola namuna olish</h1>
+            <p className="text-slate-600 dark:text-slate-400 max-w-3xl">
               Talablar va maqola ma&apos;lumotlarini kiriting. To&apos;lovdan so&apos;ng so&apos;rov taqrizchiga yuboriladi.
             </p>
           </div>
@@ -186,7 +186,7 @@ const MaqolaNamunaOlish: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-8">
           {error && (
-            <div className="flex items-center gap-2 p-4 bg-red-500/20 border border-red-400/50 text-red-200 rounded-lg">
+            <div className="flex items-center gap-2 p-4 bg-red-500/20 dark:bg-red-950/40 border border-red-400/50 dark:border-red-500/40 text-red-800 dark:text-red-200 rounded-lg">
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
               <span>{error}</span>
             </div>
@@ -194,38 +194,38 @@ const MaqolaNamunaOlish: React.FC = () => {
 
           {/* Narxlar va izoh (muallif uchun ma'lumot) */}
           {prices && (
-            <Card className="p-6 border border-blue-500/20 bg-blue-950/20">
-              <h2 className="text-lg font-semibold mb-3 text-slate-900 flex items-center gap-2">
-                <span className="text-blue-800">Narxlar</span>
-                <span className="text-sm font-normal text-slate-500">(1 bet)</span>
+            <Card className="p-6 border border-blue-500/20 dark:border-blue-400/25 bg-blue-50/80 dark:bg-slate-800/60">
+              <h2 className="text-lg font-semibold mb-3 text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <span className="text-blue-800 dark:text-blue-300">Narxlar</span>
+                <span className="text-sm font-normal text-slate-500 dark:text-slate-400">(1 bet)</span>
               </h2>
-              <ul className="space-y-2 text-slate-700 mb-4">
+              <ul className="space-y-2 text-slate-700 dark:text-slate-300 mb-4">
                 <li>
-                  Quyi sifatli — <span className="font-semibold text-blue-900">{prices.quyi?.toLocaleString('uz-UZ')} so&apos;m</span>
+                  Quyi sifatli — <span className="font-semibold text-blue-900 dark:text-blue-300">{prices.quyi?.toLocaleString('uz-UZ')} so&apos;m</span>
                 </li>
                 <li>
-                  O&apos;rta sifatli — <span className="font-semibold text-blue-900">{prices.orta?.toLocaleString('uz-UZ')} so&apos;m</span>
+                  O&apos;rta sifatli — <span className="font-semibold text-blue-900 dark:text-blue-300">{prices.orta?.toLocaleString('uz-UZ')} so&apos;m</span>
                 </li>
                 <li>
-                  Yuqori sifatli — <span className="font-semibold text-blue-900">{prices.yuqori?.toLocaleString('uz-UZ')} so&apos;m</span>
+                  Yuqori sifatli — <span className="font-semibold text-blue-900 dark:text-blue-300">{prices.yuqori?.toLocaleString('uz-UZ')} so&apos;m</span>
                 </li>
               </ul>
-              <p className="text-sm text-slate-500 border-t border-blue-500/15 pt-4">
+              <p className="text-sm text-slate-500 dark:text-slate-400 border-t border-blue-500/15 dark:border-slate-600/50 pt-4">
                 Muallif uchun ma&apos;lumot: hujjat formati — Word; shrift — 14 pt, Times New Roman; bet formati — A4 albomiy.
               </p>
             </Card>
           )}
 
           {/* Bitta kartada barcha talablar va ma'lumotlar */}
-          <Card className="p-6 sm:p-8 border border-slate-200/90">
+          <Card className="p-6 sm:p-8 border border-slate-200/90 dark:border-slate-700/80 dark:bg-slate-900/40">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <div>
                 <label className={labelClass}>Til talabi *</label>
                 <select value={requirementLanguage} onChange={(e) => setRequirementLanguage(e.target.value)} className={inputClass}>
-                  <option value="" className="bg-white/50 text-slate-900">Tilni tanlang</option>
-                  <option value="O'zbek" className="bg-white/50 text-slate-900">O'zbek</option>
-                  <option value="Rus" className="bg-white/50 text-slate-900">Rus</option>
-                  <option value="Ingliz" className="bg-white/50 text-slate-900">Ingliz</option>
+                  <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Tilni tanlang</option>
+                  <option value="O'zbek" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">O'zbek</option>
+                  <option value="Rus" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Rus</option>
+                  <option value="Ingliz" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Ingliz</option>
                 </select>
               </div>
               <div>
@@ -252,7 +252,7 @@ const MaqolaNamunaOlish: React.FC = () => {
                 <label className={labelClass}>Daraja *</label>
                 <select value={qualityLevel} onChange={(e) => setQualityLevel(e.target.value as 'quyi' | 'orta' | 'yuqori')} className={inputClass}>
                   {QUALITY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value} className="bg-white/50 text-slate-900">
+                    <option key={opt.value} value={opt.value} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                       {opt.label} — {prices ? (prices[opt.priceKey]?.toLocaleString('uz-UZ') ?? '') : ''} so'm / bet
                     </option>
                   ))}
@@ -286,11 +286,11 @@ const MaqolaNamunaOlish: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-8 pt-6 px-4 py-5 -mx-1 sm:mx-0 rounded-xl border border-blue-500/30 bg-gradient-to-br from-blue-50 to-blue-100/80 shadow-md">
-              <p className="text-lg font-semibold text-slate-900">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-8 pt-6 px-4 py-5 -mx-1 sm:mx-0 rounded-xl border border-blue-500/30 dark:border-blue-400/25 bg-gradient-to-br from-blue-50 to-blue-100/80 dark:from-slate-800 dark:to-slate-900/90 shadow-md dark:shadow-black/20">
+              <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                 Jami:{' '}
-                <span className="text-blue-800 font-bold tabular-nums">{totalAmount.toLocaleString('uz-UZ')} so&apos;m</span>
-                <span className="text-sm font-normal text-slate-600 ml-2 block sm:inline sm:ml-2">
+                <span className="text-blue-800 dark:text-blue-300 font-bold tabular-nums">{totalAmount.toLocaleString('uz-UZ')} so&apos;m</span>
+                <span className="text-sm font-normal text-slate-600 dark:text-slate-400 ml-2 block sm:inline sm:ml-2">
                   ({pages} bet × {pricePerPage.toLocaleString('uz-UZ')} so&apos;m)
                 </span>
               </p>

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link, NavLink } from 'react-router-dom';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
 import { LogOut, Bell, LayoutDashboard, FileText, Upload, Users, Library, BookMarked, CheckCircle, Sparkles, DollarSign, Archive, Languages, FolderArchive, MessageSquare, Bot, FilePlus } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 import { Role, Notification } from '../types';
 
 const roleNames: Record<Role, string> = {
@@ -70,9 +71,9 @@ useState(false);
   
   const links = user ? mainNavLinks[user.role] || [] : [];
   const linkClass =
-    'flex items-center px-3 py-2 text-sm font-medium text-slate-600 rounded-xl hover:bg-gradient-to-r hover:from-white/90 hover:to-indigo-50/80 hover:text-slate-900 hover:shadow-sm hover:ring-1 hover:ring-indigo-100/80 transition-all duration-300';
+    'flex items-center px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 rounded-xl hover:bg-gradient-to-r hover:from-white/90 hover:to-indigo-50/80 dark:hover:from-slate-800/80 dark:hover:to-slate-700/80 hover:text-slate-900 dark:hover:text-white hover:shadow-sm hover:ring-1 hover:ring-indigo-100/80 dark:hover:ring-slate-600/50 transition-all duration-300';
   const activeLinkClass =
-    'flex items-center px-3 py-2 text-sm font-semibold text-indigo-900 bg-gradient-to-r from-blue-100/90 via-indigo-50/95 to-cyan-50/80 rounded-xl ring-1 ring-indigo-200/70 shadow-sm';
+    'flex items-center px-3 py-2 text-sm font-semibold text-indigo-900 dark:text-indigo-200 bg-gradient-to-r from-blue-100/90 via-indigo-50/95 to-cyan-50/80 dark:from-indigo-950/80 dark:via-slate-800/90 dark:to-slate-800/80 rounded-xl ring-1 ring-indigo-200/70 dark:ring-indigo-500/40 shadow-sm';
 
 
   useEffect(() => {
@@ -101,7 +102,7 @@ useState(false);
 
   return (
     <>
-      <header className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 h-20 bg-gradient-to-r from-white/85 via-indigo-50/40 to-cyan-50/35 backdrop-blur-xl border-b border-indigo-100/50 shadow-[0_4px_30px_-12px_rgba(79,70,229,0.12)] sticky top-0 z-30">
+      <header className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 h-20 bg-gradient-to-r from-white/85 via-indigo-50/40 to-cyan-50/35 dark:from-slate-900/95 dark:via-slate-900/90 dark:to-slate-800/95 backdrop-blur-xl border-b border-indigo-100/50 dark:border-slate-700/60 shadow-[0_4px_30px_-12px_rgba(79,70,229,0.12)] dark:shadow-[0_4px_30px_-12px_rgba(0,0,0,0.35)] sticky top-0 z-30">
         <div className="flex items-center gap-6">
             <Link
               to="/dashboard"
@@ -126,6 +127,7 @@ useState(false);
             </nav>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
+            <ThemeToggle />
             <div className="relative">
                  <button 
                     onClick={() => setIsDropdownOpen(prev => !prev)}

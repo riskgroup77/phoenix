@@ -28,6 +28,50 @@
   line-height: 1.2;
 }
 
+html.dark #root {
+  --phoenix-ink: #f8fafc;
+  --phoenix-ink-soft: #e2e8f0;
+  --phoenix-body: #cbd5e1;
+  --phoenix-muted: #94a3b8;
+}
+
+html.dark #root main.phoenix-main h1,
+html.dark #root main.phoenix-main h2,
+html.dark #root main.phoenix-main strong {
+  color: var(--phoenix-ink);
+}
+
+html.dark #root main.phoenix-main h3,
+html.dark #root main.phoenix-main h4 {
+  color: var(--phoenix-ink-soft);
+}
+
+html.dark .phoenix-gradient-title {
+  background: linear-gradient(
+    115deg,
+    #e2e8f0 0%,
+    #93c5fd 22%,
+    #a5b4fc 48%,
+    #5eead4 72%,
+    #e2e8f0 100%
+  );
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+html.dark ::selection {
+  background: rgba(129, 140, 248, 0.35);
+  color: #f8fafc;
+}
+
+html.dark .Toastify__toast-theme--dark {
+  background: rgba(30, 41, 59, 0.94) !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(71, 85, 105, 0.55);
+}
+
 #root main.phoenix-main h3,
 #root main.phoenix-main h4 {
   color: var(--phoenix-ink-soft);

@@ -3,6 +3,16 @@
 <html lang="uz">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('phoenix-theme');
+          if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- CSP: Google Fonts (fonts.googleapis.com + fonts.gstatic.com) va Tailwind CDN -->
@@ -90,6 +100,51 @@
     0% { background-position: 0% 40%; }
     100% { background-position: 100% 60%; }
   }
+
+  html.dark {
+    --ink: #f1f5f9;
+    --ink-muted: #94a3b8;
+    --accent-color-glow: rgba(129, 140, 248, 0.35);
+  }
+
+  html.dark body {
+    color: var(--ink);
+  }
+
+  html.dark body::before {
+    background:
+      radial-gradient(ellipse 110% 85% at 0% -10%, rgba(30, 41, 59, 0.95) 0%, transparent 52%),
+      radial-gradient(ellipse 100% 75% at 100% 0%, rgba(15, 23, 42, 0.9) 0%, transparent 48%),
+      radial-gradient(ellipse 90% 70% at 80% 100%, rgba(49, 46, 129, 0.45) 0%, transparent 45%),
+      radial-gradient(ellipse 60% 50% at 20% 90%, rgba(14, 116, 144, 0.25) 0%, transparent 40%),
+      linear-gradient(152deg, #0f172a 0%, #1e293b 38%, #0f172a 68%, #1e1b4b 100%);
+  }
+
+  html.dark input[type="text"],
+  html.dark input[type="password"],
+  html.dark input[type="email"],
+  html.dark input[type="tel"],
+  html.dark input[type="date"],
+  html.dark input[type="number"],
+  html.dark select,
+  html.dark textarea {
+    background-color: rgba(30, 41, 59, 0.92) !important;
+    border-color: rgba(71, 85, 105, 0.65) !important;
+    color: #f1f5f9 !important;
+  }
+
+  html.dark input::placeholder,
+  html.dark textarea::placeholder {
+    color: #64748b !important;
+  }
+
+  html.dark select option {
+    background-color: #1e293b !important;
+    color: #f1f5f9 !important;
+  }
+
+  html.dark ::-webkit-scrollbar-track { background: rgba(30, 41, 59, 0.6); }
+  html.dark ::-webkit-scrollbar-thumb { background-color: rgba(71, 85, 105, 0.55); }
 
   /* Dashboard premium animations */
   @keyframes dashboardFadeInUp {

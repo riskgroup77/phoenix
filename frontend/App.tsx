@@ -3,6 +3,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Role } from './types';
 import Layout from './components/Layout';
@@ -130,25 +131,34 @@ const AppContent: React.FC = () => {
     );
 };
 
+const ThemedToasts: React.FC = () => {
+    const { theme } = useTheme();
+    return (
+        <ToastContainer
+            position="top-right"
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme={theme === 'dark' ? 'dark' : 'light'}
+        />
+    );
+};
+
 const App: React.FC = () => {
     return (
         <HashRouter>
             <ErrorBoundary>
+            <ThemeProvider>
             <AuthProvider>
                 <AppContent />
-                <ToastContainer
-                    position="top-right"
-                    autoClose={5000}
-                    hideProgressBar={false}
-                    newestOnTop={false}
-                    closeOnClick
-                    rtl={false}
-                    pauseOnFocusLoss
-                    draggable
-                    pauseOnHover
-                    theme="light"
-                />
+                <ThemedToasts />
             </AuthProvider>
+            </ThemeProvider>
             </ErrorBoundary>
         </HashRouter>
     );

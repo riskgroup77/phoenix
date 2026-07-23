@@ -11,7 +11,7 @@ interface CardProps {
 const Card: React.FC<CardProps> = ({ children, className = '', title, onClick }) => {
   return (
     <div
-      className={`group relative overflow-hidden rounded-2xl border border-slate-200/60 bg-gradient-to-br from-white/92 via-white/78 to-indigo-50/35 backdrop-blur-2xl p-6 sm:p-8 shadow-[0_12px_48px_-18px_rgba(79,70,229,0.08),0_4px_24px_-8px_rgba(15,23,42,0.08)] transition-all duration-500 ease-out hover:border-indigo-200/50 hover:shadow-[0_20px_56px_-16px_rgba(79,70,229,0.12),0_8px_32px_-12px_rgba(6,182,212,0.1)] hover:-translate-y-0.5 ${className}`}
+      className={`group relative overflow-hidden rounded-2xl border border-slate-200/60 dark:border-slate-700/60 bg-gradient-to-br from-white/92 via-white/78 to-indigo-50/35 dark:from-slate-900/85 dark:via-slate-900/75 dark:to-slate-800/50 backdrop-blur-2xl p-6 sm:p-8 shadow-[0_12px_48px_-18px_rgba(79,70,229,0.08),0_4px_24px_-8px_rgba(15,23,42,0.08)] dark:shadow-[0_12px_48px_-18px_rgba(0,0,0,0.35)] transition-all duration-500 ease-out hover:border-indigo-200/50 dark:hover:border-indigo-500/30 hover:shadow-[0_20px_56px_-16px_rgba(79,70,229,0.12),0_8px_32px_-12px_rgba(6,182,212,0.1)] hover:-translate-y-0.5 ${className}`}
       onClick={onClick}
     >
       <div
