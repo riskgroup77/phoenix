@@ -286,11 +286,11 @@ const MaqolaNamunaOlish: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-8 pt-6 px-4 py-5 -mx-1 sm:mx-0 rounded-xl border border-blue-500/30 bg-gradient-to-br from-blue-600/15 to-blue-900/20 shadow-lg shadow-blue-950/40">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-8 pt-6 px-4 py-5 -mx-1 sm:mx-0 rounded-xl border border-blue-500/30 bg-gradient-to-br from-blue-50 to-blue-100/80 shadow-md">
               <p className="text-lg font-semibold text-slate-900">
                 Jami:{' '}
-                <span className="text-blue-200 font-bold tabular-nums">{totalAmount.toLocaleString('uz-UZ')} so&apos;m</span>
-                <span className="text-sm font-normal text-blue-200/80 ml-2 block sm:inline sm:ml-2">
+                <span className="text-blue-800 font-bold tabular-nums">{totalAmount.toLocaleString('uz-UZ')} so&apos;m</span>
+                <span className="text-sm font-normal text-slate-600 ml-2 block sm:inline sm:ml-2">
                   ({pages} bet × {pricePerPage.toLocaleString('uz-UZ')} so&apos;m)
                 </span>
               </p>
