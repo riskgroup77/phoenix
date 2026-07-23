@@ -42,10 +42,19 @@ class JournalSerializer(serializers.ModelSerializer):
     admin_name = serializers.SerializerMethodField()
     issues = IssueSerializer(many=True, read_only=True)
     additional_document_config = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Journal
         fields = '__all__'
+    
+    def get_image_url(self, obj):
+        if not obj.image_url:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.image_url.url)
+        return obj.image_url.url
     
     def get_category_name(self, obj):
         return obj.category.name

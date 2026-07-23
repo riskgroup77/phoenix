@@ -19,6 +19,7 @@ const SubmitArticle: React.FC = () => {
   const [journalSearch, setJournalSearch] = useState('');
   const [journalFilterType, setJournalFilterType] = useState('');
   const [journalFilterSubject, setJournalFilterSubject] = useState('');
+  const [journalImageErrors, setJournalImageErrors] = useState<Record<string, boolean>>({});
 
   // Form data — maqola mavzusi va ism-familiya majburiy
   const [formData, setFormData] = useState({
@@ -515,11 +516,12 @@ const SubmitArticle: React.FC = () => {
                   >
                     <div className="flex flex-col">
                       <div className="w-full h-36 sm:h-40 rounded-t-xl bg-white flex items-center justify-center overflow-hidden border-b border-slate-200/90 p-2">
-                        {j.image_url ? (
+                        {j.image_url && !journalImageErrors[j.id] ? (
                           <img
                             src={j.image_url.startsWith('http') ? j.image_url : apiService.getMediaUrl(j.image_url)}
                             alt={j.name}
                             className="max-w-full max-h-full w-auto h-auto object-contain object-center"
+                            onError={() => setJournalImageErrors((prev) => ({ ...prev, [j.id]: true }))}
                           />
                         ) : (
                           <BookOpen className="w-16 h-16 text-blue-800 shrink-0" />

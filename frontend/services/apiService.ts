@@ -1419,7 +1419,12 @@ export const apiService = {
   getMediaUrl: (path: string) => {
     if (!path) return '';
     if (path.startsWith('http')) return path;
-    return `${MEDIA_URL}${path}`;
+    const normalized = path.startsWith('/media/')
+      ? path.slice('/media/'.length)
+      : path.startsWith('media/')
+        ? path.slice('media/'.length)
+        : path.replace(/^\//, '');
+    return `${MEDIA_URL}${normalized}`;
   },
 
   // Scientific Fields
