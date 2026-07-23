@@ -1,4 +1,5 @@
 import json
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from .models import Article, ArticleVersion, ActivityLog, DoiRequest, ArticleSampleRequest, ArticleOperatorMessage
 from apps.users.serializers import UserSerializer
@@ -22,6 +23,10 @@ def _issn_alnum(value: str) -> str:
     return ''.join(ch for ch in value if ch.isalnum())
 
 
+def _journal_names_match(a: str, b: str) -> bool:
+    return _normalize_journal_lookup_string(a) == _normalize_journal_lookup_string(b)
+
+
 class JournalPKField(serializers.PrimaryKeyRelatedField):
     """Bo'sh journal ID FormData/JSON da Journal.objects.get(pk='') ORM xatosini oldini oladi."""
 
@@ -33,6 +38,8 @@ class JournalPKField(serializers.PrimaryKeyRelatedField):
     def to_internal_value(self, data):
         if data is None:
             self.fail('required')
+        if isinstance(data, Journal):
+            return data
         raw = str(data).strip()
         if not raw:
             self.fail('blank_pk')
@@ -41,16 +48,27 @@ class JournalPKField(serializers.PrimaryKeyRelatedField):
         for candidate in (s, raw):
             try:
                 return super().to_internal_value(candidate)
-            except serializers.ValidationError as exc:
-                first_exc = exc
+            except (serializers.ValidationError, DjangoValidationError) as exc:
+                if first_exc is None:
+                    if isinstance(exc, serializers.ValidationError):
+                        first_exc = exc
+                    else:
+                        first_exc = serializers.ValidationError(
+                            exc.messages if hasattr(exc, 'messages') else [str(exc)]
+                        )
+                continue
+            except (TypeError, AttributeError):
+                if first_exc is None:
+                    first_exc = serializers.ValidationError('Jurnal identifikatori noto\'g\'ri.')
                 continue
 
         # Frontend ba'zan UUID o'rniga jurnal nomi yoki "__str__" ko'rinishini yuborishi mumkin.
         # Masalan: "Jurnal nomi (1230-3494)". ISSN bazada chiziqli/chiziqsiz farq qilishi mumkin.
         for label in (s, raw):
-            by_name = Journal.objects.filter(name__iexact=label).first()
-            if by_name:
-                return by_name
+            norm_label = _normalize_journal_lookup_string(label)
+            for j in Journal.objects.only('id', 'name', 'issn'):
+                if _journal_names_match(j.name, norm_label):
+                    return j
 
         display = s if (s.endswith(')') and ' (' in s) else None
         if display is None and raw.endswith(')') and ' (' in raw:
@@ -61,6 +79,10 @@ class JournalPKField(serializers.PrimaryKeyRelatedField):
             name_part = left.strip()
             if name_part and issn_raw:
                 issn_digits = _issn_alnum(issn_raw)
+                norm_name = _normalize_journal_lookup_string(name_part)
+                for j in Journal.objects.only('id', 'name', 'issn'):
+                    if _journal_names_match(j.name, norm_name) and _issn_alnum(j.issn) == issn_digits:
+                        return j
                 exact = Journal.objects.filter(name__iexact=name_part, issn__iexact=issn_raw).first()
                 if exact:
                     return exact

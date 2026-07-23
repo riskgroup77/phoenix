@@ -239,23 +239,23 @@ class ArticleViewSet(viewsets.ModelViewSet):
             },
         )
         serializer.is_valid(raise_exception=True)
-        journal_id = serializer.validated_data.get('journal')
+        journal = serializer.validated_data.get('journal')
         title_val = (serializer.validated_data.get('title') or '').strip()
         kw_list = serializer.validated_data.get('keywords') or []
         is_antiplagiat_flow = (
             title_val.lower().startswith('plagiarism check')
             or any(str(k).lower() == 'plagiarism' for k in kw_list)
         )
-        if journal_id:
+        if journal:
             try:
-                journal = Journal.objects.get(pk=journal_id)
-                has_fee = (journal.publication_fee and float(journal.publication_fee) > 0) or (
-                    journal.price_per_page and float(journal.price_per_page) > 0
+                journal_obj = journal if isinstance(journal, Journal) else Journal.objects.get(pk=journal)
+                has_fee = (journal_obj.publication_fee and float(journal_obj.publication_fee) > 0) or (
+                    journal_obj.price_per_page and float(journal_obj.price_per_page) > 0
                 )
                 # Mustaqil antiplagiat: to'lov alohida (language_editing); jurnal nashr oldindan to'lovini talab qilmaymiz
                 if is_antiplagiat_flow:
                     pass
-                elif journal.payment_model == 'pre-payment' and has_fee and not awaiting_payment:
+                elif journal_obj.payment_model == 'pre-payment' and has_fee and not awaiting_payment:
                     tx_id = request.data.get('payment_transaction_id')
                     if not tx_id:
                         return Response(
