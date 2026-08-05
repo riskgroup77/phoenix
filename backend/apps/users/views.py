@@ -84,9 +84,15 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['put', 'patch'], permission_classes=[IsAuthenticated])
     def update_profile(self, request):
         """Update current user profile (role va tizim maydonlari o'zgartirilmaydi)."""
+        forbidden = ('role', 'is_staff', 'is_superuser', 'is_active')
+        if any(f in request.data for f in forbidden):
+            return Response(
+                {'detail': 'Rol va tizim maydonlarini o\'zgartirish mumkin emas.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
-        for forbidden in ('role', 'is_staff', 'is_superuser', 'is_active'):
-            data.pop(forbidden, None)
+        for field in forbidden:
+            data.pop(field, None)
         serializer = UserSerializer(request.user, data=data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
