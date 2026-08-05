@@ -23,6 +23,18 @@ def _issn_alnum(value: str) -> str:
     return ''.join(ch for ch in value if ch.isalnum())
 
 
+def _article_author_display(obj) -> str:
+    submitted = (getattr(obj, 'submitted_author_name', None) or '').strip()
+    if submitted:
+        return submitted
+    if not obj.author:
+        return ''
+    try:
+        return getattr(obj.author, 'get_full_name', lambda: str(obj.author))() or ''
+    except Exception:
+        return ''
+
+
 def _journal_names_match(a: str, b: str) -> bool:
     return _normalize_journal_lookup_string(a) == _normalize_journal_lookup_string(b)
 
@@ -152,12 +164,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
         )
 
     def get_author_name(self, obj):
-        if not obj.author:
-            return ''
-        try:
-            return getattr(obj.author, 'get_full_name', lambda: str(obj.author))()
-        except Exception:
-            return ''
+        return _article_author_display(obj)
 
     def get_journal_name(self, obj):
         if not obj.journal:
@@ -272,9 +279,7 @@ class ArticleSerializer(serializers.ModelSerializer):
             return None
     
     def get_author_name(self, obj):
-        if not obj.author:
-            return ''
-        return getattr(obj.author, 'get_full_name', lambda: str(obj.author))()
+        return _article_author_display(obj)
 
     def get_journal_name(self, obj):
         if not obj.journal:
@@ -431,7 +436,8 @@ class CreateArticleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Article
         fields = ('id', 'title', 'abstract', 'keywords', 'journal', 'final_pdf_path',
-                  'additional_document_path', 'page_count', 'fast_track', 'co_author_contacts')
+                  'additional_document_path', 'page_count', 'fast_track', 'co_author_contacts',
+                  'submitted_author_name', 'bibliography')
         read_only_fields = ('id',)
         extra_kwargs = {
             'abstract': {'required': False, 'allow_blank': True},
@@ -590,7 +596,7 @@ class PublicArticleShareSerializer(serializers.ModelSerializer):
         return value_str
 
     def get_author_name(self, obj):
-        return obj.author.get_full_name() if obj.author else ''
+        return _article_author_display(obj)
 
     def get_journal_name(self, obj):
         return obj.journal.name if obj.journal else ''

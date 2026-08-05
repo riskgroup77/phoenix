@@ -9,7 +9,11 @@ class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
         fields = '__all__'
-        read_only_fields = ('id', 'created_at', 'completed_at', 'user')
+        read_only_fields = (
+            'id', 'created_at', 'completed_at', 'user', 'status',
+            'click_trans_id', 'click_paydoc_id', 'merchant_trans_id', 'click_service_id',
+            'payme_trans_id', 'payme_time', 'payment_provider', 'error_note', 'receipt_path',
+        )
     
     def get_user_name(self, obj):
         return obj.user.get_full_name()

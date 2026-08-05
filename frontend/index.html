@@ -15,45 +15,9 @@
     </script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- CSP: Google Fonts (fonts.googleapis.com + fonts.gstatic.com) va Tailwind CDN -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.tailwindcss.com 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https: http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*;" />
+    <!-- CSP: Google Fonts -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https: http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*;" />
     <title>Phoenix Ilmiy Nashrlar Markazi</title>
-    <!-- Tailwind CSS CDN - Production warning suppressed. -->
-    <script>
-      // Suppress Tailwind CDN production warning - run immediately before Tailwind loads
-      (function() {
-        const originalWarn = console.warn;
-        const originalError = console.error;
-        console.warn = function(...args) {
-          const message = String(args[0] || '');
-          if (message.includes('cdn.tailwindcss.com') || 
-              (message.includes('Tailwind CSS') && message.includes('production')) ||
-              message.includes('should not be used in production')) {
-            return; // Suppress Tailwind CDN warning
-          }
-          originalWarn.apply(console, args);
-        };
-        console.error = function(...args) {
-          const message = String(args[0] || '');
-          if (message.includes('cdn.tailwindcss.com') || 
-              (message.includes('Tailwind CSS') && message.includes('production')) ||
-              message.includes('should not be used in production')) {
-            return; // Suppress Tailwind CDN error
-          }
-          originalError.apply(console, args);
-        };
-      })();
-    </script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      // Configure Tailwind after it loads
-      (function() {
-        if (typeof tailwind !== 'undefined') {
-          tailwind.config = tailwind.config || {};
-          tailwind.config.darkMode = 'class';
-        }
-      })();
-    </script>
   <!-- importmap faqat dev/studio uchun; production build Vite bundle ishlatadi -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

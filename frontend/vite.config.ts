@@ -7,6 +7,10 @@ export default defineConfig(({ mode }) => {
     const isProduction = mode === 'production';
     
     return {
+      test: {
+        environment: 'node',
+        include: ['**/*.{test,spec}.{ts,tsx}'],
+      },
       server: {
         port: 3000,
         strictPort: true,

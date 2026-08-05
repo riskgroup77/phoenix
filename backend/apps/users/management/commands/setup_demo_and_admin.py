@@ -72,6 +72,18 @@ DEMO_USERS = [
         'is_staff': True,
         'is_superuser': False,
     },
+    {
+        'phone': '998901001007',
+        'email': 'operator@ilmiyfaoliyat.uz',
+        'first_name': 'Operator',
+        'last_name': 'User',
+        'patronymic': '',
+        'password': 'Operator@1234567890',
+        'role': 'operator',
+        'affiliation': 'Phoenix Platform',
+        'is_staff': False,
+        'is_superuser': False,
+    },
 ]
 
 DJANGO_ADMIN_PHONE = '998907863888'

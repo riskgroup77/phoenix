@@ -7,6 +7,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { PUBLICATION_TYPES, SUBJECT_AREAS } from '../constants/authorCategories';
 import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
+import {
+  buildArticlePayload,
+  computePublicationPaymentAmount,
+  estimatePageCountFromFile,
+  parsePageCount,
+} from '../utils/submitArticleUtils';
 import { toast } from 'react-toastify';
 
 const SubmitArticle: React.FC = () => {
@@ -30,6 +36,7 @@ const SubmitArticle: React.FC = () => {
     abstract: '',
     keywords: '',
     references: '',
+    pageCount: 1,
     coAuthors: [] as { name: string; identifier: string }[],
   });
 
@@ -49,6 +56,15 @@ const SubmitArticle: React.FC = () => {
     { id: 4, title: 'Hammualliflar', icon: Users },
     { id: 5, title: 'Tasdiqlash', icon: Eye },
   ];
+
+  useEffect(() => {
+    if (user && !formData.authorName.trim()) {
+      const full = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+      if (full) {
+        setFormData((prev) => ({ ...prev, authorName: full }));
+      }
+    }
+  }, [user]);
 
   useEffect(() => {
     const load = async () => {
@@ -181,48 +197,31 @@ const SubmitArticle: React.FC = () => {
         toast.error('Faqat DOC yoki DOCX (Word) fayllarini yuklash mumkin');
         return;
       }
-      setFormData({ ...formData, file });
+      setFormData({ ...formData, file, pageCount: estimatePageCountFromFile(file) });
     }
   };
 
-  const buildArticlePayload = (options?: {
+  const buildPayload = (options?: {
     awaitingPublicationPayment?: boolean;
     paymentTransactionId?: string | null;
-  }): Record<string, unknown> => {
-    const keywordsStr = formData.keywords.trim();
-    const keywordsList = keywordsStr
-      ? keywordsStr.split(/\s*,\s*/).map((k: string) => k.trim()).filter(Boolean)
-      : [];
-    const articlePayload: Record<string, unknown> = {
-      title: formData.title.trim(),
-      journal: formData.journalId,
-      abstract: formData.abstract.trim() || '',
-      keywords: keywordsList,
-      page_count: 1,
-      fast_track: false,
-    };
-    const coAuthorContacts = formData.coAuthors
-      .map((coAuthor) => ({
-        name: coAuthor.name.trim(),
-        identifier: coAuthor.identifier.trim(),
-      }))
-      .filter((coAuthor) => coAuthor.identifier);
-    if (coAuthorContacts.length > 0) {
-      articlePayload.co_author_contacts = coAuthorContacts;
-    }
-    if (options?.awaitingPublicationPayment) {
-      articlePayload.awaiting_publication_payment = true;
-    }
-    const txId = options?.paymentTransactionId ?? paymentPendingTransactionId;
-    if (txId) {
-      articlePayload.payment_transaction_id = txId;
-    }
-    return articlePayload;
-  };
+  }) =>
+    buildArticlePayload(
+      {
+        title: formData.title,
+        authorName: formData.authorName,
+        journalId: formData.journalId,
+        abstract: formData.abstract,
+        keywords: formData.keywords,
+        references: formData.references,
+        pageCount: formData.pageCount,
+        coAuthors: formData.coAuthors,
+      },
+      options
+    );
 
   /** Create article (called when no payment required or after payment completed). */
   const doSubmitArticle = async () => {
-    await apiService.articles.create(buildArticlePayload(), { mainFile: formData.file! });
+    await apiService.articles.create(buildPayload(), { mainFile: formData.file! });
     toast.success('Maqola muvaffaqiyatli yuborildi');
     setFormData({
       title: '',
@@ -232,6 +231,7 @@ const SubmitArticle: React.FC = () => {
       abstract: '',
       keywords: '',
       references: '',
+      pageCount: 1,
       coAuthors: [],
     });
     setCurrentStep(1);
@@ -267,28 +267,17 @@ const SubmitArticle: React.FC = () => {
     }
 
     const selectedJournal = journals.find((j) => j.id === formData.journalId);
-    // API ba'zan payment_model qaytarmasa ham jurnal default pre-payment
     const isPrePayment = (selectedJournal?.payment_model || 'pre-payment') === 'pre-payment';
     const pubFee = selectedJournal?.publication_fee != null ? Number(selectedJournal.publication_fee) : 0;
     const perPage = selectedJournal?.price_per_page != null ? Number(selectedJournal.price_per_page) : 0;
-    // Backend bilan mos: publication_fee yoki price_per_page > 0 bo'lsa oldindan to'lov talab qilinishi mumkin
     const hasFee = pubFee > 0 || perPage > 0;
-    const isPerPage = selectedJournal?.pricing_type === 'per_page';
-    const pages = Math.max(1, 1);
-    const amountForPayment =
-      isPerPage && perPage > 0
-        ? perPage * pages
-        : pubFee > 0
-          ? pubFee
-          : perPage > 0
-            ? perPage * pages
-            : 0;
+    const amountForPayment = computePublicationPaymentAmount(selectedJournal, formData.pageCount);
 
     if (isPrePayment && hasFee && amountForPayment > 0) {
       setLoading(true);
       try {
         const draftArticle = await apiService.articles.create(
-          buildArticlePayload({ awaitingPublicationPayment: true }),
+          buildPayload({ awaitingPublicationPayment: true }),
           { mainFile: formData.file! }
         );
         const articleId = draftArticle?.id;
@@ -621,10 +610,20 @@ const SubmitArticle: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-2">
-                  Jurnal
+                  Sahifalar soni *
                 </label>
-                <p className="px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900">
-                  {journals.find((j) => j.id === formData.journalId)?.name || '—'}
+                <input
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={formData.pageCount}
+                  onChange={(e) =>
+                    setFormData({ ...formData, pageCount: parsePageCount(e.target.value) })
+                  }
+                  className="w-full px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-blue-500"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Fayl yuklanganda taxminiy hisoblanadi; sahifabop narx uchun to&apos;g&apos;rilang.
                 </p>
               </div>
             </div>
@@ -655,6 +654,28 @@ const SubmitArticle: React.FC = () => {
                 placeholder="Kalit so'zlarni vergul bilan ajratib kiriting"
               />
               {errors.keywords && <p className="text-red-500 text-sm mt-1">{errors.keywords}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-600 mb-2">
+                Adabiyotlar ro&apos;yxati (ixtiyoriy)
+              </label>
+              <textarea
+                value={formData.references}
+                onChange={(e) => setFormData({ ...formData, references: e.target.value })}
+                rows={3}
+                className="w-full px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                placeholder="Adabiyotlar ro&apos;yxatini kiriting"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-600 mb-2">
+                Jurnal
+              </label>
+              <p className="px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900">
+                {journals.find((j) => j.id === formData.journalId)?.name || '—'}
+              </p>
             </div>
 
           </div>
@@ -721,6 +742,7 @@ const SubmitArticle: React.FC = () => {
                 <div className="bg-slate-100/70 rounded-lg p-4 space-y-2">
                   <p><strong>Mavzu (sarlavha):</strong> {formData.title || '—'}</p>
                   <p><strong>Muallif (ism-familiya):</strong> {formData.authorName || '—'}</p>
+                  <p><strong>Sahifalar soni:</strong> {formData.pageCount}</p>
                   <p><strong>Jurnal:</strong> {journals.find(j => j.id === formData.journalId)?.name || '—'}</p>
                   <p><strong>Kalit so'zlar:</strong> {formData.keywords}</p>
                   <p><strong>Abstrakt:</strong> {formData.abstract.substring(0, 100)}...</p>

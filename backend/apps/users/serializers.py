@@ -19,7 +19,7 @@ class UserSerializer(serializers.ModelSerializer):
             'average_review_time', 'acceptance_rate', 'password', 'is_active',
             'date_joined'
         )
-        read_only_fields = ('id', 'date_joined', 'gamification_profile', 'avatar_url')
+        read_only_fields = ('id', 'date_joined', 'gamification_profile', 'avatar_url', 'is_active')
     
     def get_gamification_profile(self, obj):
         return {
@@ -45,6 +45,21 @@ class UserSerializer(serializers.ModelSerializer):
         return user
     
     def update(self, instance, validated_data):
+        request = self.context.get('request')
+        requester = getattr(request, 'user', None) if request else None
+        is_super_admin = (
+            requester
+            and requester.is_authenticated
+            and (
+                getattr(requester, 'role', None) == 'super_admin'
+                or getattr(requester, 'is_superuser', False)
+            )
+        )
+        if not is_super_admin:
+            validated_data.pop('role', None)
+            validated_data.pop('is_staff', None)
+            validated_data.pop('is_superuser', None)
+            validated_data.pop('is_active', None)
         password = validated_data.pop('password', None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)

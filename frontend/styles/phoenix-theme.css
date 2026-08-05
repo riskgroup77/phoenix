@@ -72,6 +72,50 @@ html.dark .Toastify__toast-theme--dark {
   border: 1px solid rgba(71, 85, 105, 0.55);
 }
 
+/* Global dark mode: asosiy sahifalar (har bir komponentga dark: qo'shmasdan) */
+html.dark #root main.phoenix-main .text-slate-900 {
+  color: #f1f5f9 !important;
+}
+html.dark #root main.phoenix-main .text-slate-800 {
+  color: #e2e8f0 !important;
+}
+html.dark #root main.phoenix-main .text-slate-700 {
+  color: #cbd5e1 !important;
+}
+html.dark #root main.phoenix-main .text-slate-600 {
+  color: #94a3b8 !important;
+}
+html.dark #root main.phoenix-main .text-slate-500 {
+  color: #64748b !important;
+}
+html.dark #root main.phoenix-main .text-blue-900,
+html.dark #root main.phoenix-main .text-emerald-900,
+html.dark #root main.phoenix-main .text-yellow-900,
+html.dark #root main.phoenix-main .text-purple-900,
+html.dark #root main.phoenix-main .text-amber-800 {
+  color: #bfdbfe !important;
+}
+html.dark #root main.phoenix-main .text-blue-800 {
+  color: #93c5fd !important;
+}
+html.dark #root main.phoenix-main .bg-white,
+html.dark #root main.phoenix-main .bg-white\/80,
+html.dark #root main.phoenix-main .bg-white\/60 {
+  background-color: rgba(30, 41, 59, 0.88) !important;
+}
+html.dark #root main.phoenix-main [class*='bg-slate-100'] {
+  background-color: rgba(30, 41, 59, 0.72) !important;
+}
+html.dark #root main.phoenix-main [class*='border-slate-200'] {
+  border-color: rgba(71, 85, 105, 0.55) !important;
+}
+html.dark #root main.phoenix-main .hover\:bg-slate-50\/80:hover {
+  background-color: rgba(51, 65, 85, 0.55) !important;
+}
+html.dark #root main.phoenix-main .divide-slate-200\/50 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(71, 85, 105, 0.45) !important;
+}
+
 #root main.phoenix-main h3,
 #root main.phoenix-main h4 {
   color: var(--phoenix-ink-soft);

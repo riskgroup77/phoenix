@@ -48,6 +48,7 @@ import BrowseByCategory from './pages/BrowseByCategory';
 import ArxivHujjatlar from './pages/ArxivHujjatlar';
 import AllRequests from './pages/AllRequests';
 import OperatorDashboard from './pages/OperatorDashboard';
+import { showPaymentTestTools } from './config/env';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { user, loading } = useAuth();
@@ -119,7 +120,9 @@ const AppContent: React.FC = () => {
                 <Route path="arxiv" element={<ArxivHujjatlar />} />
                 <Route path="financials" element={<RoleRoute allowedRoles={[Role.SuperAdmin, Role.Accountant]}><Financials /></RoleRoute>} />
                 <Route path="all-requests" element={<RoleRoute allowedRoles={[Role.Operator]}><AllRequests /></RoleRoute>} />
-                <Route path="payment-test" element={<PaymentTest />} />
+                {showPaymentTestTools && (
+                  <Route path="payment-test" element={<RoleRoute allowedRoles={[Role.SuperAdmin]}><PaymentTest /></RoleRoute>} />
+                )}
                 <Route path="author-publications" element={<AuthorPublications />} />
                 <Route path="author-publications/:id" element={<AuthorPublicationDetail />} />
             </Route>

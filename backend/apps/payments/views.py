@@ -50,6 +50,21 @@ class TransactionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Set user automatically when creating transaction"""
         serializer.save(user=self.request.user)
+
+    def update(self, request, *args, **kwargs):
+        return Response(
+            {'detail': 'Tranzaksiya holati faqat to\'lov tizimi (Click/Payme) orqali yangilanadi.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {'detail': 'Tranzaksiyani o\'chirish mumkin emas.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
     
     def create(self, request, *args, **kwargs):
         """Override create to return full transaction data including ID"""

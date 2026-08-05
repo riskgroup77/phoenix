@@ -736,10 +736,10 @@ export const apiService = {
       }),
 
     /** DOI so'rovlari ro'yxati (operator uchun) */
-    getDoiRequests: () => apiFetch('/articles/doi-requests/'),
+    getDoiRequests: () => apiFetch('/articles/doi/requests/'),
 
     /** Maqola namuna so'rovlari ro'yxati (operator uchun) */
-    getArticleSampleRequests: () => apiFetch('/articles/article-sample-requests/'),
+    getArticleSampleRequests: () => apiFetch('/articles/article-sample/requests/'),
 
     /** Muallif ↔ operator chat: oxirgi faol yozishmalar (operator / super_admin) */
     getOperatorChatInbox: () => apiFetch('/articles/operator-chat-inbox/'),

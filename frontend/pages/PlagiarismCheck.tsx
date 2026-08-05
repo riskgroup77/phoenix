@@ -395,13 +395,6 @@ const PlagiarismCheck: React.FC = () => {
       }
   };
 
-  const MOCK_SOURCES = [
-      { url: 'www.ilmiymaqolalar.uz/archive/2021/article-15.html', snippet: '...bu esa o\'z navbatida iqtisodiy o\'sishga sezilarli ta\'sir ko\'rsatadi va innovatsion rivojlanishga olib keladi...' },
-      { url: 'cyberleninka.ru/article/n/digital-economy-trends-uz', snippet: '...the integration of artificial intelligence technologies is a key factor for future development...' },
-      { url: 'jstor.org/stable/25733682', snippet: '...methodology involved a qualitative analysis of emerging market trends...' },
-      { url: 'researchgate.net/publication/3456789/AI_in_Economics', snippet: '...sun\'iy intellekt texnologiyalarini joriy etish kelajakdagi rivojlanishning asosiy omili hisoblanadi...' },
-  ];
-
   const handleCheck = async (paymentCompleted = false) => {
       if (!file || !user) return;
       if (!authorFirstName.trim() || !authorLastName.trim()) {
@@ -440,7 +433,7 @@ const PlagiarismCheck: React.FC = () => {
           const aiContentPercentage = plagiarismResult.ai_content || 0;
           const originality = 100 - plagiarismPercentage;
 
-          // Use API sources (Gemini deep search) when present; otherwise fallback to mock
+          // Faqat API manbalarini ko'rsatamiz — soxta mock manbalar ishlatilmaydi
           let foundSources: PlagiarismSource[] = [];
           const apiSources = plagiarismResult.sources;
           if (apiSources && Array.isArray(apiSources) && apiSources.length > 0) {
@@ -449,20 +442,6 @@ const PlagiarismCheck: React.FC = () => {
                   snippet: (s.snippet || '').trim(),
                   similarity: typeof s.similarity === 'number' ? Math.round(s.similarity) : 0,
               })).filter((s: PlagiarismSource) => s.source);
-          } else {
-              const numSources = Math.min(3, Math.max(0, Math.floor(plagiarismPercentage / 15) + 1));
-              const shuffledSources = [...MOCK_SOURCES].sort(() => 0.5 - Math.random());
-              let remainingPlagiarism = plagiarismPercentage;
-              for (let i = 0; i < numSources && i < shuffledSources.length; i++) {
-                  if (remainingPlagiarism <= 0) break;
-                  const similarity = Math.min(remainingPlagiarism, Math.floor(Math.random() * 5) + 2);
-                  remainingPlagiarism -= similarity;
-                  foundSources.push({
-                      source: shuffledSources[i].url,
-                      snippet: shuffledSources[i].snippet,
-                      similarity,
-                  });
-              }
           }
 
           const finalResult = {
@@ -684,7 +663,12 @@ const PlagiarismCheck: React.FC = () => {
                    <Card title="Topilgan manbalar" className="mx-auto mt-6 max-w-3xl border-white/50 bg-white/25 backdrop-blur-xl">
                       <p className="-mt-4 mb-4 text-sm font-medium text-slate-900">Tizim matningizga o'xshashlik topgan manbalar ro'yxati. Bu natijalar taxminiy bo'lib, yakuniy xulosa uchun qo'shimcha tahlil talab etilishi mumkin.</p>
                       <div className="max-h-80 space-y-4 overflow-y-auto pr-2">
-                          {result.sources.map((source, index) => (
+                          {result.sources.length === 0 ? (
+                            <p className="text-sm text-slate-500 text-center py-6">
+                              API manbalar qaytarmadi. Plagiat foizi ko&apos;rsatilgan, lekin aniq URL/snippet topilmadi.
+                            </p>
+                          ) : (
+                          result.sources.map((source, index) => (
                           <div key={index} className="rounded-xl border border-white/50 bg-white/35 p-4 backdrop-blur-md">
                               <div className="flex justify-between items-start text-sm">
                                   <a href={source.source.startsWith('http') ? source.source : `https://${source.source}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-800 hover:underline break-all">
@@ -696,7 +680,8 @@ const PlagiarismCheck: React.FC = () => {
                                   {source.snippet}
                               </blockquote>
                           </div>
-                          ))}
+                          ))
+                          )}
                       </div>
                   </Card>
               </div>

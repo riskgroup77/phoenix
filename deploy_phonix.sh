@@ -59,6 +59,54 @@ error_exit() {
     exit 1
 }
 
+# PostgreSQL Docker konteyneri (127.0.0.1:5434) — to'xtagan bo'lsa login ishlamaydi
+ensure_postgres_running() {
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "⚠️  Docker topilmadi — PostgreSQL tekshiruvi o'tkazib yuborildi"
+        return 0
+    fi
+    if docker ps --format '{{.Names}}' | grep -qx phoenix-postgres; then
+        echo "✅ phoenix-postgres ishlayapti"
+        return 0
+    fi
+    if docker ps -a --format '{{.Names}}' | grep -qx phoenix-postgres; then
+        echo "🔄 phoenix-postgres to'xtagan — ishga tushirilmoqda..."
+        docker start phoenix-postgres || error_exit "phoenix-postgres ishga tushmadi"
+        docker update --restart=unless-stopped phoenix-postgres 2>/dev/null || true
+        sleep 3
+        echo "✅ phoenix-postgres qayta ishga tushirildi"
+        return 0
+    fi
+    echo "⚠️  phoenix-postgres konteyneri yo'q — bootstrap_remote.sh orqali yaratish kerak"
+}
+
+# Redis Docker konteyneri (127.0.0.1:6379) — to'xtagan bo'lsa /health/ready 503
+ensure_redis_running() {
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "⚠️  Docker topilmadi — Redis tekshiruvi o'tkazib yuborildi"
+        return 0
+    fi
+    if docker ps --format '{{.Names}}' | grep -qx phoenix-redis; then
+        echo "✅ phoenix-redis ishlayapti"
+        return 0
+    fi
+    if docker ps -a --format '{{.Names}}' | grep -qx phoenix-redis; then
+        echo "🔄 phoenix-redis to'xtagan — ishga tushirilmoqda..."
+        docker start phoenix-redis || error_exit "phoenix-redis ishga tushmadi"
+        docker update --restart=unless-stopped phoenix-redis 2>/dev/null || true
+        sleep 2
+        echo "✅ phoenix-redis qayta ishga tushirildi"
+        return 0
+    fi
+    echo "🔄 phoenix-redis yaratilmoqda (127.0.0.1:6379)..."
+    docker run -d --name phoenix-redis \
+        --restart unless-stopped \
+        -p 127.0.0.1:6379:6379 \
+        redis:7-alpine || error_exit "phoenix-redis yaratilmadi"
+    sleep 2
+    echo "✅ phoenix-redis yaratildi va ishga tushirildi"
+}
+
 # Tekshirish - boshqa service'lar ishlayaptimi?
 check_other_services() {
     echo "🔍 Boshqa service'larni tekshirish..."
@@ -116,6 +164,8 @@ echo ""
 
 # 1. Tekshirishlar
 check_other_services
+ensure_postgres_running
+ensure_redis_running
 echo ""
 
 # 2. Backup
@@ -166,6 +216,10 @@ fi
 # Migrations
 echo "   Migrations ishga tushirilmoqda..."
 python manage.py migrate --noinput || error_exit "Migrations xatolik"
+
+# Demo foydalanuvchilar, operator va Django admin parollarini tiklash
+echo "   Demo foydalanuvchilar va operator tiklanmoqda..."
+python manage.py setup_demo_and_admin || echo "   ⚠️  setup_demo_and_admin xato (deploy davom etadi)"
 
 # Static files
 echo "   Static files collect qilinmoqda..."

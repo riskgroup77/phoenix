@@ -70,6 +70,8 @@ class Article(models.Model):
     
     # Review and content
     review_content = models.TextField(blank=True)
+    submitted_author_name = models.CharField(max_length=300, blank=True)
+    bibliography = models.TextField(blank=True)
     page_count = models.IntegerField(default=0)
     fast_track = models.BooleanField(default=False)
     

@@ -6,6 +6,7 @@ import Button from '../components/ui/Button';
 import { User, Mail, Phone, Building, Award, Hash, Edit, CreditCard, Archive } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
+import { showPaymentTestTools } from '../config/env';
 import { toast } from 'react-toastify';
 
 const Profile: React.FC = () => {
@@ -458,10 +459,11 @@ const Profile: React.FC = () => {
             
             <Card title="Hisobni boshqarish">
                 <div className="space-y-4">
+                    {showPaymentTestTools && (
                     <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-                        <h3 className="text-sm font-medium text-blue-900 mb-2">Test To'lov</h3>
+                        <h3 className="text-sm font-medium text-blue-900 mb-2">Test To&apos;lov (faqat dev)</h3>
                         <p className="text-xs text-slate-500 mb-3">
-                            Click to'lov tizimini sinab ko'rish uchun 1000 so'm miqdorida test to'lovini amalga oshirish mumkin.
+                            Click to&apos;lov tizimini sinab ko&apos;rish uchun 1000 so&apos;m miqdorida test to&apos;lovini amalga oshirish mumkin.
                         </p>
                         
                         {error && (
@@ -480,11 +482,12 @@ const Profile: React.FC = () => {
                         </Button>
                         
                         {processingPayment && (
-                            <div className="text-xs text-slate-500 text-center">
-                                To'lov tayyorlanmoqda, iltimos kuting...
+                            <div className="text-xs text-slate-500 text-center mt-2">
+                                To&apos;lov tayyorlanmoqda, iltimos kuting...
                             </div>
                         )}
                     </div>
+                    )}
                     
                     <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-slate-200/90">
                         <Button variant="danger" onClick={logout}>
