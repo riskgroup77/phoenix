@@ -5,6 +5,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { Plus, Search, Filter, Download, Edit, Trash2, QrCode, BookOpen, Users } from 'lucide-react';
 import apiService from '../services/apiService';
+import { asApiList } from '../utils/apiList';
 
 interface ScientificField {
   id: string;
@@ -90,21 +91,20 @@ const AuthorPublications: React.FC = () => {
       let pubsResponse;
       if (user?.role === 'super_admin') {
         pubsResponse = await apiService.authorPublications.list();
-        // Load all authors for admin filter
         const authorsResponse = await apiService.users.list();
-        setAllAuthors(authorsResponse);
+        setAllAuthors(asApiList(authorsResponse));
       } else {
         pubsResponse = await apiService.authorPublications.myPublications();
       }
 
       const [fieldsResponse, typesResponse] = await Promise.all([
-        apiService.scientificFields.list(),
+        apiService.scientificFields.list({ page_size: '200' }),
         apiService.authorPublications.publicationTypes()
       ]);
 
-      setPublications(pubsResponse);
-      setScientificFields(fieldsResponse);
-      setPublicationTypes(typesResponse);
+      setPublications(asApiList<AuthorPublication>(pubsResponse));
+      setScientificFields(asApiList<ScientificField>(fieldsResponse));
+      setPublicationTypes(asApiList<PublicationType>(typesResponse));
     } catch (error) {
       console.error('Ma\'lumotlarni yuklashda xatolik:', error);
     } finally {

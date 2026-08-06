@@ -3,6 +3,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
+import { asApiList } from '../utils/apiList';
 import { ArticleStatus, Role, Issue } from '../types';
 import { UploadCloud, Send, Link as LinkIcon, Loader2, Share2, ExternalLink, Download, FileCheck } from 'lucide-react';
 
@@ -90,13 +91,13 @@ const PublishedArticles: React.FC = () => {
                     apiService.articles.list()
                 ]);
                 
-                setIssues(issuesData.results || issuesData);
-                setJournals(journalsData.results || journalsData);
-                setArticles(articlesData.results || articlesData);
+                setIssues(asApiList(issuesData));
+                setJournals(asApiList(journalsData));
+                setArticles(asApiList(articlesData));
 
                 try {
                     const usersData = await apiService.users.list();
-                    setUsers(usersData.results || usersData);
+                    setUsers(asApiList(usersData));
                 } catch {
                     setUsers([]);
                 }
@@ -190,7 +191,7 @@ const PublishedArticles: React.FC = () => {
                 link: '/published-articles',
             });
             const articlesData = await apiService.articles.list();
-            setArticles(articlesData.results || articlesData);
+            setArticles(asApiList(articlesData));
             setCertFileByArticle((prev) => {
                 const next = { ...prev };
                 delete next[articleId];
@@ -287,7 +288,7 @@ const PublishedArticles: React.FC = () => {
 
             // Refresh issues
             const issuesData = await apiService.journals.listIssues();
-            setIssues(issuesData.results || issuesData);
+            setIssues(asApiList(issuesData));
             
             // Notify authors
             if (Array.isArray(articlesForNewIssue)) {

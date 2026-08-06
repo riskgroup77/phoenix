@@ -1,106 +1,99 @@
-
-
 import React from 'react';
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Role } from '../types';
-// FIX: Import DollarSign icon and add Accountant role to sidebar links.
-import { LayoutDashboard, FileText, Upload, Users, Library, UserCircle, BookMarked, CheckCircle, Sparkles, DollarSign, Archive, Languages, BookOpen, FilePlus, FolderArchive, Bot, TrendingUp, MessageSquare } from 'lucide-react';
+import { sidebarNavByRole } from '../config/navConfig';
+import { SUPPORT_EMAIL } from '../config/env';
+import { Headphones, HelpCircle } from 'lucide-react';
 
-type NavLinkItem = {
-    to: string;
-    icon: React.ElementType;
-    label: string;
+type SidebarProps = {
+  onNavigate?: () => void;
+  className?: string;
 };
 
-const sidebarLinks: Record<Role, NavLinkItem[]> = {
-    [Role.Author]: [
-        { to: '/dashboard', icon: LayoutDashboard, label: 'Boshqaruv paneli' },
-        { to: '/submit', icon: Upload, label: 'Maqola yuborish' },
-        { to: '/services', icon: Sparkles, label: 'Xizmatlar' },
-        { to: '/my-collections', icon: Archive, label: 'To\'plamlarim' },
-        { to: '/articles', icon: FileText, label: 'Maqolalarim' },
-        { to: '/my-translations', icon: Languages, label: 'Tarjimalarim' },
-        { to: '/arxiv', icon: FolderArchive, label: 'Arxiv hujjatlar' },
-        { to: '/author-publications', icon: BookOpen, label: 'Muallif nashrlari' },
-        { to: '/profile', icon: UserCircle, label: 'Profilim' },
-    ],
-    [Role.Reviewer]: [
-        { to: '/dashboard', icon: LayoutDashboard, label: 'Ishchi stol' },
-        { to: '/articles', icon: FileText, label: 'Taqrizga kelganlar' },
-        { to: '/doi-requests', icon: Bot, label: 'DOI so\'rovlari' },
-        { to: '/udk-requests', icon: Library, label: 'UDK so\'rovlari' },
-        { to: '/profile', icon: UserCircle, label: 'Profilim' },
-    ],
-    [Role.JournalAdmin]: [
-        { to: '/dashboard', icon: LayoutDashboard, label: 'Boshqaruv paneli' },
-        { to: '/journal-admin-panel', icon: FileText, label: 'Jurnal maqolalari' },
-        { to: '/articles', icon: FileText, label: 'Nashrga tayyorlar' },
-        { to: '/published-articles', icon: CheckCircle, label: 'Nashr etilganlar' },
-        { to: '/author-publications', icon: BookOpen, label: 'Muallif nashrlari' },
-    ],
-    [Role.SuperAdmin]: [
-        { to: '/dashboard', icon: LayoutDashboard, label: 'Boshqaruv paneli' },
-        { to: '/users', icon: Users, label: 'Foydalanuvchilar' },
-        { to: '/articles', icon: FileText, label: 'Barcha maqolalar' },
-        { to: '/journal-management', icon: BookMarked, label: 'Jurnallar' },
-        { to: '/prices', icon: DollarSign, label: 'Narxlar' },
-        { to: '/author-publications', icon: BookOpen, label: 'Muallif nashrlari' },
-        { to: '/financials', icon: DollarSign, label: 'Moliya' },
-        { to: '/article-sample-requests', icon: FileText, label: 'Maqola namuna so\'rovlari' },
-        { to: '/doi-requests', icon: Bot, label: 'DOI so\'rovlari' },
-        { to: '/profile', icon: UserCircle, label: 'Profilim' },
-    ],
-    [Role.Operator]: [
-        { to: '/operator-dashboard', icon: LayoutDashboard, label: 'Operator Paneli' },
-        { to: '/articles', icon: MessageSquare, label: 'Maqolalar va chat' },
-        { to: '/all-requests', icon: FileText, label: 'Barcha so\'rovlar' },
-        { to: '/doi-requests', icon: Bot, label: 'DOI so\'rovlari' },
-        { to: '/udk-requests', icon: Library, label: 'UDK so\'rovlari' },
-        { to: '/article-sample-requests', icon: FilePlus, label: 'Maqola namuna so\'rovlari' },
-        { to: '/profile', icon: UserCircle, label: 'Profilim' },
-    ],
-    [Role.Accountant]: [
-        { to: '/dashboard', icon: LayoutDashboard, label: 'Boshqaruv paneli' },
-        { to: '/financials', icon: DollarSign, label: 'Moliya' },
-        { to: '/profile', icon: UserCircle, label: 'Profilim' },
-    ],
-};
-
-
-const Sidebar: React.FC = () => {
+const Sidebar: React.FC<SidebarProps> = ({ onNavigate, className = '' }) => {
   const { user } = useAuth();
-  
   if (!user) return null;
 
-  const links = sidebarLinks[user.role] || [];
+  const sections = sidebarNavByRole[user.role as Role];
+  if (!sections) return null;
 
-  const linkClass = "flex items-center px-4 py-3 my-1 text-slate-600 rounded-lg hover:bg-white/10 transition-colors duration-200";
-  const activeLinkClass = "flex items-center px-4 py-3 my-1 text-white bg-blue-500/20 rounded-lg font-semibold border-l-4 border-blue-400";
+  const linkClass =
+    'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white transition-colors';
+  const activeClass =
+    'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 shadow-sm';
+
+  const renderLink = (item: (typeof sections.primary)[0], idx: number) => (
+    <NavLink
+      key={`${item.to}-${item.label}-${idx}`}
+      to={item.to}
+      end={item.to === '/dashboard' || item.to === '/operator-dashboard'}
+      isActive={(match, location) => {
+        if (item.to === '/profile') {
+          return location.pathname === '/profile' && item.label === 'Profil';
+        }
+        return Boolean(match);
+      }}
+      onClick={onNavigate}
+      className={({ isActive }) => (isActive ? activeClass : linkClass)}
+    >
+      <item.icon className="w-5 h-5 shrink-0 opacity-90" strokeWidth={2} />
+      <span className="truncate">{item.label}</span>
+    </NavLink>
+  );
 
   return (
-    <aside className="w-64 h-full p-4 bg-white/60 backdrop-blur-lg border-r border-slate-200/90">
-      <div className="flex items-center px-2 mb-10 h-16">
-         <Link to="/dashboard" className="text-2xl font-bold text-slate-900 tracking-wider flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-xl shadow-md">
-                P
-            </div>
-            <span>PINM</span>
-        </Link>
-      </div>
+    <aside
+      className={`pinm-sidebar flex flex-col h-full w-[260px] shrink-0 border-r border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-900 ${className}`}
+    >
+      <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-1">
+        {sections.primary.map((item, i) => renderLink(item, i))}
 
-      <nav>
-        {links.map(link => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            className={({ isActive }) => isActive ? activeLinkClass : linkClass}
-          >
-            <link.icon className="w-6 h-6 mr-4" />
-            <span className="">{link.label}</span>
-          </NavLink>
-        ))}
+        {sections.tools && sections.tools.length > 0 && (
+          <>
+            <div className="my-3 border-t border-slate-200/80 dark:border-slate-700/60" />
+            {sections.tools.map((item, i) => renderLink(item, i + 100))}
+          </>
+        )}
+
+        {sections.account && sections.account.length > 0 && (
+          <>
+            <div className="my-3 border-t border-slate-200/80 dark:border-slate-700/60" />
+            {sections.account.map((item, i) => renderLink(item, i + 200))}
+          </>
+        )}
+
+        <div className="my-3 border-t border-slate-200/80 dark:border-slate-700/60" />
+        <a
+          href={`mailto:${SUPPORT_EMAIL}`}
+          className={linkClass}
+          onClick={onNavigate}
+        >
+          <HelpCircle className="w-5 h-5 shrink-0" strokeWidth={2} />
+          <span>Yordam</span>
+        </a>
       </nav>
+
+      <div className="p-3 border-t border-slate-200/80 dark:border-slate-700/60">
+        <div className="rounded-xl border border-slate-200/90 dark:border-slate-700/60 bg-slate-50/80 dark:bg-slate-800/50 p-3">
+          <div className="flex items-start gap-2.5">
+            <div className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300">
+              <Headphones className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">
+                Qo&apos;llab-quvvatlash
+              </p>
+              <a
+                href={`mailto:${SUPPORT_EMAIL}`}
+                className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline break-all"
+              >
+                {SUPPORT_EMAIL}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
     </aside>
   );
 };

@@ -1429,7 +1429,12 @@ export const apiService = {
 
   // Scientific Fields
   scientificFields: {
-    list: () => apiFetch('/journals/scientific-fields/'),
+    list: (params?: Record<string, string>) => {
+      if (!params || Object.keys(params).length === 0) {
+        return apiFetch('/journals/scientific-fields/');
+      }
+      return apiFetch(`/journals/scientific-fields/?${new URLSearchParams(params)}`);
+    },
     get: (id: string) => apiFetch(`/journals/scientific-fields/${id}/`),
     create: (fieldData: any) =>
       apiFetch('/journals/scientific-fields/', {

@@ -1,200 +1,170 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate, Link, NavLink } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
-import { LogOut, Bell, LayoutDashboard, FileText, Upload, Users, Library, BookMarked, CheckCircle, Sparkles, DollarSign, Archive, Languages, FolderArchive, MessageSquare, Bot, FilePlus } from 'lucide-react';
+import { LogOut, Bell, Menu, ChevronDown, BookOpen } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
-import { Role, Notification } from '../types';
+import { Notification } from '../types';
+import { roleNames } from '../config/navConfig';
 
-const roleNames: Record<Role, string> = {
-    [Role.Author]: 'Muallif',
-    [Role.Reviewer]: 'Taqrizchi',
-    [Role.JournalAdmin]: 'Jurnal administratori',
-    [Role.SuperAdmin]: 'Bosh administrator',
-    [Role.Accountant]: 'Moliyachi',
-    [Role.Operator]: 'Operator',
+type HeaderProps = {
+  onMenuClick?: () => void;
 };
 
-type NavLinkItem = {
-    to: string;
-    icon: React.ElementType;
-    label: string;
-};
-
-const mainNavLinks: Record<Role, NavLinkItem[]> = {
-    [Role.Author]: [
-        { to: '/dashboard', icon: LayoutDashboard, label: 'Boshqaruv paneli' },
-        { to: '/articles', icon: FileText, label: 'Maqolalarim' },
-        { to: '/submit', icon: Upload, label: 'Maqola yuborish' },
-        { to: '/my-collections', icon: Archive, label: 'To\'plamlarim' },
-        { to: '/my-translations', icon: Languages, label: 'Tarjimalarim' },
-        { to: '/services', icon: Sparkles, label: 'Xizmatlar' },
-        { to: '/arxiv', icon: FolderArchive, label: 'Arxiv hujjatlar' },
-    ],
-    [Role.Reviewer]: [
-        { to: '/dashboard', icon: LayoutDashboard, label: 'Ishchi stol' },
-        { to: '/articles', icon: FileText, label: 'Taqrizga kelganlar' },
-    ],
-    [Role.JournalAdmin]: [
-        { to: '/dashboard', icon: LayoutDashboard, label: 'Boshqaruv paneli' },
-        { to: '/articles', icon: FileText, label: 'Maqolalar' },
-        { to: '/published-articles', icon: CheckCircle, label: 'Nashr etilganlar' },
-    ],
-    [Role.SuperAdmin]: [
-        { to: '/dashboard', icon: LayoutDashboard, label: 'Boshqaruv paneli' },
-        { to: '/users', icon: Users, label: 'Foydalanuvchilar' },
-        { to: '/articles', icon: FileText, label: 'Barcha maqolalar' },
-        { to: '/journal-management', icon: BookMarked, label: 'Jurnallar' },
-        { to: '/prices', icon: DollarSign, label: 'Narxlar' },
-    ],
-    [Role.Accountant]: [
-        { to: '/dashboard', icon: LayoutDashboard, label: 'Boshqaruv paneli' },
-        { to: '/financials', icon: DollarSign, label: 'Moliya' },
-    ],
-    [Role.Operator]: [
-        { to: '/operator-dashboard', icon: LayoutDashboard, label: 'Operator paneli' },
-        { to: '/articles', icon: MessageSquare, label: 'Maqolalar va chat' },
-        { to: '/all-requests', icon: FileText, label: 'Barcha so\'rovlar' },
-        { to: '/doi-requests', icon: Bot, label: 'DOI so\'rovlari' },
-        { to: '/udk-requests', icon: Library, label: 'UDK so\'rovlari' },
-        { to: '/article-sample-requests', icon: FilePlus, label: 'Maqola namuna' },
-    ],
-};
-
-
-const Header: React.FC = () => {
+const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { user, logout } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
-  const [isDropdownOpen, setIsDropdownOpen] =
-useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isUserOpen, setIsUserOpen] = useState(false);
   const navigate = useNavigate();
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  
-  const links = user ? mainNavLinks[user.role] || [] : [];
-  const linkClass =
-    'flex items-center px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 rounded-xl hover:bg-gradient-to-r hover:from-white/90 hover:to-indigo-50/80 dark:hover:from-slate-800/80 dark:hover:to-slate-700/80 hover:text-slate-900 dark:hover:text-white hover:shadow-sm hover:ring-1 hover:ring-indigo-100/80 dark:hover:ring-slate-600/50 transition-all duration-300';
-  const activeLinkClass =
-    'flex items-center px-3 py-2 text-sm font-semibold text-indigo-900 dark:text-indigo-200 bg-gradient-to-r from-blue-100/90 via-indigo-50/95 to-cyan-50/80 dark:from-indigo-950/80 dark:via-slate-800/90 dark:to-slate-800/80 rounded-xl ring-1 ring-indigo-200/70 dark:ring-indigo-500/40 shadow-sm';
-
+  const notifRef = useRef<HTMLDivElement>(null);
+  const userRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-            setIsDropdownOpen(false);
-        }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [dropdownRef]);
-
-  if (!user) {
-    return null;
-  }
-  
-  const handleNotificationClick = (notification: Notification) => {
-      markAsRead(notification.id);
-      if(notification.link) {
-          navigate(notification.link);
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
       }
-      setIsDropdownOpen(false);
-  }
+      if (userRef.current && !userRef.current.contains(event.target as Node)) {
+        setIsUserOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  if (!user) return null;
+
+  const handleNotificationClick = (notification: Notification) => {
+    markAsRead(notification.id);
+    if (notification.link) navigate(notification.link);
+    setIsNotifOpen(false);
+  };
+
+  const initials = `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || 'U'}`;
 
   return (
-    <>
-      <header className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 h-20 bg-gradient-to-r from-white/85 via-indigo-50/40 to-cyan-50/35 dark:from-slate-900/95 dark:via-slate-900/90 dark:to-slate-800/95 backdrop-blur-xl border-b border-indigo-100/50 dark:border-slate-700/60 shadow-[0_4px_30px_-12px_rgba(79,70,229,0.12)] dark:shadow-[0_4px_30px_-12px_rgba(0,0,0,0.35)] sticky top-0 z-30">
-        <div className="flex items-center gap-6">
-            <Link
-              to="/dashboard"
-              className="text-2xl font-extrabold tracking-tight flex items-center gap-3 group/logo"
-            >
-                <div className="phoenix-logo-glow w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-lg font-black text-white shadow-lg ring-2 ring-white/60 transition-transform duration-300 group-hover/logo:scale-105">
-                    P
-                </div>
-                <span className="hidden lg:block phoenix-gradient-title">PINM</span>
-            </Link>
-            <nav className="hidden md:flex items-center gap-2">
-                {links.map(link => (
-                    <NavLink
-                        key={link.to}
-                        to={link.to}
-                        className={({ isActive }) => isActive ? activeLinkClass : linkClass}
+    <header className="pinm-topbar flex-shrink-0 flex items-center justify-between h-16 px-4 sm:px-6 bg-white dark:bg-slate-900 border-b border-slate-200/90 dark:border-slate-700/60 sticky top-0 z-30">
+      <div className="flex items-center gap-3 min-w-0">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+          aria-label="Menyu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <Link to="/dashboard" className="flex items-center gap-2.5 min-w-0 group">
+          <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shrink-0">
+            <BookOpen className="w-5 h-5" strokeWidth={2.2} />
+          </div>
+          <span className="font-bold text-slate-900 dark:text-white text-base sm:text-lg truncate">
+            Ilmiy Faoliyat
+          </span>
+        </Link>
+      </div>
+
+      <div className="flex items-center gap-1 sm:gap-2">
+        <ThemeToggle />
+
+        <div className="relative" ref={notifRef}>
+          <button
+            type="button"
+            onClick={() => setIsNotifOpen((p) => !p)}
+            className="relative p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            aria-label="Bildirishnomalar"
+          >
+            <Bell className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+          {isNotifOpen && (
+            <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50">
+              <div className="p-3 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                <h4 className="font-semibold text-slate-900 dark:text-white text-sm">Bildirishnomalar</h4>
+                {notifications.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => markAllAsRead()}
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    Hammasini o&apos;qilgan
+                  </button>
+                )}
+              </div>
+              {notifications.length > 0 ? (
+                <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {notifications.map((n) => (
+                    <li
+                      key={n.id}
+                      onClick={() => handleNotificationClick(n)}
+                      className={`p-3 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80 ${
+                        !n.read ? 'bg-blue-50/80 dark:bg-blue-950/30' : ''
+                      }`}
                     >
-                        <link.icon className="w-5 h-5 mr-2" />
-                        <span>{link.label}</span>
-                    </NavLink>
-                ))}
-            </nav>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-4">
-            <ThemeToggle />
-            <div className="relative">
-                 <button 
-                    onClick={() => setIsDropdownOpen(prev => !prev)}
-                    className="text-slate-600 hover:text-slate-900 focus:outline-none transition-colors p-2 rounded-full hover:bg-slate-100/90"
-                    aria-label="Bildirishnomalar"
-                >
-                    <Bell size={22} />
-                    {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                        </span>
-                    )}
-                </button>
-                {isDropdownOpen && (
-                    <div ref={dropdownRef} className="absolute right-0 mt-3 w-80 max-h-96 overflow-y-auto bg-white/92 backdrop-blur-2xl border border-slate-200/80 rounded-2xl shadow-[0_24px_80px_-20px_rgba(15,23,42,0.18)] z-50">
-                        <div className="p-4 border-b border-slate-200/90 flex justify-between items-center">
-                            <h4 className="font-semibold text-slate-900">Bildirishnomalar</h4>
-                            {notifications.length > 0 && (
-                                <button 
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        markAllAsRead();
-                                    }}
-                                    className="text-xs text-blue-600 hover:text-blue-700 transition-colors"
-                                >
-                                    Hammasini o'qilgan deb belgilash
-                                </button>
-                            )}
-                        </div>
-                        {notifications.length > 0 ? (
-                            <ul className="divide-y divide-slate-200/80">
-                                {notifications.map(n => (
-                                    <li key={n.id} onClick={() => handleNotificationClick(n)} className={`p-4 text-sm cursor-pointer hover:bg-slate-100/70 transition-colors ${!n.read ? 'bg-blue-500/10' : ''}`}>
-                                        <p className="text-slate-700 leading-relaxed">{n.message}</p>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="p-6 text-center text-sm text-slate-500">Yangi bildirishnomalar yo'q.</p>
-                        )}
-                    </div>
-                )}
+                      <p className="text-slate-700 dark:text-slate-200 leading-relaxed">{n.message}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="p-5 text-center text-sm text-slate-500">Yangi bildirishnomalar yo&apos;q.</p>
+              )}
             </div>
-            <Link to="/profile" className="flex items-center p-1.5 rounded-full hover:bg-slate-100/90 transition-colors">
-                {user.avatarUrl ? (
-                    <img 
-                        className="h-9 w-9 sm:h-10 sm:w-10 rounded-full object-cover border-2 border-slate-300/80" 
-                        src={user.avatarUrl} 
-                        alt={`${user.firstName} ${user.lastName}`} 
-                    />
-                ) : (
-                    <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-blue-500/20 border-2 border-slate-300/80 flex items-center justify-center text-blue-900 font-semibold">
-                        {user.firstName?.charAt(0)}{user.lastName?.charAt(0) || 'U'}
-                    </div>
-                )}
-                <div className="mx-2 sm:mx-4 text-right hidden md:block">
-                    <p className="text-sm font-semibold text-slate-900">{user.firstName} {user.lastName}</p>
-                    <p className="text-xs text-slate-500">{roleNames[user.role]}</p>
-                </div>
-            </Link>
-            <button onClick={logout} className="text-slate-600 hover:text-red-600 focus:outline-none transition-colors p-2.5 rounded-full hover:bg-red-50/90" aria-label="Chiqish">
-                <LogOut size={20} />
-            </button>
+          )}
         </div>
+
+        <div className="relative" ref={userRef}>
+          <button
+            type="button"
+            onClick={() => setIsUserOpen((p) => !p)}
+            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
+            {user.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt=""
+                className="h-9 w-9 rounded-full object-cover border border-slate-200"
+              />
+            ) : (
+              <div className="h-9 w-9 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-200 flex items-center justify-center text-sm font-semibold">
+                {initials}
+              </div>
+            )}
+            <div className="hidden md:block text-left max-w-[140px]">
+              <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                {user.firstName} {user.lastName}
+              </p>
+              <p className="text-xs text-slate-500 truncate">{roleNames[user.role]}</p>
+            </div>
+            <ChevronDown className="w-4 h-4 text-slate-400 hidden md:block" />
+          </button>
+          {isUserOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg py-1 z-50">
+              <Link
+                to="/profile"
+                onClick={() => setIsUserOpen(false)}
+                className="block px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                Profil
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsUserOpen(false);
+                  logout();
+                }}
+                className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Chiqish
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </header>
-    </>
   );
 };
 

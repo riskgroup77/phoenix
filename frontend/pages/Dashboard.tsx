@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, useNotifications } from '../contexts/AuthContext';
 import { Role, ArticleStatus, ARTICLE_STATUS_LABELS } from '../types';
 import Card from '../components/ui/Card';
-import { FileText, Edit3, UserCheck, CheckCircle, Users, Inbox, Clock, XCircle, DollarSign, User as UserIcon, Timer, ArrowRight, Wallet, Rocket, Shield, Bot, Eye, Download, TrendingUp, BarChart3, PieChart as PieChartIcon, Upload, BookOpen, Archive, ChevronRight, Languages, ExternalLink, Library } from 'lucide-react';
+import { FileText, Edit3, UserCheck, CheckCircle, Users, Inbox, Clock, XCircle, DollarSign, User as UserIcon, Timer, ArrowRight, Wallet, Rocket, Shield, Bot, Eye, Download, TrendingUp, BarChart3, PieChart as PieChartIcon, Upload, BookOpen, Archive, ChevronRight, Languages, ExternalLink, Library, Bell, CreditCard } from 'lucide-react';
 import { toast } from 'react-toastify';
 import Button from '../components/ui/Button';
 import { useNavigate, Link } from 'react-router-dom';
@@ -12,6 +12,28 @@ import { txAmount } from '../utils/amount';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const CHART_COLORS = ['#3b82f6', '#eab308', '#22c55e', '#ef4444', '#8b5cf6', '#06b6d4'];
+
+const PinmSummaryCard: React.FC<{
+  icon: React.ElementType;
+  title: string;
+  value: string | number;
+  linkLabel: string;
+  to: string;
+}> = ({ icon: Icon, title, value, linkLabel, to }) => (
+  <Link
+    to={to}
+    className="pinm-summary-card block rounded-2xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-900 p-5 hover:border-blue-200 dark:hover:border-blue-800 transition-colors"
+  >
+    <div className="flex items-start justify-between gap-3">
+      <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
+        <Icon className="w-5 h-5" strokeWidth={2} />
+      </div>
+    </div>
+    <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{title}</p>
+    <p className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tabular-nums">{value}</p>
+    <p className="mt-3 text-sm font-medium text-blue-600 dark:text-blue-400">{linkLabel} →</p>
+  </Link>
+);
 
 const StatCard: React.FC<{
   icon: React.ElementType;
@@ -49,6 +71,7 @@ const StatCard: React.FC<{
 
 const Dashboard: React.FC = () => {
     const { user } = useAuth();
+    const { unreadCount, notifications } = useNotifications();
     const navigate = useNavigate();
     
     // Operator uchun maxsus dashboard'ga yo'naltirish
@@ -193,173 +216,173 @@ const Dashboard: React.FC = () => {
     const renderAuthorDashboard = () => {
         const validArticles = Array.isArray(articles) ? articles : [];
         const myArticles = validArticles.filter((a: any) => a.author === user.id);
-        const inReviewCount = myArticles.filter((a: any) => a.status === ArticleStatus.QabulQilingan || a.status === 'QabulQilingan').length;
-        const publishedCount = myArticles.filter((a: any) => a.status === ArticleStatus.Published || a.status === 'Published').length;
-        const inEditorCount = myArticles.filter((a: any) => a.status === ArticleStatus.WithEditor || a.status === 'WithEditor').length;
-        const revisionCount = myArticles.filter((a: any) => a.status === ArticleStatus.Revision || a.status === 'Revision').length;
         const recentArticles = [...myArticles]
             .sort((a: any, b: any) => new Date(b.submission_date || 0).getTime() - new Date(a.submission_date || 0).getTime())
             .slice(0, 5);
         const getStatusLabel = (status: string) => ARTICLE_STATUS_LABELS[status] || status;
-        const getStatusColor = (status: string) => {
-            if (status === ArticleStatus.Published || status === 'Published') return 'bg-green-500/20 text-emerald-900';
-            if (status === ArticleStatus.QabulQilingan || status === 'QabulQilingan') return 'bg-yellow-500/20 text-yellow-900';
-            if (status === ArticleStatus.Revision || status === 'Revision') return 'bg-orange-500/20 text-orange-900';
-            if (status === ArticleStatus.WithEditor || status === 'WithEditor') return 'bg-indigo-500/20 text-indigo-300';
-            if (status === ArticleStatus.Rejected || status === 'Rejected') return 'bg-red-500/20 text-red-800';
-            return 'bg-gray-500/20 text-slate-600';
+        const getPinmStatusStyle = (status: string) => {
+            if (status === ArticleStatus.Published || status === 'Published') {
+                return { label: 'Nashr etildi', className: 'pinm-badge pinm-badge--success' };
+            }
+            if (status === ArticleStatus.QabulQilingan || status === 'QabulQilingan') {
+                return { label: 'Yuborildi', className: 'pinm-badge pinm-badge--info' };
+            }
+            if (status === ArticleStatus.WithEditor || status === 'WithEditor') {
+                return { label: 'Ko\'rib chiqilmoqda', className: 'pinm-badge pinm-badge--info' };
+            }
+            if (status === ArticleStatus.Revision || status === 'Revision') {
+                return { label: 'Tahrirga qaytarildi', className: 'pinm-badge pinm-badge--warning' };
+            }
+            if (status === ArticleStatus.Rejected || status === 'Rejected') {
+                return { label: 'Rad etildi', className: 'pinm-badge pinm-badge--danger' };
+            }
+            return { label: getStatusLabel(status), className: 'pinm-badge pinm-badge--neutral' };
         };
 
+        const validTransactions = Array.isArray(transactions) ? transactions : [];
+        const totalPayments = validTransactions
+            .filter((t: any) => t.status === 'completed')
+            .reduce((sum, t) => sum + Math.abs(txAmount(t.amount)), 0);
+
+        type ActivityRow = {
+            id: string;
+            icon: React.ElementType;
+            title: string;
+            meta: string;
+            badge: { label: string; className: string };
+            sortAt: number;
+            link?: string;
+        };
+
+        const activityRows: ActivityRow[] = [
+            ...recentArticles.map((art: any) => {
+                const badge = getPinmStatusStyle(art.status);
+                return {
+                    id: `art-${art.id}`,
+                    icon: FileText,
+                    title: art.title || 'Maqola yuborildi',
+                    meta: art.submission_date
+                        ? new Date(art.submission_date).toLocaleDateString('uz-UZ', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : '—',
+                    badge,
+                    sortAt: new Date(art.submission_date || 0).getTime(),
+                    link: `/articles/${art.id}`,
+                };
+            }),
+            ...validTransactions.slice(0, 8).map((tx: any) => ({
+                id: `tx-${tx.id}`,
+                icon: CreditCard,
+                title: tx.service_type ? `To'lov: ${tx.service_type}` : "To'lov amalga oshirildi",
+                meta: tx.created_at
+                    ? new Date(tx.created_at).toLocaleDateString('uz-UZ', { day: 'numeric', month: 'short', year: 'numeric' })
+                    : '—',
+                badge:
+                    tx.status === 'completed'
+                        ? { label: 'Tasdiqlandi', className: 'pinm-badge pinm-badge--success' }
+                        : tx.status === 'pending'
+                          ? { label: 'Kutilmoqda', className: 'pinm-badge pinm-badge--info' }
+                          : { label: 'Bekor qilindi', className: 'pinm-badge pinm-badge--danger' },
+                sortAt: new Date(tx.created_at || 0).getTime(),
+                link: '/profile',
+            })),
+            ...(notifications || []).slice(0, 8).map((n: any) => ({
+                id: `n-${n.id}`,
+                icon: Bell,
+                title: n.message || 'Yangi bildirishnoma',
+                meta: n.created_at
+                    ? new Date(n.created_at).toLocaleDateString('uz-UZ', { day: 'numeric', month: 'short', year: 'numeric' })
+                    : 'Yaqinda',
+                badge: n.read
+                    ? { label: "O'qilgan", className: 'pinm-badge pinm-badge--neutral' }
+                    : { label: 'Yangi', className: 'pinm-badge pinm-badge--info' },
+                sortAt: new Date(n.created_at || Date.now()).getTime(),
+                link: n.link || '/profile',
+            })),
+        ]
+            .sort((a, b) => b.sortAt - a.sortAt)
+            .slice(0, 5);
+
         return (
-            <div className="space-y-10">
-                {/* Sarlavha va tushuntirish */}
-                <div className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-blue-500/10 via-transparent to-cyan-500/5 p-6 sm:p-8">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-                        Xush kelibsiz, {user.firstName} {user.lastName ? user.lastName : ''}!
+            <div className="space-y-8 max-w-6xl">
+                <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+                        Xush kelibsiz, {user.firstName}! 👋
                     </h1>
-                    <p className="text-slate-500 mt-2 max-w-2xl">
-                        Boshqaruv paneli orqali maqolalar yuborishingiz, UDK ma&apos;lumotnoma olishingiz, maqolalar holatini kuzatishingiz va barcha hujjatlaringizni bitta joyda ko&apos;rishingiz mumkin.
+                    <p className="mt-2 text-slate-500 dark:text-slate-400 text-sm sm:text-base">
+                        Ilmiy faoliyatingizni boshqarish paneliga xush kelibsiz.
                     </p>
                 </div>
 
-                {/* Tezkor harakatlar */}
-                <div>
-                    <h2 className="text-lg font-semibold text-slate-900 mb-4">Tezkor harakatlar</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <Link
-                            to="/submit"
-                            className="group flex items-start gap-4 p-5 rounded-xl border border-slate-200/90 bg-white/[0.06] hover:bg-white/10 hover:border-blue-500/30 transition-all duration-200"
-                        >
-                            <div className="p-3 rounded-xl bg-blue-500/20 text-blue-800 group-hover:bg-blue-500/30 transition-colors">
-                                <Upload className="h-6 w-6" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <h3 className="font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">Maqola yuborish</h3>
-                                <p className="text-sm text-slate-500 mt-0.5">Jurnal tanlab maqolani topshiring</p>
-                            </div>
-                            <ChevronRight className="h-5 w-5 text-slate-500 group-hover:text-blue-800 shrink-0 mt-1" />
-                        </Link>
-                        <Link
-                            to="/udk-olish"
-                            className="group flex items-start gap-4 p-5 rounded-xl border border-slate-200/90 bg-white/[0.06] hover:bg-white/10 hover:border-cyan-500/30 transition-all duration-200"
-                        >
-                            <div className="p-3 rounded-xl bg-cyan-500/20 text-cyan-800 group-hover:bg-cyan-500/30 transition-colors">
-                                <BookOpen className="h-6 w-6" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <h3 className="font-semibold text-slate-900 group-hover:text-cyan-900 transition-colors">UDK ma&apos;lumotnoma</h3>
-                                <p className="text-sm text-slate-500 mt-0.5">Ilmiy ish uchun UDK kodi oling</p>
-                            </div>
-                            <ChevronRight className="h-5 w-5 text-slate-500 group-hover:text-cyan-800 shrink-0 mt-1" />
-                        </Link>
-                        <Link
-                            to="/articles"
-                            className="group flex items-start gap-4 p-5 rounded-xl border border-slate-200/90 bg-white/[0.06] hover:bg-white/10 hover:border-emerald-500/30 transition-all duration-200"
-                        >
-                            <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-800 group-hover:bg-emerald-500/30 transition-colors">
-                                <FileText className="h-6 w-6" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <h3 className="font-semibold text-slate-900 group-hover:text-emerald-800 transition-colors">Mening maqolalarim</h3>
-                                <p className="text-sm text-slate-500 mt-0.5">Barcha maqolalar va holatlari</p>
-                            </div>
-                            <ChevronRight className="h-5 w-5 text-slate-500 group-hover:text-emerald-800 shrink-0 mt-1" />
-                        </Link>
-                        <Link
-                            to="/profile"
-                            className="group flex items-start gap-4 p-5 rounded-xl border border-slate-200/90 bg-white/[0.06] hover:bg-white/10 hover:border-violet-500/30 transition-all duration-200"
-                        >
-                            <div className="p-3 rounded-xl bg-violet-500/20 text-violet-400 group-hover:bg-violet-500/30 transition-colors">
-                                <Archive className="h-6 w-6" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <h3 className="font-semibold text-slate-900 group-hover:text-violet-800 transition-colors">Arxiv hujjatlar</h3>
-                                <p className="text-sm text-slate-500 mt-0.5">PDF, UDK, sertifikatlar, taqrizlar</p>
-                            </div>
-                            <ChevronRight className="h-5 w-5 text-slate-500 group-hover:text-violet-800 shrink-0 mt-1" />
-                        </Link>
-                    </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <PinmSummaryCard
+                        icon={FileText}
+                        title="Jami maqolalarim"
+                        value={myArticles.length}
+                        linkLabel="Barchasini ko'rish"
+                        to="/articles"
+                    />
+                    <PinmSummaryCard
+                        icon={CreditCard}
+                        title="Jami to'lovlar"
+                        value={`${totalPayments.toLocaleString('uz-UZ')} so'm`}
+                        linkLabel="To'lovlar tarixi"
+                        to="/profile"
+                    />
+                    <PinmSummaryCard
+                        icon={Bell}
+                        title="Bildirishnomalar"
+                        value={unreadCount}
+                        linkLabel="Barchasini ko'rish"
+                        to="/profile"
+                    />
                 </div>
 
-                {/* Maqolalar statistikasi */}
-                <div>
-                    <h2 className="text-lg font-semibold text-slate-900 mb-4">Maqolalarim statistikasi</h2>
-                    <p className="text-slate-500 text-sm mb-4">Yuborilgan maqolalar holati bo&apos;yicha qisqacha ko&apos;rinish.</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <StatCard
-                            icon={FileText}
-                            title="Jami maqolalar"
-                            value={myArticles.length}
-                            gradient="bg-gradient-to-r from-blue-500 to-cyan-400"
-                            to="/articles"
-                        />
-                        <StatCard
-                            icon={Edit3}
-                            title="Taqrizda / Redaktorda"
-                            value={inReviewCount + inEditorCount}
-                            gradient="bg-gradient-to-r from-yellow-500 to-orange-400"
-                            to="/articles"
-                        />
-                        <StatCard
-                            icon={Clock}
-                            title="Tahrirga qaytarilgan"
-                            value={revisionCount}
-                            gradient="bg-gradient-to-r from-amber-500 to-orange-400"
-                            to="/articles"
-                        />
-                        <StatCard
-                            icon={CheckCircle}
-                            title="Nashr etilgan"
-                            value={publishedCount}
-                            gradient="bg-gradient-to-r from-green-500 to-emerald-400"
-                            to="/articles"
-                        />
+                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-900 overflow-hidden">
+                    <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+                        <h2 className="text-base font-semibold text-slate-900 dark:text-white">So&apos;nggi faoliyat</h2>
                     </div>
-                </div>
-
-                {/* So'nggi maqolalar */}
-                <Card title="So'nggi maqolalar">
-                    <p className="text-slate-500 text-sm mb-4">Oxirgi yuborilgan maqolalar ro'yxati. Batafsil ko'rish uchun maqolaga bosing.</p>
-                    {recentArticles.length === 0 ? (
-                        <div className="text-center py-10 text-slate-500">
-                            <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                            <p>Hozircha maqolalar yo&apos;q.</p>
-                            <p className="text-sm mt-1">«Maqola yuborish» orqali birinchi maqolangizni topshiring.</p>
+                    {activityRows.length === 0 ? (
+                        <div className="px-5 py-12 text-center text-slate-500 dark:text-slate-400">
+                            <FileText className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                            <p className="text-sm">Hozircha faoliyat yo&apos;q.</p>
                             <Button onClick={() => navigate('/submit')} className="mt-4">
                                 <Upload className="mr-2 h-4 w-4" /> Maqola yuborish
                             </Button>
                         </div>
                     ) : (
-                        <ul className="space-y-3">
-                            {recentArticles.map((art: any) => (
-                                <li key={art.id}>
-                                    <Link
-                                        to={`/articles/${art.id}`}
-                                        className="flex flex-wrap items-center gap-3 p-4 rounded-xl border border-slate-200/90 bg-white/[0.04] hover:bg-white/8 hover:border-slate-300/80 transition-all"
-                                    >
-                                        <div className="min-w-0 flex-1">
-                                            <p className="font-medium text-slate-900 truncate">{art.title || 'Sarlavhasiz'}</p>
-                                            <p className="text-sm text-slate-500 mt-0.5">
-                                                {art.journal_name || 'Jurnal'} · {art.submission_date ? new Date(art.submission_date).toLocaleDateString('uz-UZ') : '—'}
-                                            </p>
+                        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {activityRows.map((row) => {
+                                const RowIcon = row.icon;
+                                const inner = (
+                                    <>
+                                        <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
+                                            <RowIcon className="w-4 h-4" strokeWidth={2} />
                                         </div>
-                                        <span className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(art.status)}`}>
-                                            {getStatusLabel(art.status)}
-                                        </span>
-                                        <ChevronRight className="h-5 w-5 text-slate-500 shrink-0" />
-                                    </Link>
-                                </li>
-                            ))}
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{row.title}</p>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{row.meta}</p>
+                                        </div>
+                                        <span className={row.badge.className}>{row.badge.label}</span>
+                                    </>
+                                );
+                                return (
+                                    <li key={row.id}>
+                                        {row.link ? (
+                                            <Link
+                                                to={row.link}
+                                                className="flex items-center gap-3 px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                                            >
+                                                {inner}
+                                            </Link>
+                                        ) : (
+                                            <div className="flex items-center gap-3 px-5 py-4">{inner}</div>
+                                        )}
+                                    </li>
+                                );
+                            })}
                         </ul>
                     )}
-                    {recentArticles.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-slate-200/90">
-                            <Link to="/articles" className="inline-flex items-center gap-2 text-sm font-medium text-blue-800 hover:text-blue-700">
-                                Barcha maqolalar <ArrowRight className="h-4 w-4" />
-                            </Link>
-                        </div>
-                    )}
-                </Card>
+                </div>
             </div>
         );
     };

@@ -49,14 +49,14 @@ const OperatorDashboard: React.FC = () => {
     try {
       setLoading(true);
       
-      // Parallel API calls for all data
+      // Parallel API calls — users.list operator uchun 403; butun panel buzilmasin
       const [udkRes, doiRes, samplesRes, transRes, usersRes, txRes] = await Promise.all([
-        apiService.udc.requests.list(),
-        apiService.articles.getDoiRequests(),
-        apiService.articles.getArticleSampleRequests(),
-        apiService.translations.list(),
-        apiService.users.list(),
-        apiService.payments.getTransactions(),
+        apiService.udc.requests.list().catch(() => []),
+        apiService.articles.getDoiRequests().catch(() => []),
+        apiService.articles.getArticleSampleRequests().catch(() => []),
+        apiService.translations.list().catch(() => []),
+        apiService.users.list().catch(() => []),
+        apiService.payments.getTransactions().catch(() => []),
       ]);
 
       const processData = (res: any) => {
