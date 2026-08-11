@@ -5,7 +5,7 @@ import { useAuth, useNotifications } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
 import { asApiList } from '../utils/apiList';
 import { ArticleStatus, Role, Issue } from '../types';
-import { UploadCloud, Send, Link as LinkIcon, Loader2, Share2, ExternalLink, Download, FileCheck } from 'lucide-react';
+import { UploadCloud, Send, Link as LinkIcon, Loader2, Share2, ExternalLink, Download, FileCheck, ChevronDown } from 'lucide-react';
 
 const MONTH_NAMES = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentyabr", "Oktyabr", "Noyabr", "Dekabr"];
 const currentYear = new Date().getFullYear();
@@ -53,6 +53,7 @@ const PublishedArticles: React.FC = () => {
     const [pubUrlByArticle, setPubUrlByArticle] = useState<Record<string, string>>({});
     const [certFileByArticle, setCertFileByArticle] = useState<Record<string, File | null>>({});
     const [sendingDeliveryId, setSendingDeliveryId] = useState<string | null>(null);
+    const [expandedDeliveryId, setExpandedDeliveryId] = useState<string | null>(null);
 
     const managedJournals = useMemo(() => {
         if (!user) return [];
@@ -396,11 +397,19 @@ const PublishedArticles: React.FC = () => {
                 </div>
             ) : null}
 
-            <div className="mt-6 space-y-6">
-                <h3 className="text-lg font-semibold text-slate-900">{activeIssue ? "Ma'lumotlarni Yangilash" : "Yangi Son Yaratish"}</h3>
-                <p className="text-sm text-slate-500">Tanlangan oy uchun <strong className="text-slate-900">{Array.isArray(articlesForNewIssue) ? articlesForNewIssue.length : 0}</strong> ta nashr etilgan maqola mavjud.</p>
+            <div className="mt-6 space-y-4">
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                    <div>
+                        <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                            {activeIssue ? "Ma'lumotlarni yangilash" : 'Yangi son yaratish'}
+                        </h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                            Tanlangan oy: <strong className="text-slate-800 dark:text-slate-200">{Array.isArray(articlesForNewIssue) ? articlesForNewIssue.length : 0}</strong> ta nashr etilgan maqola
+                        </p>
+                    </div>
+                </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2">
                     {Array.isArray(articlesForNewIssue) && articlesForNewIssue.length > 0 ? (
                         articlesForNewIssue.map((article) => {
                             const pubLink = (article as any).publication_link as string | undefined;
@@ -408,63 +417,60 @@ const PublishedArticles: React.FC = () => {
                             const rawUrl = (article as any).publication_url as string | undefined;
                             const urlInput =
                                 pubUrlByArticle[article.id] ?? (typeof rawUrl === 'string' ? rawUrl : '');
+                            const isExpanded = expandedDeliveryId === article.id;
                             return (
-                            <div key={article.id} className="p-4 bg-slate-100/70 border border-slate-200/90 rounded-lg space-y-4">
-                                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                            <div key={article.id} className="rounded-xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-900/80 overflow-hidden">
+                                <div className="flex items-start gap-3 p-3 sm:p-4">
                                     <div className="min-w-0 flex-1">
-                                        <h4 className="text-slate-900 font-medium">{article.title}</h4>
-                                        <p className="text-xs text-slate-500 mt-1">
-                                            {new Date(article.submission_date).toLocaleDateString()}
+                                        <h4 className="text-sm font-semibold text-slate-900 dark:text-white leading-snug">{article.title}</h4>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                            {new Date(article.submission_date).toLocaleDateString('uz-UZ')}
                                         </p>
+                                        {(pubLink || certLink) && (
+                                            <div className="flex flex-wrap gap-3 mt-2 text-xs">
+                                                {pubLink ? (
+                                                    <a href={pubLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
+                                                        <ExternalLink className="h-3.5 w-3.5" /> Nashr
+                                                    </a>
+                                                ) : null}
+                                                {certLink ? (
+                                                    <a href={certLink} target="_blank" rel="noopener noreferrer" className="text-indigo-500 dark:text-indigo-300 hover:underline inline-flex items-center gap-1">
+                                                        <Download className="h-3.5 w-3.5" /> Sertifikat
+                                                    </a>
+                                                ) : null}
+                                            </div>
+                                        )}
                                     </div>
-                                    <Button
-                                        onClick={() => handleShareArticle(article.id)}
-                                        variant="secondary"
-                                        className="w-full md:w-auto shrink-0"
-                                    >
-                                        <Share2 className="mr-2 h-4 w-4" />
-                                        {copiedArticleId === article.id ? 'Havola nusxalandi' : 'Ochiq sahifa havolasi'}
-                                    </Button>
+                                    <div className="flex flex-col sm:flex-row gap-1.5 shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleShareArticle(article.id)}
+                                            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                        >
+                                            {copiedArticleId === article.id ? 'Nusxalandi' : 'Havola'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setExpandedDeliveryId(isExpanded ? null : article.id)}
+                                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 inline-flex items-center justify-center gap-1"
+                                        >
+                                            <FileCheck className="h-3.5 w-3.5" />
+                                            Yuborish
+                                            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                        </button>
+                                    </div>
                                 </div>
 
-                                {(pubLink || certLink) && (
-                                    <div className="flex flex-wrap gap-3 text-sm border-t border-slate-200/90 pt-3">
-                                        {pubLink ? (
-                                            <a
-                                                href={pubLink}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1.5 text-blue-800 hover:text-blue-700"
-                                            >
-                                                <ExternalLink className="h-4 w-4" /> Nashr havolasi
-                                            </a>
-                                        ) : null}
-                                        {certLink ? (
-                                            <a
-                                                href={certLink}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300"
-                                            >
-                                                <Download className="h-4 w-4" /> Sertifikat
-                                            </a>
-                                        ) : null}
-                                    </div>
-                                )}
-
-                                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-3">
-                                    <p className="text-xs font-semibold text-amber-950 flex items-center gap-2">
-                                        <FileCheck className="h-4 w-4" /> Muallifga nashr havolasi va sertifikat
-                                    </p>
-                                    <p className="text-xs text-slate-500">
-                                        Jurnal saytidagi maqola havolasini kiriting va/yoki sertifikat faylini yuklang.
-                                        Saqlagach muallifga bildirishnoma boradi.
+                                {isExpanded && (
+                                <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-0 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 pt-3">
+                                        Nashr havolasi va/yoki sertifikatni kiriting — muallifga bildirishnoma boradi.
                                     </p>
                                     <div>
-                                        <label className="text-xs text-slate-500 block mb-1">Nashr havolasi (URL)</label>
+                                        <label className="text-xs text-slate-500 dark:text-slate-400 block mb-1">Nashr havolasi (URL)</label>
                                         <input
                                             type="url"
-                                            className="w-full bg-white/95 border border-slate-200/90 rounded-lg px-3 py-2 text-sm text-slate-900 shadow-sm"
+                                            className="pinm-field w-full text-sm py-2 px-3"
                                             placeholder="https://jurnal.uz/article/..."
                                             value={urlInput}
                                             onChange={(e) =>
@@ -473,11 +479,11 @@ const PublishedArticles: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-xs text-slate-500 block mb-1">Sertifikat (PDF / JPG / PNG)</label>
+                                        <label className="text-xs text-slate-500 dark:text-slate-400 block mb-1">Sertifikat (PDF / JPG / PNG)</label>
                                         <input
                                             type="file"
                                             accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                                            className="text-sm text-slate-600 w-full file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-white/10 file:text-slate-900"
+                                            className="pinm-field w-full text-xs py-2 px-2 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-200 dark:file:bg-slate-700 file:text-slate-800 dark:file:text-slate-100"
                                             onChange={(e) =>
                                                 setCertFileByArticle((p) => ({
                                                     ...p,
@@ -489,7 +495,7 @@ const PublishedArticles: React.FC = () => {
                                     <Button
                                         type="button"
                                         variant="primary"
-                                        className="w-full sm:w-auto"
+                                        className="!py-2 !px-4 !text-sm !rounded-lg"
                                         disabled={sendingDeliveryId === article.id}
                                         onClick={() => handleSendPublicationDelivery(article.id)}
                                     >
@@ -504,11 +510,12 @@ const PublishedArticles: React.FC = () => {
                                         )}
                                     </Button>
                                 </div>
+                                )}
                             </div>
                             );
                         })
                     ) : (
-                        <div className="p-4 bg-slate-100/70 border border-slate-200/90 rounded-lg text-sm text-slate-500">
+                        <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 text-sm text-slate-500 dark:text-slate-400 text-center">
                             Tanlangan oy uchun nashr etilgan maqolalar topilmadi.
                         </div>
                     )}

@@ -4,12 +4,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
 import AuthorOperatorChat from './AuthorOperatorChat';
 import { useMediaMinWidth } from '../hooks/useMediaMinWidth';
-import { useChatDockInsetPx } from '../hooks/useChatDockInsetPx';
 import { getAppPathname } from '../utils/routerPath';
 import { Role } from '../types';
-import { FileText, MessageSquare } from 'lucide-react';
+import { FileText, MessageSquare, X } from 'lucide-react';
 
 const LS_ACTIVE_ARTICLE_KEY = 'phoenix_global_chat_article_v1';
+const LS_CHAT_OPEN_KEY = 'phoenix_global_chat_open_v1';
 
 /** Planshet+ */
 export const ARTICLE_CHAT_DOCK_BREAKPOINT_PX = 768;
@@ -40,6 +40,23 @@ function writeStoredArticleId(id: string | null): void {
   try {
     if (id) localStorage.setItem(LS_ACTIVE_ARTICLE_KEY, id);
     else localStorage.removeItem(LS_ACTIVE_ARTICLE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function readChatOpen(): boolean {
+  try {
+    return localStorage.getItem(LS_CHAT_OPEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeChatOpen(open: boolean): void {
+  try {
+    if (open) localStorage.setItem(LS_CHAT_OPEN_KEY, '1');
+    else localStorage.removeItem(LS_CHAT_OPEN_KEY);
   } catch {
     /* ignore */
   }
@@ -87,7 +104,7 @@ async function fetchArticleAccessMeta(
     const uid = userId != null ? String(userId).toLowerCase().replace(/-/g, '') : '';
     const aidx = aid != null ? aid.toLowerCase().replace(/-/g, '') : '';
 
-    if (roleNorm === 'operator' || roleNorm === 'super_admin') {
+    if (roleNorm === 'operator') {
       return { ok: true, authorName, viewerIsAuthor: false };
     }
     if (roleNorm === 'author') {
@@ -101,8 +118,8 @@ async function fetchArticleAccessMeta(
 }
 
 /**
- * Barcha ichki sahifalarda o‘ng tomonda doimiy operator/muallif chati (~15% kenglik).
- * Thread maqola bo‘yicha; oxirgi tanlov saqlanadi yoki maqola sahifasida URL bilan yangilanadi.
+ * Muallif va operator uchun past-o‘ng burchakdagi ixcham chat (FAB + ochiladigan panel).
+ * Admin/tahrirchi uchun ko‘rsatilmaydi — asosiy kontentni egallamaydi.
  */
 const ArticleChatDock: React.FC = () => {
   const { user } = useAuth();
@@ -117,14 +134,12 @@ const ArticleChatDock: React.FC = () => {
   const routeArticleId = routeMatch?.params?.id ?? null;
 
   const roleNorm = typeof user?.role === 'string' ? user.role.toLowerCase() : String(user?.role ?? '');
-  const isPrivilegedChatRole = roleNorm === 'operator' || roleNorm === 'super_admin';
-  const isAuthorChatRole = roleNorm === 'author';
-  const eligibleForGlobalChat = isPrivilegedChatRole || isAuthorChatRole;
+  const isOperator = roleNorm === 'operator';
+  const isAuthor = roleNorm === 'author';
+  const eligibleForChat = isOperator || isAuthor;
+  const showWidget = isWideEnough && !!user && eligibleForChat;
 
-  const showDock = isWideEnough && !!user && eligibleForGlobalChat;
-
-  const panelWidthPx = useChatDockInsetPx(showDock);
-
+  const [open, setOpen] = useState(readChatOpen);
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [metaLoading, setMetaLoading] = useState(false);
   const [authorName, setAuthorName] = useState<string | undefined>(undefined);
@@ -132,9 +147,10 @@ const ArticleChatDock: React.FC = () => {
   const [articleOptions, setArticleOptions] = useState<{ id: string; title: string }[]>([]);
   const [listLoading, setListLoading] = useState(false);
 
-  /** URL yoki saqlangan maqolaga mos thread */
+  const chatTitle = isAuthor ? 'Operatorlar bilan yozishma' : 'Muallif bilan chat';
+
   const syncSelection = useCallback(async () => {
-    if (!user || !eligibleForGlobalChat) {
+    if (!user || !eligibleForChat) {
       setSelectedArticleId(null);
       setAuthorName(undefined);
       setViewerIsAuthor(false);
@@ -172,15 +188,14 @@ const ArticleChatDock: React.FC = () => {
     } finally {
       setMetaLoading(false);
     }
-  }, [user, eligibleForGlobalChat, routeArticleId, roleNorm]);
+  }, [user, eligibleForChat, routeArticleId, roleNorm]);
 
   useEffect(() => {
     void syncSelection();
   }, [syncSelection]);
 
-  /** Maqola ro‘yxati (tanlash uchun) */
   useEffect(() => {
-    if (!showDock || !user) return;
+    if (!showWidget || !user) return;
     let cancelled = false;
     const loadList = async () => {
       setListLoading(true);
@@ -200,19 +215,12 @@ const ArticleChatDock: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [showDock, user]);
+  }, [showWidget, user]);
 
   useEffect(() => {
-    if (!setMainRightInset) return;
-    if (showDock && panelWidthPx > 0) {
-      setMainRightInset(panelWidthPx);
-    } else {
-      setMainRightInset(0);
-    }
-    return () => {
-      setMainRightInset(0);
-    };
-  }, [showDock, panelWidthPx, setMainRightInset]);
+    setMainRightInset?.(0);
+    return () => setMainRightInset?.(0);
+  }, [setMainRightInset]);
 
   const onSelectArticle = useCallback(
     (id: string) => {
@@ -243,24 +251,55 @@ const ArticleChatDock: React.FC = () => {
 
   const selectValue = useMemo(() => selectedArticleId ?? '', [selectedArticleId]);
 
-  if (!showDock) {
+  const toggleOpen = (next: boolean) => {
+    setOpen(next);
+    writeChatOpen(next);
+  };
+
+  if (!showWidget) {
     return null;
   }
 
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => toggleOpen(true)}
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg px-4 py-3 text-sm font-semibold transition-colors"
+        aria-label={chatTitle}
+      >
+        <MessageSquare className="h-5 w-5 shrink-0" aria-hidden />
+        <span className="hidden sm:inline">{isAuthor ? 'Operator chat' : 'Muallif chat'}</span>
+      </button>
+    );
+  }
+
   return (
-    <aside
-      className="flex flex-col fixed right-0 z-[55] border-l border-slate-200/80 bg-white/80 backdrop-blur-2xl shadow-[-12px_0_48px_-16px_rgba(15,23,42,0.12)] top-[5.25rem] bottom-0 min-w-0"
-      style={{ width: panelWidthPx }}
-      aria-label="Operator va muallif chat paneli"
+    <div
+      className="fixed bottom-6 right-6 z-40 flex flex-col w-[min(380px,calc(100vw-1.5rem))] max-h-[min(70vh,640px)] rounded-2xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden"
+      aria-label={chatTitle}
     >
-      <div className="shrink-0 px-2.5 pt-2.5 pb-2 border-b border-slate-200/70 bg-gradient-to-br from-violet-50/95 via-white/90 to-cyan-50/90">
-        <div className="flex items-center gap-2 text-slate-900">
-          <MessageSquare className="h-4 w-4 text-violet-600 shrink-0" aria-hidden />
-          <span className="text-xs font-semibold leading-tight">Operatorlar bilan aloqa</span>
+      <div className="shrink-0 px-3 py-2.5 border-b border-slate-200/80 dark:border-slate-700/60 flex items-start justify-between gap-2 bg-slate-50/80 dark:bg-slate-800/50">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-slate-900 dark:text-white">
+            <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" aria-hidden />
+            <span className="text-sm font-semibold truncate">{chatTitle}</span>
+          </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+            Maqola bo‘yicha suhbat. Boshqa sahifaga o‘tsangiz ham saqlanadi.
+          </p>
         </div>
-        <p className="text-[10px] text-slate-500 mt-1 leading-snug">
-          Chat har doim ochiq. Suhbat tanlangan maqola bo‘yicha yuradi — boshqa sahifaga o‘tsangiz ham shu thread saqlanadi.
-        </p>
+        <button
+          type="button"
+          onClick={() => toggleOpen(false)}
+          className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-200/80 dark:hover:bg-slate-700 shrink-0"
+          aria-label="Chatni yopish"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="shrink-0 px-3 py-2 border-b border-slate-100 dark:border-slate-800 space-y-1.5">
         <label htmlFor="global-chat-article" className="sr-only">
           Maqola tanlash
         </label>
@@ -269,34 +308,36 @@ const ArticleChatDock: React.FC = () => {
           value={selectValue}
           disabled={listLoading || metaLoading}
           onChange={(e) => onSelectArticle(e.target.value)}
-          className="mt-2 w-full rounded-lg bg-white/95 border border-slate-200/90 text-slate-900 text-[11px] py-2 px-2 shadow-sm focus:ring-2 focus:ring-violet-400/50 focus:border-violet-300"
+          className="pinm-field w-full rounded-lg text-xs py-2 px-2"
         >
           <option value="">{listLoading ? 'Maqolalar yuklanmoqda…' : '— Maqola tanlang —'}</option>
           {articleOptions.map((a) => (
             <option key={a.id} value={a.id}>
-              {a.title.length > 70 ? `${a.title.slice(0, 67)}…` : a.title}
+              {a.title.length > 60 ? `${a.title.slice(0, 57)}…` : a.title}
             </option>
           ))}
         </select>
         <Link
           to="/articles"
-          className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-violet-600 hover:text-violet-800 font-medium"
+          className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-medium"
         >
           <FileText className="h-3 w-3 shrink-0" aria-hidden />
           Maqolalar ro‘yxati
         </Link>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col">
+      <div className="flex-1 min-h-0 flex flex-col min-h-[200px]">
         {metaLoading && !selectedArticleId ? (
           <div className="flex-1 flex items-center justify-center px-3 py-6">
-            <p className="text-xs text-slate-500 text-center">Tekshirilmoqda…</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 text-center">Tekshirilmoqda…</p>
           </div>
         ) : !selectedArticleId ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-2 px-3 py-6 text-center">
-            <FileText className="h-8 w-8 text-slate-400" aria-hidden />
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Operatorlarga yozish uchun yuqoridan o‘z maqolangizni tanlang yoki maqola kartasini oching — chat avtomatik bog‘lanadi.
+            <FileText className="h-7 w-7 text-slate-400" aria-hidden />
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              {isAuthor
+                ? 'Yuqoridan maqolangizni tanlang yoki maqola sahifasini oching.'
+                : 'Maqola tanlang — muallif bilan suhbat shu yerda ochiladi.'}
             </p>
           </div>
         ) : (
@@ -310,7 +351,7 @@ const ArticleChatDock: React.FC = () => {
           />
         )}
       </div>
-    </aside>
+    </div>
   );
 };
 

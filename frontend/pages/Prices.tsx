@@ -165,8 +165,8 @@ const Prices: React.FC = () => {
                             <DollarSign className="h-6 w-6 text-emerald-800" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold text-slate-900">Barcha Narxlar</h1>
-                            <p className="text-sm text-slate-500">
+                            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Barcha Narxlar</h1>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
                                 Xizmat va jurnal narxlarini boshqarish
                             </p>
                         </div>
@@ -174,13 +174,13 @@ const Prices: React.FC = () => {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex gap-2 mb-6 border-b border-slate-200/90">
+                <div className="flex gap-2 mb-6 border-b border-slate-200/90 dark:border-slate-700/60">
                     <button
                         onClick={() => setActiveTab('services')}
                         className={`px-4 py-2 text-sm font-medium transition-colors ${
                             activeTab === 'services'
-                                ? 'text-emerald-800 border-b-2 border-green-400'
-                                : 'text-slate-500 hover:text-slate-900'
+                                ? 'text-emerald-700 dark:text-emerald-400 border-b-2 border-green-400'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                     >
                         Xizmat Narxlari ({servicePrices.length})
@@ -189,8 +189,8 @@ const Prices: React.FC = () => {
                         onClick={() => setActiveTab('journals')}
                         className={`px-4 py-2 text-sm font-medium transition-colors ${
                             activeTab === 'journals'
-                                ? 'text-blue-800 border-b-2 border-blue-400'
-                                : 'text-slate-500 hover:text-slate-900'
+                                ? 'text-blue-700 dark:text-blue-400 border-b-2 border-blue-400'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                     >
                         Jurnal Narxlari ({journalPrices.length})
@@ -208,7 +208,7 @@ const Prices: React.FC = () => {
                             <div className="space-y-6">
                                 {Object.entries(groupedServices).map(([category, categoryPrices]) => (
                                     <div key={category}>
-                                        <h3 className="text-lg font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                                             {category}
                                             <span className="text-xs px-2 py-1 rounded bg-white/10 text-slate-600">
                                                 {categoryPrices.length} ta xizmat
@@ -218,11 +218,11 @@ const Prices: React.FC = () => {
                                             {categoryPrices.map((price) => (
                                                 <div
                                                     key={price.id}
-                                                    className="p-4 rounded-xl bg-slate-100/70 border border-slate-200/90 hover:border-green-500/30 transition-colors"
+                                                    className="p-4 rounded-xl bg-slate-100/70 dark:bg-slate-800/50 border border-slate-200/90 dark:border-slate-700/60 hover:border-green-500/30 transition-colors"
                                                 >
                                                     <div className="mb-3">
-                                                        <p className="text-sm font-medium text-slate-600">{price.label}</p>
-                                                        <p className="text-xs text-slate-500 mt-1">{price.service_key}</p>
+                                                        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{price.label}</p>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{price.service_key}</p>
                                                     </div>
                                                     
                                                     {editingServiceId === price.id ? (
@@ -234,7 +234,7 @@ const Prices: React.FC = () => {
                                                                     ...prev,
                                                                     [price.id]: Number(e.target.value)
                                                                 }))}
-                                                                className="w-full px-3 py-2 rounded-lg bg-slate-100/70 border border-slate-200/90 text-slate-900 focus:ring-2 focus:ring-green-500"
+                                                                className="pinm-field w-full px-3 py-2 text-sm"
                                                                 min="0"
                                                                 step="1000"
                                                             />
@@ -259,7 +259,7 @@ const Prices: React.FC = () => {
                                                     ) : (
                                                         <div className="flex items-center justify-between">
                                                             <div>
-                                                                <p className="text-lg font-bold text-emerald-800">
+                                                                <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
                                                                     {formatPrice(price.amount)}
                                                                 </p>
                                                                 <p className="text-xs text-slate-500 mt-1">
@@ -269,7 +269,7 @@ const Prices: React.FC = () => {
                                                             <Button
                                                                 variant="secondary"
                                                                 onClick={() => handleEditService(price)}
-                                                                className="p-2"
+                                                                className="!p-2 !rounded-lg !shadow-none"
                                                             >
                                                                 <Edit2 className="h-4 w-4" />
                                                             </Button>
@@ -289,11 +289,11 @@ const Prices: React.FC = () => {
                                 {journalPrices.map((journal) => (
                                     <div
                                         key={journal.id}
-                                        className="p-4 rounded-xl bg-slate-100/70 border border-slate-200/90 hover:border-blue-500/30 transition-colors"
+                                        className="p-4 rounded-xl bg-slate-100/70 dark:bg-slate-800/50 border border-slate-200/90 dark:border-slate-700/60 hover:border-blue-500/30 transition-colors"
                                     >
                                         <div className="mb-3">
                                             <div className="flex items-center gap-2">
-                                                <p className="text-lg font-semibold text-slate-900">{journal.name}</p>
+                                                <p className="text-lg font-semibold text-slate-900 dark:text-white">{journal.name}</p>
                                                 {journal.issn && (
                                                     <span className="text-xs px-2 py-1 rounded bg-white/10 text-slate-600">
                                                         ISSN: {journal.issn}
@@ -322,7 +322,7 @@ const Prices: React.FC = () => {
                                                                     publicationFee: Number(e.target.value)
                                                                 }
                                                             }))}
-                                                            className="w-full px-3 py-2 rounded-lg bg-slate-100/70 border border-slate-200/90 text-slate-900 focus:ring-2 focus:ring-blue-500"
+                                                            className="pinm-field w-full px-3 py-2 text-sm"
                                                             min="0"
                                                             step="1000"
                                                         />
@@ -341,7 +341,7 @@ const Prices: React.FC = () => {
                                                                     pricePerPage: Number(e.target.value)
                                                                 }
                                                             }))}
-                                                            className="w-full px-3 py-2 rounded-lg bg-slate-100/70 border border-slate-200/90 text-slate-900 focus:ring-2 focus:ring-blue-500"
+                                                            className="pinm-field w-full px-3 py-2 text-sm"
                                                             min="0"
                                                             step="1000"
                                                         />

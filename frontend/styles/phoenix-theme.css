@@ -306,3 +306,60 @@ html.dark .pinm-badge--neutral {
   background: rgba(71, 85, 105, 0.35);
   color: #cbd5e1;
 }
+
+/* Form maydonlari — dark mode da oq blok bo‘lib qolmasin */
+.pinm-field,
+#root main.phoenix-main .pinm-field {
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  color: #0f172a;
+  border-radius: 0.5rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+html.dark .pinm-field,
+html.dark #root main.phoenix-main .pinm-field {
+  background-color: rgba(30, 41, 59, 0.95) !important;
+  border-color: rgba(71, 85, 105, 0.65) !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark #root main.phoenix-main input[type='text'],
+html.dark #root main.phoenix-main input[type='url'],
+html.dark #root main.phoenix-main input[type='email'],
+html.dark #root main.phoenix-main input[type='number'],
+html.dark #root main.phoenix-main input[type='tel'],
+html.dark #root main.phoenix-main input[type='password'],
+html.dark #root main.phoenix-main select,
+html.dark #root main.phoenix-main textarea {
+  background-color: rgba(30, 41, 59, 0.92) !important;
+  border-color: rgba(71, 85, 105, 0.65) !important;
+  color: #f1f5f9 !important;
+}
+
+html.dark #root main.phoenix-main input::placeholder,
+html.dark #root main.phoenix-main textarea::placeholder {
+  color: #64748b !important;
+}
+
+html.dark #root main.phoenix-main .bg-slate-100\/70,
+html.dark #root main.phoenix-main .bg-slate-100 {
+  background-color: rgba(30, 41, 59, 0.55) !important;
+}
+
+html.dark #root main.phoenix-main .text-slate-900 {
+  color: #f1f5f9 !important;
+}
+
+html.dark #root main.phoenix-main .text-emerald-800,
+html.dark #root main.phoenix-main .text-emerald-900 {
+  color: #6ee7b7 !important;
+}
+
+html.dark #root main.phoenix-main .text-amber-950 {
+  color: #fcd34d !important;
+}
+
+html.dark #root main.phoenix-main .text-blue-800 {
+  color: #93c5fd !important;
+}

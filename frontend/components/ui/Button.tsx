@@ -21,7 +21,7 @@ const Button: React.FC<ButtonProps> = ({
     primary:
       'bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 text-white hover:from-blue-500 hover:via-indigo-500 hover:to-violet-500 focus:ring-indigo-400/45 border border-white/20 shadow-indigo-500/25 hover:shadow-indigo-500/35',
     secondary:
-      'bg-gradient-to-br from-white/95 to-slate-50/90 text-slate-800 hover:from-white hover:to-indigo-50/50 focus:ring-indigo-200/60 backdrop-blur-md border border-slate-200/80 shadow-sm hover:border-indigo-200/60',
+      'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 focus:ring-slate-300/60 border border-slate-200/80 dark:border-slate-600 shadow-sm',
     danger:
       'bg-gradient-to-r from-rose-600 to-red-600 text-white hover:from-rose-500 hover:to-red-500 focus:ring-rose-400/50 shadow-rose-500/20',
     accent:

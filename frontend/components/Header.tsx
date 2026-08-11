@@ -43,7 +43,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const initials = `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || 'U'}`;
 
   return (
-    <header className="pinm-topbar flex-shrink-0 flex items-center justify-between h-16 px-4 sm:px-6 bg-white dark:bg-slate-900 border-b border-slate-200/90 dark:border-slate-700/60 sticky top-0 z-30">
+    <header className="pinm-topbar flex-shrink-0 flex items-center justify-between h-16 px-4 sm:px-6 bg-white dark:bg-slate-900 border-b border-slate-200/90 dark:border-slate-700/60 sticky top-0 z-[60]">
       <div className="flex items-center gap-3 min-w-0">
         <button
           type="button"
@@ -141,7 +141,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             <ChevronDown className="w-4 h-4 text-slate-400 hidden md:block" />
           </button>
           {isUserOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg py-1 z-50">
+            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl py-1 z-[70]">
               <Link
                 to="/profile"
                 onClick={() => setIsUserOpen(false)}
