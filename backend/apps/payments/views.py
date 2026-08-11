@@ -41,7 +41,9 @@ class TransactionViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Super admin and accountant see all; others see own transactions only."""
-        base = Transaction.objects.select_related('article')
+        base = Transaction.objects.select_related(
+            'article', 'article__journal', 'user', 'translation_request'
+        )
         role = getattr(self.request.user, 'role', None)
         if role == 'super_admin' or role == 'accountant' or self.request.user.is_superuser:
             return base.order_by('-created_at')

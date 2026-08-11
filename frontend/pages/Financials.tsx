@@ -75,6 +75,9 @@ const Financials: React.FC = () => {
                 
                 return userName.includes(query) ||
                     t.service_type?.toLowerCase().includes(query) ||
+                    (t.journal_name && String(t.journal_name).toLowerCase().includes(query)) ||
+                    (t.article_title && String(t.article_title).toLowerCase().includes(query)) ||
+                    (t.context_label && String(t.context_label).toLowerCase().includes(query)) ||
                     (t.article && t.article.toString().includes(query)) ||
                     (t.translation_request && t.translation_request.toString().includes(query));
             });
@@ -104,6 +107,25 @@ const Financials: React.FC = () => {
         'top_up': 'Hisobni to\'ldirish',
         'book_publication': 'Kitob nashri',
         'translation': 'Tarjima',
+        'udk_request': 'UDK buyurtmasi',
+        'doi_request': 'DOI so\'rovi',
+        'article_sample': 'Maqola namuna',
+    };
+
+    const transactionContext = (t: {
+        journal_name?: string;
+        article_title?: string;
+        context_label?: string;
+        service_type?: string;
+    }) => {
+        const journal = (t.journal_name || '').trim();
+        const title = (t.article_title || '').trim();
+        const fallback = (t.context_label || '').trim();
+        if (journal && title) return { journal, detail: title };
+        if (journal) return { journal, detail: '' };
+        if (title) return { journal: '—', detail: title };
+        if (fallback) return { journal: '—', detail: fallback };
+        return { journal: '—', detail: '' };
     };
 
     const statusColors: Record<string, string> = {
@@ -115,16 +137,17 @@ const Financials: React.FC = () => {
 
     const handleExport = () => {
         // Create CSV content
-        const headers = ['Foydalanuvchi', 'Xizmat', 'Miqdor', 'Valyuta', 'Sana', 'Holat'];
+        const headers = ['Foydalanuvchi', 'Xizmat', 'Jurnal', 'Maqola / buyurtma', 'Miqdor', 'Valyuta', 'Sana', 'Holat'];
         const csvContent = [
             headers.join(','),
             ...filteredTransactions.map(t => {
                 const user = users.find(u => u.id === t.user);
                 const userName = user ? `${user.first_name} ${user.last_name}` : 'Noma\'lum foydalanuvchi';
                 const service = serviceTypeNames[t.service_type] || t.service_type || 'Noma\'lum';
+                const ctx = transactionContext(t);
                 const amount = `${txAmount(t.amount) >= 0 ? '+' : ''}${txAmount(t.amount)}`;
                 const date = new Date(t.created_at).toLocaleDateString();
-                return `"${userName}","${service}","${amount}","${t.currency}","${date}","${t.status}"`;
+                return `"${userName}","${service}","${ctx.journal}","${ctx.detail}","${amount}","${t.currency}","${date}","${t.status}"`;
             })
         ].join('\n');
 
@@ -340,6 +363,8 @@ const Financials: React.FC = () => {
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Foydalanuvchi</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Xizmat</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Jurnal</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider hidden lg:table-cell">Maqola / buyurtma</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Miqdor</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Sana</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Holat</th>
@@ -354,11 +379,25 @@ const Financials: React.FC = () => {
                                     const isFailed = transaction.status === 'failed' || transaction.status === 'cancelled';
                                     const amountPrefix = isFailed ? '' : '+';
                                     const amountColor = isCompleted ? 'text-emerald-800' : isFailed ? 'text-red-700' : 'text-yellow-800';
+                                    const ctx = transactionContext(transaction);
                                     return (
                                         <tr key={transaction.id} className="hover:bg-slate-100/70 transition-colors">
                                             <td className="px-4 py-4 text-sm text-slate-600">{userName}</td>
                                             <td className="px-4 py-4 text-sm text-slate-600">
                                                 {serviceTypeNames[transaction.service_type] || transaction.service_type || 'Noma\'lum'}
+                                            </td>
+                                            <td className="px-4 py-4 text-sm text-slate-900 font-medium max-w-[180px]">
+                                                <span className="line-clamp-2" title={ctx.journal}>{ctx.journal}</span>
+                                                {ctx.detail && (
+                                                    <p className="text-xs text-slate-500 font-normal mt-0.5 line-clamp-1 lg:hidden" title={ctx.detail}>
+                                                        {ctx.detail}
+                                                    </p>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-4 text-sm text-slate-600 hidden lg:table-cell max-w-[220px]">
+                                                <span className="line-clamp-2" title={ctx.detail || '—'}>
+                                                    {ctx.detail || '—'}
+                                                </span>
                                             </td>
                                             <td className="px-4 py-4 text-sm font-medium">
                                                 <span className={amountColor}>
@@ -381,7 +420,7 @@ const Financials: React.FC = () => {
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-12 text-center">
+                                    <td colSpan={7} className="px-4 py-12 text-center">
                                         <Filter className="mx-auto h-12 w-12 text-slate-500" />
                                         <h3 className="mt-2 text-sm font-medium text-slate-900">Tranzaksiyalar topilmadi</h3>
                                         <p className="mt-1 text-sm text-slate-500">
