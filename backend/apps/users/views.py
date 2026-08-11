@@ -158,15 +158,25 @@ class UserViewSet(viewsets.ModelViewSet):
                 path = str(field).lstrip('/')
                 return f"{base_url.replace('/api/v1', '')}{media_url}/{path}" if path else None
 
-        # 1. Maqolalar: har qanday yuborilgan maqola arxivda ko'rinsin.
-        # Avval faqat final_pdf_path bo'lsa chiqardi; natijada yangi yuborilgan maqola "yo'qolib" qolardi.
-        # Endi doim ro'yxatga qo'shamiz: fayl bo'lsa download_url, bo'lmasa article view_url.
+        def submission_download_url(field):
+            """Muallif yuborgan docx/doc arxivdan yuklanmaydi — faqat PDF."""
+            if not field:
+                return None
+            path = str(field).lower()
+            if path.endswith('.docx') or path.endswith('.doc'):
+                return None
+            return file_url(field)
+
+        # 1. Maqolalar: jarayondagi holatlar ko'rinadi; nashr etilganida faqat sertifikat (muallif docx emas).
         articles = Article.objects.filter(author=user).select_related('journal').order_by('-submission_date')
         for art in articles:
             title = (art.title or '')[:200]
             date_str = art.submission_date.isoformat() if art.submission_date else None
             article_view_url = f"/articles/{art.id}"
-            pdf_url = file_url(art.final_pdf_path) if art.final_pdf_path else None
+            pdf_url = submission_download_url(art.final_pdf_path)
+            has_pub_cert = bool(
+                getattr(art, 'publication_certificate_path', None) and art.publication_certificate_path
+            ) or bool((art.publication_certificate_url or art.certificate_url or '').strip())
             completed_pub_fee = Transaction.objects.filter(
                 article_id=art.id,
                 service_type='publication_fee',
@@ -189,17 +199,19 @@ class UserViewSet(viewsets.ModelViewSet):
                 status_label = 'Maqola PDF'
             else:
                 status_label = 'Maqola yuborildi'
-            items.append({
-                'type': 'article_pdf',
-                'id': str(art.id),
-                'article_id': str(art.id),
-                'title': title,
-                'label': status_label,
-                'date': date_str,
-                'download_url': pdf_url,
-                'view_url': article_view_url,
-                'extra': {'journal': art.journal.name if art.journal else None, 'status': art.status},
-            })
+            # Nashr etilgan maqolada muallif yuborgan fayl (docx) ko'rinmasin — faqat sertifikat.
+            if art.status != 'Published':
+                items.append({
+                    'type': 'article_pdf',
+                    'id': str(art.id),
+                    'article_id': str(art.id),
+                    'title': title,
+                    'label': status_label,
+                    'date': date_str,
+                    'download_url': pdf_url,
+                    'view_url': article_view_url,
+                    'extra': {'journal': art.journal.name if art.journal else None, 'status': art.status},
+                })
             if art.udk_certificate_path:
                 items.append({
                     'type': 'udk_certificate',
@@ -211,7 +223,11 @@ class UserViewSet(viewsets.ModelViewSet):
                     'download_url': file_url(art.udk_certificate_path),
                     'extra': {'udk_code': art.udk_code},
                 })
-            cert_url = art.publication_certificate_url or art.certificate_url
+            cert_url = file_url(art.publication_certificate_path) if has_pub_cert and getattr(
+                art, 'publication_certificate_path', None
+            ) and art.publication_certificate_path else None
+            if not cert_url:
+                cert_url = art.publication_certificate_url or art.certificate_url
             if cert_url:
                 if not cert_url.startswith('http'):
                     cert_url = cert_url if cert_url.startswith('/') else f"/{cert_url}"

@@ -195,6 +195,15 @@ const ArticleChatDock: React.FC = () => {
   }, [syncSelection]);
 
   useEffect(() => {
+    if (!eligibleForChat) {
+      setOpen(false);
+      writeChatOpen(false);
+      setSelectedArticleId(null);
+      writeStoredArticleId(null);
+    }
+  }, [eligibleForChat]);
+
+  useEffect(() => {
     if (!showWidget || !user) return;
     let cancelled = false;
     const loadList = async () => {
@@ -203,7 +212,7 @@ const ArticleChatDock: React.FC = () => {
         const raw =
           user.role === Role.Author
             ? await apiService.articles.list({ author: String(user.id) })
-            : await apiService.articles.list();
+            : await apiService.articles.getOperatorChatInbox();
         if (!cancelled) setArticleOptions(normalizeArticlesList(raw));
       } catch {
         if (!cancelled) setArticleOptions([]);

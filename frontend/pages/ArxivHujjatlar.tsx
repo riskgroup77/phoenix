@@ -127,7 +127,8 @@ const ArxivHujjatlar: React.FC = () => {
             <div>
                 <h1 className="text-2xl font-bold text-slate-900">Arxiv hujjatlar</h1>
                 <p className="text-slate-500 mt-1">
-                    Barcha maqolalar, UDK ma&apos;lumotnomalar, nashr sertifikatlari va taqriz natijalari shu yerga avtomatik yig&apos;iladi.
+                    Nashr sertifikatlari, UDK ma&apos;lumotnomalar, taqriz natijalari va DOI hujjatlari shu yerga avtomatik yig&apos;iladi.
+                    Muallif yuborgan dastlabki fayl (docx) bu ro&apos;yxatda ko&apos;rinmaydi.
                 </p>
             </div>
 

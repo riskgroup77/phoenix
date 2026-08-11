@@ -709,9 +709,7 @@ const ArticleDetail: React.FC = () => {
 
             {/* lg+ da chat Layout ichidagi o‘ng panelda; kichik ekranda shu yerda */}
             {!isLargeScreen &&
-                (viewerRoleNorm === 'author' ||
-                    viewerRoleNorm === 'operator' ||
-                    viewerRoleNorm === 'super_admin') &&
+                (viewerRoleNorm === 'author' || viewerRoleNorm === 'operator') &&
                 id && (
                     <AuthorOperatorChat
                         articleId={id}

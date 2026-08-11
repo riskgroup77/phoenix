@@ -230,14 +230,17 @@ const AuthorPublications: React.FC = () => {
             <div>
               <label htmlFor="search" className="block text-sm font-medium mb-2">Qidiruv</label>
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+                  aria-hidden
+                />
                 <input
                   id="search"
                   type="text"
                   placeholder="Sarlavha, mualliflar, kalit so'zlar..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="pinm-field w-full pl-10"
                 />
               </div>
             </div>

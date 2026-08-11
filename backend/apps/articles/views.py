@@ -833,8 +833,8 @@ class ArticleViewSet(viewsets.ModelViewSet):
         user = request.user
         role = (getattr(user, 'role', '') or '').lower()
         is_author = article.author_id == user.id
-        is_staff_side = role in ('operator', 'super_admin')
-        if not is_author and not is_staff_side:
+        is_operator = role == 'operator'
+        if not is_author and not is_operator:
             return Response({'detail': 'Bu chatga kirish huquqingiz yo‘q.'}, status=status.HTTP_403_FORBIDDEN)
 
         if request.method == 'GET':
@@ -851,7 +851,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
 
         if article.author_id == user.id:
             author_post = True
-        elif role in ('operator', 'super_admin'):
+        elif role == 'operator':
             author_post = False
         else:
             return Response({'detail': 'Xabar yuborish huquqingiz yo‘q.'}, status=status.HTTP_403_FORBIDDEN)
@@ -887,9 +887,9 @@ class ArticleViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='operator-chat-inbox')
     def operator_chat_inbox(self, request):
-        """So‘nggi faol chatlar: oxirgi xabar vaqti bo‘yicha (operator / super_admin)."""
+        """So‘nggi faol chatlar: oxirgi xabar vaqti bo‘yicha (faqat operator)."""
         role = (getattr(request.user, 'role', '') or '').lower()
-        if role not in ('operator', 'super_admin'):
+        if role != 'operator':
             return Response({'detail': 'Ruxsat yo‘q.'}, status=status.HTTP_403_FORBIDDEN)
         qs = (
             Article.objects.annotate(last_msg_at=Max('operator_messages__created_at'))

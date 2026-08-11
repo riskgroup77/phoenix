@@ -741,7 +741,7 @@ export const apiService = {
     /** Maqola namuna so'rovlari ro'yxati (operator uchun) */
     getArticleSampleRequests: () => apiFetch('/articles/article-sample/requests/'),
 
-    /** Muallif ↔ operator chat: oxirgi faol yozishmalar (operator / super_admin) */
+    /** Muallif ↔ operator chat: oxirgi faol yozishmalar (faqat operator) */
     getOperatorChatInbox: () => apiFetch('/articles/operator-chat-inbox/'),
 
     getOperatorChatMessages: (articleId: string) =>
