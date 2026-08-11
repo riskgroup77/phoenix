@@ -415,7 +415,12 @@ const Dashboard: React.FC = () => {
             .sort((a, b) => (b.fast_track ? 1 : 0) - (a.fast_track ? 1 : 0));
         const articlesInProgress = validArticles.filter(a => a.status === 'QabulQilingan');
         const doiSubmitted = (doiRequests || []).filter((r: any) => r.status === 'submitted');
-        const bookOrders = (transactions || []).filter((t: any) => t.service_type === 'book_publication' && (t.status === 'pending' || t.status === 'submitted'));
+        const bookOrders = validArticles.filter(
+            (a) =>
+                (a.title || '').trim().toUpperCase().startsWith('[KITOB]') &&
+                a.status !== 'Published' &&
+                a.status !== 'Rejected'
+        );
         const translationsPending = (translationRequests || []).filter((t: any) => t.status === 'Yangi' || t.status === 'Jarayonda');
         const qualityLabels: Record<string, string> = { quyi: 'Quyi', orta: "O'rta", yuqori: 'Yuqori' };
 
@@ -429,8 +434,8 @@ const Dashboard: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <StatCard icon={Inbox} title="Taqrizga kelganlar" value={articlesForReview.length} gradient="bg-gradient-to-r from-blue-500 to-cyan-400" to="/articles" />
                     <StatCard icon={Bot} title="DOI so'rovlari" value={doiSubmitted.length} gradient="bg-gradient-to-r from-cyan-500 to-teal-400" />
-                    <StatCard icon={Languages} title="Tarjima buyurtmalari" value={translationsPending.length} gradient="bg-gradient-to-r from-violet-500 to-purple-400" />
-                    <StatCard icon={BookOpen} title="Kitob nashr buyurtmalari" value={bookOrders.length} gradient="bg-gradient-to-r from-amber-500 to-orange-400" />
+                    <StatCard icon={Languages} title="Tarjima buyurtmalari" value={translationsPending.length} gradient="bg-gradient-to-r from-violet-500 to-purple-400" to="/articles?tab=translations" />
+                    <StatCard icon={BookOpen} title="Kitob nashr buyurtmalari" value={bookOrders.length} gradient="bg-gradient-to-r from-amber-500 to-orange-400" to="/articles?tab=book-orders" />
                 </div>
 
                 {/* Taqrizga kelgan maqolalar */}
@@ -564,7 +569,7 @@ const Dashboard: React.FC = () => {
                     )}
                     {translationsPending.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-slate-200/90">
-                            <Link to="/my-translations" className="inline-flex items-center gap-2 text-sm font-medium text-blue-800 hover:text-blue-700">Barcha tarjimalar <ArrowRight className="h-4 w-4" /></Link>
+                            <Link to="/articles?tab=translations" className="inline-flex items-center gap-2 text-sm font-medium text-blue-800 hover:text-blue-700">Barcha tarjimalar <ArrowRight className="h-4 w-4" /></Link>
                         </div>
                     )}
                 </Card>
@@ -576,10 +581,18 @@ const Dashboard: React.FC = () => {
                         <p className="text-slate-500 py-4">Hozircha buyurtmalar yo'q.</p>
                     ) : (
                         <ul className="space-y-3">
-                            {bookOrders.slice(0, 5).map((t: any) => (
-                                <li key={t.id} className="p-4 rounded-xl bg-slate-100/70 border border-slate-200/90 flex items-center justify-between">
-                                    <span className="text-slate-900">Tranzaksiya #{String(t.id).slice(0, 8)}</span>
-                                    <span className="text-slate-500 text-sm">{t.status}</span>
+                            {bookOrders.slice(0, 5).map((a: any) => (
+                                <li key={a.id}>
+                                    <Link
+                                        to={`/articles/${a.id}`}
+                                        className="flex items-center justify-between gap-3 p-4 rounded-xl bg-slate-100/70 border border-slate-200/90 hover:bg-white/8"
+                                    >
+                                        <div>
+                                            <p className="font-medium text-slate-900">{a.title}</p>
+                                            <p className="text-sm text-slate-500">{a.status}</p>
+                                        </div>
+                                        <ChevronRight className="h-5 w-5 text-slate-500 shrink-0" />
+                                    </Link>
                                 </li>
                             ))}
                         </ul>

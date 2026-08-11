@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import ModalPortal from '../components/ui/ModalPortal';
 import { Upload, FileCheck, Printer, Link as LinkIcon, CreditCard, Download, FileText, X } from 'lucide-react';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
 import AntiplagiatCertificate, { AntiplagiatCertificateData } from '../components/AntiplagiatCertificate';
@@ -10,6 +11,7 @@ import { paymentService } from '../services/paymentService';
 import { getUserFriendlyError } from '../utils/errorHandler';
 import { toast } from 'react-toastify';
 import { useServicePrices } from '../hooks/useServicePrices';
+import { MAX_UPLOAD_BYTES, formatMaxUploadLabel } from '../constants/upload';
 
 // New types for detailed results
 interface PlagiarismSource {
@@ -221,7 +223,10 @@ const PlagiarismCheck: React.FC = () => {
                   setArticleId(pendingArticleId);
                   setPendingPlagiarismPayment(null);
                   setPaymentVerifiedCompleted(true);
-                  toast.success('To\'lov tasdiqlandi. Endi "Tekshirishni davom ettirish" tugmasini bosing.');
+                  toast.success('To\'lov tasdiqlandi. Tekshiruv boshlanmoqda...');
+                  window.setTimeout(() => {
+                      void handleCheck(true, pendingArticleId);
+                  }, 100);
                   return;
               }
               if (res.payment_status === -1) {
@@ -262,7 +267,10 @@ const PlagiarismCheck: React.FC = () => {
               setArticleId(artId);
               setPendingPlagiarismPayment(null);
               setPaymentVerifiedCompleted(true);
-              toast.success('To\'lov tasdiqlandi. "Tekshirishni davom ettirish" tugmasini bosing.');
+              toast.success('To\'lov tasdiqlandi. Tekshiruv boshlanmoqda...');
+              window.setTimeout(() => {
+                  void handleCheck(true, artId);
+              }, 100);
               return;
           }
           if (res.payment_status === -1) {
@@ -323,8 +331,14 @@ const PlagiarismCheck: React.FC = () => {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files) {
-          setFile(e.target.files[0]);
+      if (e.target.files?.[0]) {
+          const picked = e.target.files[0];
+          if (picked.size > MAX_UPLOAD_BYTES) {
+              toast.error(`Fayl hajmi ${formatMaxUploadLabel()} dan oshmasligi kerak.`);
+              e.target.value = '';
+              return;
+          }
+          setFile(picked);
           setResult(null);
           setCertificateData(null);
           setProgress(0);
@@ -395,7 +409,7 @@ const PlagiarismCheck: React.FC = () => {
       }
   };
 
-  const handleCheck = async (paymentCompleted = false) => {
+  const handleCheck = async (paymentCompleted = false, forcedArticleId?: string) => {
       if (!file || !user) return;
       if (!authorFirstName.trim() || !authorLastName.trim()) {
           toast.error('Ism va familyani kiriting.');
@@ -420,10 +434,12 @@ const PlagiarismCheck: React.FC = () => {
       setCertificateData(null);
       setResult(null);
       setProgress(0);
-      setPaymentVerifiedCompleted(false);
+      if (!forcedArticleId) {
+          setPaymentVerifiedCompleted(false);
+      }
 
       try {
-          const targetArticleId = await ensureArticleForPlagiarism();
+          const targetArticleId = forcedArticleId || (await ensureArticleForPlagiarism());
 
           // Backend will verify payment; if not paid, returns 402
           const plagiarismResult = await apiService.articles.checkPlagiarism(targetArticleId);
@@ -583,7 +599,7 @@ const PlagiarismCheck: React.FC = () => {
                           <p className="mt-2 text-sm font-medium text-slate-950">
                               {file ? `Tanlangan fayl: ${file.name}` : 'Hujjatni shu joyga tortib tashlang yoki faylni tanlang (.docx, .pdf)'}
                           </p>
-                          <p className="mt-1 text-xs font-medium text-slate-800">Maksimal hajmi: 10MB</p>
+                          <p className="mt-1 text-xs font-medium text-slate-800">Maksimal hajmi: {formatMaxUploadLabel()}</p>
                       </div>
                       <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept=".pdf,.doc,.docx" />
                   </label>
@@ -736,8 +752,8 @@ const PlagiarismCheck: React.FC = () => {
 
       {/* Payment Modal */}
       {isPaymentModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-md">
-              <div className="w-full max-w-md rounded-2xl border border-white/50 bg-gradient-to-br from-white/45 via-white/30 to-violet-200/35 p-6 shadow-2xl backdrop-blur-2xl transition-all duration-300">
+          <ModalPortal open={isPaymentModalOpen}>
+              <div className="w-full max-w-md rounded-2xl border border-white/50 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 shadow-2xl">
                   {paymentStatus === 'idle' && (
                       <div>
                           <h3 className="mb-4 text-xl font-bold text-slate-950">To'lovni tasdiqlash</h3>
@@ -789,7 +805,7 @@ const PlagiarismCheck: React.FC = () => {
                       </div>
                   )}
               </div>
-          </div>
+          </ModalPortal>
       )}
       </>
   );

@@ -83,6 +83,12 @@ def _fulfill_after_payment(transaction):
             fulfill_publication_fee(transaction)
         except Exception as e:
             logger.error('Publication fee fulfill failed: %s', e, exc_info=True)
+    if service_type == 'book_publication':
+        try:
+            from apps.articles.fulfill_book_publication import fulfill_book_publication
+            fulfill_book_publication(transaction)
+        except Exception as e:
+            logger.error('Book publication fulfill failed: %s', e, exc_info=True)
 
 
 class ClickPaymentService:

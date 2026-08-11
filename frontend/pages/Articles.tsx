@@ -509,6 +509,7 @@ const Articles: React.FC = () => {
     const reviewerTabs: { id: string; label: string; statuses: (ArticleStatus | TranslationStatus)[] }[] = [
         { id: 'reviews', label: 'Maqola Taqrizlari', statuses: [ArticleStatus.QabulQilingan] },
         { id: 'translations', label: 'Tarjimalar', statuses: [TranslationStatus.Yangi, TranslationStatus.Jarayonda] },
+        { id: 'book-orders', label: 'Kitob nashr', statuses: [ArticleStatus.QabulQilingan, ArticleStatus.Yangi, ArticleStatus.ContractProcessing] },
     ];
     const journalAdminTabs = journalAdminTabsBase;
 
@@ -575,10 +576,21 @@ const Articles: React.FC = () => {
             return list.sort((a, b) => (b.fast_track ? 1 : 0) - (a.fast_track ? 1 : 0));
         }
         if (isReviewer) {
-            if (activeTab === 'reviews') {
-                const selectedTab = reviewerTabs.find((t) => t.id === activeTab);
+            if (activeTab === 'translations') {
+                return [];
+            }
+            if (activeTab === 'book-orders') {
                 return articles
-                    .filter((a) => selectedTab?.statuses.includes(a.status as ArticleStatus))
+                    .filter((a) => (a.title || '').trim().toUpperCase().startsWith('[KITOB]'))
+                    .sort((a, b) => (b.fast_track ? 1 : 0) - (a.fast_track ? 1 : 0));
+            }
+            if (activeTab === 'reviews') {
+                return articles
+                    .filter(
+                        (a) =>
+                            a.status === ArticleStatus.QabulQilingan &&
+                            !(a.title || '').trim().toUpperCase().startsWith('[KITOB]')
+                    )
                     .sort((a, b) => (b.fast_track ? 1 : 0) - (a.fast_track ? 1 : 0));
             }
             return [];
@@ -658,15 +670,20 @@ const Articles: React.FC = () => {
                     }
                     return false;
                 }).length;
+            } else if (tab.id === 'book-orders') {
+                count = articles.filter((a) =>
+                    (a.title || '').trim().toUpperCase().startsWith('[KITOB]')
+                ).length;
+            } else if (tab.id === 'reviews') {
+                count = articles.filter(
+                    (a) =>
+                        a.status === ArticleStatus.QabulQilingan &&
+                        !(a.title || '').trim().toUpperCase().startsWith('[KITOB]')
+                ).length;
             } else if (tab.statuses) {
-                count = articles.filter(a => {
-                    const statusMatch = (tab.statuses as ArticleStatus[]).includes(a.status);
-                    // For Reviewer article reviews
-                    if (tab.id === 'reviews') {
-                        return statusMatch;
-                    }
-                    return statusMatch;
-                }).length;
+                count = articles.filter((a) =>
+                    (tab.statuses as ArticleStatus[]).includes(a.status as ArticleStatus)
+                ).length;
             }
             return { id: tab.id, count };
         });
@@ -780,8 +797,12 @@ const Articles: React.FC = () => {
         const jid = searchParams.get('journal');
         if (jid) setFilterJournal(jid);
         const tab = searchParams.get('tab');
-        if (tab && authorArticleTabs.some((t) => t.id === tab)) {
-            setActiveTab(tab);
+        if (tab) {
+            if (authorArticleTabs.some((t) => t.id === tab)) {
+                setActiveTab(tab);
+            } else if (reviewerTabs.some((t) => t.id === tab)) {
+                setActiveTab(tab);
+            }
         }
     }, [searchParams]);
 

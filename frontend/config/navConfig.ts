@@ -81,6 +81,8 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
     primary: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Ishchi stol' },
       { to: '/articles', icon: FileText, label: 'Taqrizga kelganlar' },
+      { to: '/articles?tab=translations', icon: Languages, label: 'Tarjima buyurtmalari' },
+      { to: '/articles?tab=book-orders', icon: BookOpen, label: 'Kitob nashr buyurtmalari' },
       { to: '/doi-requests', icon: Bot, label: "DOI so'rovlari" },
       { to: '/udk-requests', icon: Library, label: "UDK so'rovlari" },
     ],
@@ -158,7 +160,8 @@ export const bottomNavByRole: Partial<Record<Role, NavItem[]>> = {
   [Role.Reviewer]: [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Stol' },
     { to: '/articles', icon: FileText, label: 'Taqriz' },
-    { to: '/doi-requests', icon: Bot, label: 'DOI' },
+    { to: '/articles?tab=translations', icon: Languages, label: 'Tarjima' },
+    { to: '/articles?tab=book-orders', icon: BookOpen, label: 'Kitob' },
     { to: '/profile', icon: UserCircle, label: 'Profil' },
   ],
   [Role.JournalAdmin]: [

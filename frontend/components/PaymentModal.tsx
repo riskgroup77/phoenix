@@ -5,6 +5,7 @@
 
 import React from 'react';
 import Button from './ui/Button';
+import ModalPortal from './ui/ModalPortal';
 import { CreditCard, Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 interface PaymentModalProps {
@@ -35,8 +36,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-white/55 rounded-lg p-6 max-w-md w-full border border-slate-200/90">
+    <ModalPortal open={isOpen}>
+      <div className="bg-white dark:bg-slate-900 rounded-lg p-6 max-w-md w-full border border-slate-200/90 dark:border-slate-700 shadow-2xl">
         {status === 'idle' && (
           <div>
             <div className="flex justify-between items-center mb-4">
@@ -112,7 +113,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </ModalPortal>
   );
 };
 

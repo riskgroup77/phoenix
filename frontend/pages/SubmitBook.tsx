@@ -1,11 +1,13 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import ModalPortal from '../components/ui/ModalPortal';
 import { UploadCloud, CheckCircle, Loader2, XCircle, BookText, Book, BookCopy, ChevronDown, Check, Info, Minus, Plus } from 'lucide-react';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
-import { Article, ArticleStatus } from '../types';
+import { ArticleStatus } from '../types';
 import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
+import { toast } from 'react-toastify';
 
 // --- Pricing Data from Image ---
 const PRINTING_PER_PAGE = {
@@ -156,7 +158,26 @@ const SubmitBook: React.FC = () => {
     const [isProcessModalOpen, setIsProcessModalOpen] = useState(false);
     const [processPaymentStatus, setProcessPaymentStatus] = useState<'pending' | 'completed' | 'failed' | null>(null);
     const [isRefreshingProcess, setIsRefreshingProcess] = useState(false);
+    const [bookArticleId, setBookArticleId] = useState<string | null>(null);
+    const [availableJournals, setAvailableJournals] = useState<{ id: string }[]>([]);
     const paymentTimerRef = useRef<number | null>(null);
+
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    useEffect(() => {
+        void (async () => {
+            try {
+                const raw = await apiService.journals.list({ pageSize: 100 });
+                const list = Array.isArray(raw) ? raw : (raw?.results ?? raw?.data ?? []);
+                const valid = (list as { id?: string }[])
+                    .filter((j) => j?.id && UUID_RE.test(String(j.id)))
+                    .map((j) => ({ id: String(j.id) }));
+                setAvailableJournals(valid);
+            } catch {
+                setAvailableJournals([]);
+            }
+        })();
+    }, []);
 
     useEffect(() => {
         return () => {
@@ -182,9 +203,13 @@ const SubmitBook: React.FC = () => {
     // To'lov sahifasidan qaytganda transactionId ni tiklash va holatni avtomatik tekshirish
     useEffect(() => {
         const stored = sessionStorage.getItem('submitbook_pending_transaction_id');
+        const storedArticle = sessionStorage.getItem('submitbook_article_id');
+        if (storedArticle && UUID_RE.test(storedArticle)) {
+            setBookArticleId(storedArticle);
+        }
         if (stored) {
             setTransactionId(stored);
-            refreshProcessStatus(stored);
+            void refreshProcessStatus(stored);
         }
     }, []);
 
@@ -218,56 +243,48 @@ const SubmitBook: React.FC = () => {
     }, [pages, copies, paperQuality, coverType, options]);
 
 
-    const submitBook = async (isPaid: boolean = false) => {
-        if (!user || !title || !manuscriptFile || pages <= 0) return;
-
-        try {
-            // Prepare article data for book publication
-            const articleData = {
-                title: `[KITOB] ${title}`,
-                abstract: synopsis || 'Annotatsiya kiritilmagan.',
-                keywords: ['kitob', 'nashr'],
-                status: ArticleStatus.Yangi,
-                journalId: 'book-publication-service', // Special ID for books
-                submissionDate: new Date().toISOString().split('T')[0],
-                pageCount: pages,
-            };
-
-            // Create the article with manuscript file
-            const result = await apiService.articles.create(
-                articleData,
-                { mainFile: manuscriptFile, additionalFile: coverFile || undefined }
-            );
-            
-            // If payment was made, record the transaction
-            if(isPaid && result.id) {
-                const transactionData = {
-                    articleId: result.id,
-                    amount: -calculatedCosts.total,
-                    currency: 'so\'m',
-                    serviceType: 'book_publication',
-                    status: 'completed',
-                    createdAt: new Date().toISOString().split('T')[0],
-                };
-                
-                // Save transaction to backend
-                await apiService.payments.createTransaction(transactionData);
-            }
-
-            addNotification({ 
-                message: `Yangi "${articleData.title.substring(0, 40)}..." kitobi ko'rib chiqish uchun yuborildi.`,
-                link: `/articles/${result.id}`
-            });
-            
-            return result;
-        } catch (error) {
-            console.error('Failed to submit book:', error);
-            addNotification({ 
-                message: 'Kitob yuborishda xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.',
-            });
-            throw error;
+    const ensureBookArticle = useCallback(async (): Promise<string> => {
+        if (!user || !title.trim() || !manuscriptFile || pages <= 0) {
+            throw new Error('Kitob ma\'lumotlari to\'liq emas.');
         }
-    };
+        if (bookArticleId && UUID_RE.test(bookArticleId)) {
+            return bookArticleId;
+        }
+        const journalPk = availableJournals[0]?.id;
+        if (!journalPk) {
+            throw new Error('Jurnal topilmadi. Administrator bilan bog\'laning.');
+        }
+        const articleData = {
+            title: `[KITOB] ${title.trim()}`,
+            abstract: synopsis.trim() || 'Annotatsiya kiritilmagan.',
+            keywords: ['kitob', 'nashr'],
+            journal: journalPk,
+            page_count: pages,
+        };
+        const result = await apiService.articles.create(articleData, {
+            mainFile: manuscriptFile,
+            additionalFile: coverFile || undefined,
+        });
+        const created = (result as { data?: { id?: string }; id?: string })?.data ?? result;
+        const newId = String((created as { id?: string })?.id ?? '').trim();
+        if (!newId || !UUID_RE.test(newId)) {
+            throw new Error('Kitob buyurtmasi yaratilmadi.');
+        }
+        setBookArticleId(newId);
+        sessionStorage.setItem('submitbook_article_id', newId);
+        return newId;
+    }, [user, title, manuscriptFile, pages, synopsis, coverFile, bookArticleId, availableJournals]);
+
+    const submitBookAfterPayment = useCallback(
+        async (linkedArticleId: string) => {
+            addNotification({
+                message: `"${title.substring(0, 40)}..." kitob buyurtmasi taqrizchiga yuborildi.`,
+                link: `/articles/${linkedArticleId}`,
+            });
+            toast.success('To\'lov tasdiqlandi. Buyurtma taqrizchilar paneliga yuborildi.');
+        },
+        [addNotification, title]
+    );
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -310,9 +327,15 @@ const SubmitBook: React.FC = () => {
         if (paymentTimerRef.current) clearTimeout(paymentTimerRef.current);
         
         try {
-            // Create transaction and process payment via Click
+            const linkedArticleId = await ensureBookArticle();
             const extraData: Record<string, unknown> = {
                 publication_type: publicationType,
+                pages,
+                copies,
+                paper_quality: paperQuality,
+                cover_type: coverType,
+                options,
+                book_title: title.trim(),
             };
             if (publicationType === 'bosma') {
                 extraData.shipping_region = shippingRegion.trim();
@@ -325,8 +348,8 @@ const SubmitBook: React.FC = () => {
                 calculatedCosts.total,
                 'UZS',
                 'book_publication',
-                undefined, // articleId
-                undefined, // translationRequestId
+                linkedArticleId,
+                undefined,
                 'click',
                 extraData
             );
@@ -382,6 +405,11 @@ const SubmitBook: React.FC = () => {
                 setProcessPaymentStatus('completed');
                 setTransactionId((prev) => (prev || id));
                 sessionStorage.removeItem(STORAGE_KEY_BOOK_TX);
+                const artId = bookArticleId || sessionStorage.getItem('submitbook_article_id');
+                if (artId) {
+                    await submitBookAfterPayment(artId);
+                    sessionStorage.removeItem('submitbook_article_id');
+                }
             } else if (statusResult.payment_status === -1) {
                 setProcessPaymentStatus('failed');
                 setTransactionId((prev) => prev || id);
@@ -573,8 +601,8 @@ const SubmitBook: React.FC = () => {
             </Card>
 
             {isPaymentModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <Card className="w-full max-w-sm text-center">
+                <ModalPortal open={isPaymentModalOpen}>
+                    <Card className="w-full max-w-sm text-center shadow-2xl">
                         {paymentStatus === 'idle' && (
                             <>
                                 <ClickLogo />
@@ -644,12 +672,12 @@ const SubmitBook: React.FC = () => {
                            </div>
                         )}
                     </Card>
-                </div>
+                </ModalPortal>
             )}
 
             {isProcessModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <Card className="w-full max-w-xl">
+                <ModalPortal open={isProcessModalOpen}>
+                    <Card className="w-full max-w-xl shadow-2xl">
                         <h3 className="text-xl font-semibold text-slate-900 mb-4">Kitob nashri jarayoni</h3>
 
                         <div className="space-y-3">
@@ -689,7 +717,7 @@ const SubmitBook: React.FC = () => {
                             <Button onClick={closeProcessModal} className="w-full">Yopish</Button>
                         </div>
                     </Card>
-                </div>
+                </ModalPortal>
             )}
         </>
     );

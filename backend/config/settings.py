@@ -367,7 +367,7 @@ else:
     ]
 
 # File Upload Settings
-_upload_mb = max(1, min(int(os.getenv('MAX_UPLOAD_MB', '10')), 100))
+_upload_mb = max(1, min(int(os.getenv('MAX_UPLOAD_MB', '25')), 100))
 FILE_UPLOAD_MAX_MEMORY_SIZE = _upload_mb * 1024 * 1024
 DATA_UPLOAD_MAX_MEMORY_SIZE = _upload_mb * 1024 * 1024
 
