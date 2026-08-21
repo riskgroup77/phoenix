@@ -135,8 +135,10 @@ class UserViewSet(viewsets.ModelViewSet):
         try:
             from apps.articles.fulfill_publication_fee import repair_publication_fee_articles_for_user
             from apps.articles.fulfill_doi import repair_doi_requests_for_user
+            from apps.articles.repair_book_publication import repair_book_publications_for_user
             repair_publication_fee_articles_for_user(user)
             repair_doi_requests_for_user(user)
+            repair_book_publications_for_user(user)
         except Exception as repair_err:
             import logging
             logging.getLogger(__name__).warning('Archive payment repair failed: %s', repair_err)

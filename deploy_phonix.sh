@@ -221,6 +221,9 @@ python manage.py migrate --noinput || error_exit "Migrations xatolik"
 echo "   Demo foydalanuvchilar va operator tiklanmoqda..."
 python manage.py setup_demo_and_admin || echo "   ⚠️  setup_demo_and_admin xato (deploy davom etadi)"
 
+echo "   Kitob nashr tranzaksiyalarini tiklash..."
+python manage.py repair_book_publications || echo "   ⚠️  repair_book_publications xato (deploy davom etadi)"
+
 # Static files
 echo "   Static files collect qilinmoqda..."
 python manage.py collectstatic --noinput || error_exit "Collectstatic xatolik"
