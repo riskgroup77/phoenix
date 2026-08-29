@@ -13,6 +13,7 @@ import {
   estimatePageCountFromFile,
   parsePageCount,
 } from '../utils/submitArticleUtils';
+import JournalA4Card, { type JournalCardData } from '../components/JournalA4Card';
 import { toast } from 'react-toastify';
 
 const SubmitArticle: React.FC = () => {
@@ -21,7 +22,7 @@ const SubmitArticle: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [journals, setJournals] = useState<{ id: string; name: string; description?: string; issn?: string; publication_fee?: number; price_per_page?: number; pricing_type?: string; payment_model?: string; image_url?: string | null; category_name?: string }[]>([]);
+  const [journals, setJournals] = useState<JournalCardData[]>([]);
   const [journalSearch, setJournalSearch] = useState('');
   const [journalFilterType, setJournalFilterType] = useState('');
   const [journalFilterSubject, setJournalFilterSubject] = useState('');
@@ -82,6 +83,8 @@ const SubmitArticle: React.FC = () => {
           payment_model: j.payment_model || undefined,
           image_url: j.image_url || null,
           category_name: j.category_name || '',
+          admin_name: j.admin_name || '',
+          issues: Array.isArray(j.issues) ? j.issues : [],
         })));
       } catch (e) {
         console.error('Failed to load journals', e);
@@ -382,7 +385,7 @@ const SubmitArticle: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className={`mx-auto p-6 ${currentStep === 1 ? 'max-w-6xl' : 'max-w-4xl'}`}>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Maqola yuborish</h1>
         <p className="text-slate-500">Maqolangizni nashr qilish uchun yuboring</p>
@@ -488,49 +491,17 @@ const SubmitArticle: React.FC = () => {
             />
             <p className="text-sm text-slate-500 mb-4">Jurnallar: {journals.length} | Ko&apos;rsatilmoqda: {filteredJournals.length}</p>
             {errors.journalId && <p className="text-red-500 text-sm mb-2">{errors.journalId}</p>}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredJournals.map((j) => {
-                const isFixed = j.pricing_type === 'fixed' || (j.publication_fee != null && j.publication_fee > 0 && !j.price_per_page);
-                const priceText = isFixed
-                  ? `${(j.publication_fee ?? 0).toLocaleString()} so'm`
-                  : j.price_per_page != null
-                    ? `${(j.price_per_page).toLocaleString()} so'm / sahifa`
-                    : '';
-                return (
-                  <button
-                    key={j.id}
-                    type="button"
-                    onClick={() => selectJournalAndNext(j.id)}
-                    className="text-left rounded-xl border-2 border-slate-200/90 bg-slate-100/70 hover:border-blue-500/50 hover:bg-white/10 transition-all duration-200 group overflow-hidden"
-                  >
-                    <div className="flex flex-col">
-                      <div className="w-full h-36 sm:h-40 rounded-t-xl bg-white flex items-center justify-center overflow-hidden border-b border-slate-200/90 p-2">
-                        {j.image_url && !journalImageErrors[j.id] ? (
-                          <img
-                            src={j.image_url.startsWith('http') ? j.image_url : apiService.getMediaUrl(j.image_url)}
-                            alt={j.name}
-                            className="max-w-full max-h-full w-auto h-auto object-contain object-center"
-                            onError={() => setJournalImageErrors((prev) => ({ ...prev, [j.id]: true }))}
-                          />
-                        ) : (
-                          <BookOpen className="w-16 h-16 text-blue-800 shrink-0" />
-                        )}
-                      </div>
-                      <div className="p-4 min-w-0">
-                        <h3 className="font-semibold text-slate-900 truncate">{j.name}</h3>
-                        {j.description && (
-                          <p className="text-sm text-slate-500 mt-1 line-clamp-2">{j.description}</p>
-                        )}
-                        {j.issn && <p className="text-xs text-slate-500 mt-1 font-mono">{j.issn}</p>}
-                        {priceText && (
-                          <p className="text-sm font-medium text-blue-900 mt-2">{priceText}</p>
-                        )}
-                        {priceText && <p className="text-xs text-slate-500">To&apos;liq to&apos;lov</p>}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8 justify-items-center">
+              {filteredJournals.map((j) => (
+                <JournalA4Card
+                  key={j.id}
+                  journal={j}
+                  selected={formData.journalId === j.id}
+                  imageError={!!journalImageErrors[j.id]}
+                  onImageError={() => setJournalImageErrors((prev) => ({ ...prev, [j.id]: true }))}
+                  onSelect={() => selectJournalAndNext(j.id)}
+                />
+              ))}
             </div>
             {filteredJournals.length === 0 && (
               <p className="text-center text-slate-500 py-8">Qidiruv bo&apos;yicha jurnal topilmadi.</p>
