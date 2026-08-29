@@ -375,6 +375,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = _upload_mb * 1024 * 1024
 # Bir nechta nomlar bilan kelishi mumkin (legacy): GOOGLE_API_KEY, GENAI_API_KEY
 GEMINI_API_KEY = (
     (os.getenv('GEMINI_API_KEY') or '').strip()
+    or (os.getenv('ANTIPLAGIAT_CLOUD_TOKEN') or '').strip()
     or (os.getenv('GOOGLE_API_KEY') or '').strip()
     or (os.getenv('GENAI_API_KEY') or '').strip()
 )
@@ -383,7 +384,7 @@ GEMINI_API_KEY = (
 GEMINI_MODEL = (os.getenv('GEMINI_MODEL') or 'gemini-1.5-flash').strip()
 GEMINI_MAX_OUTPUT_TOKENS = int(os.getenv('GEMINI_MAX_OUTPUT_TOKENS', '8192'))
 # Antiplagiat promptiga kiritiladigan matn chegarami (belgi)
-GEMINI_PLAGIARISM_INPUT_CHARS = int(os.getenv('GEMINI_PLAGIARISM_INPUT_CHARS', '12000'))
+GEMINI_PLAGIARISM_INPUT_CHARS = int(os.getenv('GEMINI_PLAGIARISM_INPUT_CHARS', '25000'))
 
 # Click API HTTP client
 CLICK_HTTP_TIMEOUT_SEC = int(os.getenv('CLICK_HTTP_TIMEOUT_SEC', '45'))

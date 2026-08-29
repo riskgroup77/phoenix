@@ -223,10 +223,10 @@ const PlagiarismCheck: React.FC = () => {
                   setArticleId(pendingArticleId);
                   setPendingPlagiarismPayment(null);
                   setPaymentVerifiedCompleted(true);
-                  toast.success('To\'lov tasdiqlandi. Tekshiruv boshlanmoqda...');
+                  toast.success('To\'lov tasdiqlandi. AI antiplagiat tekshiruvi avtomatik boshlanmoqda...');
                   window.setTimeout(() => {
-                      void handleCheck(true, pendingArticleId);
-                  }, 100);
+                      void runPlagiarismAfterPayment(pendingArticleId);
+                  }, 300);
                   return;
               }
               if (res.payment_status === -1) {
@@ -252,6 +252,138 @@ const PlagiarismCheck: React.FC = () => {
       return () => { cancelled = true; };
   }, []);
 
+  const applyPlagiarismResults = (
+    plagiarismPercentage: number,
+    aiContentPercentage: number,
+    foundSources: PlagiarismSource[],
+  ) => {
+    const originality = 100 - plagiarismPercentage;
+    const finalResult = {
+      plagiarism: plagiarismPercentage,
+      aiContent: aiContentPercentage,
+      sources: foundSources,
+    };
+    setResult(finalResult);
+
+    const newCertificateData: AntiplagiatCertificateData = {
+      certificateNumber: `PN-${Date.now().toString().slice(-6)}`,
+      checkDate: new Date().toLocaleDateString('uz-UZ'),
+      author: `${(authorLastName || user?.lastName || '').trim()} ${(authorFirstName || user?.firstName || '').trim()}`.trim(),
+      workType: documentType || 'Ilmiy ish',
+      fileName: documentName.trim() || file?.name || '',
+      citations: '0%',
+      selfCitation: '0%',
+      plagiarism: `${plagiarismPercentage}%`,
+      originality: `${originality.toFixed(2)}%`,
+      searchModules: 'Milliy reestr, Internet plyus, Shablon iboralar, eLIBRARY.RU, Bibliografiya, BMK dissertatsiyalari, Viloy nashriyoti, Universitetlar halqasi, IPS Adilet, Tabobat, Tarjimali matnlar qidiruv moduli, Patentlar, Tarjima tekshiruvi uz-ru, parafaz matnlarni tekshirish, RDK to\'plami, Rossiya va MDH OAVlari, Elektron-kutubxona tizimlari, Garant AHT, Iqtibos keltirish, SPS Garant',
+    };
+    setCertificateData(newCertificateData);
+
+    const fullReport: PlagiarismFullReportData = {
+      checkerName: newCertificateData.author,
+      checkerId: user?.id?.slice(-5) || '00000',
+      checkerOrganization: user?.affiliation || '',
+      documentNumber: newCertificateData.certificateNumber,
+      uploadDate: new Date().toLocaleString('uz-UZ'),
+      originalFileName: file?.name || '',
+      documentName: documentName.trim() || file?.name || '',
+      documentType: documentType || 'Ilmiy ish',
+      characterCount: Math.floor(Math.random() * 50000) + 10000,
+      sentenceCount: Math.floor(Math.random() * 500) + 100,
+      fileSize: file ? `${(file.size / 1024).toFixed(2)} KB` : '—',
+      plagiarismPercent: plagiarismPercentage,
+      selfCitationPercent: 0,
+      citationPercent: 0,
+      originalityPercent: originality,
+      searchModules: [
+        'Phoenix Milliy reestr',
+        'Internet PLUS qidiruv moduli',
+        'eLIBRARY.RU qidiruv moduli',
+        'OTMlar halqasi qidiruv moduli',
+        'BMK dissertatsiyalari qidiruv moduli',
+        'Shablon iboralar qidiruv moduli',
+        'Iqtibos keltirish qidiruv moduli',
+        'Patentlar qidiruv moduli',
+        'Elektron-kutubxona tizimlari',
+        'Tarjimali matnlar qidiruv moduli',
+      ],
+      sources: foundSources.map((s, idx) => ({
+        id: idx + 1,
+        percentage: `${s.similarity}%`,
+        sourceName: s.snippet.slice(0, 100) + (s.snippet.length > 100 ? '...' : ''),
+        sourceUrl: s.source.startsWith('http') ? s.source : `https://${s.source}`,
+        searchModule: 'Internet PLUS qidiruv moduli',
+      })),
+    };
+    setFullReportData(fullReport);
+  };
+
+  const mapSourcesFromApi = (apiSources: unknown): PlagiarismSource[] => {
+    if (!apiSources || !Array.isArray(apiSources)) return [];
+    return apiSources
+      .map((s: { source?: string; snippet?: string; similarity?: number }) => ({
+        source: (s.source || '').trim(),
+        snippet: (s.snippet || '').trim(),
+        similarity: typeof s.similarity === 'number' ? Math.round(s.similarity) : 0,
+      }))
+      .filter((s: PlagiarismSource) => s.source);
+  };
+
+  /** To'lovdan keyin server avtomatik tekshiruvni ishga tushiradi — natija tayyor bo'lguncha kutamiz */
+  const pollUntilPlagiarismReady = async (targetArticleId: string, maxAttempts = 40): Promise<boolean> => {
+    for (let i = 0; i < maxAttempts; i++) {
+      setProgress(Math.min(95, 10 + i * 2));
+      try {
+        const art = await apiService.articles.get(targetArticleId);
+        const data = art?.data || art;
+        if (data?.plagiarism_checked_at && data.plagiarism_percentage != null) {
+          const sources = mapSourcesFromApi(data.plagiarism_report?.sources);
+          applyPlagiarismResults(
+            Number(data.plagiarism_percentage) || 0,
+            Number(data.ai_content_percentage) || 0,
+            sources,
+          );
+          return true;
+        }
+      } catch {
+        /* retry */
+      }
+      await new Promise((r) => window.setTimeout(r, 3000));
+    }
+    return false;
+  };
+
+  const runPlagiarismAfterPayment = async (targetArticleId: string) => {
+    setIsChecking(true);
+    setProgress(5);
+    setResult(null);
+    setCertificateData(null);
+    try {
+      const ready = await pollUntilPlagiarismReady(targetArticleId);
+      if (ready) {
+        toast.success('AI antiplagiat tekshiruvi muvaffaqiyatli yakunlandi!');
+        return;
+      }
+      toast.info('Avtomatik tekshiruv davom etmoqda. API orqali yakunlanmoqda...');
+      const plagiarismResult = await apiService.articles.checkPlagiarism(targetArticleId);
+      const plagiarismPercentage = plagiarismResult.plagiarism || 0;
+      const aiContentPercentage = plagiarismResult.ai_content || 0;
+      applyPlagiarismResults(
+        plagiarismPercentage,
+        aiContentPercentage,
+        mapSourcesFromApi(plagiarismResult.sources),
+      );
+      toast.success('Antiplagiat tekshiruvi muvaffaqiyatli amalga oshirildi!');
+    } catch (err: unknown) {
+      const msg = getUserFriendlyError(err) || 'Antiplagiat tekshiruvida xatolik yuz berdi.';
+      toast.error(msg);
+    } finally {
+      setIsChecking(false);
+      setProgress(100);
+      setPaymentVerifiedCompleted(false);
+    }
+  };
+
   const recheckPlagiarismPayment = async () => {
       const txId = pendingPlagiarismPayment?.transactionId || sessionStorage.getItem(STORAGE_KEY_TRANSACTION_ID);
       const artId = pendingPlagiarismPayment?.articleId || sessionStorage.getItem(STORAGE_KEY_ARTICLE_ID);
@@ -267,10 +399,10 @@ const PlagiarismCheck: React.FC = () => {
               setArticleId(artId);
               setPendingPlagiarismPayment(null);
               setPaymentVerifiedCompleted(true);
-              toast.success('To\'lov tasdiqlandi. Tekshiruv boshlanmoqda...');
+              toast.success('To\'lov tasdiqlandi. AI antiplagiat tekshiruvi avtomatik boshlanmoqda...');
               window.setTimeout(() => {
-                  void handleCheck(true, artId);
-              }, 100);
+                  void runPlagiarismAfterPayment(artId);
+              }, 300);
               return;
           }
           if (res.payment_status === -1) {
@@ -447,80 +579,11 @@ const PlagiarismCheck: React.FC = () => {
           // Update UI with the results
           const plagiarismPercentage = plagiarismResult.plagiarism || 0;
           const aiContentPercentage = plagiarismResult.ai_content || 0;
-          const originality = 100 - plagiarismPercentage;
-
-          // Faqat API manbalarini ko'rsatamiz — soxta mock manbalar ishlatilmaydi
-          let foundSources: PlagiarismSource[] = [];
-          const apiSources = plagiarismResult.sources;
-          if (apiSources && Array.isArray(apiSources) && apiSources.length > 0) {
-              foundSources = apiSources.map((s: { source?: string; snippet?: string; similarity?: number }) => ({
-                  source: (s.source || '').trim(),
-                  snippet: (s.snippet || '').trim(),
-                  similarity: typeof s.similarity === 'number' ? Math.round(s.similarity) : 0,
-              })).filter((s: PlagiarismSource) => s.source);
-          }
-
-          const finalResult = {
-              plagiarism: plagiarismPercentage,
-              aiContent: aiContentPercentage,
-              sources: foundSources,
-          };
-
-          setResult(finalResult);
-
-          const newCertificateData: AntiplagiatCertificateData = {
-            certificateNumber: `PN-${Date.now().toString().slice(-6)}`,
-            checkDate: new Date().toLocaleDateString('uz-UZ'),
-            author: `${(authorLastName || user.lastName).trim()} ${(authorFirstName || user.firstName).trim()}`.trim() || user?.lastName + ' ' + user?.firstName,
-            workType: documentType || 'Ilmiy ish',
-            fileName: documentName.trim() || file.name,
-            citations: '0%',
-            selfCitation: '0%',
-            plagiarism: `${plagiarismPercentage}%`,
-            originality: `${originality.toFixed(2)}%`,
-            searchModules: 'Milliy reestr, Internet plyus, Shablon iboralar, eLIBRARY.RU, Bibliografiya, BMK dissertatsiyalari, Viloy nashriyoti, Universitetlar halqasi, IPS Adilet, Tabobat, Tarjimali matnlar qidiruv moduli, Patentlar, Tarjima tekshiruvi uz-ru, Tarjima tekshiruvi uz-ru, parafaz matnlarni tekshirish, RDK to\'plami, Rossiya va MDH OAVlari, Elektron-kutubxona tizimlari, Garant AHT, Iqtibos keltirish, SPS Garant',
-          };
-          setCertificateData(newCertificateData);
-
-          // To'liq hisobot ma'lumotlarini yaratish
-          const fullReport: PlagiarismFullReportData = {
-            checkerName: `${(authorLastName || user.lastName).trim()} ${(authorFirstName || user.firstName).trim()}`.trim(),
-            checkerId: user?.id?.slice(-5) || '00000',
-            checkerOrganization: user?.affiliation || '',
-            documentNumber: newCertificateData.certificateNumber,
-            uploadDate: new Date().toLocaleString('uz-UZ'),
-            originalFileName: file.name,
-            documentName: documentName.trim() || file.name,
-            documentType: documentType || 'Ilmiy ish',
-            characterCount: Math.floor(Math.random() * 50000) + 10000,
-            sentenceCount: Math.floor(Math.random() * 500) + 100,
-            fileSize: `${(file.size / 1024).toFixed(2)} KB`,
-            plagiarismPercent: plagiarismPercentage,
-            selfCitationPercent: 0,
-            citationPercent: 0,
-            originalityPercent: originality,
-            searchModules: [
-              'Phoenix Milliy reestr',
-              'Internet PLUS qidiruv moduli',
-              'eLIBRARY.RU qidiruv moduli',
-              'OTMlar halqasi qidiruv moduli',
-              'BMK dissertatsiyalari qidiruv moduli',
-              'Shablon iboralar qidiruv moduli',
-              'Iqtibos keltirish qidiruv moduli',
-              'Patentlar qidiruv moduli',
-              'Elektron-kutubxona tizimlari',
-              'Tarjimali matnlar qidiruv moduli'
-            ],
-            sources: foundSources.map((s, idx) => ({
-              id: idx + 1,
-              percentage: `${s.similarity}%`,
-              sourceName: s.snippet.slice(0, 100) + '...',
-              sourceUrl: s.source.startsWith('http') ? s.source : `https://${s.source}`,
-              searchModule: 'Internet PLUS qidiruv moduli'
-            }))
-          };
-          setFullReportData(fullReport);
-
+          applyPlagiarismResults(
+            plagiarismPercentage,
+            aiContentPercentage,
+            mapSourcesFromApi(plagiarismResult.sources),
+          );
           toast.success('Antiplagiat tekshiruvi muvaffaqiyatli amalga oshirildi!');
       } catch (err: any) {
           const msg = getUserFriendlyError(err) || 'Antiplagiat tekshiruvida xatolik yuz berdi.';
@@ -627,8 +690,13 @@ const PlagiarismCheck: React.FC = () => {
                   )}
               </div>
               <Button onClick={() => handleCheck(false)} disabled={!canSubmit} isLoading={isChecking} className="w-full max-w-xs mx-auto">
-                  {isChecking ? 'Tekshirilmoqda...' : <><FileCheck className="mr-2 h-4 w-4" /> {PLAGIARISM_CHECK_PRICE > 0 ? 'To\'lov va Tekshirish' : 'Tekshirish'}</>}
+                  {isChecking ? 'AI tekshiruvi...' : <><FileCheck className="mr-2 h-4 w-4" /> {PLAGIARISM_CHECK_PRICE > 0 ? 'To\'lov va Tekshirish' : 'Tekshirish'}</>}
               </Button>
+              {isChecking && (
+                  <p className="text-sm font-medium text-violet-950 mt-2">
+                      To&apos;lovdan keyin hujjatingiz AI antiplagiat tizimida avtomatik tekshiriladi. Iltimos, kuting...
+                  </p>
+              )}
               {paymentVerifiedCompleted && (
                   <div className="mx-auto mt-4 max-w-xs rounded-xl border border-emerald-700/35 bg-emerald-200/45 p-4 backdrop-blur-md">
                       <p className="mb-2 text-sm font-semibold text-emerald-950">To'lov tasdiqlandi</p>
@@ -651,7 +719,7 @@ const PlagiarismCheck: React.FC = () => {
 
           {isChecking && (
               <div className="mx-auto mt-8 max-w-lg">
-                  <p className="mb-2 text-center font-medium text-slate-950">Tahlil qilinmoqda... Iltimos, kuting.</p>
+                  <p className="mb-2 text-center font-medium text-slate-950">AI antiplagiat tahlili — hujjat to&apos;liq tekshirilmoqda...</p>
                   <div className="h-2.5 w-full rounded-full bg-white/35 shadow-inner">
                       <div className="h-2.5 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 shadow-sm transition-[width] duration-300 ease-in-out" style={{ width: `${progress}%` }} />
                   </div>

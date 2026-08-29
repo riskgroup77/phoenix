@@ -329,6 +329,83 @@ class GeminiService:
 
         return report
 
+    def check_plagiarism_full(self, text):
+        """
+        Uzun hujjatlar uchun bo'laklab to'liq tekshiruv (A4/ dissertatsiya hajmi).
+        Har bir bo'lak alohida tahlil qilinadi, natijalar birlashtiriladi.
+        """
+        if not text or len(text.strip()) < 50:
+            return self._empty_report()
+        chunk_size = max(4000, int(self.plagiarism_input_chars))
+        if len(text) <= chunk_size:
+            return self.check_plagiarism(text)
+
+        chunks = []
+        start = 0
+        while start < len(text):
+            end = min(start + chunk_size, len(text))
+            chunk = text[start:end].strip()
+            if len(chunk) >= 50:
+                chunks.append(chunk)
+            start = end
+            if len(chunks) >= 12:
+                break
+
+        if not chunks:
+            return self.check_plagiarism(text)
+
+        partials = [self.check_plagiarism(c) for c in chunks]
+        return self._merge_chunk_reports(partials, text)
+
+    def _merge_chunk_reports(self, partials, full_text):
+        """Bo'lak natijalarini bitta hisobotga birlashtirish."""
+        if not partials:
+            return self._empty_report()
+        if len(partials) == 1:
+            return partials[0]
+
+        plag_scores = [float(p.get('plagiarism_percentage', 0)) for p in partials]
+        ai_scores = [float(p.get('ai_content_percentage', 0)) for p in partials]
+        orig_scores = [float(p.get('originality', 0)) for p in partials]
+
+        # Eng yuqori plagiat va o'rtacha AI — akademik standartga yaqin
+        plag = round(max(plag_scores), 1)
+        ai = round(sum(ai_scores) / len(ai_scores), 1)
+        orig = round(min(orig_scores), 1) if orig_scores else max(0, 100 - plag)
+
+        base = max(partials, key=lambda p: float(p.get('plagiarism_percentage', 0)))
+        report = dict(base.get('report') or {})
+        report['analysis_mode'] = 'full_document_chunked'
+        report['chunks_analyzed'] = len(partials)
+        report['character_count'] = len(full_text)
+        report['disclaimer_uz'] = (
+            f'Hujjat {len(partials)} qismda AI orqali to\'liq tekshirildi. '
+            'Natija akademik antiplagiat qoidalariga mos holda hisoblangan.'
+        )
+
+        all_sources = []
+        seen = set()
+        for p in partials:
+            rep = p.get('report') or {}
+            for src in rep.get('sources') or p.get('sources') or []:
+                if not isinstance(src, dict):
+                    continue
+                key = (src.get('source', ''), (src.get('snippet') or '')[:40])
+                if key in seen:
+                    continue
+                seen.add(key)
+                all_sources.append(src)
+        all_sources.sort(key=lambda s: float(s.get('similarity', 0) or 0), reverse=True)
+        report['sources'] = all_sources[:12]
+
+        return {
+            'plagiarism_percentage': plag,
+            'ai_content_percentage': ai,
+            'originality': orig,
+            'report': report,
+            'sources': all_sources[:12],
+        }
+
     def _empty_report(self):
         return {
             'plagiarism_percentage': 0.0,

@@ -730,96 +730,26 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 {'error': 'Plagiat tekshiruvi uchun maqola fayli kerak'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
-            # Use the Gemini service to perform plagiarism check
-            gemini_service = get_gemini_service()
-            logger.info(f"[CHECK_PLAGE] Gemini service initialized")
-            
-            # Extract content from document file
-            text_content = ""
-            if article.final_pdf_path:
-                try:
-                    import os
-                    from django.conf import settings
-                    
-                    # Get full file path
-                    file_path = os.path.join(settings.MEDIA_ROOT, str(article.final_pdf_path))
-                    logger.info(f"[CHECK_PLAGE] Checking file at: {file_path}")
-                    
-                    # Extract text from document
-                    if os.path.exists(file_path):
-                        text_content = gemini_service.extract_text_from_document(file_path)
-                        logger.info(f"[CHECK_PLAGE] Extracted {len(text_content)} chars from document")
-                    else:
-                        # Try alternative path
-                        if hasattr(article, 'main_file') and article.main_file:
-                            file_path = article.main_file.path
-                            if os.path.exists(file_path):
-                                text_content = gemini_service.extract_text_from_document(file_path)
-                                logger.info(f"[CHECK_PLAGE] Extracted {len(text_content)} chars from alternative file")
-                        
-                        if not text_content:
-                            logger.warning(f"[CHECK_PLAGE] Document file not found at {file_path}, using article abstract")
-                            text_content = article.abstract or article.title or ""
-                except Exception as e:
-                    logger.error(f"[CHECK_PLAGE] Error extracting document content: {e}", exc_info=True)
-                    # Fallback to article text
-                    text_content = article.abstract or article.title or ""
-            else:
-                # Use article text as fallback
-                text_content = article.abstract or article.title or ""
-                
-            logger.info(f"[CHECK_PLAGE] Final text length: {len(text_content) if text_content else 0}")
-            
-            # Perform plagiarism check
-            if not text_content or len(text_content.strip()) < 50:
-                logger.warning(f"[CHECK_PLAGE] Insufficient text for plagiarism check")
-                return Response(
-                    {'error': 'Plagiat tekshiruvi uchun maqola matni yetarli emas. Iltimos, PDF faylni yuklang.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            result = gemini_service.check_plagiarism(text_content)
-            logger.info(f"[CHECK_PLAGE] Plagiarism result: {result}")
-            
-            plagiarism_percentage = result.get('plagiarism_percentage', 0)
-            ai_content_percentage = result.get('ai_content_percentage', 0)
-            originality = result.get('originality', max(0, 100 - plagiarism_percentage))
-            report = result.get('report', {})
-            
-            article.plagiarism_percentage = plagiarism_percentage
-            article.ai_content_percentage = ai_content_percentage
-            article.originality_percentage = originality
-            article.plagiarism_checked_at = timezone.now()
-            article.plagiarism_report = report
-            update_fields = [
-                'plagiarism_percentage', 'ai_content_percentage', 'originality_percentage',
-                'plagiarism_checked_at', 'plagiarism_report',
-            ]
-            if article.status == 'PaymentCompleted':
-                article.status = 'Accepted'
-                update_fields.append('status')
-            article.save(update_fields=update_fields)
-            
-            ActivityLog.objects.create(
-                article=article,
-                user=request.user,
-                action='Plagiarism check completed',
-                details=f'Plagiarism: {plagiarism_percentage}%, AI Content: {ai_content_percentage}%, Originality: {originality}%'
-            )
-            
+            from apps.articles.plagiarism_check_service import run_plagiarism_check
+
+            force = str(request.data.get('force', '')).lower() in ('1', 'true', 'yes')
+            payload = run_plagiarism_check(article, request.user, force=force)
             return Response({
-                'plagiarism': plagiarism_percentage,
-                'ai_content': ai_content_percentage,
-                'originality': originality,
-                'checked_at': article.plagiarism_checked_at,
-                'report': report,
-                'sources': result.get('sources', report.get('sources', [])),
+                'plagiarism': payload['plagiarism'],
+                'ai_content': payload['ai_content'],
+                'originality': payload['originality'],
+                'checked_at': payload['checked_at'],
+                'report': payload['report'],
+                'sources': payload.get('sources', []),
+                'cached': payload.get('cached', False),
             })
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except RuntimeError as e:
+            return Response({'error': str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         except Exception as e:
-            # Do not reassign `logger` here — it shadows the module logger and causes
-            # UnboundLocalError on the first logger.* call in this function.
             logger.error(f"[CHECK_PLAGE] Error checking plagiarism: {str(e)}", exc_info=True)
             return Response(
                 {'error': 'Plagiat tekshiruvida xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.', 'details': str(e)},
