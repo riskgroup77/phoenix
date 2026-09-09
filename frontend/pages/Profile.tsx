@@ -1,23 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth, useNotifications } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { User, Mail, Phone, Building, Award, Hash, Edit, CreditCard, Archive } from 'lucide-react';
+import { User, Mail, Phone, Building, Award, Hash, Edit, CreditCard, Archive, Bell, Settings } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
 import { showPaymentTestTools } from '../config/env';
 import { toast } from 'react-toastify';
+import { txAmount } from '../utils/amount';
+import { asApiList } from '../utils/apiList';
+import type { Notification } from '../types';
+
+type ProfileTab = 'profile' | 'payments' | 'notifications' | 'settings';
+
+const PROFILE_TABS: { id: ProfileTab; label: string; icon: typeof User }[] = [
+    { id: 'profile', label: 'Profil', icon: User },
+    { id: 'payments', label: "To'lovlar", icon: CreditCard },
+    { id: 'notifications', label: 'Bildirishnomalar', icon: Bell },
+    { id: 'settings', label: 'Sozlamalar', icon: Settings },
+];
+
+const SERVICE_LABELS: Record<string, string> = {
+    'fast-track': 'Tezkor nashr',
+    publication_fee: 'Nashr to\'lovi',
+    language_editing: 'Til tahriri / antiplagiat',
+    top_up: 'Balans to\'ldirish',
+    book_publication: 'Kitob nashri',
+    translation: 'Tarjima',
+    doi: 'DOI',
+    udk: 'UDK',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+    completed: 'Muvaffaqiyatli',
+    pending: 'Kutilmoqda',
+    failed: 'Muvaffaqiyatsiz',
+    cancelled: 'Bekor qilingan',
+};
 
 const Profile: React.FC = () => {
     const { user, logout } = useAuth();
+    const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+    const { theme, setTheme } = useTheme();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab = (searchParams.get('tab') as ProfileTab) || 'profile';
     const [profile, setProfile] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState<any>({});
     const [processingPayment, setProcessingPayment] = useState(false);
+    const [transactions, setTransactions] = useState<any[]>([]);
+    const [loadingPayments, setLoadingPayments] = useState(false);
+
+    const setTab = (tab: ProfileTab) => {
+        setSearchParams({ tab }, { replace: true });
+    };
+
+    useEffect(() => {
+        const tab = searchParams.get('tab');
+        if (!tab) {
+            setSearchParams({ tab: 'profile' }, { replace: true });
+        }
+    }, [searchParams, setSearchParams]);
+
+    useEffect(() => {
+        if (activeTab !== 'payments' || !user) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                setLoadingPayments(true);
+                const raw = await apiService.payments.getTransactions();
+                if (!cancelled) {
+                    setTransactions(asApiList(raw));
+                }
+            } catch (err) {
+                console.error('Transactions fetch failed', err);
+                if (!cancelled) setTransactions([]);
+            } finally {
+                if (!cancelled) setLoadingPayments(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [activeTab, user]);
+
+    const sortedTransactions = useMemo(
+        () =>
+            [...transactions].sort(
+                (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime(),
+            ),
+        [transactions],
+    );
+
+    const handleNotificationOpen = (notification: Notification) => {
+        markAsRead(notification.id);
+        if (notification.link) {
+            navigate(notification.link);
+        }
+    };
+
     useEffect(() => {
         const fetchProfile = async () => {
             if (!user) return;
@@ -197,6 +283,192 @@ const Profile: React.FC = () => {
 
     return (
         <div className="space-y-6">
+            <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+                {PROFILE_TABS.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setTab(tab.id)}
+                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                isActive
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                            }`}
+                        >
+                            <Icon className="h-4 w-4" />
+                            {tab.label}
+                            {tab.id === 'notifications' && unreadCount > 0 && (
+                                <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {activeTab === 'payments' && (
+                <Card title="To'lovlar tarixi">
+                    {loadingPayments ? (
+                        <div className="flex justify-center py-10">
+                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
+                        </div>
+                    ) : sortedTransactions.length === 0 ? (
+                        <p className="text-slate-500 text-sm py-6 text-center">
+                            Hozircha to&apos;lovlar tarixi yo&apos;q.
+                        </p>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead>
+                                    <tr className="border-b border-slate-200">
+                                        <th className="pb-2 font-medium text-slate-500">Xizmat</th>
+                                        <th className="pb-2 font-medium text-slate-500">Summa</th>
+                                        <th className="pb-2 font-medium text-slate-500">Holat</th>
+                                        <th className="pb-2 font-medium text-slate-500 hidden sm:table-cell">Sana</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sortedTransactions.map((tx) => (
+                                        <tr key={tx.id} className="border-b border-slate-100">
+                                            <td className="py-3 pr-3 text-slate-900">
+                                                {SERVICE_LABELS[tx.service_type] || tx.service_type || '—'}
+                                            </td>
+                                            <td className="py-3 pr-3 font-medium text-slate-900 whitespace-nowrap">
+                                                {Math.abs(txAmount(tx.amount)).toLocaleString('uz-UZ')} {tx.currency || 'UZS'}
+                                            </td>
+                                            <td className="py-3 pr-3">
+                                                <span
+                                                    className={`text-xs font-medium px-2 py-1 rounded-full ${
+                                                        tx.status === 'completed'
+                                                            ? 'bg-emerald-100 text-emerald-800'
+                                                            : tx.status === 'pending'
+                                                              ? 'bg-amber-100 text-amber-800'
+                                                              : 'bg-red-100 text-red-800'
+                                                    }`}
+                                                >
+                                                    {STATUS_LABELS[tx.status] || tx.status}
+                                                </span>
+                                            </td>
+                                            <td className="py-3 text-slate-500 hidden sm:table-cell whitespace-nowrap">
+                                                {tx.created_at
+                                                    ? new Date(tx.created_at).toLocaleString('uz-UZ')
+                                                    : '—'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </Card>
+            )}
+
+            {activeTab === 'notifications' && (
+                <Card title="Bildirishnomalar">
+                    <div className="flex justify-between items-center mb-4">
+                        <p className="text-sm text-slate-500">
+                            {unreadCount > 0 ? `${unreadCount} ta o'qilmagan` : 'Barcha bildirishnomalar o\'qilgan'}
+                        </p>
+                        {notifications.length > 0 && (
+                            <Button type="button" variant="secondary" onClick={() => markAllAsRead()}>
+                                Hammasini o&apos;qilgan deb belgilash
+                            </Button>
+                        )}
+                    </div>
+                    {notifications.length === 0 ? (
+                        <p className="text-slate-500 text-sm py-8 text-center">Yangi bildirishnomalar yo&apos;q.</p>
+                    ) : (
+                        <ul className="divide-y divide-slate-100">
+                            {notifications.map((n) => (
+                                <li
+                                    key={n.id}
+                                    className={`py-3 px-2 rounded-lg cursor-pointer hover:bg-slate-50 ${
+                                        !n.read ? 'bg-blue-50/60' : ''
+                                    }`}
+                                    onClick={() => handleNotificationOpen(n)}
+                                >
+                                    <p className="text-sm text-slate-800 leading-relaxed">{n.message}</p>
+                                    {!n.read && (
+                                        <span className="inline-block mt-1 text-[10px] font-semibold uppercase tracking-wide text-blue-600">
+                                            Yangi
+                                        </span>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </Card>
+            )}
+
+            {activeTab === 'settings' && (
+                <>
+                    {profile.role === 'author' && (
+                        <Card title="Arxiv hujjatlar">
+                            <p className="text-slate-500 text-sm mb-3">
+                                Nashr sertifikatlari, UDK, taqriz natijalari, DOI va antiplagiat tekshiruvlari.
+                            </p>
+                            <Button variant="secondary" onClick={() => navigate('/arxiv')}>
+                                <Archive className="mr-2 h-4 w-4" /> Arxiv hujjatlar sahifasiga o&apos;tish
+                            </Button>
+                        </Card>
+                    )}
+                    <Card title="Ko&apos;rinish">
+                        <p className="text-sm text-slate-500 mb-3">Interfeys mavzusini tanlang.</p>
+                        <div className="flex gap-2">
+                            <Button
+                                type="button"
+                                variant={theme === 'light' ? 'primary' : 'secondary'}
+                                onClick={() => setTheme('light')}
+                            >
+                                Yorug&apos;
+                            </Button>
+                            <Button
+                                type="button"
+                                variant={theme === 'dark' ? 'primary' : 'secondary'}
+                                onClick={() => setTheme('dark')}
+                            >
+                                Qorong&apos;u
+                            </Button>
+                        </div>
+                    </Card>
+                    <Card title="Hisobni boshqarish">
+                        <div className="space-y-4">
+                            {showPaymentTestTools && (
+                                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                                    <h3 className="text-sm font-medium text-blue-900 mb-2">Test To&apos;lov (faqat dev)</h3>
+                                    <p className="text-xs text-slate-500 mb-3">
+                                        Click to&apos;lov tizimini sinab ko&apos;rish uchun 1000 so&apos;m miqdorida test to&apos;lovini amalga oshirish mumkin.
+                                    </p>
+                                    {error && (
+                                        <div className="mb-3 p-2 bg-red-500/20 border border-red-500/30 rounded text-xs text-red-800">
+                                            {error}
+                                        </div>
+                                    )}
+                                    <Button
+                                        onClick={handleTestPayment}
+                                        disabled={processingPayment}
+                                        className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                                    >
+                                        <CreditCard className="mr-2 h-4 w-4" />
+                                        {processingPayment ? 'Jarayonda...' : '1000 so\'m test to\'lov'}
+                                    </Button>
+                                </div>
+                            )}
+                            <div className="flex flex-col sm:flex-row gap-4 pt-2 border-t border-slate-200/90">
+                                <Button variant="danger" onClick={logout}>
+                                    Chiqish
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+                </>
+            )}
+
+            {activeTab === 'profile' && (
             <Card title="Profilim">
                 <div className="flex flex-col md:flex-row gap-8">
                     <div className="flex flex-col items-center">
@@ -402,19 +674,9 @@ const Profile: React.FC = () => {
                     </div>
                 </div>
             </Card>
-
-            {profile.role === 'author' && (
-                <Card title="Arxiv hujjatlar">
-                    <p className="text-slate-500 text-sm mb-3">
-                        Barcha maqolalar, UDK ma&apos;lumotnomalar, nashr sertifikatlari va taqriz natijalari alohida sahifada.
-                    </p>
-                    <Button variant="secondary" onClick={() => navigate('/arxiv')}>
-                        <Archive className="mr-2 h-4 w-4" /> Arxiv hujjatlar sahifasiga o&apos;tish
-                    </Button>
-                </Card>
             )}
-            
-            {profile.gamification_profile && (
+
+            {activeTab === 'profile' && profile.gamification_profile && (
                 <Card title="Gamifikatsiya">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="text-center p-6 bg-slate-100/70 rounded-lg">
@@ -456,46 +718,6 @@ const Profile: React.FC = () => {
                     )}
                 </Card>
             )}
-            
-            <Card title="Hisobni boshqarish">
-                <div className="space-y-4">
-                    {showPaymentTestTools && (
-                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-                        <h3 className="text-sm font-medium text-blue-900 mb-2">Test To&apos;lov (faqat dev)</h3>
-                        <p className="text-xs text-slate-500 mb-3">
-                            Click to&apos;lov tizimini sinab ko&apos;rish uchun 1000 so&apos;m miqdorida test to&apos;lovini amalga oshirish mumkin.
-                        </p>
-                        
-                        {error && (
-                            <div className="mb-3 p-2 bg-red-500/20 border border-red-500/30 rounded text-xs text-red-800">
-                                {error}
-                            </div>
-                        )}
-                        
-                        <Button 
-                            onClick={handleTestPayment}
-                            disabled={processingPayment}
-                            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed w-full"
-                        >
-                            <CreditCard className="mr-2 h-4 w-4" />
-                            {processingPayment ? 'Jarayonda...' : '1000 so\'m test to\'lov'}
-                        </Button>
-                        
-                        {processingPayment && (
-                            <div className="text-xs text-slate-500 text-center mt-2">
-                                To&apos;lov tayyorlanmoqda, iltimos kuting...
-                            </div>
-                        )}
-                    </div>
-                    )}
-                    
-                    <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-slate-200/90">
-                        <Button variant="danger" onClick={logout}>
-                            Chiqish
-                        </Button>
-                    </div>
-                </div>
-            </Card>
         </div>
     );
 };

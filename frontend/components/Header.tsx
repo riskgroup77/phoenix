@@ -143,7 +143,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           {isUserOpen && (
             <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl py-1 z-[70]">
               <Link
-                to="/profile"
+                to="/profile?tab=profile"
                 onClick={() => setIsUserOpen(false)}
                 className="block px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
               >

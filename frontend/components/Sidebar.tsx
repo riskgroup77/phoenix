@@ -23,16 +23,27 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, className = '' }) => {
   const activeClass =
     'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 shadow-sm';
 
+  const profileTabFromTo = (to: string): string => {
+    const query = to.includes('?') ? to.split('?')[1] : '';
+    return new URLSearchParams(query).get('tab') || 'profile';
+  };
+
   const renderLink = (item: (typeof sections.primary)[0], idx: number) => (
     <NavLink
       key={`${item.to}-${item.label}-${idx}`}
       to={item.to}
       end={item.to === '/dashboard' || item.to === '/operator-dashboard'}
-      isActive={(match, location) => {
-        if (item.to === '/profile') {
-          return location.pathname === '/profile' && item.label === 'Profil';
+      isActive={(_, location) => {
+        const [path] = item.to.split('?');
+        if (path === '/profile') {
+          if (location.pathname !== '/profile') return false;
+          const currentTab = new URLSearchParams(location.search).get('tab') || 'profile';
+          return currentTab === profileTabFromTo(item.to);
         }
-        return Boolean(match);
+        if (item.to.includes('?')) {
+          return location.pathname === path && location.search.includes(item.to.split('?')[1] || '');
+        }
+        return location.pathname === item.to;
       }}
       onClick={onNavigate}
       className={({ isActive }) => (isActive ? activeClass : linkClass)}

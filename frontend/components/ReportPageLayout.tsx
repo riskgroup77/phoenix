@@ -149,27 +149,32 @@ export const GoldOrnateFrame: React.FC<{ children: React.ReactNode; className?: 
     </div>
 );
 
-/** Phoenix logo — sertifikat pastki markaz */
-export const PhoenixLogoMark: React.FC<{ size?: 'sm' | 'md' }> = ({ size = 'md' }) => {
-    const icon = size === 'sm' ? 36 : 48;
+/** Phoenix logo — oltin qush (sertifikat va hisobot) */
+export const PHOENIX_LOGO_SRC = '/phoenix-logo-gold.png';
+
+export const PhoenixLogoMark: React.FC<{ size?: 'sm' | 'md' | 'lg'; showText?: boolean }> = ({
+    size = 'md',
+    showText = true,
+}) => {
+    const imgH = size === 'sm' ? 52 : size === 'lg' ? 88 : 68;
     return (
-        <div className="flex flex-col items-center gap-0.5">
-            <svg width={icon} height={icon} viewBox="0 0 50 50">
-                <circle cx="25" cy="25" r="22" fill={REPORT_COLOR_TEAL} opacity="0.15" />
-                <path
-                    d="M25,8 C18,11 15,18 17,25 C14,28 12,33 15,40 C18,44 22,46 25,44 C28,46 32,44 35,40 C38,33 36,28 33,25 C35,18 32,11 25,8"
-                    fill="none"
-                    stroke={REPORT_COLOR_TEAL}
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                />
-            </svg>
-            <span className="text-xl font-bold tracking-wide" style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}>
-                Phoenix
-            </span>
-            <span className="text-[10px] font-semibold tracking-[0.35em] -mt-0.5" style={{ color: REPORT_COLOR_TEAL }}>
-                NASHRIYOTI
-            </span>
+        <div className="flex flex-col items-center gap-1">
+            <img
+                src={PHOENIX_LOGO_SRC}
+                alt="Phoenix"
+                className="object-contain drop-shadow-sm"
+                style={{ height: imgH, width: 'auto', maxWidth: imgH * 1.4 }}
+            />
+            {showText && (
+                <>
+                    <span className="text-xl font-bold tracking-wide" style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}>
+                        Phoenix
+                    </span>
+                    <span className="text-[10px] font-semibold tracking-[0.35em] -mt-0.5" style={{ color: REPORT_COLOR_TEAL }}>
+                        NASHRIYOTI
+                    </span>
+                </>
+            )}
         </div>
     );
 };

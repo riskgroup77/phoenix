@@ -7,10 +7,8 @@ import { apiService } from '../services/apiService';
 import { toast } from 'react-toastify';
 import { Role } from '../types';
 
+/** Arxivda faqat hujjatlar — maqolalar «Muallif nashrlari»da */
 const ARCHIVE_TYPE_LABELS: Record<string, string> = {
-    article_submission: 'Maqola yuborish',
-    article_pdf: 'Maqola PDF',
-    article_sample_order: 'Maqola yozish buyurtmasi',
     udk_certificate: "UDK ma'lumotnoma",
     udk_standalone: "UDK ma'lumotnoma",
     udk_request_order: 'UDK buyurtmasi',
@@ -76,7 +74,11 @@ const ArxivHujjatlar: React.FC = () => {
             setLoading(true);
             const res = await apiService.auth.getArchive();
             const data = res?.data ?? res;
-            setArchiveItems(Array.isArray(data?.items) ? data.items : []);
+            const items = Array.isArray(data?.items) ? data.items : [];
+            const docOnly = items.filter(
+                (it: ArchiveItem) => !['article_submission', 'article_pdf', 'article_sample_order'].includes(it.type),
+            );
+            setArchiveItems(docOnly);
         } catch (e) {
             console.error('Archive fetch failed', e);
             setArchiveItems([]);
@@ -183,7 +185,8 @@ const ArxivHujjatlar: React.FC = () => {
                         <FileText className="h-14 w-14 mx-auto mb-3 opacity-50" />
                         <p className="text-lg">Hozircha arxiv hujjatlari yo&apos;q.</p>
                         <p className="text-sm mt-2 max-w-md mx-auto">
-                            Maqola PDFlari, antiplagiat tekshiruvlari, UDK buyurtmalari va taqrizlar shu yerda ko&apos;rinadi.
+                            Nashr sertifikatlari, UDK, taqriz natijalari, DOI va antiplagiat tekshiruvlari shu yerda paydo bo&apos;ladi.
+                            Maqolalar «Muallif nashrlari» bo&apos;limida.
                         </p>
                     </div>
                 ) : (

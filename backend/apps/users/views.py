@@ -11,7 +11,7 @@ from django.db import DatabaseError
 from django.db.models import Count, Q, Sum
 from rest_framework.exceptions import ParseError
 from django.conf import settings
-from apps.articles.models import Article, ActivityLog, ArticleSampleRequest
+from apps.articles.models import Article, ActivityLog
 from apps.payments.models import Transaction
 from apps.journals.models import Journal
 from apps.translations.models import TranslationRequest
@@ -123,8 +123,9 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated], url_path='archive')
     def archive(self, request):
         """
-        Muallifning arxiv hujjatlari: maqolalar (PDF, UDK, sertifikat), standalone UDK ma'lumotnomalar,
-        taqrizchi/jurnal admin yuborgan taqriz natijalari. Barcha hujjatlar avtomatik shu ro'yxatda.
+        Muallifning arxiv hujjatlari: nashr sertifikatlari, UDK ma'lumotnomalar, taqriz natijalari,
+        DOI va antiplagiat tekshiruvlari. Maqola yuborish / PDF bu ro'yxatda ko'rinmaydi —
+        ular «Muallif nashrlari» bo'limida.
         """
         from django.conf import settings
         from apps.udc.models import UDKCertificate
@@ -160,25 +161,14 @@ class UserViewSet(viewsets.ModelViewSet):
                 path = str(field).lstrip('/')
                 return f"{base_url.replace('/api/v1', '')}{media_url}/{path}" if path else None
 
-        def submission_download_url(field):
-            """Muallif yuborgan docx/doc arxivdan yuklanmaydi — faqat PDF."""
-            if not field:
-                return None
-            path = str(field).lower()
-            if path.endswith('.docx') or path.endswith('.doc'):
-                return None
-            return file_url(field)
-
         from apps.articles.antiplagiat_utils import is_standalone_antiplagiat
 
-        # 1. Maqolalar: jarayondagi holatlar ko'rinadi; nashr etilganida faqat sertifikat (muallif docx emas).
+        # 1. Maqolalar: faqat sertifikat / UDK hujjatlari (maqola o'zi arxivda emas).
         articles = Article.objects.filter(author=user).select_related('journal').order_by('-submission_date')
         seen_archive_ids = set()
         for art in articles:
             title = (art.title or '')[:200]
             date_str = art.submission_date.isoformat() if art.submission_date else None
-            article_view_url = f"/articles/{art.id}"
-            pdf_url = submission_download_url(art.final_pdf_path)
 
             if is_standalone_antiplagiat(art):
                 report = art.plagiarism_report if isinstance(art.plagiarism_report, dict) else {}
@@ -244,59 +234,6 @@ class UserViewSet(viewsets.ModelViewSet):
             has_pub_cert = bool(
                 getattr(art, 'publication_certificate_path', None) and art.publication_certificate_path
             ) or bool((art.publication_certificate_url or art.certificate_url or '').strip())
-            completed_pub_fee = Transaction.objects.filter(
-                article_id=art.id,
-                service_type='publication_fee',
-                status='completed',
-            ).exists()
-            pending_pub_fee = Transaction.objects.filter(
-                article_id=art.id,
-                service_type='publication_fee',
-                status='pending',
-            ).exists()
-            if art.status == 'Draft' and pending_pub_fee and not completed_pub_fee:
-                status_label = "To'lov kutilmoqda"
-                archive_type = 'article_submission'
-            elif art.status == 'Draft' and completed_pub_fee:
-                status_label = 'Taqrizchida'
-                archive_type = 'article_submission'
-            elif art.status in ('Yangi', 'WithEditor', 'QabulQilingan', 'PlagiarismReview'):
-                status_label = 'Taqrizchida'
-                archive_type = 'article_submission'
-            elif art.status == 'Published':
-                status_label = 'Nashr etilgan'
-                archive_type = 'article_submission'
-            elif pdf_url:
-                status_label = 'PDF tayyor'
-                archive_type = 'article_pdf'
-            else:
-                status_label = 'Yuborildi'
-                archive_type = 'article_submission'
-
-            category_label = {
-                'article_submission': 'Maqola yuborish',
-                'article_pdf': 'Maqola PDF',
-            }.get(archive_type, 'Maqola')
-
-            # Nashr etilgan maqolada muallif yuborgan fayl (docx) ko'rinmasin — faqat sertifikat.
-            art_archive_id = f'{archive_type}-{art.id}'
-            if art.status != 'Published' and art_archive_id not in seen_archive_ids:
-                items.append({
-                    'type': archive_type,
-                    'id': art_archive_id,
-                    'article_id': str(art.id),
-                    'title': title,
-                    'label': category_label,
-                    'date': date_str,
-                    'download_url': pdf_url,
-                    'view_url': article_view_url,
-                    'extra': {
-                        'status_label': status_label,
-                        'journal': art.journal.name if art.journal else None,
-                        'status': art.status,
-                    },
-                })
-                seen_archive_ids.add(art_archive_id)
             if art.udk_certificate_path:
                 items.append({
                     'type': 'udk_certificate',
@@ -423,36 +360,6 @@ class UserViewSet(viewsets.ModelViewSet):
                         'status_label': status_label,
                         'doi_link': dr.doi_link,
                         'status': dr.status,
-                    },
-                })
-        except Exception:
-            pass
-
-        # 2d. Maqola yozish xizmati (Article sample) — buyurtma holatini arxivda ko'rsatish
-        try:
-            sample_requests = ArticleSampleRequest.objects.filter(user=user).order_by('-created_at')
-            for sr in sample_requests:
-                status_label = {
-                    'pending_payment': "To'lov kutilmoqda",
-                    'submitted': 'Taqrizchida',
-                    'in_progress': 'Jarayonda',
-                    'completed': 'Yakunlangan',
-                    'cancelled': 'Bekor qilingan',
-                }.get(sr.status, 'Jarayonda')
-                items.append({
-                    'type': 'article_sample_order',
-                    'id': f"sample-{sr.id}",
-                    'title': (sr.topic or sr.requirements or "Maqola yozish buyurtmasi")[:200],
-                    'label': 'Maqola yozish buyurtmasi',
-                    'date': sr.created_at.isoformat() if sr.created_at else None,
-                    'download_url': None,
-                    'view_url': '/maqola-namuna-olish',
-                    'extra': {
-                        'status_label': status_label,
-                        'status': sr.status,
-                        'quality_level': sr.quality_level,
-                        'pages': sr.pages,
-                        'amount': float(sr.amount or 0),
                     },
                 })
         except Exception:

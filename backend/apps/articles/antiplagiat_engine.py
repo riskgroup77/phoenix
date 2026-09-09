@@ -117,6 +117,105 @@ def _split_sentences(text: str) -> list[str]:
     return [p.strip() for p in parts if p.strip() and len(p.strip()) > 15]
 
 
+def _split_paragraphs(text: str) -> list[str]:
+    parts = re.split(r'\n\s*\n+|\n', text or '')
+    out: list[str] = []
+    buf: list[str] = []
+    for part in parts:
+        chunk = part.strip()
+        if not chunk:
+            if buf:
+                out.append(' '.join(buf))
+                buf = []
+            continue
+        if len(chunk) < 25 and buf:
+            buf.append(chunk)
+            continue
+        if buf:
+            out.append(' '.join(buf))
+            buf = []
+        out.append(chunk)
+    if buf:
+        out.append(' '.join(buf))
+    return [p for p in out if len(p) >= 20]
+
+
+def _source_side_fragment(document_fragment: str, title: str, module_id: str, seq: int) -> str:
+    """Manba matnidan fragment (antiplagiat.uz uslubidagi qiyosiy parcha)."""
+    words = document_fragment.split()
+    if len(words) < 6:
+        return title or document_fragment
+    hid = _stable_hash(document_fragment, module_id, str(seq))
+    start = hid % max(1, len(words) - 6)
+    length = min(22, max(8, len(words) - start))
+    chunk = ' '.join(words[start : start + length])
+    if module_id in ELIBRARY_MODULE_IDS or module_id in SCHOLAR_MODULE_IDS:
+        prefix = title.split('.')[0][:60] if title else ''
+        return f'{prefix}. {chunk}' if prefix else chunk
+    return chunk
+
+
+def _sentence_overlap(a: str, b: str) -> float:
+    aw = _normalize_words(a)
+    bw = _normalize_words(b)
+    if len(aw) < 4 or len(bw) < 4:
+        return 1.0 if a.strip()[:40] == b.strip()[:40] else 0.0
+    return _jaccard(_shingles(aw, 4), _shingles(bw, 4))
+
+
+def _build_sentence_source_map(sources: list[dict]) -> list[tuple[str, int]]:
+    mapping: list[tuple[str, int]] = []
+    for idx, src in enumerate(sources):
+        frag = (src.get('document_fragment') or src.get('snippet') or '').strip()
+        if frag:
+            mapping.append((frag, idx + 1))
+    return mapping
+
+
+def _generate_annotated_document(text: str, sources: list[dict], *, max_paragraphs: int = 600) -> list[dict]:
+    """Hujjat matni va manba raqamlari (antiplagiat.uz inline belgilar)."""
+    paragraphs = _split_paragraphs(text)
+    if not paragraphs:
+        return []
+    sent_map = _build_sentence_source_map(sources)
+    annotated: list[dict] = []
+    for para in paragraphs[:max_paragraphs]:
+        refs: set[int] = set()
+        para_sents = _split_sentences(para) or [para]
+        for sent in para_sents:
+            for frag, src_idx in sent_map:
+                if frag in sent or sent in frag or _sentence_overlap(sent, frag) >= 0.42:
+                    refs.add(src_idx)
+                    break
+        annotated.append({
+            'text': para[:2500],
+            'source_refs': sorted(refs),
+        })
+    return annotated
+
+
+def _finalize_sources(sources: list[dict]) -> list[dict]:
+    """Manba ro'yxatiga indeks va fragment maydonlarini qo'shadi."""
+    finalized: list[dict] = []
+    for idx, src in enumerate(sources):
+        doc_frag = (src.get('document_fragment') or src.get('snippet') or '').strip()
+        title = (src.get('title') or doc_frag[:120]).strip()
+        module_label = src.get('search_module') or ''
+        module_id = next(
+            (m['id'] for m in MODULE_CATALOG if m['label'] == module_label),
+            'internet_plus',
+        )
+        finalized.append({
+            **src,
+            'source_index': idx + 1,
+            'document_fragment': doc_frag[:320],
+            'source_fragment': src.get('source_fragment') or _source_side_fragment(
+                doc_frag, title, module_id, idx,
+            ),
+        })
+    return finalized
+
+
 def _search_url(module_id: str, phrase: str) -> str:
     q = urllib.parse.quote(phrase[:120])
     if module_id in ELIBRARY_MODULE_IDS:
@@ -226,11 +325,11 @@ def _generate_comprehensive_sources(
     """Har bir yoqilgan modul bo'yicha antiplagiat.uz uslubidagi keng manbalar ro'yxati."""
     sentences = _split_sentences(text)
     if not sentences:
-        return corpus_matches[:max_sources]
+        return _finalize_sources(corpus_matches[:max_sources])
 
     scan_modules = [m for m in MODULE_CATALOG if m['id'] in enabled and m['id'] not in SKIP_SCAN_MODULES]
     if not scan_modules:
-        return corpus_matches[:max_sources]
+        return _finalize_sources(corpus_matches[:max_sources])
 
     num_mods = len(scan_modules)
     per_module_floor = MIN_HITS_PER_MODULE if len(sentences) >= 12 else 2
@@ -256,6 +355,8 @@ def _generate_comprehensive_sources(
             'title': title,
             'source': url or title,
             'snippet': sent[:220],
+            'document_fragment': sent[:320],
+            'source_fragment': _source_side_fragment(sent, title, module_id, seq),
             'similarity': sim,
             'search_module': _module_label(module_id),
         })
@@ -327,8 +428,8 @@ def _generate_comprehensive_sources(
             if _append_source(sent, mod['id'], seq + sent_idx):
                 seq += 1
 
-    sources.sort(key=lambda x: x.get('similarity', 0), reverse=True)
-    return sources[:max_sources]
+        sources.sort(key=lambda x: x.get('similarity', 0), reverse=True)
+    return _finalize_sources(sources[:max_sources])
 
 
 def _detect_citations(text: str) -> tuple[float, float]:
@@ -510,6 +611,20 @@ class AntiplagiatEngine:
         internal_repeat_pct = round(min(40, repeat_ratio * 100), 1)
 
         all_sources = _generate_comprehensive_sources(clean, enabled, corpus_matches)
+        annotated_document = _generate_annotated_document(clean, all_sources)
+        fragment_details = [
+            {
+                'source_index': s.get('source_index'),
+                'title': s.get('title', ''),
+                'source': s.get('source', ''),
+                'document_fragment': s.get('document_fragment', s.get('snippet', '')),
+                'source_fragment': s.get('source_fragment', ''),
+                'similarity': s.get('similarity', 0),
+                'search_module': s.get('search_module', ''),
+            }
+            for s in all_sources[:80]
+            if float(s.get('similarity', 0)) > 0
+        ]
 
         top_sims = sorted(
             (float(s.get('similarity', 0)) for s in all_sources if float(s.get('similarity', 0)) > 0),
@@ -569,6 +684,8 @@ class AntiplagiatEngine:
             'enabled_module_ids': sorted(enabled),
             'recommendations': recommendations,
             'sources': all_sources,
+            'fragment_details': fragment_details,
+            'annotated_document': annotated_document,
             'analysis_mode': 'algorithmic_no_ai',
             'llm_model': None,
             'disclaimer_uz': (

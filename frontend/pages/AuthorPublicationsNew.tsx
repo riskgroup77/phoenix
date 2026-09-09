@@ -1,11 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { Plus, Search, Filter, Download, Edit, Trash2, QrCode, BookOpen, Users } from 'lucide-react';
+import { Plus, Search, Filter, Download, Edit, Trash2, QrCode, BookOpen, Users, FileText, ExternalLink } from 'lucide-react';
 import apiService from '../services/apiService';
 import { asApiList } from '../utils/apiList';
+import { ARTICLE_STATUS_LABELS, ArticleStatus, Role } from '../types';
+import { getAuthorWorkflowStageLabel } from '../utils/articleAuthorWorkflow';
+import { isStandalonePlagiarismArticle } from '../utils/antiplagiatFromArticle';
+
+type SectionTab = 'platform' | 'samples' | 'external';
+
+interface PlatformArticle {
+  id: string;
+  title: string;
+  status: ArticleStatus | string;
+  submission_date?: string;
+  journal?: { id?: string; name?: string } | string;
+  journal_name?: string;
+  plagiarism_percentage?: number | null;
+  originality_percentage?: number | null;
+}
+
+interface ArticleSampleOrder {
+  id: string;
+  topic?: string;
+  requirements?: string;
+  status: string;
+  quality_level?: string;
+  pages?: number;
+  amount?: number;
+  created_at?: string;
+}
+
+const SAMPLE_STATUS_LABELS: Record<string, string> = {
+  pending_payment: "To'lov kutilmoqda",
+  submitted: 'Taqrizchida',
+  in_progress: 'Jarayonda',
+  completed: 'Yakunlangan',
+  cancelled: 'Bekor qilingan',
+};
 
 interface ScientificField {
   id: string;
@@ -66,6 +101,10 @@ const AuthorPublications: React.FC = () => {
   const [editingPublication, setEditingPublication] = useState<AuthorPublication | null>(null);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [allAuthors, setAllAuthors] = useState<any[]>([]);
+  const [platformArticles, setPlatformArticles] = useState<PlatformArticle[]>([]);
+  const [sampleOrders, setSampleOrders] = useState<ArticleSampleOrder[]>([]);
+  const [activeSection, setActiveSection] = useState<SectionTab>('platform');
+  const isAuthor = user?.role === Role.Author || String(user?.role ?? '').toLowerCase() === 'author';
 
   // Form state
   const [formData, setFormData] = useState({
@@ -82,8 +121,10 @@ const AuthorPublications: React.FC = () => {
   });
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (user) {
+      void loadData();
+    }
+  }, [user?.id, user?.role]);
 
   const loadData = async () => {
     try {
@@ -105,6 +146,21 @@ const AuthorPublications: React.FC = () => {
       setPublications(asApiList<AuthorPublication>(pubsResponse));
       setScientificFields(asApiList<ScientificField>(fieldsResponse));
       setPublicationTypes(asApiList<PublicationType>(typesResponse));
+
+      if (isAuthor) {
+        const [articlesRaw, samplesRaw] = await Promise.all([
+          apiService.articles.mine(),
+          apiService.articleSample.list(),
+        ]);
+        const articlesList = asApiList<PlatformArticle>(articlesRaw);
+        setPlatformArticles(
+          articlesList.filter((a) => !isStandalonePlagiarismArticle(a as Parameters<typeof isStandalonePlagiarismArticle>[0])),
+        );
+        setSampleOrders(asApiList<ArticleSampleOrder>(samplesRaw));
+      } else {
+        setPlatformArticles([]);
+        setSampleOrders([]);
+      }
     } catch (error) {
       console.error('Ma\'lumotlarni yuklashda xatolik:', error);
     } finally {
@@ -169,6 +225,28 @@ const AuthorPublications: React.FC = () => {
     }
   };
 
+  const filteredPlatformArticles = useMemo(() => {
+    if (!searchTerm) return platformArticles;
+    const q = searchTerm.toLowerCase();
+    return platformArticles.filter(
+      (a) =>
+        (a.title || '').toLowerCase().includes(q) ||
+        String(a.journal_name || (typeof a.journal === 'object' ? a.journal?.name : a.journal) || '')
+          .toLowerCase()
+          .includes(q),
+    );
+  }, [platformArticles, searchTerm]);
+
+  const filteredSampleOrders = useMemo(() => {
+    if (!searchTerm) return sampleOrders;
+    const q = searchTerm.toLowerCase();
+    return sampleOrders.filter(
+      (s) =>
+        (s.topic || '').toLowerCase().includes(q) ||
+        (s.requirements || '').toLowerCase().includes(q),
+    );
+  }, [sampleOrders, searchTerm]);
+
   const filteredPublications = publications.filter(pub => {
     const matchesSearch = pub.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          pub.co_authors.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -209,9 +287,15 @@ const AuthorPublications: React.FC = () => {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Muallif Nashrlari</h1>
-        <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Muallif Nashrlari</h1>
+          <p className="text-slate-500 mt-1 text-sm max-w-2xl">
+            Platformada yuborilgan maqolalar, maqola yozish buyurtmalari va boshqa ilmiy nashrlar shu yerda.
+            Sertifikatlar va UDK hujjatlari «Arxiv hujjatlar» bo&apos;limida.
+          </p>
+        </div>
+        <div className="flex gap-2 shrink-0">
           <Button onClick={handleQRScan} variant="secondary">
             <QrCode className="w-4 h-4 mr-2" />
             QR Code Scan
@@ -222,6 +306,32 @@ const AuthorPublications: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {isAuthor && (
+        <div className="flex flex-wrap gap-2 mb-6">
+          {(
+            [
+              { id: 'platform' as SectionTab, label: 'Platform maqolalari', count: platformArticles.length },
+              { id: 'samples' as SectionTab, label: 'Maqola yozish buyurtmalari', count: sampleOrders.length },
+              { id: 'external' as SectionTab, label: 'Boshqa nashrlar', count: publications.length },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveSection(tab.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeSection === tab.id
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              {tab.label}
+              <span className="ml-1.5 opacity-80">({tab.count})</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Filters */}
       <Card className="mb-6">
@@ -311,7 +421,120 @@ const AuthorPublications: React.FC = () => {
         </div>
       </Card>
 
-      {/* Publications List */}
+      {isAuthor && activeSection === 'platform' && (
+        <div className="space-y-4 mb-8">
+          {filteredPlatformArticles.length === 0 ? (
+            <Card>
+              <div className="p-8 text-center text-slate-500">
+                <FileText className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                <p>Hozircha platformada yuborilgan maqolalar yo&apos;q.</p>
+                <Button className="mt-4" onClick={() => navigate('/submit')}>
+                  Maqola yuborish
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredPlatformArticles.map((article) => {
+                const status = article.status as ArticleStatus;
+                const statusLabel =
+                  ARTICLE_STATUS_LABELS[status] || getAuthorWorkflowStageLabel(status) || String(status);
+                const journalName =
+                  article.journal_name ||
+                  (typeof article.journal === 'object' ? article.journal?.name : article.journal) ||
+                  '—';
+                return (
+                  <Card
+                    key={article.id}
+                    className="hover:shadow-lg transition-shadow cursor-pointer"
+                    onClick={() => navigate(`/articles/${article.id}`)}
+                  >
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                          {statusLabel}
+                        </span>
+                        <ExternalLink className="w-4 h-4 text-slate-400 shrink-0" />
+                      </div>
+                      <h3 className="font-semibold text-slate-900 line-clamp-2 mb-2">{article.title}</h3>
+                      <p className="text-sm text-slate-500 mb-1">
+                        <strong>Jurnal:</strong> {journalName}
+                      </p>
+                      {article.submission_date && (
+                        <p className="text-xs text-slate-400">
+                          Yuborilgan: {new Date(article.submission_date).toLocaleDateString('uz-UZ')}
+                        </p>
+                      )}
+                      {article.plagiarism_percentage != null && (
+                        <p className="text-xs text-slate-500 mt-2">
+                          Antiplagiat: {Number(article.plagiarism_percentage).toFixed(1)}% · Originallik:{' '}
+                          {article.originality_percentage != null
+                            ? Number(article.originality_percentage).toFixed(1)
+                            : '—'}
+                          %
+                        </p>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {isAuthor && activeSection === 'samples' && (
+        <div className="space-y-4 mb-8">
+          {filteredSampleOrders.length === 0 ? (
+            <Card>
+              <div className="p-8 text-center text-slate-500">
+                <FileText className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                <p>Maqola yozish buyurtmalari yo&apos;q.</p>
+                <Button className="mt-4" variant="secondary" onClick={() => navigate('/maqola-namuna-olish')}>
+                  Buyurtma berish
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="pb-2 font-medium text-slate-500">Mavzu</th>
+                    <th className="pb-2 font-medium text-slate-500">Holat</th>
+                    <th className="pb-2 font-medium text-slate-500 hidden sm:table-cell">Sahifalar</th>
+                    <th className="pb-2 font-medium text-slate-500 hidden md:table-cell">Sana</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredSampleOrders.map((order) => (
+                    <tr
+                      key={order.id}
+                      className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
+                      onClick={() => navigate('/maqola-namuna-olish')}
+                    >
+                      <td className="py-3 pr-4 font-medium text-slate-900 max-w-xs truncate">
+                        {order.topic || order.requirements || 'Maqola yozish buyurtmasi'}
+                      </td>
+                      <td className="py-3 text-slate-600">
+                        {SAMPLE_STATUS_LABELS[order.status] || order.status}
+                      </td>
+                      <td className="py-3 text-slate-500 hidden sm:table-cell">{order.pages ?? '—'}</td>
+                      <td className="py-3 text-slate-500 hidden md:table-cell whitespace-nowrap">
+                        {order.created_at
+                          ? new Date(order.created_at).toLocaleDateString('uz-UZ')
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {(!isAuthor || activeSection === 'external') && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredPublications.map(publication => (
           <Card 
@@ -430,6 +653,7 @@ const AuthorPublications: React.FC = () => {
           </Card>
         ))}
       </div>
+      )}
 
       {/* Add/Edit Form Modal */}
       {showAddForm && (

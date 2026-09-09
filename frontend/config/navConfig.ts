@@ -71,10 +71,10 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
       { to: '/author-publications', icon: BookOpen, label: 'Muallif nashrlari' },
     ],
     account: [
-      { to: '/profile', icon: CreditCard, label: "To'lovlar" },
-      { to: '/profile', icon: Bell, label: 'Bildirishnomalar' },
-      { to: '/profile', icon: UserCircle, label: 'Profil' },
-      { to: '/profile', icon: Settings, label: 'Sozlamalar' },
+      { to: '/profile?tab=payments', icon: CreditCard, label: "To'lovlar" },
+      { to: '/profile?tab=notifications', icon: Bell, label: 'Bildirishnomalar' },
+      { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
+      { to: '/profile?tab=settings', icon: Settings, label: 'Sozlamalar' },
     ],
   },
   [Role.Reviewer]: {
@@ -87,8 +87,8 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
       { to: '/udk-requests', icon: Library, label: "UDK so'rovlari" },
     ],
     account: [
-      { to: '/profile', icon: UserCircle, label: 'Profil' },
-      { to: '/profile', icon: Settings, label: 'Sozlamalar' },
+      { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
+      { to: '/profile?tab=settings', icon: Settings, label: 'Sozlamalar' },
     ],
   },
   [Role.JournalAdmin]: {
@@ -102,7 +102,7 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
       { to: '/author-publications', icon: BookOpen, label: 'Muallif nashrlari' },
     ],
     account: [
-      { to: '/profile', icon: UserCircle, label: 'Profil' },
+      { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
     ],
   },
   [Role.SuperAdmin]: {
@@ -121,7 +121,7 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
       { to: '/udk-requests', icon: Library, label: "UDK so'rovlari" },
     ],
     account: [
-      { to: '/profile', icon: UserCircle, label: 'Profil' },
+      { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
     ],
   },
   [Role.Operator]: {
@@ -134,7 +134,7 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
       { to: '/article-sample-requests', icon: FilePlus, label: 'Maqola namuna' },
     ],
     account: [
-      { to: '/profile', icon: UserCircle, label: 'Profil' },
+      { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
     ],
   },
   [Role.Accountant]: {
@@ -143,7 +143,7 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
       { to: '/financials', icon: DollarSign, label: 'Moliya' },
     ],
     account: [
-      { to: '/profile', icon: UserCircle, label: 'Profil' },
+      { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
     ],
   },
 };
@@ -155,14 +155,14 @@ export const bottomNavByRole: Partial<Record<Role, NavItem[]>> = {
     { to: '/articles', icon: FileText, label: 'Maqolalar' },
     { to: '/submit', icon: Upload, label: 'Yuborish' },
     { to: '/services', icon: Sparkles, label: 'Xizmatlar' },
-    { to: '/profile', icon: UserCircle, label: 'Profil' },
+    { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
   ],
   [Role.Reviewer]: [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Stol' },
     { to: '/articles', icon: FileText, label: 'Taqriz' },
     { to: '/articles?tab=translations', icon: Languages, label: 'Tarjima' },
     { to: '/articles?tab=book-orders', icon: BookOpen, label: 'Kitob' },
-    { to: '/profile', icon: UserCircle, label: 'Profil' },
+    { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
   ],
   [Role.JournalAdmin]: [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Asosiy' },
@@ -181,12 +181,12 @@ export const bottomNavByRole: Partial<Record<Role, NavItem[]>> = {
     { to: '/operator-dashboard', icon: LayoutDashboard, label: 'Panel' },
     { to: '/all-requests', icon: FileText, label: "So'rovlar" },
     { to: '/articles', icon: MessageSquare, label: 'Chat' },
-    { to: '/profile', icon: UserCircle, label: 'Profil' },
+    { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
   ],
   [Role.Accountant]: [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Asosiy' },
     { to: '/financials', icon: DollarSign, label: 'Moliya' },
-    { to: '/profile', icon: UserCircle, label: 'Profil' },
+    { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
   ],
 };
 
