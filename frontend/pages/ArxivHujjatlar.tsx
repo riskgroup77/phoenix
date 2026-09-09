@@ -101,6 +101,10 @@ const ArxivHujjatlar: React.FC = () => {
 
     const handleView = useCallback(
         (item: ArchiveItem) => {
+            if (item.type === 'plagiarism_check' && item.article_id) {
+                navigate(`/plagiarism-check/result/${encodeURIComponent(item.article_id)}`);
+                return;
+            }
             if (!item.view_url) return;
             if (item.view_url.startsWith('http')) {
                 window.open(item.view_url, '_blank', 'noopener');

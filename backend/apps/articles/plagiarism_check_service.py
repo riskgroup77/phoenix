@@ -188,7 +188,7 @@ def run_auto_plagiarism_check(article_id, user_id) -> None:
                     'Sertifikat va to\'liq hisobot «Arxiv hujjatlar» bo\'limida.'
                 ),
                 notification_type='plagiarism',
-                link=f'/plagiarism-check?article_id={article.id}&view=1',
+                link=f'/plagiarism-check/result/{article.id}',
                 metadata={'article_id': str(article.id)},
             )
         except Exception as notify_err:

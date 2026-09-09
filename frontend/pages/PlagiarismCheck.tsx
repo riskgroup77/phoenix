@@ -4,10 +4,8 @@ import Button from '../components/ui/Button';
 import ModalPortal from '../components/ui/ModalPortal';
 import { CreditCard } from 'lucide-react';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
-import AntiplagiatResultView from '../components/AntiplagiatResultView';
 import type { AntiplagiatCertificateData } from '../components/AntiplagiatCertificate';
 import type { PlagiarismFullReportData } from '../components/PlagiarismFullReport';
-import { buildAntiplagiatViewFromArticle } from '../utils/antiplagiatFromArticle';
 import AntiplagiatUploadPanel, {
   AntiplagiatFormValues,
   createDefaultAntiplagiatForm,
@@ -73,8 +71,6 @@ function formatPlagiarismPaymentMessage(raw: string): string {
 const PlagiarismCheck: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const viewArticleId = searchParams.get('article_id');
-  const isViewMode = searchParams.get('view') === '1' && !!viewArticleId;
   const { user } = useAuth();
   const { addNotification } = useNotifications();
   const { getPrice } = useServicePrices();
@@ -85,9 +81,6 @@ const PlagiarismCheck: React.FC = () => {
   const [result, setResult] = useState<PlagiarismResult | null>(null);
   const [certificateData, setCertificateData] = useState<AntiplagiatCertificateData | null>(null);
   const [fullReportData, setFullReportData] = useState<PlagiarismFullReportData | null>(null);
-  const [viewOriginality, setViewOriginality] = useState(0);
-  const [loadingView, setLoadingView] = useState(false);
-
   const patchForm = (patch: Partial<AntiplagiatFormValues>) => {
     setForm((prev) => ({ ...prev, ...patch }));
   };
@@ -247,36 +240,17 @@ const PlagiarismCheck: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat sahifa ochilganda to'lov qaytishini tekshiramiz
   }, []);
 
+  // Eski havolalar: ?article_id=...&view=1 → alohida natija sahifasiga
   React.useEffect(() => {
-    if (!isViewMode || !viewArticleId) return;
-    let cancelled = false;
-    (async () => {
-      setLoadingView(true);
-      try {
-        const art = await apiService.articles.get(viewArticleId);
-        const data = art?.data || art;
-        const built = buildAntiplagiatViewFromArticle(data);
-        if (cancelled) return;
-        if (!built) {
-          toast.error('Tekshiruv natijasi topilmadi yoki hali tayyor emas.');
-          return;
-        }
-        setResult(built.result);
-        setCertificateData(built.certificateData);
-        setFullReportData(built.fullReportData);
-        setViewOriginality(built.fullReportData.originalityPercent);
-        setArticleId(viewArticleId);
-      } catch {
-        if (!cancelled) toast.error('Natijani yuklashda xatolik.');
-      } finally {
-        if (!cancelled) setLoadingView(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [isViewMode, viewArticleId]);
+    const legacyArticleId = searchParams.get('article_id');
+    const legacyView = searchParams.get('view') === '1';
+    if (legacyArticleId && legacyView) {
+      navigate(`/plagiarism-check/result/${encodeURIComponent(legacyArticleId)}`, { replace: true });
+    }
+  }, [searchParams, navigate]);
 
   const goToResultView = (targetId: string) => {
-    navigate(`/plagiarism-check?article_id=${encodeURIComponent(targetId)}&view=1`);
+    navigate(`/plagiarism-check/result/${encodeURIComponent(targetId)}`);
   };
 
   const applyPlagiarismResults = (
@@ -674,33 +648,6 @@ const PlagiarismCheck: React.FC = () => {
   const onPanelSubmit = () => {
     void handleCheck(false);
   };
-
-  if (isViewMode) {
-    if (loadingView || (!result && !certificateData)) {
-      return (
-        <div className="flex justify-center py-20">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
-        </div>
-      );
-    }
-    if (result && certificateData && fullReportData) {
-      return (
-        <AntiplagiatResultView
-          result={result}
-          certificateData={certificateData}
-          fullReportData={fullReportData}
-          originalityPercent={viewOriginality}
-          onBack={() => navigate('/arxiv')}
-        />
-      );
-    }
-    return (
-      <div className="text-center py-16 text-slate-500">
-        <p>Tekshiruv natijasi topilmadi.</p>
-        <Button className="mt-4" onClick={() => navigate('/arxiv')}>Arxiv hujjatlarga qaytish</Button>
-      </div>
-    );
-  }
 
   return (
       <>

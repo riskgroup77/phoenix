@@ -16,6 +16,7 @@ import UdkRequests from './pages/UdkRequests';
 import PriceManagement from './pages/PriceManagement';
 import UdkOlish from './pages/UdkOlish';
 import PlagiarismCheck from './pages/PlagiarismCheck';
+import AntiplagiatResultPage from './pages/AntiplagiatResultPage';
 import Services from './pages/Services';
 import Profile from './pages/Profile';
 import ArticleDetail from './pages/ArticleDetail';
@@ -116,6 +117,7 @@ const AppContent: React.FC = () => {
                 <Route path="article-sample-requests" element={<ArticleSampleRequests />} />
                 <Route path="translation-service" element={<TranslationService />} />
                 <Route path="plagiarism-check" element={<PlagiarismCheck />} />
+                <Route path="plagiarism-check/result/:articleId" element={<AntiplagiatResultPage />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="arxiv" element={<ArxivHujjatlar />} />
                 <Route path="financials" element={<RoleRoute allowedRoles={[Role.SuperAdmin, Role.Accountant]}><Financials /></RoleRoute>} />

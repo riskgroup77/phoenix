@@ -200,7 +200,7 @@ class UserViewSet(viewsets.ModelViewSet):
                         'label': 'Antiplagiat tekshiruvi',
                         'date': checked_date,
                         'download_url': None,
-                        'view_url': f'/plagiarism-check?article_id={art.id}&view=1',
+                        'view_url': f'/plagiarism-check/result/{art.id}',
                         'extra': {
                             'status_label': 'Tekshiruv yakunlangan',
                             'plagiarism_percentage': art.plagiarism_percentage,
@@ -232,7 +232,7 @@ class UserViewSet(viewsets.ModelViewSet):
                         'label': 'Antiplagiat tekshiruvi',
                         'date': date_str,
                         'download_url': None,
-                        'view_url': f'/plagiarism-check?article_id={art.id}',
+                        'view_url': f'/plagiarism-check/result/{art.id}',
                         'extra': {
                             'status_label': status_label,
                             'document_type': report.get('document_type'),

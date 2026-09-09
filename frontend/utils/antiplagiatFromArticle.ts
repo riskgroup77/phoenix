@@ -56,7 +56,7 @@ function toReportSource(
 }
 
 export function buildAntiplagiatViewFromArticle(article: AntiplagiatArticlePayload): AntiplagiatViewState | null {
-  if (!article?.plagiarism_checked_at || article.plagiarism_percentage == null) {
+  if (!article?.plagiarism_checked_at) {
     return null;
   }
 
