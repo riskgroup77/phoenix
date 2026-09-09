@@ -1,4 +1,4 @@
-"""Antiplagiat tekshiruvi — to'lovdan keyin avtomatik va API orqali."""
+"""Antiplagiat tekshiruvi — to'lovdan keyin avtomatik va API orqali (suniy intellektsiz)."""
 from __future__ import annotations
 
 import logging
@@ -29,12 +29,11 @@ def resolve_article_document_path(article) -> str | None:
 
 
 def extract_article_text(article) -> str:
-    from apps.services import get_gemini_service
+    from apps.services import extract_plain_text_from_file
 
-    gemini = get_gemini_service()
     file_path = resolve_article_document_path(article)
     if file_path:
-        text = gemini.extract_text_from_document(file_path)
+        text = extract_plain_text_from_file(file_path)
         if text and len(text.strip()) >= 50:
             return text.strip()
     fallback = (article.abstract or '') + '\n' + (article.title or '')
@@ -43,11 +42,10 @@ def extract_article_text(article) -> str:
 
 def run_plagiarism_check(article, user, *, force: bool = False) -> dict:
     """
-    Maqola uchun to'liq antiplagiat tekshiruvi.
-    force=False bo'lsa, avval tekshirilgan bo'lsa mavjud natijani qaytaradi.
+    Maqola uchun to'liq antiplagiat tekshiruvi (algoritmik, AI siz).
     """
     from apps.articles.models import ActivityLog
-    from apps.services import get_gemini_service
+    from apps.articles.antiplagiat_engine import get_antiplagiat_engine
 
     if (
         not force
@@ -65,19 +63,18 @@ def run_plagiarism_check(article, user, *, force: bool = False) -> dict:
             'cached': True,
         }
 
-    text_content = extract_article_text(article)
-    if not text_content or len(text_content.strip()) < 50:
-        raise ValueError(
-            'Plagiat tekshiruvi uchun hujjat matni yetarli emas. DOCX yoki PDF faylni qayta yuklang.'
-        )
+    engine = get_antiplagiat_engine()
+    file_path = resolve_article_document_path(article)
+    if file_path:
+        result = engine.check_file(file_path, exclude_article_id=str(article.id))
+    else:
+        text_content = extract_article_text(article)
+        if not text_content or len(text_content.strip()) < 50:
+            raise ValueError(
+                'Plagiat tekshiruvi uchun hujjat matni yetarli emas. DOCX yoki PDF faylni qayta yuklang.'
+            )
+        result = engine.check_text(text_content, exclude_article_id=str(article.id))
 
-    gemini_service = get_gemini_service()
-    if not (getattr(gemini_service, 'api_key', None) or '').strip():
-        raise RuntimeError(
-            'AI antiplagiat kaliti (GEMINI_API_KEY / ANTIPLAGIAT_CLOUD_TOKEN) serverda sozlanmagan.'
-        )
-
-    result = gemini_service.check_plagiarism_full(text_content)
     plagiarism_percentage = float(result.get('plagiarism_percentage', 0))
     ai_content_percentage = float(result.get('ai_content_percentage', 0))
     originality = float(result.get('originality', max(0, 100 - plagiarism_percentage)))
@@ -106,7 +103,7 @@ def run_plagiarism_check(article, user, *, force: bool = False) -> dict:
         action='Plagiarism check completed',
         details=(
             f'Plagiarism: {plagiarism_percentage}%, '
-            f'AI Content: {ai_content_percentage}%, Originality: {originality}%'
+            f'Originality: {originality}% (algorithmic, no AI)'
         ),
     )
 
@@ -145,7 +142,7 @@ def run_auto_plagiarism_check(article_id, user_id) -> None:
                 user=user,
                 title='Antiplagiat tekshiruvi tayyor',
                 message=(
-                    f'"{(article.title or "")[:80]}" — AI antiplagiat tekshiruvi yakunlandi. '
+                    f'"{(article.title or "")[:80]}" — antiplagiat tekshiruvi yakunlandi. '
                     'Natijalarni Xizmatlar markazidagi sahifadan ko\'ring.'
                 ),
                 notification_type='plagiarism',

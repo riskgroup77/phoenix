@@ -383,8 +383,9 @@ GEMINI_API_KEY = (
 # Gemini model: .env da GEMINI_MODEL (masalan gemini-1.5-flash, gemini-2.0-flash)
 GEMINI_MODEL = (os.getenv('GEMINI_MODEL') or 'gemini-1.5-flash').strip()
 GEMINI_MAX_OUTPUT_TOKENS = int(os.getenv('GEMINI_MAX_OUTPUT_TOKENS', '8192'))
-# Antiplagiat promptiga kiritiladigan matn chegarami (belgi)
 GEMINI_PLAGIARISM_INPUT_CHARS = int(os.getenv('GEMINI_PLAGIARISM_INPUT_CHARS', '25000'))
+# Antiplagiat: suniy intellektsiz algoritmik rejim (default). True bo'lsa Gemini ham qo'shiladi.
+ANTIPLAGIAT_USE_AI = os.getenv('ANTIPLAGIAT_USE_AI', 'false').lower() in ('1', 'true', 'yes', 'on')
 
 # Click API HTTP client
 CLICK_HTTP_TIMEOUT_SEC = int(os.getenv('CLICK_HTTP_TIMEOUT_SEC', '45'))

@@ -23,6 +23,8 @@ interface PlagiarismSource {
 interface PlagiarismResult {
   plagiarism: number;
   aiContent: number;
+  citations: number;
+  selfCitation: number;
   sources: PlagiarismSource[];
 }
 
@@ -223,7 +225,7 @@ const PlagiarismCheck: React.FC = () => {
                   setArticleId(pendingArticleId);
                   setPendingPlagiarismPayment(null);
                   setPaymentVerifiedCompleted(true);
-                  toast.success('To\'lov tasdiqlandi. AI antiplagiat tekshiruvi avtomatik boshlanmoqda...');
+                  toast.success('To\'lov tasdiqlandi. Antiplagiat tekshiruvi avtomatik boshlanmoqda...');
                   window.setTimeout(() => {
                       void runPlagiarismAfterPayment(pendingArticleId);
                   }, 300);
@@ -256,11 +258,21 @@ const PlagiarismCheck: React.FC = () => {
     plagiarismPercentage: number,
     aiContentPercentage: number,
     foundSources: PlagiarismSource[],
+    report?: Record<string, unknown> | null,
   ) => {
     const originality = 100 - plagiarismPercentage;
+    const citationPct = report?.citation_percent ?? report?.plagiarism_breakdown?.self_citation ?? 0;
+    const selfCitationPct = report?.self_citation_percent ?? 0;
+    const charCount = report?.character_count;
+    const sentCount = report?.sentence_count;
+    const searchModules = Array.isArray(report?.search_modules)
+      ? (report.search_modules as string[]).join(', ')
+      : 'Phoenix Milliy reestr, Internet PLUS, eLIBRARY.RU, OTMlar halqasi, Shablon iboralar';
     const finalResult = {
       plagiarism: plagiarismPercentage,
       aiContent: aiContentPercentage,
+      citations: Number(citationPct || 0),
+      selfCitation: Number(selfCitationPct || 0),
       sources: foundSources,
     };
     setResult(finalResult);
@@ -271,11 +283,11 @@ const PlagiarismCheck: React.FC = () => {
       author: `${(authorLastName || user?.lastName || '').trim()} ${(authorFirstName || user?.firstName || '').trim()}`.trim(),
       workType: documentType || 'Ilmiy ish',
       fileName: documentName.trim() || file?.name || '',
-      citations: '0%',
-      selfCitation: '0%',
+      citations: `${Number(citationPct || 0).toFixed(1)}%`,
+      selfCitation: `${Number(selfCitationPct || 0).toFixed(1)}%`,
       plagiarism: `${plagiarismPercentage}%`,
       originality: `${originality.toFixed(2)}%`,
-      searchModules: 'Milliy reestr, Internet plyus, Shablon iboralar, eLIBRARY.RU, Bibliografiya, BMK dissertatsiyalari, Viloy nashriyoti, Universitetlar halqasi, IPS Adilet, Tabobat, Tarjimali matnlar qidiruv moduli, Patentlar, Tarjima tekshiruvi uz-ru, parafaz matnlarni tekshirish, RDK to\'plami, Rossiya va MDH OAVlari, Elektron-kutubxona tizimlari, Garant AHT, Iqtibos keltirish, SPS Garant',
+      searchModules,
     };
     setCertificateData(newCertificateData);
 
@@ -288,8 +300,8 @@ const PlagiarismCheck: React.FC = () => {
       originalFileName: file?.name || '',
       documentName: documentName.trim() || file?.name || '',
       documentType: documentType || 'Ilmiy ish',
-      characterCount: Math.floor(Math.random() * 50000) + 10000,
-      sentenceCount: Math.floor(Math.random() * 500) + 100,
+      characterCount: typeof charCount === 'number' ? charCount : (file ? Math.round(file.size * 2.5) : 0),
+      sentenceCount: typeof sentCount === 'number' ? sentCount : 0,
       fileSize: file ? `${(file.size / 1024).toFixed(2)} KB` : '—',
       plagiarismPercent: plagiarismPercentage,
       selfCitationPercent: 0,
@@ -342,6 +354,7 @@ const PlagiarismCheck: React.FC = () => {
             Number(data.plagiarism_percentage) || 0,
             Number(data.ai_content_percentage) || 0,
             sources,
+            data.plagiarism_report,
           );
           return true;
         }
@@ -361,7 +374,7 @@ const PlagiarismCheck: React.FC = () => {
     try {
       const ready = await pollUntilPlagiarismReady(targetArticleId);
       if (ready) {
-        toast.success('AI antiplagiat tekshiruvi muvaffaqiyatli yakunlandi!');
+        toast.success('Antiplagiat tekshiruvi muvaffaqiyatli yakunlandi!');
         return;
       }
       toast.info('Avtomatik tekshiruv davom etmoqda. API orqali yakunlanmoqda...');
@@ -372,6 +385,7 @@ const PlagiarismCheck: React.FC = () => {
         plagiarismPercentage,
         aiContentPercentage,
         mapSourcesFromApi(plagiarismResult.sources),
+        plagiarismResult.report,
       );
       toast.success('Antiplagiat tekshiruvi muvaffaqiyatli amalga oshirildi!');
     } catch (err: unknown) {
@@ -399,7 +413,7 @@ const PlagiarismCheck: React.FC = () => {
               setArticleId(artId);
               setPendingPlagiarismPayment(null);
               setPaymentVerifiedCompleted(true);
-              toast.success('To\'lov tasdiqlandi. AI antiplagiat tekshiruvi avtomatik boshlanmoqda...');
+              toast.success('To\'lov tasdiqlandi. Antiplagiat tekshiruvi avtomatik boshlanmoqda...');
               window.setTimeout(() => {
                   void runPlagiarismAfterPayment(artId);
               }, 300);
@@ -584,7 +598,7 @@ const PlagiarismCheck: React.FC = () => {
             aiContentPercentage,
             mapSourcesFromApi(plagiarismResult.sources),
           );
-          toast.success('Antiplagiat tekshiruvi muvaffaqiyatli amalga oshirildi!');
+          toast.success('Antiplagiat tekshiruvi muvaffaqiyatli yakunlandi!');
       } catch (err: any) {
           const msg = getUserFriendlyError(err) || 'Antiplagiat tekshiruvida xatolik yuz berdi.';
           toast.error(msg);
@@ -607,7 +621,7 @@ const PlagiarismCheck: React.FC = () => {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_100%_80%,rgba(250,204,21,0.25),transparent_45%)]" aria-hidden />
         <div className="relative rounded-[26px] bg-gradient-to-br from-white/20 via-white/10 to-cyan-200/15 px-4 py-8 backdrop-blur-md sm:px-8 sm:py-10">
       <Card title="Mustaqil Antiplagiat Tekshiruvi" className="no-print border-white/50 bg-white/30 shadow-2xl backdrop-blur-2xl">
-          <p className="mb-6 text-sm font-medium text-slate-900">Ma'lumotnoma va tekshiruv natijalari uchun quyidagi maydonlarni to'ldiring. Ko'chirma foizi va manbalar (aniq linklar) hisoblanadi.</p>
+          <p className="mb-6 text-sm font-medium text-slate-900">Ma'lumotnoma va tekshiruv natijalari uchun quyidagi maydonlarni to'ldiring. Tekshiruv suniy intellektsiz — milliy reestr, n-gram va iqtibos qoidalari bo'yicha amalga oshiriladi.</p>
 
           <div className="mx-auto max-w-xl space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -690,11 +704,11 @@ const PlagiarismCheck: React.FC = () => {
                   )}
               </div>
               <Button onClick={() => handleCheck(false)} disabled={!canSubmit} isLoading={isChecking} className="w-full max-w-xs mx-auto">
-                  {isChecking ? 'AI tekshiruvi...' : <><FileCheck className="mr-2 h-4 w-4" /> {PLAGIARISM_CHECK_PRICE > 0 ? 'To\'lov va Tekshirish' : 'Tekshirish'}</>}
+                  {isChecking ? 'Tekshirilmoqda...' : <><FileCheck className="mr-2 h-4 w-4" /> {PLAGIARISM_CHECK_PRICE > 0 ? 'To\'lov va Tekshirish' : 'Tekshirish'}</>}
               </Button>
               {isChecking && (
                   <p className="text-sm font-medium text-violet-950 mt-2">
-                      To&apos;lovdan keyin hujjatingiz AI antiplagiat tizimida avtomatik tekshiriladi. Iltimos, kuting...
+                      To&apos;lovdan keyin hujjatingiz milliy reestr va qidiruv modullari bo&apos;yicha avtomatik tekshiriladi.
                   </p>
               )}
               {paymentVerifiedCompleted && (
@@ -719,7 +733,7 @@ const PlagiarismCheck: React.FC = () => {
 
           {isChecking && (
               <div className="mx-auto mt-8 max-w-lg">
-                  <p className="mb-2 text-center font-medium text-slate-950">AI antiplagiat tahlili — hujjat to&apos;liq tekshirilmoqda...</p>
+                  <p className="mb-2 text-center font-medium text-slate-950">Antiplagiat tahlili — hujjat to&apos;liq tekshirilmoqda...</p>
                   <div className="h-2.5 w-full rounded-full bg-white/35 shadow-inner">
                       <div className="h-2.5 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 shadow-sm transition-[width] duration-300 ease-in-out" style={{ width: `${progress}%` }} />
                   </div>
@@ -739,8 +753,8 @@ const PlagiarismCheck: React.FC = () => {
                           <p className="text-4xl font-bold text-yellow-800 mt-1">{result.plagiarism}%</p>
                       </div>
                       <div className="rounded-xl border border-white/45 bg-white/40 p-4 text-center shadow-inner backdrop-blur-md">
-                          <p className="text-sm font-semibold text-slate-800">AI-Kontent</p>
-                          <p className="text-4xl font-bold text-cyan-800 mt-1">{result.aiContent}%</p>
+                          <p className="text-sm font-semibold text-slate-800">Iqtiboslar</p>
+                          <p className="text-4xl font-bold text-cyan-800 mt-1">{result.citations.toFixed(1)}%</p>
                       </div>
                   </div>
 
