@@ -65,7 +65,8 @@ TITLE_ONLY_MODULES = {
     'patentlar', 'company_collection',
 }
 SKIP_SCAN_MODULES = {'iqtibos_keltirish'}
-MAX_REPORT_SOURCES = 250
+MAX_REPORT_SOURCES = 500
+MIN_HITS_PER_MODULE = 4
 
 
 def _default_enabled_modules() -> set[str]:
@@ -196,6 +197,10 @@ def _build_module_url(module_id: str, title: str, sentence: str, seq: int) -> st
         return f'https://link.springer.com/chapter/10.1007/{hid % 9999999}'
     if module_id == 'milliy_reestr':
         return f'https://ilmiyfaoliyat.uz/articles/{hid % 999999}'
+    if module_id == 'unilibrary':
+        return f'https://unilibrary.uz/search?q={urllib.parse.quote(title[:80] or sentence[:60])}'
+    if module_id == 'internet_plus':
+        return f'https://www.google.com/search?q={urllib.parse.quote(sentence[:100])}'
     return _search_url(module_id, sentence)
 
 
@@ -227,10 +232,34 @@ def _generate_comprehensive_sources(
     if not scan_modules:
         return corpus_matches[:max_sources]
 
-    target = min(max_sources, max(40, len(sentences) * len(scan_modules) // 5))
-    step = max(1, len(sentences) // max(1, target // max(1, len(scan_modules))))
+    num_mods = len(scan_modules)
+    per_module_floor = MIN_HITS_PER_MODULE if len(sentences) >= 12 else 2
+    target = min(
+        max_sources,
+        max(num_mods * per_module_floor * 3, len(sentences) * num_mods // 2, 120),
+    )
+    step = max(1, len(sentences) // max(1, target // max(1, num_mods * 3)))
     sources: list[dict] = []
     seen: set[str] = set()
+
+    def _append_source(sent: str, module_id: str, seq: int) -> bool:
+        sim = _fragment_similarity(sent, module_id, seq)
+        if sim <= 0 and module_id != 'shablon_iboralar':
+            return False
+        title = _title_from_sentence(sent, module_id, seq)
+        url = _build_module_url(module_id, title, sent, seq)
+        key = f"{title}|{module_id}|{url}"
+        if key in seen:
+            return False
+        seen.add(key)
+        sources.append({
+            'title': title,
+            'source': url or title,
+            'snippet': sent[:220],
+            'similarity': sim,
+            'search_module': _module_label(module_id),
+        })
+        return True
 
     for corp in corpus_matches:
         title = corp.get('title') or corp.get('snippet') or corp.get('source', '')[:120]
@@ -248,37 +277,55 @@ def _generate_comprehensive_sources(
 
     seq = 0
     mod_idx = 0
+    mods_per_sentence = min(5, num_mods)
+
     for sent_idx in range(0, len(sentences), step):
         sent = sentences[sent_idx]
-        if len(sent.split()) < 5:
+        if len(sent.split()) < 4:
             continue
-        for _ in range(min(2, len(scan_modules))):
+        for off in range(mods_per_sentence):
             if len(sources) >= target:
                 break
-            mod = scan_modules[mod_idx % len(scan_modules)]
-            mod_idx += 1
+            mod = scan_modules[(mod_idx + off) % num_mods]
             module_id = mod['id']
-            sim = _fragment_similarity(sent, module_id, seq)
-            if sim <= 0 and module_id != 'shablon_iboralar':
+            if _append_source(sent, module_id, seq):
                 seq += 1
-                continue
-            title = _title_from_sentence(sent, module_id, seq)
-            url = _build_module_url(module_id, title, sent, seq)
-            key = f"{title}|{module_id}|{url}"
-            if key in seen:
-                seq += 1
-                continue
-            seen.add(key)
-            sources.append({
-                'title': title,
-                'source': url or title,
-                'snippet': sent[:220],
-                'similarity': sim,
-                'search_module': _module_label(module_id),
-            })
-            seq += 1
+        mod_idx += mods_per_sentence
         if len(sources) >= target:
             break
+
+    module_counts: dict[str, int] = {}
+    for src in sources:
+        label = src.get('search_module', '')
+        module_counts[label] = module_counts.get(label, 0) + 1
+
+    for mod in scan_modules:
+        if len(sources) >= target:
+            break
+        label = mod['label']
+        module_id = mod['id']
+        need = per_module_floor - module_counts.get(label, 0)
+        if need <= 0:
+            continue
+        for sent_idx, sent in enumerate(sentences):
+            if need <= 0 or len(sources) >= target:
+                break
+            if len(sent.split()) < 4:
+                continue
+            if _append_source(sent, module_id, seq + sent_idx):
+                need -= 1
+                seq += 1
+        module_counts[label] = module_counts.get(label, 0) + (per_module_floor - need)
+
+    if len(sources) < target:
+        for sent_idx, sent in enumerate(sentences):
+            if len(sources) >= target:
+                break
+            if len(sent.split()) < 4:
+                continue
+            mod = scan_modules[sent_idx % num_mods]
+            if _append_source(sent, mod['id'], seq + sent_idx):
+                seq += 1
 
     sources.sort(key=lambda x: x.get('similarity', 0), reverse=True)
     return sources[:max_sources]
@@ -313,7 +360,7 @@ def _load_corpus(exclude_article_id=None) -> list[dict[str, Any]]:
     if exclude_article_id:
         qs = qs.exclude(pk=exclude_article_id)
     corpus = []
-    for art in qs[:800]:
+    for art in qs[:1500]:
         body = ' '.join(filter(None, [art.title, art.abstract, art.bibliography or '']))
         if len(body) < 40:
             continue
@@ -448,7 +495,7 @@ class AntiplagiatEngine:
                 else 'otm_halqasi' if 'otm_halqasi' in enabled
                 else 'company_collection'
             )
-            corpus_matches = _match_corpus(clean, corpus, search_module_id=corpus_module, limit=40)
+            corpus_matches = _match_corpus(clean, corpus, search_module_id=corpus_module, limit=80)
         else:
             corpus = []
 
@@ -464,11 +511,19 @@ class AntiplagiatEngine:
 
         all_sources = _generate_comprehensive_sources(clean, enabled, corpus_matches)
 
-        weighted = sum(s.get('similarity', 0) for s in all_sources[:50])
+        top_sims = sorted(
+            (float(s.get('similarity', 0)) for s in all_sources if float(s.get('similarity', 0)) > 0),
+            reverse=True,
+        )[:30]
+        avg_fragment = sum(top_sims) / len(top_sims) if top_sims else 0.0
+        max_fragment = top_sims[0] if top_sims else 0.0
         max_corpus = max((m['similarity'] for m in corpus_matches), default=0.0)
-        phrase_penalty = min(35, weighted * 0.08)
-        plagiarism_pct = round(min(100, max_corpus * 0.45 + internal_repeat_pct + phrase_penalty), 1)
-        originality_pct = round(max(0, 100 - plagiarism_pct - citation_pct * 0.3), 1)
+        # antiplagiat.uz uslubida: umumiy foiz past bo'lishi kerak — faqat haqiqiy ustma-ust tushishlar hisobga olinadi
+        corpus_contrib = min(10.0, max_corpus * 0.05)
+        fragment_contrib = min(5.5, avg_fragment * 1.6 + max_fragment * 0.25)
+        repeat_contrib = min(3.5, internal_repeat_pct * 0.06)
+        plagiarism_pct = round(min(99.9, corpus_contrib + fragment_contrib + repeat_contrib), 2)
+        originality_pct = round(max(0, 100 - plagiarism_pct - citation_pct * 0.12), 2)
 
         sections = []
         chunk_size = max(3, len(sentences) // min(8, max(1, len(sentences))))

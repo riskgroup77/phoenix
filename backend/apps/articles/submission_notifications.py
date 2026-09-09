@@ -18,11 +18,9 @@ STAFF_ROLES_NOTIFY = frozenset({'super_admin', 'journal_admin', 'operator', 'acc
 
 
 def _is_standalone_antiplagiat(article) -> bool:
-    title = (getattr(article, 'title', None) or '').strip().lower()
-    if title.startswith('plagiarism check'):
-        return True
-    keywords = getattr(article, 'keywords', None) or []
-    return any(str(k).lower() == 'plagiarism' for k in keywords)
+    from apps.articles.antiplagiat_utils import is_standalone_antiplagiat
+
+    return is_standalone_antiplagiat(article)
 
 
 def _article_link(article) -> str:

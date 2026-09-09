@@ -13,6 +13,7 @@ import { getAuthorWorkflowStepsFromStatus, getAuthorWorkflowStageLabel } from '.
 import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
 import { toast } from 'react-toastify';
+import { isStandalonePlagiarismArticle } from '../utils/antiplagiatFromArticle';
 
 // Type for the API response which has different field names
 interface ArticleApiResponse {
@@ -619,7 +620,7 @@ const Articles: React.FC = () => {
     }, [searchQuery, translationsToShow]);
 
     const filteredArticles = useMemo(() => {
-        let result = articlesToShow;
+        let result = articlesToShow.filter((a) => !isStandalonePlagiarismArticle(a));
 
         if (searchQuery) {
             const q = searchQuery.toLowerCase();

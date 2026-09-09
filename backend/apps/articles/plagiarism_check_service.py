@@ -104,7 +104,20 @@ def run_plagiarism_check(
     plagiarism_percentage = float(result.get('plagiarism_percentage', 0))
     ai_content_percentage = float(result.get('ai_content_percentage', 0))
     originality = float(result.get('originality', max(0, 100 - plagiarism_percentage)))
-    report = result.get('report', {}) or {}
+    report = dict(result.get('report', {}) or {})
+    existing = article.plagiarism_report if isinstance(article.plagiarism_report, dict) else {}
+    for key in (
+        'document_type',
+        'document_name',
+        'author_first_name',
+        'author_last_name',
+        'pending_enabled_modules',
+    ):
+        if existing.get(key) and not report.get(key):
+            report[key] = existing[key]
+    if not report.get('certificate_number'):
+        report['certificate_number'] = timezone.now().strftime('%y%m%d%H%M%S')[-10:]
+    report['archive_ready'] = True
 
     article.plagiarism_percentage = plagiarism_percentage
     article.ai_content_percentage = ai_content_percentage
@@ -160,19 +173,22 @@ def run_auto_plagiarism_check(article_id, user_id) -> None:
 
     try:
         run_plagiarism_check(article, user, force=True)
+        article.refresh_from_db()
         logger.info('auto plagiarism completed for article %s', article_id)
         try:
             from apps.notifications.models import Notification
 
+            stored_report = article.plagiarism_report if isinstance(article.plagiarism_report, dict) else {}
+            doc_label = (stored_report.get('document_name') or article.title or '')[:80]
             Notification.notify(
                 user=user,
                 title='Antiplagiat tekshiruvi tayyor',
                 message=(
-                    f'"{(article.title or "")[:80]}" — antiplagiat tekshiruvi yakunlandi. '
-                    'Natijalarni Xizmatlar markazidagi sahifadan ko\'ring.'
+                    f'"{doc_label}" — antiplagiat tekshiruvi yakunlandi. '
+                    'Sertifikat va to\'liq hisobot «Arxiv hujjatlar» bo\'limida.'
                 ),
                 notification_type='plagiarism',
-                link='/plagiarism-check',
+                link=f'/plagiarism-check?article_id={article.id}&view=1',
                 metadata={'article_id': str(article.id)},
             )
         except Exception as notify_err:

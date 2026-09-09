@@ -169,13 +169,78 @@ class UserViewSet(viewsets.ModelViewSet):
                 return None
             return file_url(field)
 
+        from apps.articles.antiplagiat_utils import is_standalone_antiplagiat
+
         # 1. Maqolalar: jarayondagi holatlar ko'rinadi; nashr etilganida faqat sertifikat (muallif docx emas).
         articles = Article.objects.filter(author=user).select_related('journal').order_by('-submission_date')
+        seen_archive_ids = set()
         for art in articles:
             title = (art.title or '')[:200]
             date_str = art.submission_date.isoformat() if art.submission_date else None
             article_view_url = f"/articles/{art.id}"
             pdf_url = submission_download_url(art.final_pdf_path)
+
+            if is_standalone_antiplagiat(art):
+                report = art.plagiarism_report if isinstance(art.plagiarism_report, dict) else {}
+                doc_name = (report.get('document_name') or art.title or 'Antiplagiat tekshiruvi')[:200]
+                plag_id = f'plag-{art.id}'
+                if plag_id in seen_archive_ids:
+                    continue
+                if art.plagiarism_checked_at and art.plagiarism_percentage is not None:
+                    checked_date = (
+                        art.plagiarism_checked_at.isoformat()
+                        if art.plagiarism_checked_at
+                        else date_str
+                    )
+                    items.append({
+                        'type': 'plagiarism_check',
+                        'id': plag_id,
+                        'article_id': str(art.id),
+                        'title': doc_name,
+                        'label': 'Antiplagiat tekshiruvi',
+                        'date': checked_date,
+                        'download_url': None,
+                        'view_url': f'/plagiarism-check?article_id={art.id}&view=1',
+                        'extra': {
+                            'status_label': 'Tekshiruv yakunlangan',
+                            'plagiarism_percentage': art.plagiarism_percentage,
+                            'originality_percentage': getattr(art, 'originality_percentage', None),
+                            'citation_percent': report.get('citation_percent'),
+                            'self_citation_percent': report.get('self_citation_percent'),
+                            'certificate_number': report.get('certificate_number'),
+                            'document_type': report.get('document_type'),
+                            'sources_count': len(report.get('sources') or []),
+                        },
+                    })
+                    seen_archive_ids.add(plag_id)
+                else:
+                    lang_paid = Transaction.objects.filter(
+                        article_id=art.id,
+                        service_type='language_editing',
+                        status='completed',
+                    ).exists()
+                    status_label = (
+                        'Tekshiruv jarayonda'
+                        if lang_paid
+                        else "To'lov kutilmoqda"
+                    )
+                    items.append({
+                        'type': 'plagiarism_check',
+                        'id': plag_id,
+                        'article_id': str(art.id),
+                        'title': doc_name,
+                        'label': 'Antiplagiat tekshiruvi',
+                        'date': date_str,
+                        'download_url': None,
+                        'view_url': f'/plagiarism-check?article_id={art.id}',
+                        'extra': {
+                            'status_label': status_label,
+                            'document_type': report.get('document_type'),
+                        },
+                    })
+                    seen_archive_ids.add(plag_id)
+                continue
+
             has_pub_cert = bool(
                 getattr(art, 'publication_certificate_path', None) and art.publication_certificate_path
             ) or bool((art.publication_certificate_url or art.certificate_url or '').strip())
@@ -190,30 +255,48 @@ class UserViewSet(viewsets.ModelViewSet):
                 status='pending',
             ).exists()
             if art.status == 'Draft' and pending_pub_fee and not completed_pub_fee:
-                status_label = "Maqola yuborish — to'lov kutilmoqda"
+                status_label = "To'lov kutilmoqda"
+                archive_type = 'article_submission'
             elif art.status == 'Draft' and completed_pub_fee:
-                status_label = 'Maqola yuborish — taqrizchida'
+                status_label = 'Taqrizchida'
+                archive_type = 'article_submission'
             elif art.status in ('Yangi', 'WithEditor', 'QabulQilingan', 'PlagiarismReview'):
-                status_label = 'Maqola yuborish — taqrizchida'
+                status_label = 'Taqrizchida'
+                archive_type = 'article_submission'
             elif art.status == 'Published':
-                status_label = 'Maqola nashr etilgan'
+                status_label = 'Nashr etilgan'
+                archive_type = 'article_submission'
             elif pdf_url:
-                status_label = 'Maqola PDF'
+                status_label = 'PDF tayyor'
+                archive_type = 'article_pdf'
             else:
-                status_label = 'Maqola yuborildi'
+                status_label = 'Yuborildi'
+                archive_type = 'article_submission'
+
+            category_label = {
+                'article_submission': 'Maqola yuborish',
+                'article_pdf': 'Maqola PDF',
+            }.get(archive_type, 'Maqola')
+
             # Nashr etilgan maqolada muallif yuborgan fayl (docx) ko'rinmasin — faqat sertifikat.
-            if art.status != 'Published':
+            art_archive_id = f'{archive_type}-{art.id}'
+            if art.status != 'Published' and art_archive_id not in seen_archive_ids:
                 items.append({
-                    'type': 'article_pdf',
-                    'id': str(art.id),
+                    'type': archive_type,
+                    'id': art_archive_id,
                     'article_id': str(art.id),
                     'title': title,
-                    'label': status_label,
+                    'label': category_label,
                     'date': date_str,
                     'download_url': pdf_url,
                     'view_url': article_view_url,
-                    'extra': {'journal': art.journal.name if art.journal else None, 'status': art.status},
+                    'extra': {
+                        'status_label': status_label,
+                        'journal': art.journal.name if art.journal else None,
+                        'status': art.status,
+                    },
                 })
+                seen_archive_ids.add(art_archive_id)
             if art.udk_certificate_path:
                 items.append({
                     'type': 'udk_certificate',
@@ -288,10 +371,10 @@ class UserViewSet(viewsets.ModelViewSet):
                 title_short = (req.title or '')[:200]
                 date_str = req.created_at.isoformat() if req.created_at else None
                 status_label = {
-                    UDK_REQUEST_STATUS_PENDING_PAYMENT: "UDK buyurtmasi — to'lov kutilmoqda",
-                    UDK_REQUEST_STATUS_SUBMITTED: "UDK buyurtmasi — taqrizchida",
-                    UDK_REQUEST_STATUS_COMPLETED: "UDK buyurtmasi — yakunlangan (PDF kutilmoqda)",
-                }.get(req.status, "UDK buyurtmasi")
+                    UDK_REQUEST_STATUS_PENDING_PAYMENT: "To'lov kutilmoqda",
+                    UDK_REQUEST_STATUS_SUBMITTED: 'Taqrizchida',
+                    UDK_REQUEST_STATUS_COMPLETED: 'Yakunlangan (PDF kutilmoqda)',
+                }.get(req.status, 'Jarayonda')
 
                 dl = None
                 if cert and cert.certificate_path:
@@ -301,11 +384,12 @@ class UserViewSet(viewsets.ModelViewSet):
                     'type': 'udk_request_order',
                     'id': f"udkreq-{req.id}",
                     'title': title_short,
-                    'label': status_label,
+                    'label': "UDK buyurtmasi",
                     'date': date_str,
                     'download_url': dl,
                     'view_url': '/udk-olish',
                     'extra': {
+                        'status_label': status_label,
                         'status': req.status,
                         'udk_code': (req.udk_code or '')[:120],
                     },
@@ -319,23 +403,27 @@ class UserViewSet(viewsets.ModelViewSet):
             doi_requests = DoiRequest.objects.filter(user=user).order_by('-created_at')
             for dr in doi_requests:
                 status_label = {
-                    'pending_payment': "DOI — to'lov kutilmoqda",
-                    'submitted': "DOI — taqrizchida",
-                    'completed': "DOI raqami tayyor",
-                }.get(dr.status, "DOI so'rovi")
+                    'pending_payment': "To'lov kutilmoqda",
+                    'submitted': 'Taqrizchida',
+                    'completed': 'Tayyor',
+                }.get(dr.status, "Jarayonda")
                 has_link = bool((dr.doi_link or '').strip())
                 items.append({
                     'type': 'doi_link',
                     'id': f"doi-{dr.id}",
-                    'title': f"DOI — {dr.author_last_name} {dr.author_first_name}",
-                    'label': "DOI raqami" if has_link else status_label,
+                    'title': f"{dr.author_last_name} {dr.author_first_name}".strip() or 'DOI so\'rovi',
+                    'label': 'DOI raqami',
                     'date': (
                         dr.completed_at.isoformat() if dr.completed_at else
                         (dr.created_at.isoformat() if dr.created_at else None)
                     ),
                     'download_url': None,
                     'view_url': dr.doi_link if has_link else '/doi-olish',
-                    'extra': {'doi_link': dr.doi_link, 'status': dr.status},
+                    'extra': {
+                        'status_label': status_label,
+                        'doi_link': dr.doi_link,
+                        'status': dr.status,
+                    },
                 })
         except Exception:
             pass
@@ -345,21 +433,22 @@ class UserViewSet(viewsets.ModelViewSet):
             sample_requests = ArticleSampleRequest.objects.filter(user=user).order_by('-created_at')
             for sr in sample_requests:
                 status_label = {
-                    'pending_payment': "Maqola yozish — to'lov kutilmoqda",
-                    'submitted': "Maqola yozish — taqrizchida",
-                    'in_progress': "Maqola yozish — jarayonda",
-                    'completed': "Maqola yozish — yakunlangan",
-                    'cancelled': "Maqola yozish — bekor qilingan",
-                }.get(sr.status, "Maqola yozish buyurtmasi")
+                    'pending_payment': "To'lov kutilmoqda",
+                    'submitted': 'Taqrizchida',
+                    'in_progress': 'Jarayonda',
+                    'completed': 'Yakunlangan',
+                    'cancelled': 'Bekor qilingan',
+                }.get(sr.status, 'Jarayonda')
                 items.append({
                     'type': 'article_sample_order',
                     'id': f"sample-{sr.id}",
                     'title': (sr.topic or sr.requirements or "Maqola yozish buyurtmasi")[:200],
-                    'label': status_label,
+                    'label': 'Maqola yozish buyurtmasi',
                     'date': sr.created_at.isoformat() if sr.created_at else None,
                     'download_url': None,
                     'view_url': '/maqola-namuna-olish',
                     'extra': {
+                        'status_label': status_label,
                         'status': sr.status,
                         'quality_level': sr.quality_level,
                         'pages': sr.pages,

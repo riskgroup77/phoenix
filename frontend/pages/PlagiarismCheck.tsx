@@ -1,11 +1,13 @@
 import React, { useState, useRef } from 'react';
-import Card from '../components/ui/Card';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import ModalPortal from '../components/ui/ModalPortal';
-import { Printer, Link as LinkIcon, CreditCard, Download, FileText, X } from 'lucide-react';
+import { CreditCard } from 'lucide-react';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
-import AntiplagiatCertificate, { AntiplagiatCertificateData } from '../components/AntiplagiatCertificate';
-import PlagiarismFullReport, { PlagiarismFullReportData } from '../components/PlagiarismFullReport';
+import AntiplagiatResultView from '../components/AntiplagiatResultView';
+import type { AntiplagiatCertificateData } from '../components/AntiplagiatCertificate';
+import type { PlagiarismFullReportData } from '../components/PlagiarismFullReport';
+import { buildAntiplagiatViewFromArticle } from '../utils/antiplagiatFromArticle';
 import AntiplagiatUploadPanel, {
   AntiplagiatFormValues,
   createDefaultAntiplagiatForm,
@@ -69,6 +71,10 @@ function formatPlagiarismPaymentMessage(raw: string): string {
 }
 
 const PlagiarismCheck: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const viewArticleId = searchParams.get('article_id');
+  const isViewMode = searchParams.get('view') === '1' && !!viewArticleId;
   const { user } = useAuth();
   const { addNotification } = useNotifications();
   const { getPrice } = useServicePrices();
@@ -79,7 +85,8 @@ const PlagiarismCheck: React.FC = () => {
   const [result, setResult] = useState<PlagiarismResult | null>(null);
   const [certificateData, setCertificateData] = useState<AntiplagiatCertificateData | null>(null);
   const [fullReportData, setFullReportData] = useState<PlagiarismFullReportData | null>(null);
-  const [showFullReport, setShowFullReport] = useState(false);
+  const [viewOriginality, setViewOriginality] = useState(0);
+  const [loadingView, setLoadingView] = useState(false);
 
   const patchForm = (patch: Partial<AntiplagiatFormValues>) => {
     setForm((prev) => ({ ...prev, ...patch }));
@@ -181,8 +188,22 @@ const PlagiarismCheck: React.FC = () => {
   // To'lov sahifasidan qaytish: tranzaksiya holatini aniq ID bo'yicha tekshiramiz (ro'yxat paginatsiyasi xatosiz).
   // pending bo'lsa sessionStorage ni SAQLAB qolamiz — avvalgi kodda har safar o'chirilardi va UI "o'ylanib" qolardi.
   React.useEffect(() => {
+      const urlTxId = searchParams.get('transaction_id');
+      const paymentReturn = searchParams.get('payment_return') === '1';
+      if (urlTxId && paymentReturn) {
+          sessionStorage.setItem(STORAGE_KEY_TRANSACTION_ID, urlTxId);
+      }
+
       const pendingTxId = sessionStorage.getItem(STORAGE_KEY_TRANSACTION_ID);
       const pendingArticleId = sessionStorage.getItem(STORAGE_KEY_ARTICLE_ID);
+
+      if (urlTxId && paymentReturn) {
+          const next = new URLSearchParams(searchParams);
+          next.delete('payment_return');
+          next.delete('transaction_id');
+          setSearchParams(next, { replace: true });
+      }
+
       if (!pendingTxId || !pendingArticleId) return;
 
       let cancelled = false;
@@ -223,16 +244,54 @@ const PlagiarismCheck: React.FC = () => {
           }
       })();
       return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat sahifa ochilganda to'lov qaytishini tekshiramiz
   }, []);
+
+  React.useEffect(() => {
+    if (!isViewMode || !viewArticleId) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingView(true);
+      try {
+        const art = await apiService.articles.get(viewArticleId);
+        const data = art?.data || art;
+        const built = buildAntiplagiatViewFromArticle(data);
+        if (cancelled) return;
+        if (!built) {
+          toast.error('Tekshiruv natijasi topilmadi yoki hali tayyor emas.');
+          return;
+        }
+        setResult(built.result);
+        setCertificateData(built.certificateData);
+        setFullReportData(built.fullReportData);
+        setViewOriginality(built.fullReportData.originalityPercent);
+        setArticleId(viewArticleId);
+      } catch {
+        if (!cancelled) toast.error('Natijani yuklashda xatolik.');
+      } finally {
+        if (!cancelled) setLoadingView(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isViewMode, viewArticleId]);
+
+  const goToResultView = (targetId: string) => {
+    navigate(`/plagiarism-check?article_id=${encodeURIComponent(targetId)}&view=1`);
+  };
 
   const applyPlagiarismResults = (
     plagiarismPercentage: number,
     aiContentPercentage: number,
     foundSources: PlagiarismSource[],
     report?: Record<string, unknown> | null,
+    originalityOverride?: number,
   ) => {
-    const originality = 100 - plagiarismPercentage;
-    const citationPct = report?.citation_percent ?? report?.plagiarism_breakdown?.self_citation ?? 0;
+    const citationPctRaw = report?.citation_percent ?? report?.plagiarism_breakdown?.self_citation ?? 0;
+    const citationPct = Number(citationPctRaw || 0);
+    const originality =
+      typeof originalityOverride === 'number'
+        ? originalityOverride
+        : Math.max(0, 100 - plagiarismPercentage - citationPct * 0.12);
     const selfCitationPct = report?.self_citation_percent ?? 0;
     const charCount = report?.character_count;
     const sentCount = report?.sentence_count;
@@ -319,26 +378,19 @@ const PlagiarismCheck: React.FC = () => {
   };
 
   /** To'lovdan keyin server avtomatik tekshiruvni ishga tushiradi — natija tayyor bo'lguncha kutamiz */
-  const pollUntilPlagiarismReady = async (targetArticleId: string, maxAttempts = 40): Promise<boolean> => {
+  const pollUntilPlagiarismReady = async (targetArticleId: string, maxAttempts = 90): Promise<boolean> => {
     for (let i = 0; i < maxAttempts; i++) {
-      setProgress(Math.min(95, 10 + i * 2));
+      setProgress(Math.min(95, 10 + i * 1));
       try {
         const art = await apiService.articles.get(targetArticleId);
         const data = art?.data || art;
         if (data?.plagiarism_checked_at && data.plagiarism_percentage != null) {
-          const sources = mapSourcesFromApi(data.plagiarism_report?.sources);
-          applyPlagiarismResults(
-            Number(data.plagiarism_percentage) || 0,
-            Number(data.ai_content_percentage) || 0,
-            sources,
-            data.plagiarism_report,
-          );
           return true;
         }
       } catch {
         /* retry */
       }
-      await new Promise((r) => window.setTimeout(r, 3000));
+      await new Promise((r) => window.setTimeout(r, 4000));
     }
     return false;
   };
@@ -351,7 +403,8 @@ const PlagiarismCheck: React.FC = () => {
     try {
       const ready = await pollUntilPlagiarismReady(targetArticleId);
       if (ready) {
-        toast.success('Antiplagiat tekshiruvi muvaffaqiyatli yakunlandi!');
+        toast.success('Antiplagiat tekshiruvi yakunlandi. Arxivda ko\'rishingiz mumkin.');
+        goToResultView(targetArticleId);
         return;
       }
       toast.info('Avtomatik tekshiruv davom etmoqda. API orqali yakunlanmoqda...');
@@ -365,8 +418,10 @@ const PlagiarismCheck: React.FC = () => {
         aiContentPercentage,
         mapSourcesFromApi(plagiarismResult.sources),
         plagiarismResult.report,
+        plagiarismResult.originality,
       );
       toast.success('Antiplagiat tekshiruvi muvaffaqiyatli amalga oshirildi!');
+      goToResultView(targetArticleId);
     } catch (err: unknown) {
       const msg = getUserFriendlyError(err) || 'Antiplagiat tekshiruvida xatolik yuz berdi.';
       toast.error(msg);
@@ -423,6 +478,9 @@ const PlagiarismCheck: React.FC = () => {
                 await apiService.articles.savePlagiarismConfig(aid, {
                   enabled_modules: form.enabledModuleIds,
                   document_type: form.documentType,
+                  document_name: form.documentName.trim(),
+                  author_first_name: form.authorFirstName.trim(),
+                  author_last_name: form.authorLastName.trim(),
                 });
               } catch {
                 /* non-blocking */
@@ -464,6 +522,9 @@ const PlagiarismCheck: React.FC = () => {
         await apiService.articles.savePlagiarismConfig(newId, {
           enabled_modules: form.enabledModuleIds,
           document_type: form.documentType,
+          document_name: form.documentName.trim(),
+          author_first_name: form.authorFirstName.trim(),
+          author_last_name: form.authorLastName.trim(),
         });
       } catch {
         /* non-blocking */
@@ -491,10 +552,6 @@ const PlagiarismCheck: React.FC = () => {
       sessionStorage.removeItem(STORAGE_KEY_ARTICLE_ID);
   };
   
-  const handlePrint = () => {
-      window.print();
-  };
-
   const closePaymentModal = () => {
       setIsPaymentModalOpen(false);
       if (paymentTimerRef.current) clearTimeout(paymentTimerRef.current);
@@ -525,12 +582,10 @@ const PlagiarismCheck: React.FC = () => {
           if (result && result.success === true && result.transaction_id) {
               sessionStorage.setItem(STORAGE_KEY_TRANSACTION_ID, result.transaction_id);
               sessionStorage.setItem(STORAGE_KEY_ARTICLE_ID, linkedArticleId);
-              addNotification({
-                  message: 'To\'lov sahifasida QR kodni skanerlang yoki tugmani bosing. To\'lovdan so\'ng sahifaga qayting va "Tekshirishni davom ettirish" tugmasini bosing.',
-              });
-              paymentService.redirectToPaymentPage(result.transaction_id);
-              return;
-          } else if (result && result.success === true && result.payment_url && result.transaction_id) {
+              if (result.payment_url) {
+                  paymentService.redirectToPayment(result.payment_url);
+                  return;
+              }
               paymentService.redirectToPaymentPage(result.transaction_id);
               return;
           } else {
@@ -599,8 +654,10 @@ const PlagiarismCheck: React.FC = () => {
             aiContentPercentage,
             mapSourcesFromApi(plagiarismResult.sources),
             plagiarismResult.report,
+            plagiarismResult.originality,
           );
           toast.success('Antiplagiat tekshiruvi muvaffaqiyatli yakunlandi!');
+          goToResultView(targetArticleId);
       } catch (err: any) {
           const msg = getUserFriendlyError(err) || 'Antiplagiat tekshiruvida xatolik yuz berdi.';
           toast.error(msg);
@@ -617,6 +674,33 @@ const PlagiarismCheck: React.FC = () => {
   const onPanelSubmit = () => {
     void handleCheck(false);
   };
+
+  if (isViewMode) {
+    if (loadingView || (!result && !certificateData)) {
+      return (
+        <div className="flex justify-center py-20">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
+        </div>
+      );
+    }
+    if (result && certificateData && fullReportData) {
+      return (
+        <AntiplagiatResultView
+          result={result}
+          certificateData={certificateData}
+          fullReportData={fullReportData}
+          originalityPercent={viewOriginality}
+          onBack={() => navigate('/arxiv')}
+        />
+      );
+    }
+    return (
+      <div className="text-center py-16 text-slate-500">
+        <p>Tekshiruv natijasi topilmadi.</p>
+        <Button className="mt-4" onClick={() => navigate('/arxiv')}>Arxiv hujjatlarga qaytish</Button>
+      </div>
+    );
+  }
 
   return (
       <>
@@ -667,95 +751,12 @@ const PlagiarismCheck: React.FC = () => {
               </div>
           )}
 
-          {result && (
-              <div className="mt-10">
-                  <h3 className="text-xl font-bold text-center mb-4 text-slate-900">Tekshiruv natijalari</h3>
-                  <div className="mx-auto grid max-w-3xl grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-3">
-                      <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 text-center">
-                          <p className="text-sm font-semibold text-slate-600">Originallik</p>
-                          <p className="text-4xl font-bold text-emerald-700 mt-1">{100 - result.plagiarism}%</p>
-                      </div>
-                      <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 text-center">
-                          <p className="text-sm font-semibold text-slate-600">O&apos;xshashlik (Plagiat)</p>
-                          <p className="text-4xl font-bold text-amber-700 mt-1">{result.plagiarism}%</p>
-                      </div>
-                      <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 text-center">
-                          <p className="text-sm font-semibold text-slate-600">Iqtiboslar</p>
-                          <p className="text-4xl font-bold text-cyan-700 mt-1">{result.citations.toFixed(1)}%</p>
-                      </div>
-                  </div>
-
-                   <Card title="Topilgan manbalar" className="mx-auto mt-6 max-w-3xl">
-                      <p className="-mt-4 mb-4 text-sm text-slate-600">Tanlangan modullar bo&apos;yicha o&apos;xshashlik topilgan manbalar.</p>
-                      <div className="max-h-80 space-y-4 overflow-y-auto pr-2">
-                          {result.sources.length === 0 ? (
-                            <p className="text-sm text-slate-500 text-center py-6">
-                              Aniq manba topilmadi. Plagiat foizi ko&apos;rsatilgan.
-                            </p>
-                          ) : (
-                          result.sources.map((source, index) => (
-                          <div key={index} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                              <div className="flex justify-between items-start text-sm">
-                                  <a href={source.source.startsWith('http') ? source.source : `https://${source.source}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-700 hover:underline break-all">
-                                      <LinkIcon size={14}/> {source.source.length > 60 ? source.source.slice(0, 57) + '...' : source.source}
-                                  </a>
-                                  <span className="font-bold text-amber-800 whitespace-nowrap ml-4">{source.similarity}%</span>
-                              </div>
-                              <blockquote className="mt-2 pl-3 border-l-2 border-amber-400 text-xs text-slate-500 italic">
-                                  {source.snippet}
-                              </blockquote>
-                          </div>
-                          ))
-                          )}
-                      </div>
-                  </Card>
-              </div>
+          {isChecking && (
+              <p className="mt-4 text-center text-sm text-slate-600">
+                Tekshiruv yakunlangach natija «Arxiv hujjatlar» bo&apos;limida saqlanadi.
+              </p>
           )}
-      
-      {certificateData && (
-          <div className="mt-8">
-              <div className="flex flex-wrap justify-between items-center gap-3 mb-4 no-print">
-                  <h2 className="text-2xl font-bold text-slate-900">Tekshiruv Sertifikati</h2>
-                  <div className="flex gap-2 flex-wrap">
-                      {fullReportData && (
-                          <Button onClick={() => setShowFullReport(true)} variant="primary">
-                              <FileText className="mr-2 h-4 w-4"/> To'liq Hisobot
-                          </Button>
-                      )}
-                      <Button onClick={handlePrint} variant="secondary" title="Chop qilish oynasida 'PDF ga saqlash' ni tanlashingiz mumkin">
-                          <Download className="mr-2 h-4 w-4"/> PDF yuklab olish
-                      </Button>
-                      <Button onClick={handlePrint} variant="secondary">
-                          <Printer className="mr-2 h-4 w-4"/> Chop etish
-                      </Button>
-                  </div>
-              </div>
-              <div id="certificate-print-area">
-                  <AntiplagiatCertificate data={certificateData} />
-              </div>
-          </div>
-      )}
       </div>
-
-      {/* Full Report Modal */}
-      {showFullReport && fullReportData && (
-          <div className="fixed inset-0 bg-black/90 z-50 flex flex-col print:bg-white">
-              <div className="flex justify-between items-center p-4 bg-white/55 border-b border-slate-200/90 no-print">
-                  <h3 className="text-xl font-bold text-slate-900">To'liq Antiplagiat Hisoboti</h3>
-                  <div className="flex gap-3">
-                      <Button onClick={() => window.print()} variant="primary">
-                          <Printer className="mr-2 h-4 w-4"/> Chop etish / PDF
-                      </Button>
-                      <Button onClick={() => setShowFullReport(false)} variant="secondary">
-                          <X className="mr-2 h-4 w-4"/> Yopish
-                      </Button>
-                  </div>
-              </div>
-              <div className="flex-1 overflow-auto p-6 print:p-0 print:overflow-visible">
-                  <PlagiarismFullReport data={fullReportData} />
-              </div>
-          </div>
-      )}
 
       {/* Payment Modal */}
       {isPaymentModalOpen && (

@@ -700,13 +700,25 @@ export const apiService = {
       });
     },
 
-    savePlagiarismConfig: (id: string, config: { enabled_modules?: string[]; document_type?: string }) =>
+    savePlagiarismConfig: (
+      id: string,
+      config: {
+        enabled_modules?: string[];
+        document_type?: string;
+        document_name?: string;
+        author_first_name?: string;
+        author_last_name?: string;
+      },
+    ) =>
       apiFetch(`/articles/${id}/`, {
         method: 'PATCH',
         body: JSON.stringify({
           plagiarism_report: {
             pending_enabled_modules: config.enabled_modules || [],
             document_type: config.document_type || '',
+            document_name: config.document_name || '',
+            author_first_name: config.author_first_name || '',
+            author_last_name: config.author_last_name || '',
           },
         }),
       }),

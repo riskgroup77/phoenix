@@ -547,6 +547,11 @@ class CreateArticleSerializer(serializers.ModelSerializer):
         else:
             validated_data['status'] = 'Draft' if is_antiplagiat else 'Yangi'
         article = super().create(validated_data)
+        if is_antiplagiat:
+            report = article.plagiarism_report if isinstance(article.plagiarism_report, dict) else {}
+            report = {**report, 'is_standalone': True}
+            article.plagiarism_report = report
+            article.save(update_fields=['plagiarism_report'])
 
         owner_id = str(self.context['request'].user.id)
         co_author_ids = set()

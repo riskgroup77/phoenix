@@ -75,6 +75,7 @@ const ClickPayment: React.FC = () => {
     const confirmedToastShown = useRef(false);
     const pollStartedAt = useRef<number | null>(null);
     const archiveRedirectScheduled = useRef(false);
+    const plagiarismRedirectScheduled = useRef(false);
 
     const isMobilePaymentUi = shouldAutoOpenClickPayment();
     const useMobileAutoFlow = isMobilePaymentUi && !noAutoRedirect;
@@ -231,6 +232,14 @@ const ClickPayment: React.FC = () => {
         return () => window.clearTimeout(timer);
     }, [isPaymentCompleted, transaction?.service_type, navigate]);
 
+    useEffect(() => {
+        if (!isPaymentCompleted || transaction?.service_type !== 'language_editing') return;
+        if (plagiarismRedirectScheduled.current) return;
+        plagiarismRedirectScheduled.current = true;
+        const timer = window.setTimeout(() => navigate('/plagiarism-check?payment_return=1&transaction_id=' + encodeURIComponent(transactionId || '')), 1500);
+        return () => window.clearTimeout(timer);
+    }, [isPaymentCompleted, transaction?.service_type, navigate, transactionId]);
+
     const handlePayment = () => {
         if (!paymentUrl) return;
         if (isMobilePaymentUi) {
@@ -346,9 +355,17 @@ const ClickPayment: React.FC = () => {
                                     </Button>
                                 </>
                             )}
+                            {transaction.service_type === 'language_editing' && (
+                                <Button
+                                    onClick={() => navigate('/plagiarism-check?payment_return=1&transaction_id=' + encodeURIComponent(transaction.id))}
+                                    className="w-full"
+                                >
+                                    Antiplagiat tekshiruviga qaytish
+                                </Button>
+                            )}
                             <Button
                                 onClick={() => navigate('/dashboard')}
-                                variant={transaction.service_type === 'publication_fee' ? 'secondary' : undefined}
+                                variant={transaction.service_type === 'publication_fee' || transaction.service_type === 'language_editing' ? 'secondary' : undefined}
                                 className="w-full"
                             >
                                 Bosh sahifaga qaytish
