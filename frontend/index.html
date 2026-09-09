@@ -224,7 +224,8 @@
     }
     #certificate-print-area, #certificate-print-area *,
     #submission-certificate-print-area, #submission-certificate-print-area *,
-    #author-report-print-area, #author-report-print-area * {
+    #author-report-print-area, #author-report-print-area *,
+    #plagiarism-full-report, #plagiarism-full-report * {
       visibility: visible;
     }
     #certificate-print-area, #submission-certificate-print-area,
@@ -234,6 +235,14 @@
       top: 0;
       width: 100%;
       height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    #plagiarism-full-report {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
       margin: 0;
       padding: 0;
     }
@@ -253,10 +262,15 @@
       size: A4 landscape;
       margin: 0;
     }
-     #submission-certificate-print-area, #author-report-print-area {
+     #submission-certificate-print-area, #author-report-print-area, #plagiarism-full-report {
         @page {
             size: A4 portrait;
+            margin: 0;
         }
+    }
+    .page-break-before {
+      page-break-before: always;
+      break-before: page;
     }
   }
 </style>

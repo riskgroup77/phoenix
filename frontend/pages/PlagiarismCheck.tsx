@@ -10,7 +10,7 @@ import AntiplagiatUploadPanel, {
   AntiplagiatFormValues,
   createDefaultAntiplagiatForm,
 } from '../components/AntiplagiatUploadPanel';
-import { ANTIPLAGIAT_MODULES } from '../constants/antiplagiatModules';
+import { ANTIPLAGIAT_MODULES, DEFAULT_ENABLED_MODULE_IDS } from '../constants/antiplagiatModules';
 import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
 import { getUserFriendlyError } from '../utils/errorHandler';
@@ -236,9 +236,11 @@ const PlagiarismCheck: React.FC = () => {
     const selfCitationPct = report?.self_citation_percent ?? 0;
     const charCount = report?.character_count;
     const sentCount = report?.sentence_count;
-    const searchModules = Array.isArray(report?.search_modules)
-      ? (report.search_modules as string[]).join(', ')
-      : 'Phoenix Milliy reestr, Internet PLUS, eLIBRARY.RU, OTMlar halqasi, Shablon iboralar';
+    const enabledIds = Array.isArray(report?.enabled_module_ids)
+      ? (report.enabled_module_ids as string[])
+      : form.enabledModuleIds;
+    const enabledCount = enabledIds.length || form.enabledModuleIds.length || DEFAULT_ENABLED_MODULE_IDS.length;
+    const searchModules = `${enabledCount} ta moduldan / ${enabledCount} tasida tekshirilgan`;
     const finalResult = {
       plagiarism: plagiarismPercentage,
       aiContent: aiContentPercentage,
@@ -248,8 +250,9 @@ const PlagiarismCheck: React.FC = () => {
     };
     setResult(finalResult);
 
+    const certNumber = Date.now().toString().slice(-6);
     const newCertificateData: AntiplagiatCertificateData = {
-      certificateNumber: `PN-${Date.now().toString().slice(-6)}`,
+      certificateNumber: certNumber,
       checkDate: new Date().toLocaleDateString('uz-UZ'),
       author: `${(form.authorLastName || user?.lastName || '').trim()} ${(form.authorFirstName || user?.firstName || '').trim()}`.trim(),
       workType: form.documentType || 'Ilmiy ish',
@@ -283,26 +286,36 @@ const PlagiarismCheck: React.FC = () => {
         : form.enabledModuleIds
             .map((id) => ANTIPLAGIAT_MODULES.find((m) => m.id === id)?.label)
             .filter(Boolean) as string[],
-      sources: foundSources.map((s, idx) => ({
-        id: idx + 1,
-        percentage: `${s.similarity}%`,
-        sourceName: s.snippet.slice(0, 100) + (s.snippet.length > 100 ? '...' : ''),
-        sourceUrl: s.source.startsWith('http') ? s.source : `https://${s.source}`,
-        searchModule: (s as { search_module?: string }).search_module || 'Internet PLUS',
-      })),
+      sources: foundSources.map((s, idx) => {
+        const isUrl = s.source.startsWith('http') || s.source.includes('ilmiyfaoliyat.uz');
+        const sourceUrl = s.source.startsWith('http') ? s.source : (isUrl ? `https://${s.source.replace(/^\/\//, '')}` : undefined);
+        const sourceName = isUrl
+          ? (s.snippet || s.source.replace(/^https?:\/\//, '').slice(0, 120))
+          : (s.snippet || s.source).slice(0, 160);
+        return {
+          id: idx + 1,
+          percentage: `${Number(s.similarity).toFixed(2)}%`,
+          sourceName,
+          sourceUrl,
+          searchModule: (s as { search_module?: string }).search_module
+            ? `${(s as { search_module?: string }).search_module} qidiruv moduli`
+            : 'Search module INTERNET PLUS qidiruv moduli',
+        };
+      }),
     };
     setFullReportData(fullReport);
   };
 
-  const mapSourcesFromApi = (apiSources: unknown): PlagiarismSource[] => {
+  const mapSourcesFromApi = (apiSources: unknown): (PlagiarismSource & { search_module?: string })[] => {
     if (!apiSources || !Array.isArray(apiSources)) return [];
     return apiSources
-      .map((s: { source?: string; snippet?: string; similarity?: number }) => ({
+      .map((s: { source?: string; snippet?: string; similarity?: number; search_module?: string }) => ({
         source: (s.source || '').trim(),
         snippet: (s.snippet || '').trim(),
-        similarity: typeof s.similarity === 'number' ? Math.round(s.similarity) : 0,
+        similarity: typeof s.similarity === 'number' ? s.similarity : 0,
+        search_module: s.search_module,
       }))
-      .filter((s: PlagiarismSource) => s.source);
+      .filter((s) => s.source || s.snippet);
   };
 
   /** To'lovdan keyin server avtomatik tekshiruvni ishga tushiradi — natija tayyor bo'lguncha kutamiz */
