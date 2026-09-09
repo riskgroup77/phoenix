@@ -7,6 +7,21 @@ export const REPORT_COLOR_TEAL_LIGHT = '#14b8a6';
 export const REPORT_COLOR_GOLD = '#b8860b';
 export const REPORT_COLOR_TEXT = '#1e293b';
 
+/** A4 o'lchamlari */
+export const A4_PORTRAIT_STYLE: React.CSSProperties = {
+    width: '210mm',
+    minHeight: '297mm',
+    maxWidth: '210mm',
+    margin: '0 auto',
+};
+
+export const A4_LANDSCAPE_CERT_STYLE: React.CSSProperties = {
+    width: '297mm',
+    minHeight: '210mm',
+    maxWidth: '297mm',
+    margin: '0 auto',
+};
+
 /** hisobot1 / hisobot2 — fon to'lqin chiziqlari */
 export const WaveLinesPattern: React.FC = () => (
     <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.35]" aria-hidden>
@@ -25,7 +40,7 @@ export const WaveLinesPattern: React.FC = () => (
 
 /** hisobot1.jpg — muqova sahifa ramkasi */
 export const ReportCoverFrame: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <div className="relative w-full overflow-hidden bg-white" style={{ aspectRatio: '210/297' }}>
+    <div className="relative overflow-hidden bg-white a4-portrait-page" style={A4_PORTRAIT_STYLE}>
         <WaveLinesPattern />
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 z-10 h-14 flex items-stretch">
@@ -58,7 +73,7 @@ export const ReportCoverFrame: React.FC<{ children: React.ReactNode }> = ({ chil
 
 /** hisobot2.jpg — davomiy sahifalar ramkasi */
 export const ReportInnerFrame: React.FC<{ children: React.ReactNode; pageNum?: number }> = ({ children, pageNum }) => (
-    <div className="relative w-full overflow-hidden bg-white" style={{ aspectRatio: '210/297' }}>
+    <div className="relative overflow-hidden bg-white a4-portrait-page" style={A4_PORTRAIT_STYLE}>
         <WaveLinesPattern />
         <div className="absolute top-0 left-0 right-0 z-10 h-12 flex items-stretch">
             <div className="w-14 shrink-0" style={{ background: REPORT_COLOR_NAVY, clipPath: 'polygon(0 0, 100% 0, 65% 100%, 0 100%)' }} />

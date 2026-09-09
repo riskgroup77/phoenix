@@ -259,14 +259,33 @@
       padding-top: 0;
     }
     @page {
-      size: A4 landscape;
-      margin: 0;
+      size: A4 portrait;
+      margin: 8mm;
     }
-     #submission-certificate-print-area, #author-report-print-area, #plagiarism-full-report {
-        @page {
-            size: A4 portrait;
-            margin: 0;
-        }
+    #certificate-print-area {
+      page: certificate-landscape;
+    }
+    @page certificate-landscape {
+      size: A4 landscape;
+      margin: 6mm;
+    }
+    #certificate-print-area, #certificate-print-area #antipagiat-certificate {
+      width: 100%;
+      max-width: none;
+    }
+    .a4-portrait-page {
+      width: 100% !important;
+      max-width: 210mm !important;
+      min-height: 297mm !important;
+      page-break-after: always;
+      break-after: page;
+    }
+    .antiplagiat-certificate {
+      width: 100% !important;
+      max-width: 297mm !important;
+      min-height: 210mm !important;
+      height: auto !important;
+      overflow: visible !important;
     }
     .page-break-before {
       page-break-before: always;

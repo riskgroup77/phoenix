@@ -240,7 +240,7 @@ const SourcesPage: React.FC<{
 };
 
 const PlagiarismFullReport: React.FC<{ data: PlagiarismFullReportData }> = ({ data }) => {
-    const SOURCES_PER_PAGE = 18;
+    const SOURCES_PER_PAGE = 14;
     const totalSourcePages = Math.max(1, Math.ceil(data.sources.length / SOURCES_PER_PAGE));
 
     return (

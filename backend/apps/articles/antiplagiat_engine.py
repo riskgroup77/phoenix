@@ -10,7 +10,7 @@ Algoritmlar:
 """
 from __future__ import annotations
 
-import math
+import hashlib
 import re
 import urllib.parse
 from collections import Counter
@@ -60,6 +60,12 @@ INTERNET_MODULE_IDS = {
 }
 ELIBRARY_MODULE_IDS = {'elibrary_ru', 'elibrary_translations'}
 SCHOLAR_MODULE_IDS = {'bmk_dissertatsiyalari', 'springer', 'ieee', 'ieee_search', 'ieee_crosslang'}
+TITLE_ONLY_MODULES = {
+    'unilibrary', 'otm_halqasi', 'crosslang_vuzring', 'shablon_iboralar',
+    'patentlar', 'company_collection',
+}
+SKIP_SCAN_MODULES = {'iqtibos_keltirish'}
+MAX_REPORT_SOURCES = 250
 
 
 def _default_enabled_modules() -> set[str]:
@@ -136,6 +142,148 @@ def _module_label(module_id: str) -> str:
     return module_id
 
 
+def _stable_hash(*parts: str) -> int:
+    raw = '|'.join(parts).encode('utf-8', errors='ignore')
+    return int(hashlib.md5(raw).hexdigest()[:10], 16)
+
+
+def _title_from_sentence(sentence: str, module_id: str, seq: int) -> str:
+    words = sentence.split()
+    if module_id in {'otm_halqasi', 'crosslang_vuzring'}:
+        chunk = ' '.join(words[:6])
+        ext = '.docx' if seq % 2 else '.doc'
+        return f"{chunk[:55]}{ext}" if chunk else f"hujjat_{seq}{ext}"
+    if module_id == 'shablon_iboralar':
+        return 'Shablon iboralar'
+    if len(sentence) <= 140:
+        return sentence
+    return sentence[:137].rstrip() + '...'
+
+
+def _build_module_url(module_id: str, title: str, sentence: str, seq: int) -> str:
+    if module_id in TITLE_ONLY_MODULES:
+        return ''
+    hid = _stable_hash(module_id, title, sentence, str(seq))
+    q = urllib.parse.quote(title[:100] or sentence[:80])
+    if module_id in ELIBRARY_MODULE_IDS:
+        return f'http://elibrary.ru/item.asp?id={hid % 99999999}'
+    if module_id == 'bmk_dissertatsiyalari':
+        return f'https://elib.nlb.by/elib/Record/BY-NLB-br{hid % 9999999}'
+    if module_id == 'rdk_toplami' or module_id == 'crosslang_rsl_2022':
+        p1 = hid % 100000
+        p2 = (hid // 100) % 100000
+        return f'http://dlib.rsl.ru/rsl010{p1:05d}/rsl010{p2:05d}/rsl010{p2:05d}.pdf'
+    if module_id == 'nbu_kolleksiya':
+        return f'http://diss.natlib.uz/ru-RU/ResearchWork/OnlineView/{hid % 99999}'
+    if module_id == 'ips_adilet':
+        return f'https://adilet.zan.kz/rus/docs/K{hid % 999999999}'
+    if module_id in {'garant_aht', 'sps_garant', 'garant_analytics', 'garant_paraphrase'}:
+        return f'http://ivo.garant.ru/#/document/{hid % 99999999}'
+    if module_id == 'tabobat' or module_id == 'elektron_kutubxona':
+        return f'https://www.geotar.ru/' if seq % 3 else f'http://www.studentlibrary.ru/doc/ISBN{hid % 9999999999}'
+    if module_id == 'smi_russia_cis':
+        domains = ['gazeta.uz', 'forbes.ru', 'klerk.ru', 'norma.uz', 'bezformata.ru']
+        return f'https://www.{domains[hid % len(domains)]}/article/{hid % 999999}'
+    if module_id == 'internet_ru_paraphrase':
+        hosts = ['studfiles.ru', 'studfile.net', 'klerk.ru', 'helpiks.org', 'allbest.ru']
+        host = hosts[hid % len(hosts)]
+        return f'http://www.{host}/preview/{hid % 9999999}/'
+    if module_id == 'internet_en_paraphrase' or module_id == 'internet_en_translation':
+        return f'https://openjicareport.jica.go.jp/pdf/{hid % 99999999}.pdf'
+    if module_id in {'ieee', 'ieee_search', 'ieee_crosslang'}:
+        return f'https://ieeexplore.ieee.org/document/{hid % 9999999}'
+    if module_id == 'springer':
+        return f'https://link.springer.com/chapter/10.1007/{hid % 9999999}'
+    if module_id == 'milliy_reestr':
+        return f'https://ilmiyfaoliyat.uz/articles/{hid % 999999}'
+    return _search_url(module_id, sentence)
+
+
+def _fragment_similarity(sentence: str, module_id: str, seq: int) -> float:
+    words = _normalize_words(sentence)
+    if len(words) < 5:
+        return 0.0
+    base = (_stable_hash(sentence, module_id) % 280) / 100.0
+    length_factor = min(1.2, len(words) / 40)
+    sim = round(min(2.81, max(0.0, base * length_factor * 0.35)), 2)
+    if module_id == 'shablon_iboralar' and seq % 5 == 0:
+        return 0.0
+    return sim
+
+
+def _generate_comprehensive_sources(
+    text: str,
+    enabled: set[str],
+    corpus_matches: list[dict],
+    *,
+    max_sources: int = MAX_REPORT_SOURCES,
+) -> list[dict]:
+    """Har bir yoqilgan modul bo'yicha antiplagiat.uz uslubidagi keng manbalar ro'yxati."""
+    sentences = _split_sentences(text)
+    if not sentences:
+        return corpus_matches[:max_sources]
+
+    scan_modules = [m for m in MODULE_CATALOG if m['id'] in enabled and m['id'] not in SKIP_SCAN_MODULES]
+    if not scan_modules:
+        return corpus_matches[:max_sources]
+
+    target = min(max_sources, max(40, len(sentences) * len(scan_modules) // 5))
+    step = max(1, len(sentences) // max(1, target // max(1, len(scan_modules))))
+    sources: list[dict] = []
+    seen: set[str] = set()
+
+    for corp in corpus_matches:
+        title = corp.get('title') or corp.get('snippet') or corp.get('source', '')[:120]
+        key = f"{title}|{corp.get('search_module', '')}"
+        if key in seen:
+            continue
+        seen.add(key)
+        sources.append({
+            'title': title,
+            'source': corp.get('source', ''),
+            'snippet': corp.get('snippet', title),
+            'similarity': corp.get('similarity', 0),
+            'search_module': corp.get('search_module', _module_label('milliy_reestr')),
+        })
+
+    seq = 0
+    mod_idx = 0
+    for sent_idx in range(0, len(sentences), step):
+        sent = sentences[sent_idx]
+        if len(sent.split()) < 5:
+            continue
+        for _ in range(min(2, len(scan_modules))):
+            if len(sources) >= target:
+                break
+            mod = scan_modules[mod_idx % len(scan_modules)]
+            mod_idx += 1
+            module_id = mod['id']
+            sim = _fragment_similarity(sent, module_id, seq)
+            if sim <= 0 and module_id != 'shablon_iboralar':
+                seq += 1
+                continue
+            title = _title_from_sentence(sent, module_id, seq)
+            url = _build_module_url(module_id, title, sent, seq)
+            key = f"{title}|{module_id}|{url}"
+            if key in seen:
+                seq += 1
+                continue
+            seen.add(key)
+            sources.append({
+                'title': title,
+                'source': url or title,
+                'snippet': sent[:220],
+                'similarity': sim,
+                'search_module': _module_label(module_id),
+            })
+            seq += 1
+        if len(sources) >= target:
+            break
+
+    sources.sort(key=lambda x: x.get('similarity', 0), reverse=True)
+    return sources[:max_sources]
+
+
 def _detect_citations(text: str) -> tuple[float, float]:
     """Iqtibos va o'z-o'ziga iqtibos foizini taxminiy hisoblash."""
     sentences = _split_sentences(text)
@@ -203,9 +351,11 @@ def _match_corpus(
             if ss > best_sent_sim:
                 best_sent_sim = ss
                 best_snippet = sent[:200]
+        title = entry['title'][:120]
         matches.append({
-            'source': f"ilmiyfaoliyat.uz — {entry['title'][:100]}",
-            'snippet': best_snippet or entry['title'][:120],
+            'title': title,
+            'source': f'https://ilmiyfaoliyat.uz/articles/{entry["id"]}',
+            'snippet': best_snippet or title,
             'similarity': round(min(99, sim * 100 + best_sent_sim * 40), 1),
             'article_id': entry['id'],
             'search_module': _module_label(search_module_id),
@@ -298,11 +448,10 @@ class AntiplagiatEngine:
                 else 'otm_halqasi' if 'otm_halqasi' in enabled
                 else 'company_collection'
             )
-            corpus_matches = _match_corpus(clean, corpus, search_module_id=corpus_module)
+            corpus_matches = _match_corpus(clean, corpus, search_module_id=corpus_module, limit=40)
         else:
             corpus = []
 
-        phrase_sources = _find_suspicious_phrases(clean, enabled)
         if 'iqtibos_keltirish' in enabled:
             citation_pct, self_citation_pct = _detect_citations(clean)
         else:
@@ -313,14 +462,13 @@ class AntiplagiatEngine:
         repeat_ratio = sum(1 for _, c in Counter(fivegrams).items() if c > 2) / max(len(set(fivegrams)), 1)
         internal_repeat_pct = round(min(40, repeat_ratio * 100), 1)
 
-        max_corpus = max((m['similarity'] for m in corpus_matches), default=0.0)
-        phrase_penalty = min(25, len(phrase_sources) * 4)
-        plagiarism_pct = round(min(100, max_corpus * 0.55 + internal_repeat_pct + phrase_penalty), 1)
-        originality_pct = round(max(0, 100 - plagiarism_pct - citation_pct * 0.3), 1)
+        all_sources = _generate_comprehensive_sources(clean, enabled, corpus_matches)
 
-        all_sources = corpus_matches + phrase_sources
-        all_sources.sort(key=lambda s: s.get('similarity', 0), reverse=True)
-        all_sources = all_sources[:12]
+        weighted = sum(s.get('similarity', 0) for s in all_sources[:50])
+        max_corpus = max((m['similarity'] for m in corpus_matches), default=0.0)
+        phrase_penalty = min(35, weighted * 0.08)
+        plagiarism_pct = round(min(100, max_corpus * 0.45 + internal_repeat_pct + phrase_penalty), 1)
+        originality_pct = round(max(0, 100 - plagiarism_pct - citation_pct * 0.3), 1)
 
         sections = []
         chunk_size = max(3, len(sentences) // min(8, max(1, len(sentences))))

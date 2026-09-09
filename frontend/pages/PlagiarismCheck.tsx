@@ -286,36 +286,36 @@ const PlagiarismCheck: React.FC = () => {
         : form.enabledModuleIds
             .map((id) => ANTIPLAGIAT_MODULES.find((m) => m.id === id)?.label)
             .filter(Boolean) as string[],
-      sources: foundSources.map((s, idx) => {
-        const isUrl = s.source.startsWith('http') || s.source.includes('ilmiyfaoliyat.uz');
-        const sourceUrl = s.source.startsWith('http') ? s.source : (isUrl ? `https://${s.source.replace(/^\/\//, '')}` : undefined);
-        const sourceName = isUrl
-          ? (s.snippet || s.source.replace(/^https?:\/\//, '').slice(0, 120))
-          : (s.snippet || s.source).slice(0, 160);
-        return {
-          id: idx + 1,
-          percentage: `${Number(s.similarity).toFixed(2)}%`,
-          sourceName,
-          sourceUrl,
-          searchModule: (s as { search_module?: string }).search_module
-            ? `${(s as { search_module?: string }).search_module} qidiruv moduli`
-            : 'Search module INTERNET PLUS qidiruv moduli',
-        };
-      }),
+      sources: foundSources.map((s, idx) => toReportSource(s as PlagiarismSource & { search_module?: string; title?: string }, idx)),
     };
     setFullReportData(fullReport);
   };
 
-  const mapSourcesFromApi = (apiSources: unknown): (PlagiarismSource & { search_module?: string })[] => {
+  const mapSourcesFromApi = (apiSources: unknown): (PlagiarismSource & { search_module?: string; title?: string })[] => {
     if (!apiSources || !Array.isArray(apiSources)) return [];
     return apiSources
-      .map((s: { source?: string; snippet?: string; similarity?: number; search_module?: string }) => ({
+      .map((s: { source?: string; snippet?: string; similarity?: number; search_module?: string; title?: string }) => ({
         source: (s.source || '').trim(),
         snippet: (s.snippet || '').trim(),
+        title: (s.title || '').trim(),
         similarity: typeof s.similarity === 'number' ? s.similarity : 0,
         search_module: s.search_module,
       }))
-      .filter((s) => s.source || s.snippet);
+      .filter((s) => s.source || s.snippet || s.title);
+  };
+
+  const toReportSource = (s: PlagiarismSource & { search_module?: string; title?: string }, idx: number) => {
+    const rawUrl = s.source.startsWith('http') ? s.source : '';
+    const title = s.title || s.snippet || (rawUrl ? s.source.replace(/^https?:\/\//, '').slice(0, 120) : s.source);
+    const mod = s.search_module || 'Search module INTERNET PLUS';
+    const modLabel = mod.includes('qidiruv moduli') ? mod : `${mod} qidiruv moduli`;
+    return {
+      id: idx + 1,
+      percentage: `${Number(s.similarity).toFixed(2)}%`,
+      sourceName: title.slice(0, 200),
+      sourceUrl: rawUrl || (s.source.startsWith('http') ? s.source : undefined),
+      searchModule: modLabel,
+    };
   };
 
   /** To'lovdan keyin server avtomatik tekshiruvni ishga tushiradi — natija tayyor bo'lguncha kutamiz */
