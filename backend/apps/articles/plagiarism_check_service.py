@@ -40,7 +40,24 @@ def extract_article_text(article) -> str:
     return fallback.strip()
 
 
-def run_plagiarism_check(article, user, *, force: bool = False) -> dict:
+def _resolve_enabled_modules(article, enabled_modules: list[str] | None) -> list[str] | None:
+    if enabled_modules:
+        return enabled_modules
+    report = article.plagiarism_report or {}
+    if isinstance(report, dict):
+        pending = report.get('pending_enabled_modules')
+        if isinstance(pending, list) and pending:
+            return pending
+    return None
+
+
+def run_plagiarism_check(
+    article,
+    user,
+    *,
+    force: bool = False,
+    enabled_modules: list[str] | None = None,
+) -> dict:
     """
     Maqola uchun to'liq antiplagiat tekshiruvi (algoritmik, AI siz).
     """
@@ -63,17 +80,26 @@ def run_plagiarism_check(article, user, *, force: bool = False) -> dict:
             'cached': True,
         }
 
+    resolved_modules = _resolve_enabled_modules(article, enabled_modules)
     engine = get_antiplagiat_engine()
     file_path = resolve_article_document_path(article)
     if file_path:
-        result = engine.check_file(file_path, exclude_article_id=str(article.id))
+        result = engine.check_file(
+            file_path,
+            exclude_article_id=str(article.id),
+            enabled_modules=resolved_modules,
+        )
     else:
         text_content = extract_article_text(article)
         if not text_content or len(text_content.strip()) < 50:
             raise ValueError(
                 'Plagiat tekshiruvi uchun hujjat matni yetarli emas. DOCX yoki PDF faylni qayta yuklang.'
             )
-        result = engine.check_text(text_content, exclude_article_id=str(article.id))
+        result = engine.check_text(
+            text_content,
+            exclude_article_id=str(article.id),
+            enabled_modules=resolved_modules,
+        )
 
     plagiarism_percentage = float(result.get('plagiarism_percentage', 0))
     ai_content_percentage = float(result.get('ai_content_percentage', 0))

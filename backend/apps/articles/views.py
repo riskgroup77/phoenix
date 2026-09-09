@@ -735,7 +735,15 @@ class ArticleViewSet(viewsets.ModelViewSet):
             from apps.articles.plagiarism_check_service import run_plagiarism_check
 
             force = str(request.data.get('force', '')).lower() in ('1', 'true', 'yes')
-            payload = run_plagiarism_check(article, request.user, force=force)
+            enabled_modules = request.data.get('enabled_modules')
+            if enabled_modules is not None and not isinstance(enabled_modules, list):
+                enabled_modules = None
+            payload = run_plagiarism_check(
+                article,
+                request.user,
+                force=force,
+                enabled_modules=enabled_modules,
+            )
             return Response({
                 'plagiarism': payload['plagiarism'],
                 'ai_content': payload['ai_content'],

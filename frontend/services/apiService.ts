@@ -677,17 +677,39 @@ export const apiService = {
         body: JSON.stringify({ status, reason }),
       }),
 
-    checkPlagiarism: (id: string) => {
+    checkPlagiarism: (
+      id: string,
+      options?: { enabledModules?: string[]; force?: boolean },
+    ) => {
       const clean = String(id ?? '')
         .trim()
         .replace(/^["']|["']$/g, '');
       if (!clean || clean === 'undefined' || clean === 'null') {
         return Promise.reject(new Error('Maqola identifikatori yo\'q. Sahifani yangilab, qayta urinib ko\'ring.'));
       }
+      const body: Record<string, unknown> = {};
+      if (options?.enabledModules?.length) {
+        body.enabled_modules = options.enabledModules;
+      }
+      if (options?.force) {
+        body.force = true;
+      }
       return apiFetch(`/articles/${clean}/check_plagiarism/`, {
         method: 'POST',
+        body: Object.keys(body).length ? JSON.stringify(body) : undefined,
       });
     },
+
+    savePlagiarismConfig: (id: string, config: { enabled_modules?: string[]; document_type?: string }) =>
+      apiFetch(`/articles/${id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          plagiarism_report: {
+            pending_enabled_modules: config.enabled_modules || [],
+            document_type: config.document_type || '',
+          },
+        }),
+      }),
 
     /** Nashr qilish: sertifikat yuklash, status Published, muallifga bildirishnoma */
     completePublication: (id: string, formData: FormData) =>

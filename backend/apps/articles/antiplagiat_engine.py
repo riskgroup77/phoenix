@@ -16,18 +16,66 @@ import urllib.parse
 from collections import Counter
 from typing import Any
 
-SEARCH_MODULES = [
-    'Phoenix Milliy reestr',
-    'Internet PLUS qidiruv moduli',
-    'eLIBRARY.RU qidiruv moduli',
-    'OTMlar halqasi qidiruv moduli',
-    'BMK dissertatsiyalari qidiruv moduli',
-    'Shablon iboralar qidiruv moduli',
-    'Iqtibos keltirish qidiruv moduli',
-    'Patentlar qidiruv moduli',
-    'Elektron-kutubxona tizimlari',
-    'Tarjimali matnlar qidiruv moduli',
+MODULE_CATALOG: list[dict[str, str]] = [
+    {'id': 'elibrary_translations', 'label': 'Публикации eLIBRARY (переводы и перефразирования)'},
+    {'id': 'shablon_iboralar', 'label': 'Shablon iboralar'},
+    {'id': 'elibrary_ru', 'label': 'eLIBRARY.RU'},
+    {'id': 'bmk_dissertatsiyalari', 'label': 'BMK dissertatsiyalari'},
+    {'id': 'ips_adilet', 'label': 'ИПС Адилет'},
+    {'id': 'tabobat', 'label': 'Tabobat'},
+    {'id': 'patentlar', 'label': 'Patentlar'},
+    {'id': 'rdk_toplami', 'label': "RDK to'plami"},
+    {'id': 'elektron_kutubxona', 'label': 'Elektron-kutubxona tizimlari'},
+    {'id': 'garant_aht', 'label': 'Garant AHT'},
+    {'id': 'iqtibos_keltirish', 'label': 'Iqtibos keltirish'},
+    {'id': 'sps_garant', 'label': 'СПС Гарант: нормативно-правовая документация'},
+    {'id': 'ieee', 'label': 'IEEE'},
+    {'id': 'nbu_kolleksiya', 'label': 'Коллекция НБУ'},
+    {'id': 'unilibrary', 'label': 'unilibrary'},
+    {'id': 'garant_analytics', 'label': 'Переводные заимствования по коллекции Гарант: аналитика'},
+    {'id': 'garant_paraphrase', 'label': 'Перефразирования по СПС ГАРАНТ: аналитика'},
+    {'id': 'otm_halqasi', 'label': 'OTMlar halqasi'},
+    {'id': 'smi_russia_cis', 'label': 'СМИ России и СНГ'},
+    {'id': 'internet_ru_paraphrase', 'label': 'Перефразированные заимствования по коллекции Интернет в русском сегменте'},
+    {'id': 'internet_en_paraphrase', 'label': 'Перефразированные заимствования по коллекции Интернет в английском сегменте'},
+    {'id': 'springer', 'label': 'springer'},
+    {'id': 'internet_ru_translation', 'label': 'Переводные заимствования по коллекции Интернет в русском сегменте'},
+    {'id': 'internet_en_translation', 'label': 'Переводные заимствования по коллекции Интернет в английском сегменте'},
+    {'id': 'crosslang_rsl_2022', 'label': 'crosslang_rsl_2022'},
+    {'id': 'internet_plus', 'label': 'Search module INTERNET PLUS'},
+    {'id': 'crosslang_vuzring', 'label': 'crosslang vuzring'},
+    {'id': 'ieee_search', 'label': 'Search module of IEEE'},
+    {'id': 'company_collection', 'label': 'Собственная коллекция компании'},
+    {'id': 'milliy_reestr', 'label': 'Phoenix Milliy reestr (ilmiyfaoliyat.uz)'},
+    {'id': 'ieee_crosslang', 'label': 'IEEE Cross language'},
 ]
+
+DEFAULT_MODULE_IDS = [m['id'] for m in MODULE_CATALOG]
+
+CORPUS_MODULE_IDS = {'milliy_reestr', 'otm_halqasi', 'company_collection'}
+INTERNET_MODULE_IDS = {
+    'internet_plus', 'internet_ru_paraphrase', 'internet_en_paraphrase',
+    'internet_ru_translation', 'internet_en_translation',
+    'smi_russia_cis', 'crosslang_rsl_2022', 'crosslang_vuzring',
+}
+ELIBRARY_MODULE_IDS = {'elibrary_ru', 'elibrary_translations'}
+SCHOLAR_MODULE_IDS = {'bmk_dissertatsiyalari', 'springer', 'ieee', 'ieee_search', 'ieee_crosslang'}
+
+
+def _default_enabled_modules() -> set[str]:
+    return set(DEFAULT_MODULE_IDS)
+
+
+def _normalize_enabled_modules(enabled_modules: list[str] | None) -> set[str]:
+    if not enabled_modules:
+        return _default_enabled_modules()
+    valid = set(DEFAULT_MODULE_IDS)
+    chosen = {m for m in enabled_modules if m in valid}
+    return chosen or _default_enabled_modules()
+
+
+def _active_module_labels(enabled: set[str]) -> list[str]:
+    return [m['label'] for m in MODULE_CATALOG if m['id'] in enabled]
 
 UZ_RU_CLICHES = [
     'birinchi navbatda', 'shu munosabat bilan', 'xulosa qilib aytganda',
@@ -62,15 +110,30 @@ def _split_sentences(text: str) -> list[str]:
     return [p.strip() for p in parts if p.strip() and len(p.strip()) > 15]
 
 
-def _search_url(module: str, phrase: str) -> str:
+def _search_url(module_id: str, phrase: str) -> str:
     q = urllib.parse.quote(phrase[:120])
-    if 'eLIBRARY' in module:
+    if module_id in ELIBRARY_MODULE_IDS:
         return f'https://elibrary.ru/query.asp?scope=fulltext&text={q}'
-    if 'Scholar' in module or 'BMK' in module:
+    if module_id in SCHOLAR_MODULE_IDS or module_id == 'bmk_dissertatsiyalari':
         return f'https://scholar.google.com/scholar?q={q}'
-    if 'Cyber' in module.lower():
-        return f'https://cyberleninka.ru/search?q={q}'
+    if module_id == 'springer':
+        return f'https://link.springer.com/search?query={q}'
+    if module_id in {'ieee', 'ieee_search', 'ieee_crosslang'}:
+        return f'https://ieeexplore.ieee.org/search/searchresult.jsp?queryText={q}'
+    if module_id == 'patentlar':
+        return f'https://patents.google.com/?q={q}'
+    if module_id in {'garant_aht', 'sps_garant', 'garant_analytics', 'garant_paraphrase', 'ips_adilet'}:
+        return f'https://www.google.com/search?q={q}+site:garant.ru'
+    if module_id in {'internet_ru_paraphrase', 'internet_ru_translation', 'smi_russia_cis', 'crosslang_rsl_2022'}:
+        return f'https://yandex.ru/search/?text={q}'
     return f'https://www.google.com/search?q={q}'
+
+
+def _module_label(module_id: str) -> str:
+    for m in MODULE_CATALOG:
+        if m['id'] == module_id:
+            return m['label']
+    return module_id
 
 
 def _detect_citations(text: str) -> tuple[float, float]:
@@ -115,7 +178,13 @@ def _load_corpus(exclude_article_id=None) -> list[dict[str, Any]]:
     return corpus
 
 
-def _match_corpus(text: str, corpus: list[dict], limit: int = 10) -> list[dict]:
+def _match_corpus(
+    text: str,
+    corpus: list[dict],
+    *,
+    search_module_id: str = 'milliy_reestr',
+    limit: int = 10,
+) -> list[dict]:
     words = _normalize_words(text)
     doc_shingles = _shingles(words, 5)
     matches = []
@@ -139,14 +208,29 @@ def _match_corpus(text: str, corpus: list[dict], limit: int = 10) -> list[dict]:
             'snippet': best_snippet or entry['title'][:120],
             'similarity': round(min(99, sim * 100 + best_sent_sim * 40), 1),
             'article_id': entry['id'],
-            'search_module': 'Phoenix Milliy reestr',
+            'search_module': _module_label(search_module_id),
         })
 
     matches.sort(key=lambda x: x['similarity'], reverse=True)
     return matches[:limit]
 
 
-def _find_suspicious_phrases(text: str, limit: int = 6) -> list[dict]:
+def _pick_internet_module(enabled: set[str]) -> str:
+    for mid in (
+        'internet_plus', 'internet_en_paraphrase', 'internet_ru_paraphrase',
+        'internet_en_translation', 'internet_ru_translation', 'crosslang_vuzring',
+    ):
+        if mid in enabled:
+            return mid
+    return 'internet_plus'
+
+
+def _find_suspicious_phrases(text: str, enabled: set[str], limit: int = 6) -> list[dict]:
+    check_cliche = 'shablon_iboralar' in enabled
+    check_internet = bool(enabled & (INTERNET_MODULE_IDS | ELIBRARY_MODULE_IDS | SCHOLAR_MODULE_IDS))
+    if not check_cliche and not check_internet:
+        return []
+
     sentences = _split_sentences(text)
     sources = []
     seen = set()
@@ -157,7 +241,7 @@ def _find_suspicious_phrases(text: str, limit: int = 6) -> list[dict]:
         fivegrams = [' '.join(words[i : i + 5]) for i in range(max(0, len(words) - 4))]
         freq = Counter(fivegrams)
         repeated = [g for g, c in freq.items() if c > 1]
-        cliche_hit = any(c in sent.lower() for c in UZ_RU_CLICHES)
+        cliche_hit = check_cliche and any(c in sent.lower() for c in UZ_RU_CLICHES)
         if not repeated and not cliche_hit:
             continue
         key = sent[:60].lower()
@@ -165,12 +249,19 @@ def _find_suspicious_phrases(text: str, limit: int = 6) -> list[dict]:
             continue
         seen.add(key)
         phrase = sent[:100]
-        module = 'Shablon iboralar qidiruv moduli' if cliche_hit else 'Internet PLUS qidiruv moduli'
+        if cliche_hit:
+            module_id = 'shablon_iboralar'
+        elif 'elibrary_ru' in enabled:
+            module_id = 'elibrary_ru'
+        elif enabled & SCHOLAR_MODULE_IDS:
+            module_id = next(iter(sorted(enabled & SCHOLAR_MODULE_IDS)))
+        else:
+            module_id = _pick_internet_module(enabled)
         sources.append({
-            'source': _search_url(module, phrase),
+            'source': _search_url(module_id, phrase),
             'snippet': phrase,
             'similarity': round(min(85, 35 + len(repeated) * 10 + (15 if cliche_hit else 0)), 1),
-            'search_module': module,
+            'search_module': _module_label(module_id),
         })
         if len(sources) >= limit:
             break
@@ -180,20 +271,42 @@ def _find_suspicious_phrases(text: str, limit: int = 6) -> list[dict]:
 class AntiplagiatEngine:
     """Suniy intellektsiz to'liq antiplagiat tekshiruvi."""
 
-    def check_text(self, text: str, *, exclude_article_id=None) -> dict[str, Any]:
+    def check_text(
+        self,
+        text: str,
+        *,
+        exclude_article_id=None,
+        enabled_modules: list[str] | None = None,
+    ) -> dict[str, Any]:
         clean = (text or '').strip()
         if len(clean) < 50:
-            return self._empty_report()
+            return self._empty_report(enabled_modules)
+
+        enabled = _normalize_enabled_modules(enabled_modules)
+        active_labels = _active_module_labels(enabled)
 
         words = _normalize_words(clean)
         word_count = len(words)
         sentences = _split_sentences(clean)
         sentence_count = max(len(sentences), 1)
 
-        corpus = _load_corpus(exclude_article_id)
-        corpus_matches = _match_corpus(clean, corpus)
-        phrase_sources = _find_suspicious_phrases(clean)
-        citation_pct, self_citation_pct = _detect_citations(clean)
+        corpus_matches: list[dict] = []
+        if enabled & CORPUS_MODULE_IDS:
+            corpus = _load_corpus(exclude_article_id)
+            corpus_module = (
+                'milliy_reestr' if 'milliy_reestr' in enabled
+                else 'otm_halqasi' if 'otm_halqasi' in enabled
+                else 'company_collection'
+            )
+            corpus_matches = _match_corpus(clean, corpus, search_module_id=corpus_module)
+        else:
+            corpus = []
+
+        phrase_sources = _find_suspicious_phrases(clean, enabled)
+        if 'iqtibos_keltirish' in enabled:
+            citation_pct, self_citation_pct = _detect_citations(clean)
+        else:
+            citation_pct, self_citation_pct = 0.0, 0.0
 
         # Takroriy 5-gramlar (ichki plagiat)
         fivegrams = [' '.join(words[i : i + 5]) for i in range(max(0, len(words) - 4))]
@@ -249,7 +362,8 @@ class AntiplagiatEngine:
             },
             'citation_percent': citation_pct,
             'self_citation_percent': self_citation_pct,
-            'search_modules': SEARCH_MODULES,
+            'search_modules': active_labels,
+            'enabled_module_ids': sorted(enabled),
             'recommendations': recommendations,
             'sources': all_sources,
             'analysis_mode': 'algorithmic_no_ai',
@@ -268,13 +382,25 @@ class AntiplagiatEngine:
             'sources': all_sources,
         }
 
-    def check_file(self, file_path: str, *, exclude_article_id=None) -> dict[str, Any]:
+    def check_file(
+        self,
+        file_path: str,
+        *,
+        exclude_article_id=None,
+        enabled_modules: list[str] | None = None,
+    ) -> dict[str, Any]:
         from apps.services import extract_plain_text_from_file
 
         text = extract_plain_text_from_file(file_path)
-        return self.check_text(text, exclude_article_id=exclude_article_id)
+        return self.check_text(
+            text,
+            exclude_article_id=exclude_article_id,
+            enabled_modules=enabled_modules,
+        )
 
-    def _empty_report(self) -> dict[str, Any]:
+    def _empty_report(self, enabled_modules: list[str] | None = None) -> dict[str, Any]:
+        enabled = _normalize_enabled_modules(enabled_modules)
+        active_labels = _active_module_labels(enabled)
         return {
             'plagiarism_percentage': 0.0,
             'ai_content_percentage': 0.0,
@@ -289,7 +415,8 @@ class AntiplagiatEngine:
                 'plagiarism_breakdown': {'direct_copy': 0, 'paraphrase': 0, 'mosaic': 0, 'self_citation': 0},
                 'citation_percent': 0,
                 'self_citation_percent': 0,
-                'search_modules': SEARCH_MODULES,
+                'search_modules': active_labels,
+                'enabled_module_ids': sorted(enabled),
                 'recommendations': [],
                 'sources': [],
                 'analysis_mode': 'insufficient_text',

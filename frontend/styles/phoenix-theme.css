@@ -565,6 +565,307 @@ html.dark .journal-a4-image-fallback {
   background: linear-gradient(145deg, #334155 0%, #1e293b 100%);
 }
 
+/* Antiplagiat.uz uslubidagi yuklash paneli */
+.antiplagiat-panel {
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+}
+
+.antiplagiat-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 12px;
+}
+
+.antiplagiat-panel-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1e3a5f;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.antiplagiat-panel-close {
+  color: #94a3b8;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.antiplagiat-panel-close:hover {
+  color: #475569;
+}
+
+.antiplagiat-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.antiplagiat-tab {
+  padding: 10px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.antiplagiat-tab-active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+}
+
+.antiplagiat-panel-body {
+  padding: 20px 24px;
+  min-height: 320px;
+}
+
+.antiplagiat-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.antiplagiat-label::after {
+  content: none;
+}
+
+.antiplagiat-input,
+.antiplagiat-textarea,
+.antiplagiat-select-trigger {
+  width: 100%;
+  border: 1px solid #93c5fd;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  color: #1e293b;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.antiplagiat-input:focus,
+.antiplagiat-textarea:focus,
+.antiplagiat-select-trigger:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.antiplagiat-textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+
+.antiplagiat-dropzone {
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  border-radius: 4px;
+  padding: 32px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.antiplagiat-dropzone:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.antiplagiat-link {
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.antiplagiat-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  cursor: pointer;
+}
+
+.antiplagiat-select-dropdown {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+}
+
+.antiplagiat-select-search {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 12px;
+  font-size: 0.875rem;
+}
+
+.antiplagiat-select-search:focus {
+  outline: none;
+}
+
+.antiplagiat-select-list {
+  max-height: 220px;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.antiplagiat-select-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 0.8125rem;
+  color: #334155;
+  transition: background 0.1s;
+}
+
+.antiplagiat-select-option:hover,
+.antiplagiat-select-option.is-selected {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.antiplagiat-modules-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px 24px;
+}
+
+@media (min-width: 768px) {
+  .antiplagiat-modules-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.antiplagiat-module-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.8125rem;
+  color: #334155;
+  cursor: pointer;
+}
+
+.antiplagiat-module-label {
+  flex: 1;
+  line-height: 1.35;
+}
+
+.antiplagiat-toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 9999px;
+  background: #cbd5e1;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.antiplagiat-toggle.is-on {
+  background: #2563eb;
+}
+
+.antiplagiat-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s;
+}
+
+.antiplagiat-toggle.is-on .antiplagiat-toggle-knob {
+  transform: translateX(20px);
+}
+
+.antiplagiat-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px 20px;
+  border-top: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+
+.antiplagiat-price {
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.antiplagiat-price strong {
+  color: #0d9488;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.antiplagiat-submit-btn {
+  background: #2563eb;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 10px 28px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.antiplagiat-submit-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.antiplagiat-submit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+html.dark .antiplagiat-panel {
+  background: #1e293b;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+html.dark .antiplagiat-panel-title {
+  color: #e2e8f0;
+}
+
+html.dark .antiplagiat-label,
+html.dark .antiplagiat-module-row {
+  color: #cbd5e1;
+}
+
+html.dark .antiplagiat-input,
+html.dark .antiplagiat-textarea,
+html.dark .antiplagiat-select-trigger,
+html.dark .antiplagiat-select-dropdown {
+  background: #0f172a;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+html.dark .antiplagiat-dropzone {
+  background: #0f172a;
+  border-color: #475569;
+}
+
 @media (min-width: 640px) {
   .journal-a4-header {
     font-size: 7px;

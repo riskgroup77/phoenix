@@ -2,10 +2,15 @@ import React, { useState, useRef } from 'react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import ModalPortal from '../components/ui/ModalPortal';
-import { Upload, FileCheck, Printer, Link as LinkIcon, CreditCard, Download, FileText, X } from 'lucide-react';
+import { Printer, Link as LinkIcon, CreditCard, Download, FileText, X } from 'lucide-react';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
 import AntiplagiatCertificate, { AntiplagiatCertificateData } from '../components/AntiplagiatCertificate';
-import PlagiarismFullReport, { PlagiarismFullReportData, PlagiarismSource as FullReportSource } from '../components/PlagiarismFullReport';
+import PlagiarismFullReport, { PlagiarismFullReportData } from '../components/PlagiarismFullReport';
+import AntiplagiatUploadPanel, {
+  AntiplagiatFormValues,
+  createDefaultAntiplagiatForm,
+} from '../components/AntiplagiatUploadPanel';
+import { ANTIPLAGIAT_MODULES } from '../constants/antiplagiatModules';
 import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
 import { getUserFriendlyError } from '../utils/errorHandler';
@@ -41,39 +46,6 @@ interface PlagiarismCheckRequest {
 
 // Antiplagiat tekshiruvi narxi (API dan olinadi)
 
-// Hujjat turlari (ma'lumotnoma uchun) — rasmdagilar va xalqaro antiplagiat tizimlaridagi turlar
-const HUJJAT_TURI_OPTIONS = [
-  'Maqola',
-  'Kitob',
-  'Darslik',
-  'Qo\'llanma',
-  'O\'quv qo\'llanma',
-  'Referat',
-  'Kurs ishi',
-  'Bitiruvchi Ish',
-  'Diplom loyihasi',
-  'Yakuniy saralash ishi',
-  'Magistrlik dissertatsiyasi',
-  'Nomzodlik dissertatsiyasi',
-  'Doktorlik dissertatsiyasi',
-  'Falsafa Doktorligi dissertatsiyasi',
-  'Doktorlik dissertatsiyasi referati',
-  'Doktorlik dissertatsiyasi referati fan nomzodi',
-  'Monografiya',
-  'Ilmiy malaka Ish',
-  'Ilmiy loyiha',
-  'Tadqiqot hisoboti',
-  'Amaliyot hisoboti',
-  'Amaliy ish',
-  'Laboratoriya amaliyoti',
-  'Mashqlar to\'plami',
-  'Asarlar to\'plami',
-  'Ta\'lim vizual nashri',
-  'Ko\'rsatmalar',
-  'Uslubiy ko\'rsatmalar',
-  'Boshqa',
-];
-
 /** Modal va toast uchun: HTML entity va texnik UUID xabarlarini soddalashtirish */
 function formatPlagiarismPaymentMessage(raw: string): string {
   let s = raw;
@@ -100,7 +72,7 @@ const PlagiarismCheck: React.FC = () => {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
   const { getPrice } = useServicePrices();
-  const [file, setFile] = useState<File | null>(null);
+  const [form, setForm] = useState<AntiplagiatFormValues>(createDefaultAntiplagiatForm);
   const [availableJournals, setAvailableJournals] = useState<any[]>([]);
   const [isChecking, setIsChecking] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -109,12 +81,9 @@ const PlagiarismCheck: React.FC = () => {
   const [fullReportData, setFullReportData] = useState<PlagiarismFullReportData | null>(null);
   const [showFullReport, setShowFullReport] = useState(false);
 
-  // Ma'lumotnoma uchun: Ism, Familya, Hujjat nomi, Hujjat turi, Hujjat tavsifi (ixtiyoriy)
-  const [authorFirstName, setAuthorFirstName] = useState('');
-  const [authorLastName, setAuthorLastName] = useState('');
-  const [documentName, setDocumentName] = useState('');
-  const [documentType, setDocumentType] = useState('');
-  const [documentDescription, setDocumentDescription] = useState('');
+  const patchForm = (patch: Partial<AntiplagiatFormValues>) => {
+    setForm((prev) => ({ ...prev, ...patch }));
+  };
   
   // Narx API dan olinadi
   const PLAGIARISM_CHECK_PRICE = getPrice('plagiarism_check');
@@ -200,11 +169,13 @@ const PlagiarismCheck: React.FC = () => {
       fetchJournals();
   }, [user]);
 
-  // Ro'yxatdan o'tgan foydalanuvchi ismi va familyasini avtomatik to'ldirish (faqat bo'sh bo'lsa)
   React.useEffect(() => {
       if (!user) return;
-      setAuthorFirstName(prev => (prev.trim() ? prev : (user.firstName || '')));
-      setAuthorLastName(prev => (prev.trim() ? prev : (user.lastName || '')));
+      setForm((prev) => ({
+        ...prev,
+        authorFirstName: prev.authorFirstName.trim() ? prev.authorFirstName : (user.firstName || ''),
+        authorLastName: prev.authorLastName.trim() ? prev.authorLastName : (user.lastName || ''),
+      }));
   }, [user]);
 
   // To'lov sahifasidan qaytish: tranzaksiya holatini aniq ID bo'yicha tekshiramiz (ro'yxat paginatsiyasi xatosiz).
@@ -280,9 +251,9 @@ const PlagiarismCheck: React.FC = () => {
     const newCertificateData: AntiplagiatCertificateData = {
       certificateNumber: `PN-${Date.now().toString().slice(-6)}`,
       checkDate: new Date().toLocaleDateString('uz-UZ'),
-      author: `${(authorLastName || user?.lastName || '').trim()} ${(authorFirstName || user?.firstName || '').trim()}`.trim(),
-      workType: documentType || 'Ilmiy ish',
-      fileName: documentName.trim() || file?.name || '',
+      author: `${(form.authorLastName || user?.lastName || '').trim()} ${(form.authorFirstName || user?.firstName || '').trim()}`.trim(),
+      workType: form.documentType || 'Ilmiy ish',
+      fileName: form.documentName.trim() || form.file?.name || '',
       citations: `${Number(citationPct || 0).toFixed(1)}%`,
       selfCitation: `${Number(selfCitationPct || 0).toFixed(1)}%`,
       plagiarism: `${plagiarismPercentage}%`,
@@ -297,34 +268,27 @@ const PlagiarismCheck: React.FC = () => {
       checkerOrganization: user?.affiliation || '',
       documentNumber: newCertificateData.certificateNumber,
       uploadDate: new Date().toLocaleString('uz-UZ'),
-      originalFileName: file?.name || '',
-      documentName: documentName.trim() || file?.name || '',
-      documentType: documentType || 'Ilmiy ish',
-      characterCount: typeof charCount === 'number' ? charCount : (file ? Math.round(file.size * 2.5) : 0),
+      originalFileName: form.file?.name || '',
+      documentName: form.documentName.trim() || form.file?.name || '',
+      documentType: form.documentType || 'Ilmiy ish',
+      characterCount: typeof charCount === 'number' ? charCount : (form.file ? Math.round(form.file.size * 2.5) : 0),
       sentenceCount: typeof sentCount === 'number' ? sentCount : 0,
-      fileSize: file ? `${(file.size / 1024).toFixed(2)} KB` : '—',
+      fileSize: form.file ? `${(form.file.size / 1024).toFixed(2)} KB` : '—',
       plagiarismPercent: plagiarismPercentage,
-      selfCitationPercent: 0,
-      citationPercent: 0,
+      selfCitationPercent: Number(selfCitationPct || 0),
+      citationPercent: Number(citationPct || 0),
       originalityPercent: originality,
-      searchModules: [
-        'Phoenix Milliy reestr',
-        'Internet PLUS qidiruv moduli',
-        'eLIBRARY.RU qidiruv moduli',
-        'OTMlar halqasi qidiruv moduli',
-        'BMK dissertatsiyalari qidiruv moduli',
-        'Shablon iboralar qidiruv moduli',
-        'Iqtibos keltirish qidiruv moduli',
-        'Patentlar qidiruv moduli',
-        'Elektron-kutubxona tizimlari',
-        'Tarjimali matnlar qidiruv moduli',
-      ],
+      searchModules: Array.isArray(report?.search_modules)
+        ? (report.search_modules as string[])
+        : form.enabledModuleIds
+            .map((id) => ANTIPLAGIAT_MODULES.find((m) => m.id === id)?.label)
+            .filter(Boolean) as string[],
       sources: foundSources.map((s, idx) => ({
         id: idx + 1,
         percentage: `${s.similarity}%`,
         sourceName: s.snippet.slice(0, 100) + (s.snippet.length > 100 ? '...' : ''),
         sourceUrl: s.source.startsWith('http') ? s.source : `https://${s.source}`,
-        searchModule: 'Internet PLUS qidiruv moduli',
+        searchModule: (s as { search_module?: string }).search_module || 'Internet PLUS',
       })),
     };
     setFullReportData(fullReport);
@@ -378,7 +342,9 @@ const PlagiarismCheck: React.FC = () => {
         return;
       }
       toast.info('Avtomatik tekshiruv davom etmoqda. API orqali yakunlanmoqda...');
-      const plagiarismResult = await apiService.articles.checkPlagiarism(targetArticleId);
+      const plagiarismResult = await apiService.articles.checkPlagiarism(targetArticleId, {
+        enabledModules: form.enabledModuleIds,
+      });
       const plagiarismPercentage = plagiarismResult.plagiarism || 0;
       const aiContentPercentage = plagiarismResult.ai_content || 0;
       applyPlagiarismResults(
@@ -433,13 +399,21 @@ const PlagiarismCheck: React.FC = () => {
   };
 
   const ensureArticleForPlagiarism = async (): Promise<string> => {
-      if (!file || !user) {
+      if (!form.file || !user) {
           throw new Error('Fayl yoki foydalanuvchi topilmadi.');
       }
 
       if (articleId) {
           const aid = String(articleId).trim();
           if (JOURNAL_UUID_RE.test(aid)) {
+              try {
+                await apiService.articles.savePlagiarismConfig(aid, {
+                  enabled_modules: form.enabledModuleIds,
+                  document_type: form.documentType,
+                });
+              } catch {
+                /* non-blocking */
+              }
               return aid;
           }
       }
@@ -455,16 +429,16 @@ const PlagiarismCheck: React.FC = () => {
       }
 
       const articleData = {
-          title: documentName.trim() || `Plagiarism Check - ${file.name}`,
-          abstract: documentDescription.trim() || `Hujjat turi: ${documentType || '—'}. Tekshiruv uchun yuborilgan.`,
-          keywords: ['plagiarism', 'check', documentType || 'document'],
+          title: form.documentName.trim() || `Plagiarism Check - ${form.file.name}`,
+          abstract: form.documentDescription.trim() || `Hujjat turi: ${form.documentType || '—'}. Tekshiruv uchun yuborilgan.`,
+          keywords: ['plagiarism', 'check', form.documentType || 'document'],
           journal: journalPk,
           page_count: 1,
           fast_track: false,
       };
       console.log('[DEBUG] articleData:', articleData);
 
-      const articleResponse = await apiService.articles.create(articleData, { mainFile: file });
+      const articleResponse = await apiService.articles.create(articleData, { mainFile: form.file });
       const createdArticle = articleResponse?.data || articleResponse;
       const newId = String(createdArticle?.id ?? '').trim();
 
@@ -473,27 +447,35 @@ const PlagiarismCheck: React.FC = () => {
       }
 
       setArticleId(newId);
+      try {
+        await apiService.articles.savePlagiarismConfig(newId, {
+          enabled_modules: form.enabledModuleIds,
+          document_type: form.documentType,
+        });
+      } catch {
+        /* non-blocking */
+      }
       return newId;
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files?.[0]) {
-          const picked = e.target.files[0];
-          if (picked.size > MAX_UPLOAD_BYTES) {
-              toast.error(`Fayl hajmi ${formatMaxUploadLabel()} dan oshmasligi kerak.`);
-              e.target.value = '';
-              return;
-          }
-          setFile(picked);
-          setResult(null);
-          setCertificateData(null);
-          setProgress(0);
-          setArticleId(null);
-          setPendingPlagiarismPayment(null);
-          setPaymentVerifiedCompleted(false);
-          sessionStorage.removeItem(STORAGE_KEY_TRANSACTION_ID);
-          sessionStorage.removeItem(STORAGE_KEY_ARTICLE_ID);
+  const handleFileSelect = (picked: File | null) => {
+      if (!picked) {
+        patchForm({ file: null });
+        return;
       }
+      if (picked.size > MAX_UPLOAD_BYTES) {
+          toast.error(`Fayl hajmi ${formatMaxUploadLabel()} dan oshmasligi kerak.`);
+          return;
+      }
+      patchForm({ file: picked });
+      setResult(null);
+      setCertificateData(null);
+      setProgress(0);
+      setArticleId(null);
+      setPendingPlagiarismPayment(null);
+      setPaymentVerifiedCompleted(false);
+      sessionStorage.removeItem(STORAGE_KEY_TRANSACTION_ID);
+      sessionStorage.removeItem(STORAGE_KEY_ARTICLE_ID);
   };
   
   const handlePrint = () => {
@@ -508,7 +490,7 @@ const PlagiarismCheck: React.FC = () => {
   };
 
   const handlePay = async () => {
-      if (!file || !user) return;
+      if (!form.file || !user) return;
 
       setPaymentError(null);
       setPaymentStatus('processing');
@@ -556,17 +538,21 @@ const PlagiarismCheck: React.FC = () => {
   };
 
   const handleCheck = async (paymentCompleted = false, forcedArticleId?: string) => {
-      if (!file || !user) return;
-      if (!authorFirstName.trim() || !authorLastName.trim()) {
+      if (!form.file || !user) return;
+      if (!form.authorFirstName.trim() || !form.authorLastName.trim()) {
           toast.error('Ism va familyani kiriting.');
           return;
       }
-      if (!documentName.trim()) {
+      if (!form.documentName.trim()) {
           toast.error('Hujjat nomini kiriting.');
           return;
       }
-      if (!documentType) {
+      if (!form.documentType) {
           toast.error('Hujjat turini tanlang.');
+          return;
+      }
+      if (!form.enabledModuleIds.length) {
+          toast.error('Kamida bitta tekshirish modulini yoqing.');
           return;
       }
       // Narx 0 bo'lsa to'lovsiz tekshirish; aks holda to'lov talab qilinadi
@@ -588,7 +574,9 @@ const PlagiarismCheck: React.FC = () => {
           const targetArticleId = forcedArticleId || (await ensureArticleForPlagiarism());
 
           // Backend will verify payment; if not paid, returns 402
-          const plagiarismResult = await apiService.articles.checkPlagiarism(targetArticleId);
+          const plagiarismResult = await apiService.articles.checkPlagiarism(targetArticleId, {
+        enabledModules: form.enabledModuleIds,
+      });
           
           // Update UI with the results
           const plagiarismPercentage = plagiarismResult.plagiarism || 0;
@@ -597,6 +585,7 @@ const PlagiarismCheck: React.FC = () => {
             plagiarismPercentage,
             aiContentPercentage,
             mapSourcesFromApi(plagiarismResult.sources),
+            plagiarismResult.report,
           );
           toast.success('Antiplagiat tekshiruvi muvaffaqiyatli yakunlandi!');
       } catch (err: any) {
@@ -612,169 +601,94 @@ const PlagiarismCheck: React.FC = () => {
       }
   };
 
-  const canSubmit = file && authorFirstName.trim() && authorLastName.trim() && documentName.trim() && documentType && !isChecking;
+  const onPanelSubmit = () => {
+    void handleCheck(false);
+  };
 
   return (
       <>
-      <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[28px] border border-white/40 bg-gradient-to-br from-indigo-600 via-violet-600 to-cyan-400 p-[1px] shadow-2xl shadow-indigo-950/35">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_0%,rgba(255,255,255,0.45),transparent_55%)]" aria-hidden />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_100%_80%,rgba(250,204,21,0.25),transparent_45%)]" aria-hidden />
-        <div className="relative rounded-[26px] bg-gradient-to-br from-white/20 via-white/10 to-cyan-200/15 px-4 py-8 backdrop-blur-md sm:px-8 sm:py-10">
-      <Card title="Mustaqil Antiplagiat Tekshiruvi" className="no-print border-white/50 bg-white/30 shadow-2xl backdrop-blur-2xl">
-          <p className="mb-6 text-sm font-medium text-slate-900">Ma'lumotnoma va tekshiruv natijalari uchun quyidagi maydonlarni to'ldiring. Tekshiruv suniy intellektsiz — milliy reestr, n-gram va iqtibos qoidalari bo'yicha amalga oshiriladi.</p>
+      <div className="no-print mx-auto max-w-4xl px-4 py-8">
+          <p className="mb-6 text-center text-sm text-slate-600">
+            Hujjat yuklang, turini tanlang, tekshirish modullarini sozlang va natijani oling.
+          </p>
 
-          <div className="mx-auto max-w-xl space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                      <label className="mb-1 block text-sm font-semibold text-slate-900">Ism *</label>
-                      <input
-                          type="text"
-                          value={authorFirstName}
-                          onChange={e => setAuthorFirstName(e.target.value)}
-                          placeholder="Ism"
-                          className="w-full rounded-xl border border-white/60 bg-white/45 px-4 py-2.5 text-slate-950 placeholder-slate-600 shadow-inner backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-violet-500"
-                      />
-                  </div>
-                  <div>
-                      <label className="mb-1 block text-sm font-semibold text-slate-900">Familya *</label>
-                      <input
-                          type="text"
-                          value={authorLastName}
-                          onChange={e => setAuthorLastName(e.target.value)}
-                          placeholder="Familya"
-                          className="w-full rounded-xl border border-white/60 bg-white/45 px-4 py-2.5 text-slate-950 placeholder-slate-600 shadow-inner backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-violet-500"
-                      />
-                  </div>
-              </div>
-              <div>
-                  <label className="mb-1 block text-sm font-semibold text-slate-900">Hujjat nomi *</label>
-                  <input
-                      type="text"
-                      value={documentName}
-                      onChange={e => setDocumentName(e.target.value)}
-                      placeholder="Hujjat nomini kiriting"
-                      className="w-full rounded-xl border border-white/60 bg-white/45 px-4 py-2.5 text-slate-950 placeholder-slate-600 shadow-inner backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-violet-500"
-                  />
-              </div>
-              <div>
-                  <label className="mb-1 block text-sm font-semibold text-slate-900">Hujjat turi *</label>
-                  <select
-                      value={documentType}
-                      onChange={e => setDocumentType(e.target.value)}
-                      className="w-full rounded-xl border border-white/60 bg-white/45 px-4 py-2.5 text-slate-950 shadow-inner backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-violet-500"
-                  >
-                      <option value="" className="bg-slate-900 text-white">Hujjat turini tanlang</option>
-                      {HUJJAT_TURI_OPTIONS.map((opt) => (
-                          <option key={opt} value={opt} className="text-slate-900">{opt}</option>
-                      ))}
-                  </select>
-              </div>
-              <div className="text-center">
-                  <label htmlFor="file-upload" className="block cursor-pointer">
-                      <div className="rounded-2xl border-2 border-dashed border-white/70 bg-white/35 p-10 shadow-inner backdrop-blur-lg transition hover:bg-white/45">
-                          <Upload className="mx-auto h-12 w-12 text-violet-900/80" />
-                          <p className="mt-2 text-sm font-medium text-slate-950">
-                              {file ? `Tanlangan fayl: ${file.name}` : 'Hujjatni shu joyga tortib tashlang yoki faylni tanlang (.docx, .pdf)'}
-                          </p>
-                          <p className="mt-1 text-xs font-medium text-slate-800">Maksimal hajmi: {formatMaxUploadLabel()}</p>
-                      </div>
-                      <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept=".pdf,.doc,.docx" />
-                  </label>
-              </div>
-              <div>
-                  <label className="mb-1 block text-sm font-semibold text-slate-900">Hujjat tavsifi (ixtiyoriy)</label>
-                  <textarea
-                      value={documentDescription}
-                      onChange={e => setDocumentDescription(e.target.value)}
-                      placeholder="Hujjat haqida qisqacha"
-                      rows={3}
-                      className="w-full rounded-xl border border-white/60 bg-white/45 px-4 py-2.5 text-slate-950 placeholder-slate-600 shadow-inner backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-violet-500"
-                  />
-              </div>
-          </div>
+          <AntiplagiatUploadPanel
+            values={form}
+            onChange={patchForm}
+            price={PLAGIARISM_CHECK_PRICE}
+            isChecking={isChecking}
+            onSubmit={onPanelSubmit}
+            onFileSelect={handleFileSelect}
+          />
 
-          <div className="mt-6 space-y-4 text-center">
-              <div className="mx-auto max-w-md rounded-2xl border border-white/55 bg-white/35 p-4 shadow-lg backdrop-blur-xl">
-                  <p className="mb-2 text-sm font-medium text-slate-950">
-                      <span className="font-bold text-violet-950">Narx:</span> {PLAGIARISM_CHECK_PRICE.toLocaleString()} so'm
-                      {PLAGIARISM_CHECK_PRICE === 0 && <span className="ml-2 font-semibold text-emerald-900">(test rejimi)</span>}
-                  </p>
-                  {PLAGIARISM_CHECK_PRICE > 0 && (
-                      <p className="text-xs text-slate-500">Antiplagiat tekshiruvi uchun to'lov talab qilinadi</p>
-                  )}
-              </div>
-              <Button onClick={() => handleCheck(false)} disabled={!canSubmit} isLoading={isChecking} className="w-full max-w-xs mx-auto">
-                  {isChecking ? 'Tekshirilmoqda...' : <><FileCheck className="mr-2 h-4 w-4" /> {PLAGIARISM_CHECK_PRICE > 0 ? 'To\'lov va Tekshirish' : 'Tekshirish'}</>}
-              </Button>
-              {isChecking && (
-                  <p className="text-sm font-medium text-violet-950 mt-2">
-                      To&apos;lovdan keyin hujjatingiz milliy reestr va qidiruv modullari bo&apos;yicha avtomatik tekshiriladi.
-                  </p>
-              )}
-              {paymentVerifiedCompleted && (
-                  <div className="mx-auto mt-4 max-w-xs rounded-xl border border-emerald-700/35 bg-emerald-200/45 p-4 backdrop-blur-md">
-                      <p className="mb-2 text-sm font-semibold text-emerald-950">To'lov tasdiqlandi</p>
-                      <Button onClick={() => handleCheck(true)} disabled={isChecking} className="w-full">
-                          Tekshirishni davom ettirish
-                      </Button>
-                  </div>
-              )}
-              {pendingPlagiarismPayment && !paymentVerifiedCompleted && (
-                  <div className="mx-auto mt-4 max-w-md rounded-xl border border-amber-700/35 bg-amber-200/40 p-4 text-center backdrop-blur-md">
-                      <p className="mb-3 text-sm font-medium text-amber-950">
-                          To&apos;lov Clickda qilingan bo&apos;lsa, tizimga kelishi biroz vaqt olishi mumkin.
-                      </p>
-                      <Button type="button" variant="secondary" onClick={recheckPlagiarismPayment} className="w-full sm:w-auto">
-                          To&apos;lov holatini tekshirish
-                      </Button>
-                  </div>
-              )}
-          </div>
+          {PLAGIARISM_CHECK_PRICE === 0 && (
+            <p className="mt-3 text-center text-xs text-emerald-700">Test rejimi — to&apos;lovsiz tekshirish</p>
+          )}
 
           {isChecking && (
               <div className="mx-auto mt-8 max-w-lg">
-                  <p className="mb-2 text-center font-medium text-slate-950">Antiplagiat tahlili — hujjat to&apos;liq tekshirilmoqda...</p>
-                  <div className="h-2.5 w-full rounded-full bg-white/35 shadow-inner">
-                      <div className="h-2.5 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 shadow-sm transition-[width] duration-300 ease-in-out" style={{ width: `${progress}%` }} />
+                  <p className="mb-2 text-center font-medium text-slate-700">Antiplagiat tahlili — hujjat to&apos;liq tekshirilmoqda...</p>
+                  <div className="h-2.5 w-full rounded-full bg-slate-200">
+                      <div className="h-2.5 rounded-full bg-blue-600 transition-[width] duration-300 ease-in-out" style={{ width: `${progress}%` }} />
                   </div>
               </div>
           )}
 
+          {paymentVerifiedCompleted && !isChecking && !result && (
+              <div className="mx-auto mt-4 max-w-md rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center">
+                  <p className="mb-2 text-sm font-semibold text-emerald-900">To&apos;lov tasdiqlandi</p>
+                  <Button onClick={() => handleCheck(true)} disabled={isChecking} className="w-full">
+                      Tekshirishni davom ettirish
+                  </Button>
+              </div>
+          )}
+
+          {pendingPlagiarismPayment && !paymentVerifiedCompleted && (
+              <div className="mx-auto mt-4 max-w-md rounded-lg border border-amber-200 bg-amber-50 p-4 text-center">
+                  <p className="mb-3 text-sm text-amber-900">
+                      To&apos;lov Clickda qilingan bo&apos;lsa, tizimga kelishi biroz vaqt olishi mumkin.
+                  </p>
+                  <Button type="button" variant="secondary" onClick={recheckPlagiarismPayment} className="w-full sm:w-auto">
+                      To&apos;lov holatini tekshirish
+                  </Button>
+              </div>
+          )}
+
           {result && (
-              <div className="mt-8">
-                  <h3 className="text-xl font-bold text-center mb-4 text-slate-900">Tekshiruv Natijalari</h3>
-                  <div className="mx-auto grid max-w-3xl grid-cols-1 gap-4 rounded-2xl border border-white/50 bg-white/35 p-4 backdrop-blur-xl md:grid-cols-3">
-                      <div className="rounded-xl border border-white/45 bg-white/40 p-4 text-center shadow-inner backdrop-blur-md">
-                          <p className="text-sm font-semibold text-slate-800">Originallik</p>
-                          <p className="text-4xl font-bold text-emerald-800 mt-1">{100 - result.plagiarism}%</p>
+              <div className="mt-10">
+                  <h3 className="text-xl font-bold text-center mb-4 text-slate-900">Tekshiruv natijalari</h3>
+                  <div className="mx-auto grid max-w-3xl grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-3">
+                      <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 text-center">
+                          <p className="text-sm font-semibold text-slate-600">Originallik</p>
+                          <p className="text-4xl font-bold text-emerald-700 mt-1">{100 - result.plagiarism}%</p>
                       </div>
-                      <div className="rounded-xl border border-white/45 bg-white/40 p-4 text-center shadow-inner backdrop-blur-md">
-                          <p className="text-sm font-semibold text-slate-800">O'xshashlik (Plagiat)</p>
-                          <p className="text-4xl font-bold text-yellow-800 mt-1">{result.plagiarism}%</p>
+                      <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 text-center">
+                          <p className="text-sm font-semibold text-slate-600">O&apos;xshashlik (Plagiat)</p>
+                          <p className="text-4xl font-bold text-amber-700 mt-1">{result.plagiarism}%</p>
                       </div>
-                      <div className="rounded-xl border border-white/45 bg-white/40 p-4 text-center shadow-inner backdrop-blur-md">
-                          <p className="text-sm font-semibold text-slate-800">Iqtiboslar</p>
-                          <p className="text-4xl font-bold text-cyan-800 mt-1">{result.citations.toFixed(1)}%</p>
+                      <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 text-center">
+                          <p className="text-sm font-semibold text-slate-600">Iqtiboslar</p>
+                          <p className="text-4xl font-bold text-cyan-700 mt-1">{result.citations.toFixed(1)}%</p>
                       </div>
                   </div>
 
-                   <Card title="Topilgan manbalar" className="mx-auto mt-6 max-w-3xl border-white/50 bg-white/25 backdrop-blur-xl">
-                      <p className="-mt-4 mb-4 text-sm font-medium text-slate-900">Tizim matningizga o'xshashlik topgan manbalar ro'yxati. Bu natijalar taxminiy bo'lib, yakuniy xulosa uchun qo'shimcha tahlil talab etilishi mumkin.</p>
+                   <Card title="Topilgan manbalar" className="mx-auto mt-6 max-w-3xl">
+                      <p className="-mt-4 mb-4 text-sm text-slate-600">Tanlangan modullar bo&apos;yicha o&apos;xshashlik topilgan manbalar.</p>
                       <div className="max-h-80 space-y-4 overflow-y-auto pr-2">
                           {result.sources.length === 0 ? (
                             <p className="text-sm text-slate-500 text-center py-6">
-                              API manbalar qaytarmadi. Plagiat foizi ko&apos;rsatilgan, lekin aniq URL/snippet topilmadi.
+                              Aniq manba topilmadi. Plagiat foizi ko&apos;rsatilgan.
                             </p>
                           ) : (
                           result.sources.map((source, index) => (
-                          <div key={index} className="rounded-xl border border-white/50 bg-white/35 p-4 backdrop-blur-md">
+                          <div key={index} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                               <div className="flex justify-between items-start text-sm">
-                                  <a href={source.source.startsWith('http') ? source.source : `https://${source.source}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-800 hover:underline break-all">
+                                  <a href={source.source.startsWith('http') ? source.source : `https://${source.source}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-700 hover:underline break-all">
                                       <LinkIcon size={14}/> {source.source.length > 60 ? source.source.slice(0, 57) + '...' : source.source}
                                   </a>
-                                  <span className="font-bold text-yellow-900 whitespace-nowrap ml-4">{source.similarity}% o'xshashlik</span>
+                                  <span className="font-bold text-amber-800 whitespace-nowrap ml-4">{source.similarity}%</span>
                               </div>
-                              <blockquote className="mt-2 pl-3 border-l-2 border-yellow-500/50 text-xs text-slate-500 italic">
+                              <blockquote className="mt-2 pl-3 border-l-2 border-amber-400 text-xs text-slate-500 italic">
                                   {source.snippet}
                               </blockquote>
                           </div>
@@ -784,7 +698,6 @@ const PlagiarismCheck: React.FC = () => {
                   </Card>
               </div>
           )}
-      </Card>
       
       {certificateData && (
           <div className="mt-8">
@@ -809,7 +722,6 @@ const PlagiarismCheck: React.FC = () => {
               </div>
           </div>
       )}
-        </div>
       </div>
 
       {/* Full Report Modal */}
