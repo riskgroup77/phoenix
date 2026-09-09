@@ -199,7 +199,7 @@ export async function downloadNashrHisobotDocx(data: NashrHisobotData): Promise<
                                         shading: { fill: tableHeaderColor },
                                         verticalAlign: VerticalAlign.CENTER,
                                         margins: { top: 100, bottom: 100, left: 100, right: 100 },
-                                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Nashr nomi va yili', bold: true, size: 24 })] })],
+                                        children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Nashr nomi va shakli', bold: true, size: 24 })] })],
                                     }),
                                     new TableCell({
                                         width: { size: 20, type: WidthType.PERCENTAGE },
@@ -239,8 +239,8 @@ export async function downloadNashrHisobotDocx(data: NashrHisobotData): Promise<
                                                         alignment: AlignmentType.LEFT,
                                                         children: [
                                                             new TextRun({
-                                                                text: article.publishDate ? `${article.publishName} (${article.publishDate})` : article.publishName,
-                                                                size: 24
+                                                                text: article.publishName,
+                                                                size: 24,
                                                             }),
                                                         ],
                                                     }),

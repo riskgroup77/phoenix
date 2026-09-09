@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { Plus, Search, Filter, Download, Edit, Trash2, QrCode, BookOpen, Users, FileText, ExternalLink } from 'lucide-react';
+import { Plus, Search, Filter, Download, Edit, Trash2, QrCode, BookOpen, Users, FileText, ExternalLink, FileDown } from 'lucide-react';
+import NashrHisobotModal from '../components/NashrHisobotModal';
+import { buildNashrHisobotData } from '../utils/buildNashrHisobotData';
 import apiService from '../services/apiService';
 import { asApiList } from '../utils/apiList';
 import { ARTICLE_STATUS_LABELS, ArticleStatus, Role } from '../types';
@@ -98,6 +100,7 @@ const AuthorPublications: React.FC = () => {
   const [selectedType, setSelectedType] = useState<string>('');
   const [selectedAuthor, setSelectedAuthor] = useState<string>('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showNashrHisobotModal, setShowNashrHisobotModal] = useState(false);
   const [editingPublication, setEditingPublication] = useState<AuthorPublication | null>(null);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [allAuthors, setAllAuthors] = useState<any[]>([]);
@@ -247,6 +250,24 @@ const AuthorPublications: React.FC = () => {
     );
   }, [sampleOrders, searchTerm]);
 
+  const nashrHisobotData = useMemo(() => {
+    if (!user) {
+      return buildNashrHisobotData({ user: {}, platformArticles: [], externalPublications: [] });
+    }
+    return buildNashrHisobotData({
+      user: {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        affiliation: user.affiliation,
+        degree: (user as { degree?: string }).degree,
+        position: (user as { position?: string }).position,
+      },
+      platformArticles,
+      externalPublications: publications,
+    });
+  }, [user, platformArticles, publications]);
+
   const filteredPublications = publications.filter(pub => {
     const matchesSearch = pub.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          pub.co_authors.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -295,15 +316,24 @@ const AuthorPublications: React.FC = () => {
             Sertifikatlar va UDK hujjatlari «Arxiv hujjatlar» bo&apos;limida.
           </p>
         </div>
-        <div className="flex gap-2 shrink-0">
-          <Button onClick={handleQRScan} variant="secondary">
-            <QrCode className="w-4 h-4 mr-2" />
-            QR Code Scan
-          </Button>
-          <Button onClick={() => setShowAddForm(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Yangi Nashr
-          </Button>
+        <div className="flex gap-2 shrink-0 flex-wrap">
+          {isAuthor ? (
+            <Button onClick={() => setShowNashrHisobotModal(true)} variant="primary">
+              <FileDown className="w-4 h-4 mr-2" />
+              Nashr hisoboti
+            </Button>
+          ) : (
+            <>
+              <Button onClick={handleQRScan} variant="secondary">
+                <QrCode className="w-4 h-4 mr-2" />
+                QR Code Scan
+              </Button>
+              <Button onClick={() => setShowAddForm(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Yangi Nashr
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -535,6 +565,15 @@ const AuthorPublications: React.FC = () => {
       )}
 
       {(!isAuthor || activeSection === 'external') && (
+      <>
+      {isAuthor && activeSection === 'external' && (
+        <div className="flex justify-end mb-4">
+          <Button onClick={() => setShowAddForm(true)} variant="secondary">
+            <Plus className="w-4 h-4 mr-2" />
+            Yangi nashr qo&apos;shish
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredPublications.map(publication => (
           <Card 
@@ -653,7 +692,14 @@ const AuthorPublications: React.FC = () => {
           </Card>
         ))}
       </div>
+      </>
       )}
+
+      <NashrHisobotModal
+        open={showNashrHisobotModal}
+        onClose={() => setShowNashrHisobotModal(false)}
+        data={nashrHisobotData}
+      />
 
       {/* Add/Edit Form Modal */}
       {showAddForm && (
