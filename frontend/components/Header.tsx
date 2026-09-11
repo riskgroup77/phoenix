@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
 import { LogOut, Bell, Menu, ChevronDown } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
-import EditorialLogo from './EditorialLogo';
 import { Notification } from '../types';
 import { roleNames } from '../config/navConfig';
 
@@ -45,7 +44,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
   return (
     <header className="editorial-header sticky top-0 z-[60] shrink-0">
-      <div className="editorial-header-top flex items-center justify-between gap-3 px-4 sm:px-6 h-16 border-b border-[var(--editorial-border)] bg-[var(--editorial-bg)]">
+      <div className="editorial-header-top flex items-center justify-between gap-3 px-4 sm:px-6 h-14 border-b border-[var(--editorial-border)] bg-[var(--editorial-bg)]">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
@@ -55,10 +54,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <EditorialLogo />
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 ml-auto">
           <ThemeToggle />
 
           <div className="relative" ref={notifRef}>
@@ -163,12 +161,6 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             )}
           </div>
         </div>
-      </div>
-
-      <div className="editorial-header-strip hidden sm:flex items-center px-4 sm:px-6 h-10 border-b border-[var(--editorial-border)] bg-[var(--editorial-bg-alt)]">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--editorial-primary)]">
-          Phoenix Ilmiy Nashrlar Markazi — PINM
-        </p>
       </div>
     </header>
   );
