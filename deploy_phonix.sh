@@ -256,6 +256,17 @@ if [ -n "${PHONIX_FRONTEND_WEB_ROOT:-}" ] && [ -d "dist" ]; then
     fi
 fi
 
+# Nginx frontend konfig (index.html cache yo'q — yangi dizayn tez ko'rinsin)
+NGINX_FRONTEND_CONF="${DEPLOY_DIR}/infrastructure/nginx/phoenix-ilmiyfaoliyat-frontend.conf"
+NGINX_FRONTEND_TARGET="/etc/nginx/sites-available/phoenix-ilmiyfaoliyat-frontend.conf"
+if [ -f "${NGINX_FRONTEND_CONF}" ] && [ -d /etc/nginx/sites-available ]; then
+    echo "   Nginx frontend konfig yangilanmoqda (index.html no-cache)..."
+    sudo_cmd cp "${NGINX_FRONTEND_CONF}" "${NGINX_FRONTEND_TARGET}" 2>/dev/null || true
+    if command -v nginx >/dev/null 2>&1; then
+        sudo_cmd nginx -t 2>/dev/null && sudo_cmd systemctl reload nginx 2>/dev/null || true
+    fi
+fi
+
 echo "✅ Frontend yangilandi"
 echo ""
 

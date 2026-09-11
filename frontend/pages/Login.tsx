@@ -97,9 +97,9 @@ const Login: React.FC = () => {
         <AuthLayout title="Tizimga kirish">
             <Card>
                 <form onSubmit={handleSubmit} className="space-y-6">
-                     <h2 className="text-2xl font-bold text-center text-slate-900">Tizimga kirish</h2>
+                     <h2 className="font-serif text-2xl font-bold text-center text-[var(--editorial-text)]">Tizimga kirish</h2>
                     <div>
-                        <label htmlFor="phone" className="block text-sm font-medium text-slate-600 mb-2">
+                        <label htmlFor="phone" className="block text-sm font-medium text-[var(--editorial-body)] mb-2">
                             Telefon raqam
                         </label>
                         <div className="flex items-center phone-input-group">
@@ -127,7 +127,7 @@ const Login: React.FC = () => {
                     </div>
 
                     <div>
-                        <label htmlFor="password" className="block text-sm font-medium text-slate-600 mb-2">
+                        <label htmlFor="password" className="block text-sm font-medium text-[var(--editorial-body)] mb-2">
                             Parol
                         </label>
                         <input
@@ -171,9 +171,9 @@ const Login: React.FC = () => {
                 </form>
 
                  <div className="mt-6 text-center text-sm">
-                    <p className="text-slate-500">
+                    <p className="text-[var(--editorial-muted)]">
                         Hisobingiz yo'qmi?{' '}
-                        <Link to="/register" className="font-semibold text-blue-800 hover:text-blue-700">
+                        <Link to="/register" className="font-semibold text-[var(--editorial-primary)] hover:underline">
                             Ro'yxatdan o'tish
                         </Link>
                     </p>

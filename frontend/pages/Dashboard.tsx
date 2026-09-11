@@ -22,16 +22,16 @@ const PinmSummaryCard: React.FC<{
 }> = ({ icon: Icon, title, value, linkLabel, to }) => (
   <Link
     to={to}
-    className="pinm-summary-card block rounded-2xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-900 p-5 hover:border-blue-200 dark:hover:border-blue-800 transition-colors"
+    className="editorial-card block p-5 hover:border-[var(--editorial-primary)]/35 transition-colors"
   >
     <div className="flex items-start justify-between gap-3">
-      <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
+      <div className="p-2.5 rounded-md bg-[rgba(139,21,56,0.08)] text-[var(--editorial-primary)]">
         <Icon className="w-5 h-5" strokeWidth={2} />
       </div>
     </div>
-    <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{title}</p>
-    <p className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tabular-nums">{value}</p>
-    <p className="mt-3 text-sm font-medium text-blue-600 dark:text-blue-400">{linkLabel} →</p>
+    <p className="mt-4 text-sm text-[var(--editorial-muted)]">{title}</p>
+    <p className="mt-1 font-serif text-2xl sm:text-3xl font-bold text-[var(--editorial-text)] tabular-nums">{value}</p>
+    <p className="mt-3 text-sm font-medium text-[var(--editorial-primary)]">{linkLabel} →</p>
   </Link>
 );
 
@@ -198,8 +198,8 @@ const Dashboard: React.FC = () => {
     if (loading) {
         return (
             <div className="flex flex-col justify-center items-center min-h-[320px] gap-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-2 border-blue-500 border-t-transparent" />
-                <p className="text-slate-500 text-sm">Yuklanmoqda...</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-2 border-[var(--editorial-primary)] border-t-transparent" />
+                <p className="text-[var(--editorial-muted)] text-sm">Yuklanmoqda...</p>
             </div>
         );
     }
@@ -305,10 +305,10 @@ const Dashboard: React.FC = () => {
         return (
             <div className="space-y-8 max-w-6xl">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-                        Xush kelibsiz, {user.firstName}! 👋
+                    <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[var(--editorial-text)] tracking-tight">
+                        Xush kelibsiz, {user.firstName}
                     </h1>
-                    <p className="mt-2 text-slate-500 dark:text-slate-400 text-sm sm:text-base">
+                    <p className="mt-2 text-[var(--editorial-muted)] text-sm sm:text-base">
                         Ilmiy faoliyatingizni boshqarish paneliga xush kelibsiz.
                     </p>
                 </div>
@@ -337,12 +337,12 @@ const Dashboard: React.FC = () => {
                     />
                 </div>
 
-                <div className="rounded-2xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-900 overflow-hidden">
-                    <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-                        <h2 className="text-base font-semibold text-slate-900 dark:text-white">So&apos;nggi faoliyat</h2>
+                <div className="editorial-card overflow-hidden p-0">
+                    <div className="px-5 py-4 border-b border-[var(--editorial-border)]">
+                        <h2 className="font-serif text-base font-semibold text-[var(--editorial-text)]">So&apos;nggi faoliyat</h2>
                     </div>
                     {activityRows.length === 0 ? (
-                        <div className="px-5 py-12 text-center text-slate-500 dark:text-slate-400">
+                        <div className="px-5 py-12 text-center text-[var(--editorial-muted)]">
                             <FileText className="w-10 h-10 mx-auto mb-3 opacity-40" />
                             <p className="text-sm">Hozircha faoliyat yo&apos;q.</p>
                             <Button onClick={() => navigate('/submit')} className="mt-4">
@@ -350,17 +350,17 @@ const Dashboard: React.FC = () => {
                             </Button>
                         </div>
                     ) : (
-                        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                        <ul className="divide-y divide-[var(--editorial-border)]">
                             {activityRows.map((row) => {
                                 const RowIcon = row.icon;
                                 const inner = (
                                     <>
-                                        <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
+                                        <div className="p-2 rounded-md bg-[rgba(139,21,56,0.08)] text-[var(--editorial-primary)] shrink-0">
                                             <RowIcon className="w-4 h-4" strokeWidth={2} />
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{row.title}</p>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{row.meta}</p>
+                                            <p className="text-sm font-medium text-[var(--editorial-text)] truncate">{row.title}</p>
+                                            <p className="text-xs text-[var(--editorial-muted)] mt-0.5">{row.meta}</p>
                                         </div>
                                         <span className={row.badge.className}>{row.badge.label}</span>
                                     </>
@@ -370,7 +370,7 @@ const Dashboard: React.FC = () => {
                                         {row.link ? (
                                             <Link
                                                 to={row.link}
-                                                className="flex items-center gap-3 px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                                                className="flex items-center gap-3 px-5 py-4 hover:bg-[var(--editorial-bg-alt)] transition-colors"
                                             >
                                                 {inner}
                                             </Link>
