@@ -78,6 +78,7 @@ const PlagiarismCheck: React.FC = () => {
   const [availableJournals, setAvailableJournals] = useState<any[]>([]);
   const [isChecking, setIsChecking] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [checkStatusLabel, setCheckStatusLabel] = useState('');
   const [result, setResult] = useState<PlagiarismResult | null>(null);
   const [certificateData, setCertificateData] = useState<AntiplagiatCertificateData | null>(null);
   const [fullReportData, setFullReportData] = useState<PlagiarismFullReportData | null>(null);
@@ -351,18 +352,61 @@ const PlagiarismCheck: React.FC = () => {
     };
   };
 
-  /** To'lovdan keyin server avtomatik tekshiruvni ishga tushiradi — natija tayyor bo'lguncha kutamiz */
-  const pollUntilPlagiarismReady = async (targetArticleId: string, maxAttempts = 90): Promise<boolean> => {
+  const applyProgressFromReport = (report: Record<string, unknown> | undefined, attempt: number) => {
+    const pct = Number(report?.progress_percent ?? 0);
+    setProgress(Math.max(5, Math.min(99, pct > 0 ? pct : Math.min(95, 8 + attempt * 0.35))));
+    const label = String(report?.current_module_label || '').trim();
+    const done = Number(report?.modules_completed ?? 0);
+    const total = Number(report?.modules_total ?? 0);
+    const sources = Number(report?.sources_found ?? 0);
+    if (label) {
+      setCheckStatusLabel(
+        total > 0
+          ? `${label} — ${done}/${total} modul, ${sources} manba`
+          : label,
+      );
+    } else if (total > 0) {
+      setCheckStatusLabel(`Modullar tekshirilmoqda: ${done}/${total}`);
+    }
+  };
+
+  const fetchPlagiarismResults = async (targetArticleId: string) => {
+    const art = await apiService.articles.get(targetArticleId);
+    const data = art?.data || art;
+    const report = (data?.plagiarism_report || {}) as Record<string, unknown>;
+    applyPlagiarismResults(
+      Number(data?.plagiarism_percentage ?? 0),
+      Number(data?.ai_content_percentage ?? 0),
+      mapSourcesFromApi(report.sources ?? data?.sources),
+      report,
+      Number(data?.originality_percentage ?? 0),
+    );
+  };
+
+  /** Chuqur tekshiruv 10–15 daqiqa davom etishi mumkin (antiplagiat.uz uslubi) */
+  const pollUntilPlagiarismReady = async (targetArticleId: string, maxAttempts = 240): Promise<boolean> => {
     for (let i = 0; i < maxAttempts; i++) {
-      setProgress(Math.min(95, 10 + i * 1));
       try {
         const art = await apiService.articles.get(targetArticleId);
         const data = art?.data || art;
-        if (data?.plagiarism_checked_at && data.plagiarism_percentage != null) {
+        const report = (data?.plagiarism_report || {}) as Record<string, unknown>;
+        applyProgressFromReport(report, i);
+        if (report.check_status === 'failed') {
+          throw new Error(String(report.check_error || 'Antiplagiat tekshiruvi muvaffaqiyatsiz yakunlandi.'));
+        }
+        if (
+          data?.plagiarism_checked_at &&
+          data.plagiarism_percentage != null &&
+          report.check_status !== 'processing'
+        ) {
+          setProgress(100);
+          setCheckStatusLabel('Tekshiruv yakunlandi');
           return true;
         }
-      } catch {
-        /* retry */
+      } catch (err) {
+        if (err instanceof Error && (err.message.includes('muvaffaqiyatsiz') || err.message.includes('failed'))) {
+          throw err;
+        }
       }
       await new Promise((r) => window.setTimeout(r, 4000));
     }
@@ -372,28 +416,27 @@ const PlagiarismCheck: React.FC = () => {
   const runPlagiarismAfterPayment = async (targetArticleId: string) => {
     setIsChecking(true);
     setProgress(5);
+    setCheckStatusLabel('To\'lovdan keyin chuqur tekshiruv boshlanmoqda...');
     setResult(null);
     setCertificateData(null);
     try {
       const ready = await pollUntilPlagiarismReady(targetArticleId);
       if (ready) {
+        await fetchPlagiarismResults(targetArticleId);
         toast.success('Antiplagiat tekshiruvi yakunlandi. Arxivda ko\'rishingiz mumkin.');
         goToResultView(targetArticleId);
         return;
       }
-      toast.info('Avtomatik tekshiruv davom etmoqda. API orqali yakunlanmoqda...');
-      const plagiarismResult = await apiService.articles.checkPlagiarism(targetArticleId, {
+      toast.info('Tekshiruv davom etmoqda. Serverda modullar skanerlanmoqda...');
+      await apiService.articles.checkPlagiarism(targetArticleId, {
         enabledModules: form.enabledModuleIds,
+        force: true,
       });
-      const plagiarismPercentage = plagiarismResult.plagiarism || 0;
-      const aiContentPercentage = plagiarismResult.ai_content || 0;
-      applyPlagiarismResults(
-        plagiarismPercentage,
-        aiContentPercentage,
-        mapSourcesFromApi(plagiarismResult.sources),
-        plagiarismResult.report,
-        plagiarismResult.originality,
-      );
+      const readyAfter = await pollUntilPlagiarismReady(targetArticleId);
+      if (!readyAfter) {
+        throw new Error('Tekshiruv vaqti tugadi. Keyinroq «Arxiv hujjatlar» bo\'limidan natijani ko\'ring.');
+      }
+      await fetchPlagiarismResults(targetArticleId);
       toast.success('Antiplagiat tekshiruvi muvaffaqiyatli amalga oshirildi!');
       goToResultView(targetArticleId);
     } catch (err: unknown) {
@@ -608,6 +651,7 @@ const PlagiarismCheck: React.FC = () => {
       setCertificateData(null);
       setResult(null);
       setProgress(0);
+      setCheckStatusLabel('Chuqur antiplagiat tekshiruvi tayyorlanmoqda...');
       if (!forcedArticleId) {
           setPaymentVerifiedCompleted(false);
       }
@@ -615,22 +659,31 @@ const PlagiarismCheck: React.FC = () => {
       try {
           const targetArticleId = forcedArticleId || (await ensureArticleForPlagiarism());
 
-          // Backend will verify payment; if not paid, returns 402
           const plagiarismResult = await apiService.articles.checkPlagiarism(targetArticleId, {
-        enabledModules: form.enabledModuleIds,
-      });
-          
-          // Update UI with the results
-          const plagiarismPercentage = plagiarismResult.plagiarism || 0;
-          const aiContentPercentage = plagiarismResult.ai_content || 0;
-          applyPlagiarismResults(
-            plagiarismPercentage,
-            aiContentPercentage,
-            mapSourcesFromApi(plagiarismResult.sources),
-            plagiarismResult.report,
-            plagiarismResult.originality,
-          );
-          toast.success('Antiplagiat tekshiruvi muvaffaqiyatli yakunlandi!');
+            enabledModules: form.enabledModuleIds,
+            force: true,
+          });
+
+          if (plagiarismResult?.status === 'completed' && plagiarismResult.cached) {
+            applyPlagiarismResults(
+              plagiarismResult.plagiarism || 0,
+              plagiarismResult.ai_content || 0,
+              mapSourcesFromApi(plagiarismResult.sources),
+              plagiarismResult.report,
+              plagiarismResult.originality,
+            );
+            toast.success('Antiplagiat natijasi yuklandi.');
+            goToResultView(targetArticleId);
+            return;
+          }
+
+          setCheckStatusLabel('75+ modul bo\'yicha skanerlash boshlandi (10–15 daqiqa)...');
+          const ready = await pollUntilPlagiarismReady(targetArticleId);
+          if (!ready) {
+            throw new Error('Tekshiruv vaqti tugadi. Keyinroq natijani «Arxiv hujjatlar»dan ko\'ring.');
+          }
+          await fetchPlagiarismResults(targetArticleId);
+          toast.success('Antiplagiat tekshiruvi muvaffaqiyatli amalga oshirildi!');
           goToResultView(targetArticleId);
       } catch (err: any) {
           const msg = getUserFriendlyError(err) || 'Antiplagiat tekshiruvida xatolik yuz berdi.';
@@ -670,11 +723,25 @@ const PlagiarismCheck: React.FC = () => {
           )}
 
           {isChecking && (
-              <div className="mx-auto mt-8 max-w-lg">
-                  <p className="mb-2 text-center font-medium text-slate-700">Antiplagiat tahlili — hujjat to&apos;liq tekshirilmoqda...</p>
+              <div className="mx-auto mt-8 max-w-lg rounded-lg border border-[var(--editorial-border,#e2ddd4)] bg-[var(--editorial-bg-alt,#f5f0e8)] p-4">
+                  <p className="mb-1 text-center font-serif font-semibold text-[var(--editorial-text,#1a1a1a)]">
+                    Chuqur antiplagiat tekshiruvi
+                  </p>
+                  <p className="mb-3 text-center text-xs text-[var(--editorial-muted,#64748b)]">
+                    antiplagiat.uz uslubida — har bir modul alohida skanerlanadi (10–15 daqiqa)
+                  </p>
+                  {checkStatusLabel && (
+                    <p className="mb-2 text-center text-sm text-[var(--editorial-primary,#8b1538)]">
+                      {checkStatusLabel}
+                    </p>
+                  )}
                   <div className="h-2.5 w-full rounded-full bg-slate-200">
-                      <div className="h-2.5 rounded-full bg-blue-600 transition-[width] duration-300 ease-in-out" style={{ width: `${progress}%` }} />
+                      <div
+                        className="h-2.5 rounded-full bg-[var(--editorial-primary,#8b1538)] transition-[width] duration-500 ease-in-out"
+                        style={{ width: `${progress}%` }}
+                      />
                   </div>
+                  <p className="mt-2 text-center text-xs text-slate-500">{Math.round(progress)}%</p>
               </div>
           )}
 

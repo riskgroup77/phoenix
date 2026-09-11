@@ -236,7 +236,7 @@ const ClickPayment: React.FC = () => {
         if (!isPaymentCompleted || transaction?.service_type !== 'language_editing') return;
         if (plagiarismRedirectScheduled.current) return;
         plagiarismRedirectScheduled.current = true;
-        const timer = window.setTimeout(() => navigate('/plagiarism-check?payment_return=1&transaction_id=' + encodeURIComponent(transactionId || '')), 1500);
+        const timer = window.setTimeout(() => navigate('/plagiarism-check?payment_return=1&transaction_id=' + encodeURIComponent(transactionId || '')), 1500); // to'lovdan keyin upload sahifasida avtomatik tekshiruv
         return () => window.clearTimeout(timer);
     }, [isPaymentCompleted, transaction?.service_type, navigate, transactionId]);
 

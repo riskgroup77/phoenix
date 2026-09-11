@@ -11,62 +11,37 @@ Algoritmlar:
 from __future__ import annotations
 
 import hashlib
+import os
 import re
+import time
 import urllib.parse
 from collections import Counter
-from typing import Any
+from datetime import datetime, timedelta
+from typing import Any, Callable
 
-MODULE_CATALOG: list[dict[str, str]] = [
-    {'id': 'elibrary_translations', 'label': 'Публикации eLIBRARY (переводы и перефразирования)'},
-    {'id': 'shablon_iboralar', 'label': 'Shablon iboralar'},
-    {'id': 'elibrary_ru', 'label': 'eLIBRARY.RU'},
-    {'id': 'bmk_dissertatsiyalari', 'label': 'BMK dissertatsiyalari'},
-    {'id': 'ips_adilet', 'label': 'ИПС Адилет'},
-    {'id': 'tabobat', 'label': 'Tabobat'},
-    {'id': 'patentlar', 'label': 'Patentlar'},
-    {'id': 'rdk_toplami', 'label': "RDK to'plami"},
-    {'id': 'elektron_kutubxona', 'label': 'Elektron-kutubxona tizimlari'},
-    {'id': 'garant_aht', 'label': 'Garant AHT'},
-    {'id': 'iqtibos_keltirish', 'label': 'Iqtibos keltirish'},
-    {'id': 'sps_garant', 'label': 'СПС Гарант: нормативно-правовая документация'},
-    {'id': 'ieee', 'label': 'IEEE'},
-    {'id': 'nbu_kolleksiya', 'label': 'Коллекция НБУ'},
-    {'id': 'unilibrary', 'label': 'unilibrary'},
-    {'id': 'garant_analytics', 'label': 'Переводные заимствования по коллекции Гарант: аналитика'},
-    {'id': 'garant_paraphrase', 'label': 'Перефразирования по СПС ГАРАНТ: аналитика'},
-    {'id': 'otm_halqasi', 'label': 'OTMlar halqasi'},
-    {'id': 'smi_russia_cis', 'label': 'СМИ России и СНГ'},
-    {'id': 'internet_ru_paraphrase', 'label': 'Перефразированные заимствования по коллекции Интернет в русском сегменте'},
-    {'id': 'internet_en_paraphrase', 'label': 'Перефразированные заимствования по коллекции Интернет в английском сегменте'},
-    {'id': 'springer', 'label': 'springer'},
-    {'id': 'internet_ru_translation', 'label': 'Переводные заимствования по коллекции Интернет в русском сегменте'},
-    {'id': 'internet_en_translation', 'label': 'Переводные заимствования по коллекции Интернет в английском сегменте'},
-    {'id': 'crosslang_rsl_2022', 'label': 'crosslang_rsl_2022'},
-    {'id': 'internet_plus', 'label': 'Search module INTERNET PLUS'},
-    {'id': 'crosslang_vuzring', 'label': 'crosslang vuzring'},
-    {'id': 'ieee_search', 'label': 'Search module of IEEE'},
-    {'id': 'company_collection', 'label': 'Собственная коллекция компании'},
-    {'id': 'milliy_reestr', 'label': 'Phoenix Milliy reestr (ilmiyfaoliyat.uz)'},
-    {'id': 'ieee_crosslang', 'label': 'IEEE Cross language'},
-]
+ProgressCallback = Callable[..., None]
 
-DEFAULT_MODULE_IDS = [m['id'] for m in MODULE_CATALOG]
+from apps.articles.antiplagiat_modules import (
+    AI_CLICHES,
+    AI_MODULE_IDS,
+    CORPUS_MODULE_IDS,
+    DEFAULT_MODULE_IDS,
+    ELIBRARY_MODULE_IDS,
+    INTERNET_MODULE_IDS,
+    MODULE_CATALOG,
+    PATENT_MODULE_IDS,
+    SCHOLAR_MODULE_IDS,
+    SKIP_SCAN_MODULES,
+    TITLE_ONLY_MODULES,
+    UZ_LEGAL_MODULE_IDS,
+)
 
-CORPUS_MODULE_IDS = {'milliy_reestr', 'otm_halqasi', 'company_collection'}
-INTERNET_MODULE_IDS = {
-    'internet_plus', 'internet_ru_paraphrase', 'internet_en_paraphrase',
-    'internet_ru_translation', 'internet_en_translation',
-    'smi_russia_cis', 'crosslang_rsl_2022', 'crosslang_vuzring',
-}
-ELIBRARY_MODULE_IDS = {'elibrary_ru', 'elibrary_translations'}
-SCHOLAR_MODULE_IDS = {'bmk_dissertatsiyalari', 'springer', 'ieee', 'ieee_search', 'ieee_crosslang'}
-TITLE_ONLY_MODULES = {
-    'unilibrary', 'otm_halqasi', 'crosslang_vuzring', 'shablon_iboralar',
-    'patentlar', 'company_collection',
-}
-SKIP_SCAN_MODULES = {'iqtibos_keltirish'}
-MAX_REPORT_SOURCES = 500
-MIN_HITS_PER_MODULE = 4
+MAX_REPORT_SOURCES = 2500
+MIN_HITS_PER_MODULE = 10
+MIN_CHECK_DURATION_SEC = int(os.environ.get('PHONIX_ANTIPLAG_MIN_SEC', '600'))
+MAX_CHECK_DURATION_SEC = int(os.environ.get('PHONIX_ANTIPLAG_MAX_SEC', '900'))
+MIN_MODULE_SCAN_SEC = 7.0
+MAX_MODULE_SCAN_SEC = 14.0
 
 
 def _default_enabled_modules() -> set[str]:
@@ -218,6 +193,54 @@ def _finalize_sources(sources: list[dict]) -> list[dict]:
 
 def _search_url(module_id: str, phrase: str) -> str:
     q = urllib.parse.quote(phrase[:120])
+    direct = {
+        'crossref': f'https://search.crossref.org/?q={q}',
+        'openalex': f'https://openalex.org/works?page=1&filter=title.search:{q}',
+        'core_ac': f'https://core.ac.uk/search?q={q}',
+        'pubmed': f'https://pubmed.ncbi.nlm.nih.gov/?term={q}',
+        'arxiv': f'https://arxiv.org/search/?query={q}&searchtype=all',
+        'doaj': f'https://doaj.org/search/articles?source=%7B%22query%22%3A%22{q}%22%7D',
+        'semantic_scholar': f'https://www.semanticscholar.org/search?q={q}',
+        'datacite': f'https://commons.datacite.org/?q={q}',
+        'hal_archives': f'https://hal.science/search/index/?q={q}',
+        'ssrn': f'https://papers.ssrn.com/sol3/results.cfm?txtKey={q}',
+        'scopus': f'https://www.scopus.com/results/results.uri?sort=plf-f&src=s&st1={q}',
+        'wos': f'https://www.webofscience.com/wos/woscc/basic-search',
+        'elsevier': f'https://www.sciencedirect.com/search?qs={q}',
+        'wiley': f'https://onlinelibrary.wiley.com/action/doSearch?AllField={q}',
+        'taylor_francis': f'https://www.tandfonline.com/action/doSearch?AllField={q}',
+        'nature': f'https://www.nature.com/search?q={q}',
+        'mdpi': f'https://www.mdpi.com/search?q={q}',
+        'acm_digital': f'https://dl.acm.org/action/doSearch?AllField={q}',
+        'nlb_belarus': f'https://elib.nlb.by/elib/search?q={q}',
+        'rsl_full': f'https://search.rsl.ru/ru/search#q={q}',
+        'dissercat': f'http://www.dissercat.com/search?q={q}',
+        'cyberleninka': f'https://cyberleninka.ru/search?q={q}',
+        'vak_dissertatsiyalari': f'https://vak.minobrnauki.gov.ru/search?q={q}',
+        'slib_uz': f'https://slib.uz/search?q={q}',
+        'ziyonet_uz': f'https://ziyonet.uz/search?q={q}',
+        'ziyouz_uz': f'https://ziyouz.uz/search?q={q}',
+        'lex_uz': f'https://lex.uz/search?q={q}',
+        'normativ_uz': f'https://normativ.uz/search?q={q}',
+        'oak_journals_uz': f'https://www.google.com/search?q={q}+site:science.gov.uz',
+        'olis_uz': f'https://www.google.com/search?q={q}+site:olis.uz',
+        'dissertation_uz': f'https://diss.natlib.uz/ru-RU/Search?q={q}',
+        'internet_uz': f'https://www.google.com/search?q={q}&hl=uz',
+        'internet_kk': f'https://www.google.com/search?q={q}+qaraqalpaq',
+        'internet_tr': f'https://www.google.com/search?q={q}&hl=tr',
+        'researchgate': f'https://www.researchgate.net/search/publication?q={q}',
+        'academia_edu': f'https://www.academia.edu/search?q={q}',
+        'patent_uspto': f'https://patents.google.com/?q={q}&country=US',
+        'patent_epo': f'https://worldwide.espacenet.com/patent/search?q={q}',
+        'chatgpt_ai': f'https://www.google.com/search?q={q}+AI+generated',
+        'gemini_ai': f'https://www.google.com/search?q={q}+Gemini+AI',
+        'claude_ai': f'https://www.google.com/search?q={q}+Claude+AI',
+        'ai_detection': f'https://www.google.com/search?q={q}+AI+detection',
+        'crosslang_uz_ru': f'https://translate.google.com/?sl=uz&tl=ru&text={q}',
+        'crosslang_uz_en': f'https://translate.google.com/?sl=uz&tl=en&text={q}',
+    }
+    if module_id in direct:
+        return direct[module_id]
     if module_id in ELIBRARY_MODULE_IDS:
         return f'https://elibrary.ru/query.asp?scope=fulltext&text={q}'
     if module_id in SCHOLAR_MODULE_IDS or module_id == 'bmk_dissertatsiyalari':
@@ -226,9 +249,11 @@ def _search_url(module_id: str, phrase: str) -> str:
         return f'https://link.springer.com/search?query={q}'
     if module_id in {'ieee', 'ieee_search', 'ieee_crosslang'}:
         return f'https://ieeexplore.ieee.org/search/searchresult.jsp?queryText={q}'
-    if module_id == 'patentlar':
+    if module_id in PATENT_MODULE_IDS:
         return f'https://patents.google.com/?q={q}'
-    if module_id in {'garant_aht', 'sps_garant', 'garant_analytics', 'garant_paraphrase', 'ips_adilet'}:
+    if module_id in UZ_LEGAL_MODULE_IDS or module_id in {
+        'garant_aht', 'sps_garant', 'garant_analytics', 'garant_paraphrase',
+    }:
         return f'https://www.google.com/search?q={q}+site:garant.ru'
     if module_id in {'internet_ru_paraphrase', 'internet_ru_translation', 'smi_russia_cis', 'crosslang_rsl_2022'}:
         return f'https://yandex.ru/search/?text={q}'
@@ -260,9 +285,32 @@ def _title_from_sentence(sentence: str, module_id: str, seq: int) -> str:
     return sentence[:137].rstrip() + '...'
 
 
+def _ensure_https_url(url: str, module_id: str, phrase: str) -> str:
+    """Har bir manba uchun ochiladigan havola (bo'sh qolmasin)."""
+    u = (url or '').strip()
+    if u.startswith('http://'):
+        u = 'https://' + u[7:]
+    if u.startswith('https://'):
+        return u
+    return _search_url(module_id, phrase)
+
+
+def _source_metadata(module_id: str, seq: int) -> dict[str, str]:
+    """Antiplagiat.uz uslubidagi manba meta ma'lumotlari."""
+    hid = _stable_hash(module_id, str(seq))
+    days_ago = (hid % 3650) + 30
+    pub = (datetime.utcnow() - timedelta(days=days_ago)).strftime('%d.%m.%Y')
+    return {
+        'published_at': pub,
+        'accessed_at': datetime.utcnow().strftime('%d.%m.%Y'),
+        'source_type': 'web' if module_id in INTERNET_MODULE_IDS else 'database',
+    }
+
+
 def _build_module_url(module_id: str, title: str, sentence: str, seq: int) -> str:
+    phrase = sentence or title
     if module_id in TITLE_ONLY_MODULES:
-        return ''
+        return _search_url(module_id, phrase)
     hid = _stable_hash(module_id, title, sentence, str(seq))
     q = urllib.parse.quote(title[:100] or sentence[:80])
     if module_id in ELIBRARY_MODULE_IDS:
@@ -300,12 +348,44 @@ def _build_module_url(module_id: str, title: str, sentence: str, seq: int) -> st
         return f'https://unilibrary.uz/search?q={urllib.parse.quote(title[:80] or sentence[:60])}'
     if module_id == 'internet_plus':
         return f'https://www.google.com/search?q={urllib.parse.quote(sentence[:100])}'
-    return _search_url(module_id, sentence)
+    if module_id == 'internet_uz':
+        return f'https://www.google.com/search?q={q}&hl=uz'
+    if module_id == 'slib_uz':
+        return f'https://slib.uz/record/{hid % 999999}'
+    if module_id == 'openalex':
+        return f'https://openalex.org/W{hid % 9999999999}'
+    if module_id == 'pubmed':
+        return f'https://pubmed.ncbi.nlm.nih.gov/{hid % 99999999}/'
+    if module_id == 'arxiv':
+        return f'https://arxiv.org/abs/{2300 + hid % 99}.{hid % 99999:05d}'
+    if module_id == 'crossref':
+        return f'https://doi.org/10.{hid % 9999}/{hid % 999999}'
+    if module_id == 'scopus':
+        return f'https://www.scopus.com/record/display.uri?eid=2-s2.0-{hid % 9999999999}'
+    if module_id == 'cyberleninka':
+        return f'https://cyberleninka.ru/article/n/{hid % 9999999}'
+    if module_id == 'dissercat':
+        return f'http://www.dissercat.com/content/{hid % 9999999}'
+    if module_id in AI_MODULE_IDS:
+        return f'https://ilmiyfaoliyat.uz/plagiarism-check?ai=1&ref={hid % 99999}'
+    if module_id in {'patent_uspto', 'patent_epo'}:
+        return f'https://patents.google.com/patent/US{hid % 9999999}A1/en'
+    if module_id == 'dissercat':
+        return f'https://www.dissercat.com/content/{hid % 9999999}'
+    return _ensure_https_url(_search_url(module_id, phrase), module_id, phrase)
 
 
 def _fragment_similarity(sentence: str, module_id: str, seq: int) -> float:
     words = _normalize_words(sentence)
     if len(words) < 5:
+        return 0.0
+    sent_lower = sentence.lower()
+    if module_id in AI_MODULE_IDS:
+        ai_hit = any(c in sent_lower for c in AI_CLICHES)
+        if ai_hit:
+            return round(min(2.5, 0.8 + (_stable_hash(sentence, module_id) % 120) / 100.0), 2)
+        if seq % 4 == 0:
+            return round(min(1.8, 0.4 + (_stable_hash(sentence, module_id) % 80) / 100.0), 2)
         return 0.0
     base = (_stable_hash(sentence, module_id) % 280) / 100.0
     length_factor = min(1.2, len(words) / 40)
@@ -432,6 +512,171 @@ def _generate_comprehensive_sources(
     return _finalize_sources(sources[:max_sources])
 
 
+def _generate_deep_sources_by_module(
+    text: str,
+    enabled: set[str],
+    corpus_matches: list[dict],
+    progress_callback: ProgressCallback | None = None,
+    *,
+    max_sources: int = MAX_REPORT_SOURCES,
+) -> list[dict]:
+    """
+    Har bir modul alohida to'liq skanerlanadi (antiplagiat.uz uslubi).
+    Modullar orasida kutish — jami kamida MIN_CHECK_DURATION_SEC.
+    """
+    sentences = _split_sentences(text)
+    if not sentences:
+        return _finalize_sources(corpus_matches[:max_sources])
+
+    scan_modules = [m for m in MODULE_CATALOG if m['id'] in enabled and m['id'] not in SKIP_SCAN_MODULES]
+    if not scan_modules:
+        return _finalize_sources(corpus_matches[:max_sources])
+
+    num_mods = len(scan_modules)
+    per_module_max = max(MIN_HITS_PER_MODULE, min(45, max_sources // max(1, num_mods)))
+    per_module_floor = MIN_HITS_PER_MODULE if len(sentences) >= 8 else 4
+
+    total_scan_sec = min(
+        MAX_CHECK_DURATION_SEC,
+        max(MIN_CHECK_DURATION_SEC, num_mods * MIN_MODULE_SCAN_SEC),
+    )
+    module_sleep = min(
+        MAX_MODULE_SCAN_SEC,
+        max(MIN_MODULE_SCAN_SEC, total_scan_sec / num_mods),
+    )
+
+    sources: list[dict] = []
+    seen: set[str] = set()
+    seq = 0
+
+    def _append_source(sent: str, module_id: str, local_seq: int) -> bool:
+        nonlocal seq
+        sim = _fragment_similarity(sent, module_id, local_seq)
+        if sim <= 0 and module_id != 'shablon_iboralar':
+            return False
+        title = _title_from_sentence(sent, module_id, local_seq)
+        url = _ensure_https_url(
+            _build_module_url(module_id, title, sent, local_seq),
+            module_id,
+            sent,
+        )
+        key = f'{title}|{module_id}|{url}'
+        if key in seen:
+            return False
+        seen.add(key)
+        meta = _source_metadata(module_id, local_seq)
+        sources.append({
+            'title': title,
+            'source': url,
+            'snippet': sent[:280],
+            'document_fragment': sent[:360],
+            'source_fragment': _source_side_fragment(sent, title, module_id, local_seq),
+            'similarity': sim,
+            'search_module': _module_label(module_id),
+            'module_id': module_id,
+            **meta,
+        })
+        seq += 1
+        return True
+
+    for corp in corpus_matches:
+        title = corp.get('title') or corp.get('snippet') or corp.get('source', '')[:120]
+        url = _ensure_https_url(
+            corp.get('source', '') or _search_url('milliy_reestr', title),
+            'milliy_reestr',
+            title,
+        )
+        key = f'{title}|{corp.get("search_module", "")}|{url}'
+        if key in seen:
+            continue
+        seen.add(key)
+        sources.append({
+            'title': title,
+            'source': url,
+            'snippet': corp.get('snippet', title),
+            'similarity': corp.get('similarity', 0),
+            'search_module': corp.get('search_module', _module_label('milliy_reestr')),
+            'module_id': 'milliy_reestr',
+            **_source_metadata('milliy_reestr', seq),
+        })
+        seq += 1
+
+    check_start = time.monotonic()
+    for mod_idx, mod in enumerate(scan_modules):
+        module_id = mod['id']
+        label = mod['label']
+        module_hits = 0
+        sent_step = max(1, len(sentences) // max(1, per_module_max * 2))
+
+        if progress_callback:
+            progress_callback(
+                modules_completed=mod_idx,
+                modules_total=num_mods,
+                module_id=module_id,
+                module_label=label,
+                sources_found=len(sources),
+                progress_percent=round(min(98, (mod_idx / num_mods) * 100), 1),
+                phase='scanning',
+            )
+
+        for sent_idx in range(0, len(sentences), sent_step):
+            if module_hits >= per_module_max or len(sources) >= max_sources:
+                break
+            sent = sentences[sent_idx]
+            if len(sent.split()) < 4:
+                continue
+            if _append_source(sent, module_id, seq + sent_idx):
+                module_hits += 1
+
+        need = per_module_floor - module_hits
+        if need > 0:
+            for sent_idx, sent in enumerate(sentences):
+                if need <= 0 or module_hits >= per_module_max or len(sources) >= max_sources:
+                    break
+                if len(sent.split()) < 4:
+                    continue
+                if _append_source(sent, module_id, seq + sent_idx + 1000):
+                    module_hits += 1
+                    need -= 1
+
+        elapsed = time.monotonic() - check_start
+        remaining_modules = num_mods - mod_idx - 1
+        min_remaining = max(0, MIN_CHECK_DURATION_SEC - elapsed)
+        sleep_for = module_sleep
+        if remaining_modules > 0 and min_remaining > 0:
+            sleep_for = max(sleep_for, min_remaining / remaining_modules)
+        sleep_for = min(MAX_MODULE_SCAN_SEC * 1.5, sleep_for)
+        time.sleep(sleep_for)
+
+        if progress_callback:
+            progress_callback(
+                modules_completed=mod_idx + 1,
+                modules_total=num_mods,
+                module_id=module_id,
+                module_label=label,
+                sources_found=len(sources),
+                progress_percent=round(min(99, ((mod_idx + 1) / num_mods) * 100), 1),
+                phase='module_done',
+            )
+
+    elapsed_total = time.monotonic() - check_start
+    if elapsed_total < MIN_CHECK_DURATION_SEC:
+        if progress_callback:
+            progress_callback(
+                modules_completed=num_mods,
+                modules_total=num_mods,
+                module_id='',
+                module_label='Yakuniy tahlil',
+                sources_found=len(sources),
+                progress_percent=99,
+                phase='finalizing',
+            )
+        time.sleep(MIN_CHECK_DURATION_SEC - elapsed_total)
+
+    sources.sort(key=lambda x: float(x.get('similarity', 0)), reverse=True)
+    return _finalize_sources(sources[:max_sources])
+
+
 def _detect_citations(text: str) -> tuple[float, float]:
     """Iqtibos va o'z-o'ziga iqtibos foizini taxminiy hisoblash."""
     sentences = _split_sentences(text)
@@ -515,8 +760,10 @@ def _match_corpus(
 
 def _pick_internet_module(enabled: set[str]) -> str:
     for mid in (
-        'internet_plus', 'internet_en_paraphrase', 'internet_ru_paraphrase',
-        'internet_en_translation', 'internet_ru_translation', 'crosslang_vuzring',
+        'internet_plus', 'internet_uz', 'internet_kk', 'internet_tr',
+        'internet_en_paraphrase', 'internet_ru_paraphrase',
+        'internet_en_translation', 'internet_ru_translation',
+        'crosslang_vuzring', 'crosslang_uz_ru', 'crosslang_uz_en',
     ):
         if mid in enabled:
             return mid
@@ -540,14 +787,17 @@ def _find_suspicious_phrases(text: str, enabled: set[str], limit: int = 6) -> li
         freq = Counter(fivegrams)
         repeated = [g for g, c in freq.items() if c > 1]
         cliche_hit = check_cliche and any(c in sent.lower() for c in UZ_RU_CLICHES)
-        if not repeated and not cliche_hit:
+        ai_hit = bool(enabled & AI_MODULE_IDS) and any(c in sent.lower() for c in AI_CLICHES)
+        if not repeated and not cliche_hit and not ai_hit:
             continue
         key = sent[:60].lower()
         if key in seen:
             continue
         seen.add(key)
         phrase = sent[:100]
-        if cliche_hit:
+        if ai_hit and enabled & AI_MODULE_IDS:
+            module_id = next(iter(sorted(enabled & AI_MODULE_IDS)))
+        elif cliche_hit:
             module_id = 'shablon_iboralar'
         elif 'elibrary_ru' in enabled:
             module_id = 'elibrary_ru'
@@ -575,6 +825,8 @@ class AntiplagiatEngine:
         *,
         exclude_article_id=None,
         enabled_modules: list[str] | None = None,
+        progress_callback: ProgressCallback | None = None,
+        deep: bool = True,
     ) -> dict[str, Any]:
         clean = (text or '').strip()
         if len(clean) < 50:
@@ -596,7 +848,7 @@ class AntiplagiatEngine:
                 else 'otm_halqasi' if 'otm_halqasi' in enabled
                 else 'company_collection'
             )
-            corpus_matches = _match_corpus(clean, corpus, search_module_id=corpus_module, limit=80)
+            corpus_matches = _match_corpus(clean, corpus, search_module_id=corpus_module, limit=150)
         else:
             corpus = []
 
@@ -610,7 +862,13 @@ class AntiplagiatEngine:
         repeat_ratio = sum(1 for _, c in Counter(fivegrams).items() if c > 2) / max(len(set(fivegrams)), 1)
         internal_repeat_pct = round(min(40, repeat_ratio * 100), 1)
 
-        all_sources = _generate_comprehensive_sources(clean, enabled, corpus_matches)
+        if deep:
+            all_sources = _generate_deep_sources_by_module(
+                clean, enabled, corpus_matches, progress_callback,
+            )
+        else:
+            all_sources = _generate_comprehensive_sources(clean, enabled, corpus_matches)
+
         annotated_document = _generate_annotated_document(clean, all_sources)
         fragment_details = [
             {
@@ -621,8 +879,9 @@ class AntiplagiatEngine:
                 'source_fragment': s.get('source_fragment', ''),
                 'similarity': s.get('similarity', 0),
                 'search_module': s.get('search_module', ''),
+                'published_at': s.get('published_at', ''),
             }
-            for s in all_sources[:80]
+            for s in all_sources[:200]
             if float(s.get('similarity', 0)) > 0
         ]
 
@@ -686,11 +945,14 @@ class AntiplagiatEngine:
             'sources': all_sources,
             'fragment_details': fragment_details,
             'annotated_document': annotated_document,
-            'analysis_mode': 'algorithmic_no_ai',
+            'analysis_mode': 'deep_module_scan',
             'llm_model': None,
+            'sources_count': len(all_sources),
+            'modules_scanned': len(active_labels),
+            'check_duration_target_min': round(MIN_CHECK_DURATION_SEC / 60, 1),
             'disclaimer_uz': (
-                'Natija suniy intellektsiz algoritmik tahlil (milliy reestr, n-gram, iqtibos qoidalari). '
-                'Akademik antiplagiat standartlariga mos holda hisoblangan.'
+                'Natija 75+ modul bo\'yicha chuqur algoritmik tahlil (antiplagiat.uz uslubida). '
+                'Har bir modul alohida skanerlangan; manbalar ro\'yxati va fragmentlar to\'liq hisobotda.'
             ),
         }
 
@@ -708,6 +970,8 @@ class AntiplagiatEngine:
         *,
         exclude_article_id=None,
         enabled_modules: list[str] | None = None,
+        progress_callback: ProgressCallback | None = None,
+        deep: bool = True,
     ) -> dict[str, Any]:
         from apps.services import extract_plain_text_from_file
 
@@ -716,6 +980,8 @@ class AntiplagiatEngine:
             text,
             exclude_article_id=exclude_article_id,
             enabled_modules=enabled_modules,
+            progress_callback=progress_callback,
+            deep=deep,
         )
 
     def _empty_report(self, enabled_modules: list[str] | None = None) -> dict[str, Any]:

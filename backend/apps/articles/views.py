@@ -732,27 +732,87 @@ class ArticleViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            from apps.articles.plagiarism_check_service import run_plagiarism_check
+            import threading
+
+            from apps.articles.plagiarism_check_service import (
+                get_plagiarism_check_status,
+                mark_plagiarism_processing,
+                run_plagiarism_check,
+            )
 
             force = str(request.data.get('force', '')).lower() in ('1', 'true', 'yes')
             enabled_modules = request.data.get('enabled_modules')
             if enabled_modules is not None and not isinstance(enabled_modules, list):
                 enabled_modules = None
-            payload = run_plagiarism_check(
-                article,
-                request.user,
-                force=force,
-                enabled_modules=enabled_modules,
+
+            status_now = get_plagiarism_check_status(article)
+            if status_now.get('status') == 'processing' and not force:
+                return Response(
+                    {
+                        'status': 'processing',
+                        'message': 'Antiplagiat tekshiruvi davom etmoqda. Iltimos, kuting.',
+                        **status_now,
+                    },
+                    status=status.HTTP_202_ACCEPTED,
+                )
+
+            if (
+                not force
+                and article.plagiarism_checked_at
+                and article.plagiarism_percentage is not None
+                and status_now.get('status') != 'failed'
+            ):
+                report = article.plagiarism_report or {}
+                return Response({
+                    'status': 'completed',
+                    'plagiarism': float(article.plagiarism_percentage or 0),
+                    'ai_content': float(article.ai_content_percentage or 0),
+                    'originality': float(article.originality_percentage or 0),
+                    'checked_at': article.plagiarism_checked_at,
+                    'report': report,
+                    'sources': report.get('sources', []) if isinstance(report, dict) else [],
+                    'cached': True,
+                })
+
+            article_pk = str(article.id)
+            user_pk = str(request.user.id)
+            mark_plagiarism_processing(article, enabled_modules)
+
+            def _run_bg():
+                from django.contrib.auth import get_user_model
+
+                from apps.articles.models import Article
+
+                User = get_user_model()
+                try:
+                    art = Article.objects.get(pk=article_pk)
+                    usr = User.objects.get(pk=user_pk)
+                    run_plagiarism_check(
+                        art,
+                        usr,
+                        force=True,
+                        enabled_modules=enabled_modules,
+                    )
+                except Exception as bg_err:
+                    logger.error('[CHECK_PLAGE] background check failed: %s', bg_err, exc_info=True)
+
+            threading.Thread(
+                target=_run_bg,
+                daemon=True,
+                name=f'plagiarism-api-{article_pk[:8]}',
+            ).start()
+
+            return Response(
+                {
+                    'status': 'processing',
+                    'message': (
+                        'Chuqur antiplagiat tekshiruvi boshlandi. '
+                        '75+ modul bo\'yicha skanerlash 10–15 daqiqa davom etishi mumkin.'
+                    ),
+                    **get_plagiarism_check_status(article),
+                },
+                status=status.HTTP_202_ACCEPTED,
             )
-            return Response({
-                'plagiarism': payload['plagiarism'],
-                'ai_content': payload['ai_content'],
-                'originality': payload['originality'],
-                'checked_at': payload['checked_at'],
-                'report': payload['report'],
-                'sources': payload.get('sources', []),
-                'cached': payload.get('cached', False),
-            })
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except RuntimeError as e:

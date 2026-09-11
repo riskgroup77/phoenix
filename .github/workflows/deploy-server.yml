@@ -1,14 +1,13 @@
-# Secrets (Settings → Actions):
+# Secrets (GitHub → Settings → Secrets and variables → Actions):
 #   PHONIX_SSH_HOST, PHONIX_SSH_USER
 #   va PHONIX_SSH_PRIVATE_KEY yoki PHONIX_SSH_PASSWORD
-# ESKI JOY — GitHub faqat repodagi .github/workflows/ ni o'qiydi.
-# Asosiy workflow: /.github/workflows/deploy-server.yml
+# Push to main yoki Actions → Run workflow
 
-name: Deploy to server (deprecated path)
+name: Deploy to server
 
 on:
   push:
-    branches: [never-run]
+    branches: [main, master]
   workflow_dispatch:
 
 concurrency:
@@ -32,7 +31,7 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
-            URL="https://raw.githubusercontent.com/aiziyrak-coder/phonixB/master/deploy_phonix.sh"
+            URL="https://raw.githubusercontent.com/riskgroup77/phoenix/main/deploy_phonix.sh"
             if command -v curl >/dev/null 2>&1; then
               curl -fsSL -o /tmp/phonix_deploy.sh "$URL"
             else
