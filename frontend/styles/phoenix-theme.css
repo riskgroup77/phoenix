@@ -1,14 +1,35 @@
 /**
- * Phoenix — yorqin gradientlar, to‘q yozuv, silliq animatsiyalar (platforma qobig‘i).
+ * Phoenix — Editorial Journal dizayn tizimi (O'zbekiston Ilmiy Nashriyoti uslubi).
  */
 
 #root {
-  --phoenix-ink: #0a0f1a;
-  --phoenix-ink-soft: #1e293b;
+  --editorial-bg: #fdfbf7;
+  --editorial-bg-alt: #f5f0e8;
+  --editorial-primary: #8b1538;
+  --editorial-primary-dark: #6b1029;
+  --editorial-teal: #0a7a8c;
+  --editorial-text: #1a1a1a;
+  --editorial-body: #334155;
+  --editorial-muted: #64748b;
+  --editorial-border: #e2ddd4;
+  --phoenix-ink: #1a1a1a;
+  --phoenix-ink-soft: #2d2d2d;
   --phoenix-body: #334155;
   --phoenix-muted: #64748b;
-  --phoenix-accent: #4f46e5;
-  --phoenix-accent-2: #0891b2;
+  --phoenix-accent: #8b1538;
+  --phoenix-accent-2: #0a7a8c;
+}
+
+html.dark #root {
+  --editorial-bg: #1a1816;
+  --editorial-bg-alt: #252220;
+  --editorial-primary: #c45a6a;
+  --editorial-primary-dark: #8b1538;
+  --editorial-teal: #2dd4bf;
+  --editorial-text: #f5f0e8;
+  --editorial-body: #cbd5e1;
+  --editorial-muted: #94a3b8;
+  --editorial-border: #3d3835;
 }
 
 /* Asosiy kontent: o‘qish qulay, to‘q matn */
@@ -23,13 +44,14 @@
 #root main.phoenix-main h1,
 #root main.phoenix-main h2 {
   color: var(--phoenix-ink);
-  font-weight: 800;
-  letter-spacing: -0.025em;
-  line-height: 1.2;
+  font-family: 'Merriweather', Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 
 html.dark #root {
-  --phoenix-ink: #f8fafc;
+  --phoenix-ink: #f5f0e8;
   --phoenix-ink-soft: #e2e8f0;
   --phoenix-body: #cbd5e1;
   --phoenix-muted: #94a3b8;
@@ -130,19 +152,12 @@ html.dark #root main.phoenix-main .divide-slate-200\/50 > :not([hidden]) ~ :not(
 
 /* Gradient sarlavha (brend / kirish) */
 .phoenix-gradient-title {
-  background: linear-gradient(
-    115deg,
-    #0f172a 0%,
-    #1d4ed8 22%,
-    #6366f1 48%,
-    #0d9488 72%,
-    #0f172a 100%
-  );
-  background-size: 220% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: phoenix-title-flow 10s ease-in-out infinite alternate;
+  font-family: 'Merriweather', Georgia, serif;
+  color: var(--editorial-primary);
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  animation: none;
 }
 
 @keyframes phoenix-title-flow {
@@ -154,21 +169,21 @@ html.dark #root main.phoenix-main .divide-slate-200\/50 > :not([hidden]) ~ :not(
   }
 }
 
-/* Kichik gradient chiziq (Card sarlavhalari) */
+/* Kichik accent chiziq (Card sarlavhalari) */
 .phoenix-title-accent {
-  background: linear-gradient(90deg, #4f46e5, #2563eb, #06b6d4);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--editorial-primary);
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
 }
 
 .phoenix-underline-gradient {
-  height: 3px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(79, 70, 229, 0.85), rgba(6, 182, 212, 0.75), rgba(99, 102, 241, 0.5));
+  height: 2px;
+  border-radius: 0;
+  background: var(--editorial-primary);
   margin-top: 0.35rem;
-  max-width: 4rem;
-  animation: phoenix-line-glow 4s ease-in-out infinite alternate;
+  max-width: 3rem;
+  animation: none;
 }
 
 @keyframes phoenix-line-glow {
@@ -199,8 +214,8 @@ html.dark #root main.phoenix-main .divide-slate-200\/50 > :not([hidden]) ~ :not(
 
 /* Tanlangan matn */
 ::selection {
-  background: rgba(99, 102, 241, 0.22);
-  color: #0f172a;
+  background: rgba(139, 21, 56, 0.2);
+  color: #1a1a1a;
 }
 
 /* Toastify light */
@@ -226,13 +241,251 @@ html.dark #root main.phoenix-main .divide-slate-200\/50 > :not([hidden]) ~ :not(
   }
 }
 
-/* Ilmiy Faoliyat — minimal PINM shell */
-.pinm-app-shell {
-  background: #f8fafc;
+/* Ilmiy Faoliyat — Editorial shell */
+.pinm-app-shell,
+.editorial-shell {
+  background: var(--editorial-bg);
 }
 
-html.dark .pinm-app-shell {
-  background: #020617;
+html.dark .pinm-app-shell,
+html.dark .editorial-shell {
+  background: var(--editorial-bg);
+}
+
+.editorial-main {
+  background: var(--editorial-bg);
+}
+
+/* —— Editorial komponentlar —— */
+.editorial-logo-mark {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  background: var(--editorial-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editorial-logo-title {
+  color: var(--editorial-text);
+}
+
+.editorial-logo-sub {
+  color: var(--editorial-muted);
+}
+
+.editorial-logo-link:hover .editorial-logo-title {
+  color: var(--editorial-primary);
+}
+
+.editorial-header {
+  background: var(--editorial-bg);
+}
+
+.editorial-icon-btn {
+  padding: 0.5rem;
+  border-radius: 4px;
+  color: var(--editorial-muted);
+  transition: background 0.15s, color 0.15s;
+}
+
+.editorial-icon-btn:hover {
+  background: var(--editorial-bg-alt);
+  color: var(--editorial-primary);
+}
+
+.editorial-dropdown {
+  background: var(--editorial-bg);
+  border: 1px solid var(--editorial-border);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(26, 26, 26, 0.08);
+}
+
+.editorial-dropdown-item {
+  display: block;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  color: var(--editorial-body);
+  transition: background 0.15s;
+}
+
+.editorial-dropdown-item:hover {
+  background: var(--editorial-bg-alt);
+}
+
+.editorial-link {
+  color: var(--editorial-primary);
+}
+
+.editorial-link:hover {
+  text-decoration: underline;
+}
+
+.editorial-notif-unread {
+  background: rgba(139, 21, 56, 0.06);
+}
+
+.editorial-avatar {
+  background: rgba(139, 21, 56, 0.1);
+  color: var(--editorial-primary);
+  border: 1px solid var(--editorial-border);
+}
+
+.editorial-sidebar-label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--editorial-muted);
+}
+
+.editorial-nav-link {
+  color: var(--editorial-body);
+  border-left: 3px solid transparent;
+  border-radius: 0 4px 4px 0;
+}
+
+.editorial-nav-link:hover {
+  background: var(--editorial-bg-alt);
+  color: var(--editorial-text);
+}
+
+.editorial-nav-link--active {
+  color: var(--editorial-primary) !important;
+  font-weight: 600;
+  background: rgba(139, 21, 56, 0.06);
+  border-left-color: var(--editorial-primary);
+}
+
+.editorial-support-card {
+  border: 1px solid var(--editorial-border);
+  border-radius: 4px;
+  background: var(--editorial-bg-alt);
+}
+
+.editorial-support-icon {
+  border-radius: 4px;
+  background: rgba(139, 21, 56, 0.1);
+  color: var(--editorial-primary);
+}
+
+.editorial-card {
+  border: 1px solid var(--editorial-border);
+  border-radius: 4px;
+  background: var(--editorial-bg);
+  padding: 1.25rem 1.5rem;
+}
+
+.editorial-btn {
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.editorial-btn-primary {
+  background: var(--editorial-primary);
+  color: #fff;
+  border: 1px solid var(--editorial-primary);
+}
+
+.editorial-btn-primary:hover:not(:disabled) {
+  background: var(--editorial-primary-dark);
+  border-color: var(--editorial-primary-dark);
+}
+
+.editorial-btn-primary:focus {
+  box-shadow: 0 0 0 3px rgba(139, 21, 56, 0.25);
+}
+
+.editorial-btn-secondary {
+  background: transparent;
+  color: var(--editorial-primary);
+  border: 1px solid var(--editorial-primary);
+}
+
+.editorial-btn-secondary:hover:not(:disabled) {
+  background: rgba(139, 21, 56, 0.06);
+}
+
+.editorial-btn-danger {
+  background: #b91c1c;
+  color: #fff;
+  border: 1px solid #b91c1c;
+}
+
+.editorial-btn-accent {
+  background: var(--editorial-teal);
+  color: #fff;
+  border: 1px solid var(--editorial-teal);
+}
+
+.editorial-btn-teal {
+  background: var(--editorial-teal);
+  color: #fff;
+  border: 1px solid var(--editorial-teal);
+}
+
+.editorial-auth {
+  background: var(--editorial-bg);
+}
+
+.editorial-footer-link {
+  color: var(--editorial-teal);
+}
+
+.editorial-footer-link:hover {
+  text-decoration: underline;
+}
+
+.editorial-issn-badge {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  background: rgba(10, 122, 140, 0.12);
+  color: var(--editorial-teal);
+}
+
+.editorial-bottom-nav {
+  box-shadow: 0 -1px 0 var(--editorial-border);
+}
+
+/* Sahifa ichidagi accent ranglarni editorialga uyg'unlashtirish */
+#root main.phoenix-main .text-indigo-700,
+#root main.phoenix-main .text-indigo-600,
+#root main.phoenix-main .text-blue-700,
+#root main.phoenix-main .text-blue-600 {
+  color: var(--editorial-primary) !important;
+}
+
+#root main.phoenix-main .text-cyan-600,
+#root main.phoenix-main .text-teal-600 {
+  color: var(--editorial-teal) !important;
+}
+
+#root main.phoenix-main .bg-blue-600,
+#root main.phoenix-main .bg-indigo-600,
+#root main.phoenix-main .bg-indigo-500 {
+  background-color: var(--editorial-primary) !important;
+}
+
+#root main.phoenix-main .hover\:text-indigo-700:hover,
+#root main.phoenix-main .hover\:text-blue-700:hover,
+#root main.phoenix-main .group-hover\:text-indigo-700:is(:where(.group):hover *) {
+  color: var(--editorial-primary-dark) !important;
+}
+
+#root main.phoenix-main .border-indigo-500,
+#root main.phoenix-main .ring-indigo-500 {
+  border-color: var(--editorial-primary) !important;
+  --tw-ring-color: rgba(139, 21, 56, 0.35) !important;
+}
+
+#root main.phoenix-main .bg-indigo-50,
+#root main.phoenix-main .bg-blue-50 {
+  background-color: rgba(139, 21, 56, 0.06) !important;
 }
 
 .pinm-main {
@@ -256,8 +509,8 @@ html.dark .pinm-app-shell {
 }
 
 .pinm-badge--info {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: rgba(139, 21, 56, 0.1);
+  color: var(--editorial-primary);
 }
 
 .pinm-badge--success {
@@ -379,8 +632,8 @@ html.dark #root main.phoenix-main .text-blue-800 {
 .group:hover .journal-a4-cover {
   box-shadow:
     0 8px 16px -2px rgba(15, 23, 42, 0.12),
-    0 20px 40px -8px rgba(79, 70, 229, 0.12),
-    inset 0 0 0 1px rgba(79, 70, 229, 0.1);
+    0 20px 40px -8px rgba(139, 21, 56, 0.1),
+    inset 0 0 0 1px rgba(139, 21, 56, 0.12);
 }
 
 .journal-a4-image {
@@ -406,8 +659,8 @@ html.dark #root main.phoenix-main .text-blue-800 {
   border-radius: 9999px;
   font-size: 10px;
   font-weight: 500;
-  background: rgba(79, 70, 229, 0.1);
-  color: #4338ca;
+  background: rgba(139, 21, 56, 0.1);
+  color: var(--editorial-primary);
 }
 
 .journal-a4-badge-muted {

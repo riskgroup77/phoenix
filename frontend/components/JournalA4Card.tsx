@@ -71,8 +71,8 @@ const JournalA4Card: React.FC<Props> = ({
       onClick={onSelect}
       className={`group w-full text-left rounded-2xl transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
         selected
-          ? 'ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/20'
-          : 'hover:shadow-xl hover:-translate-y-0.5'
+          ? 'ring-2 ring-[var(--editorial-primary)] shadow-lg'
+          : 'hover:shadow-md hover:-translate-y-0.5'
       }`}
     >
       <div className="journal-a4-cover mx-auto w-full max-w-[280px]">
@@ -92,11 +92,11 @@ const JournalA4Card: React.FC<Props> = ({
 
       <div className="journal-a4-meta mt-4 px-1 pb-1">
         <div className="flex items-start justify-between gap-2">
-          <h4 className="font-semibold text-slate-900 text-sm leading-snug line-clamp-2 group-hover:text-indigo-700 transition-colors">
+          <h4 className="font-serif font-semibold text-[var(--editorial-text)] text-sm leading-snug line-clamp-2 group-hover:text-[var(--editorial-primary)] transition-colors">
             {journal.name}
           </h4>
           {selected && (
-            <CheckCircle2 className="w-5 h-5 text-indigo-600 shrink-0" aria-label="Tanlangan" />
+            <CheckCircle2 className="w-5 h-5 text-[var(--editorial-primary)] shrink-0" aria-label="Tanlangan" />
           )}
         </div>
         {journal.description && (
@@ -115,10 +115,10 @@ const JournalA4Card: React.FC<Props> = ({
         </div>
         <div className="mt-3 pt-3 border-t border-slate-200/80 flex items-end justify-between gap-2">
           <div>
-            <p className="text-base font-bold text-indigo-700">{price.main}</p>
+            <p className="text-base font-bold text-[var(--editorial-primary)]">{price.main}</p>
             <p className="text-xs text-slate-500">{price.sub}</p>
           </div>
-          <span className="text-xs font-medium text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="text-xs font-medium text-[var(--editorial-teal)] opacity-0 group-hover:opacity-100 transition-opacity">
             Tanlash →
           </span>
         </div>

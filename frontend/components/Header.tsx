@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
-import { LogOut, Bell, Menu, ChevronDown, BookOpen } from 'lucide-react';
+import { LogOut, Bell, Menu, ChevronDown } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
+import EditorialLogo from './EditorialLogo';
 import { Notification } from '../types';
 import { roleNames } from '../config/navConfig';
 
@@ -43,126 +44,131 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const initials = `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || 'U'}`;
 
   return (
-    <header className="pinm-topbar flex-shrink-0 flex items-center justify-between h-16 px-4 sm:px-6 bg-white dark:bg-slate-900 border-b border-slate-200/90 dark:border-slate-700/60 sticky top-0 z-[60]">
-      <div className="flex items-center gap-3 min-w-0">
-        <button
-          type="button"
-          onClick={onMenuClick}
-          className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
-          aria-label="Menyu"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-        <Link to="/dashboard" className="flex items-center gap-2.5 min-w-0 group">
-          <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shrink-0">
-            <BookOpen className="w-5 h-5" strokeWidth={2.2} />
-          </div>
-          <span className="font-bold text-slate-900 dark:text-white text-base sm:text-lg truncate">
-            Ilmiy Faoliyat
-          </span>
-        </Link>
-      </div>
-
-      <div className="flex items-center gap-1 sm:gap-2">
-        <ThemeToggle />
-
-        <div className="relative" ref={notifRef}>
+    <header className="editorial-header sticky top-0 z-[60] shrink-0">
+      <div className="editorial-header-top flex items-center justify-between gap-3 px-4 sm:px-6 h-16 border-b border-[var(--editorial-border)] bg-[var(--editorial-bg)]">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
-            onClick={() => setIsNotifOpen((p) => !p)}
-            className="relative p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            aria-label="Bildirishnomalar"
+            onClick={onMenuClick}
+            className="lg:hidden editorial-icon-btn"
+            aria-label="Menyu"
           >
-            <Bell className="w-5 h-5" />
-            {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
+            <Menu className="w-5 h-5" />
           </button>
-          {isNotifOpen && (
-            <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50">
-              <div className="p-3 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                <h4 className="font-semibold text-slate-900 dark:text-white text-sm">Bildirishnomalar</h4>
-                {notifications.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => markAllAsRead()}
-                    className="text-xs text-blue-600 hover:text-blue-700"
-                  >
-                    Hammasini o&apos;qilgan
-                  </button>
+          <EditorialLogo />
+        </div>
+
+        <div className="flex items-center gap-1 sm:gap-2">
+          <ThemeToggle />
+
+          <div className="relative" ref={notifRef}>
+            <button
+              type="button"
+              onClick={() => setIsNotifOpen((p) => !p)}
+              className="editorial-icon-btn relative"
+              aria-label="Bildirishnomalar"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[var(--editorial-primary)] text-[10px] font-bold text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+            {isNotifOpen && (
+              <div className="editorial-dropdown absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto z-50">
+                <div className="p-3 border-b border-[var(--editorial-border)] flex justify-between items-center">
+                  <h4 className="font-serif font-semibold text-[var(--editorial-text)] text-sm">
+                    Bildirishnomalar
+                  </h4>
+                  {notifications.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => markAllAsRead()}
+                      className="text-xs editorial-link"
+                    >
+                      Hammasini o&apos;qilgan
+                    </button>
+                  )}
+                </div>
+                {notifications.length > 0 ? (
+                  <ul className="divide-y divide-[var(--editorial-border)]">
+                    {notifications.map((n) => (
+                      <li
+                        key={n.id}
+                        onClick={() => handleNotificationClick(n)}
+                        className={`p-3 text-sm cursor-pointer hover:bg-[var(--editorial-bg-alt)] ${
+                          !n.read ? 'editorial-notif-unread' : ''
+                        }`}
+                      >
+                        <p className="text-[var(--editorial-body)] leading-relaxed">{n.message}</p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="p-5 text-center text-sm text-[var(--editorial-muted)]">
+                    Yangi bildirishnomalar yo&apos;q.
+                  </p>
                 )}
               </div>
-              {notifications.length > 0 ? (
-                <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {notifications.map((n) => (
-                    <li
-                      key={n.id}
-                      onClick={() => handleNotificationClick(n)}
-                      className={`p-3 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80 ${
-                        !n.read ? 'bg-blue-50/80 dark:bg-blue-950/30' : ''
-                      }`}
-                    >
-                      <p className="text-slate-700 dark:text-slate-200 leading-relaxed">{n.message}</p>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="p-5 text-center text-sm text-slate-500">Yangi bildirishnomalar yo&apos;q.</p>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        <div className="relative" ref={userRef}>
-          <button
-            type="button"
-            onClick={() => setIsUserOpen((p) => !p)}
-            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          >
-            {user.avatarUrl ? (
-              <img
-                src={user.avatarUrl}
-                alt=""
-                className="h-9 w-9 rounded-full object-cover border border-slate-200"
-              />
-            ) : (
-              <div className="h-9 w-9 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-200 flex items-center justify-center text-sm font-semibold">
-                {initials}
+          <div className="relative" ref={userRef}>
+            <button
+              type="button"
+              onClick={() => setIsUserOpen((p) => !p)}
+              className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-md hover:bg-[var(--editorial-bg-alt)] transition-colors"
+            >
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt=""
+                  className="h-9 w-9 rounded-full object-cover border border-[var(--editorial-border)]"
+                />
+              ) : (
+                <div className="h-9 w-9 rounded-full editorial-avatar flex items-center justify-center text-sm font-semibold">
+                  {initials}
+                </div>
+              )}
+              <div className="hidden md:block text-left max-w-[140px]">
+                <p className="text-sm font-semibold text-[var(--editorial-text)] truncate">
+                  {user.firstName} {user.lastName}
+                </p>
+                <p className="text-xs text-[var(--editorial-muted)] truncate">{roleNames[user.role]}</p>
+              </div>
+              <ChevronDown className="w-4 h-4 text-[var(--editorial-muted)] hidden md:block" />
+            </button>
+            {isUserOpen && (
+              <div className="editorial-dropdown absolute right-0 mt-2 w-48 py-1 z-[70]">
+                <Link
+                  to="/profile?tab=profile"
+                  onClick={() => setIsUserOpen(false)}
+                  className="editorial-dropdown-item"
+                >
+                  Profil
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsUserOpen(false);
+                    logout();
+                  }}
+                  className="editorial-dropdown-item w-full text-left text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Chiqish
+                </button>
               </div>
             )}
-            <div className="hidden md:block text-left max-w-[140px]">
-              <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                {user.firstName} {user.lastName}
-              </p>
-              <p className="text-xs text-slate-500 truncate">{roleNames[user.role]}</p>
-            </div>
-            <ChevronDown className="w-4 h-4 text-slate-400 hidden md:block" />
-          </button>
-          {isUserOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl py-1 z-[70]">
-              <Link
-                to="/profile?tab=profile"
-                onClick={() => setIsUserOpen(false)}
-                className="block px-4 py-2.5 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-              >
-                Profil
-              </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsUserOpen(false);
-                  logout();
-                }}
-                className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2"
-              >
-                <LogOut className="w-4 h-4" />
-                Chiqish
-              </button>
-            </div>
-          )}
+          </div>
         </div>
+      </div>
+
+      <div className="editorial-header-strip hidden sm:flex items-center px-4 sm:px-6 h-10 border-b border-[var(--editorial-border)] bg-[var(--editorial-bg-alt)]">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--editorial-primary)]">
+          Phoenix Ilmiy Nashrlar Markazi — PINM
+        </p>
       </div>
     </header>
   );
