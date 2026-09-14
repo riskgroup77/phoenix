@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { Role, Journal, JournalCategory, PaymentModel, JournalPricingType, AdditionalDocumentConfig } from '../types';
 import Button from '../components/ui/Button';
@@ -115,7 +116,7 @@ const JournalManagement: React.FC = () => {
     if (loading) {
         return (
             <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--editorial-primary)]"></div>
             </div>
         );
     }
@@ -398,14 +399,22 @@ const JournalManagement: React.FC = () => {
     
     return (
         <>
-            <Card title="Jurnallarni Boshqarish">
+            <div className="space-y-6 max-w-6xl mx-auto">
+            <EditorialPageHeader
+                title="Jurnallarni boshqarish"
+                subtitle="Platforma jurnallarini yaratish, tahrirlash va kategoriyalash."
+                actions={
+                    <Button onClick={() => handleOpenModal()}><PlusCircle className="mr-2 h-4 w-4"/> Yangi Jurnal Qo'shish</Button>
+                }
+            />
+            <Card>
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3">
-                        <label className="text-sm text-slate-600">Kategoriya bo'yicha:</label>
+                        <label className="editorial-field-label">Kategoriya bo'yicha:</label>
                         <select
                             value={selectedCategoryFilter}
                             onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-                            className="min-w-[220px]"
+                            className="editorial-select min-w-[220px]"
                         >
                             <option value="all">Barcha kategoriyalar</option>
                             {categories.map(cat => (
@@ -413,11 +422,10 @@ const JournalManagement: React.FC = () => {
                             ))}
                         </select>
                     </div>
-                    <Button onClick={() => handleOpenModal()}><PlusCircle className="mr-2 h-4 w-4"/> Yangi Jurnal Qo'shish</Button>
                 </div>
                 <div className="space-y-4">
                     {orderedCategoryIds.length === 0 && (
-                        <div className="p-6 rounded-lg bg-slate-100/70 text-center text-slate-500">
+                        <div className="editorial-empty py-8">
                             Tanlangan kategoriya bo'yicha jurnal topilmadi.
                         </div>
                     )}
@@ -429,8 +437,8 @@ const JournalManagement: React.FC = () => {
                         return (
                             <div key={categoryId} className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                    <h4 className="text-sm font-semibold uppercase tracking-wide text-blue-900">{categoryName}</h4>
-                                    <span className="text-xs text-slate-500">{groupedJournals[categoryId].length} ta jurnal</span>
+                                    <h4 className="text-sm font-serif font-semibold uppercase tracking-wide text-[var(--editorial-primary)]">{categoryName}</h4>
+                                    <span className="text-xs text-[var(--editorial-muted)]">{groupedJournals[categoryId].length} ta jurnal</span>
                                 </div>
                                 {groupedJournals[categoryId].map(journal => {
                         // Handle both field name formats (camelCase from frontend, snake_case from backend)
@@ -451,34 +459,33 @@ const JournalManagement: React.FC = () => {
                         const imageUrl = journal.imageUrl || (journal as any).image_url;
                         
                         return (
-                            <div key={journal.id} className="p-4 bg-slate-100/70 rounded-lg flex flex-col sm:flex-row justify-between sm:items-center">
+                            <div key={journal.id} className="editorial-card flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                                 <div className="flex items-start gap-4">
                                     {imageUrl && (
                                         <img 
                                             src={imageUrl} 
                                             alt="Jurnal rasmi" 
-                                            className="h-16 w-16 rounded-lg object-cover flex-shrink-0"
+                                            className="h-16 w-16 rounded-md object-cover flex-shrink-0 border border-[var(--editorial-border)]"
                                             onError={(e) => {
-                                                // Hide image if it fails to load
                                                 (e.target as HTMLImageElement).style.display = 'none';
                                             }}
                                         />
                                     )}
                                     <div>
-                                        <h4 className="font-semibold text-lg text-slate-900">{journal.name}</h4>
-                                        <p className="text-sm text-slate-500">
+                                        <h4 className="font-serif font-semibold text-lg text-[var(--editorial-text)]">{journal.name}</h4>
+                                        <p className="text-sm text-[var(--editorial-muted)]">
                                             Admin: {admin ? `${admin.firstName || admin.first_name} ${admin.lastName || admin.last_name}` : 'Tayinlanmagan'}
-                                            <span className="mx-2 text-gray-600">•</span>
-                                            Kategoriya: <span className="font-medium text-blue-900">{category?.name || "Noma'lum"}</span>
-                                            <span className="mx-2 text-gray-600">•</span>
-                                            Narx: <span className="font-medium text-emerald-800">{priceText}</span>
+                                            <span className="mx-2">•</span>
+                                            Kategoriya: <span className="font-medium text-[var(--editorial-primary)]">{category?.name || "Noma'lum"}</span>
+                                            <span className="mx-2">•</span>
+                                            Narx: <span className="font-medium text-[var(--editorial-teal)]">{priceText}</span>
                                         </p>
-                                        <p className="text-xs text-slate-500 font-mono mt-1">ISSN: {journal.issn}</p>
+                                        <p className="text-xs text-[var(--editorial-muted)] font-mono mt-1">ISSN: {journal.issn}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-2 mt-3 sm:mt-0">
-                                    <button onClick={() => handleOpenModal(journal)} className="text-indigo-400 hover:text-indigo-200 p-2 rounded-md hover:bg-white/10 transition-colors" aria-label="Tahrirlash"><Edit size={18}/></button>
-                                    <button onClick={() => handleDeleteClick(journal)} className="text-red-700 hover:text-red-200 p-2 rounded-md hover:bg-white/10 transition-colors" aria-label="O'chirish"><Trash2 size={18}/></button>
+                                    <button onClick={() => handleOpenModal(journal)} className="text-[var(--editorial-primary)] hover:opacity-80 p-2 rounded-md transition-colors" aria-label="Tahrirlash"><Edit size={18}/></button>
+                                    <button onClick={() => handleDeleteClick(journal)} className="text-red-700 hover:opacity-80 p-2 rounded-md transition-colors" aria-label="O'chirish"><Trash2 size={18}/></button>
                                 </div>
                             </div>
                         );
@@ -488,6 +495,7 @@ const JournalManagement: React.FC = () => {
                     })}
                 </div>
             </Card>
+            </div>
 
             {isModalOpen && (
                  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 p-4 overflow-auto min-h-screen flex flex-col items-center py-8">

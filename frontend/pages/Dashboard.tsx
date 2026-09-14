@@ -12,7 +12,7 @@ import { getArticleJournalIdFromApi } from '../utils/articleIds';
 import { txAmount } from '../utils/amount';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
-const CHART_COLORS = ['#3b82f6', '#eab308', '#22c55e', '#ef4444', '#8b5cf6', '#06b6d4'];
+const CHART_COLORS = ['#8b1538', '#eab308', '#0a7a8c', '#64748b', '#6b1029', '#c45a6a'];
 
 const PinmSummaryCard: React.FC<{
   icon: React.ElementType;
@@ -763,58 +763,35 @@ const Dashboard: React.FC = () => {
         const greeting = hour < 12 ? 'Hayrli tong' : hour < 18 ? 'Hayrli kun' : 'Hayrli kech';
 
         return (
-            <div className="space-y-8 pb-10">
-                {/* Hero */}
-                <div className="dashboard-animate-in relative overflow-hidden rounded-3xl border border-slate-200/90 bg-gradient-to-br from-blue-600/25 via-indigo-600/15 to-violet-600/25 px-6 sm:px-8 py-8 sm:py-10">
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(59,130,246,0.2),transparent)]" />
-                    <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)', backgroundSize: '24px 24px' }} />
-                    <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                        <div>
-                            <p className="text-sm font-medium text-blue-900/90 uppercase tracking-widest">{greeting}</p>
-                            <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 mt-1 tracking-tight">Platforma boshqaruvi</h1>
-                            <p className="text-slate-500 mt-2 max-w-xl">Statistika, maqolalar va moliya bo‘yicha barcha ko‘rsatkichlar bir joyda.</p>
-                        </div>
-                        <div className="flex flex-wrap gap-3">
-                            <Link to="/articles" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-slate-200/90 text-slate-900 text-sm font-medium transition-all hover:scale-105">
-                                <FileText size={18} /> Maqolalar
-                            </Link>
-                            <Link to="/users" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-slate-200/90 text-slate-900 text-sm font-medium transition-all hover:scale-105">
-                                <Users size={18} /> Foydalanuvchilar
-                            </Link>
-                            <Link to="/financials" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-slate-200/90 text-slate-900 text-sm font-medium transition-all hover:scale-105">
-                                <DollarSign size={18} /> Moliya
-                            </Link>
-                            <Link to="/journal-management" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-slate-200/90 text-slate-900 text-sm font-medium transition-all hover:scale-105">
-                                <BarChart3 size={18} /> Jurnallar
-                            </Link>
-                        </div>
-                    </div>
+            <div className="space-y-8 pb-10 max-w-6xl mx-auto">
+                <EditorialPageHeader
+                    title="Platforma boshqaruvi"
+                    subtitle={`${greeting}. Statistika, maqolalar va moliya bo'yicha barcha ko'rsatkichlar bir joyda.`}
+                    actions={
+                        <>
+                            <Link to="/articles"><Button variant="secondary" className="text-sm"><FileText className="mr-2 h-4 w-4" /> Maqolalar</Button></Link>
+                            <Link to="/users"><Button variant="secondary" className="text-sm"><Users className="mr-2 h-4 w-4" /> Foydalanuvchilar</Button></Link>
+                            <Link to="/financials"><Button variant="secondary" className="text-sm"><DollarSign className="mr-2 h-4 w-4" /> Moliya</Button></Link>
+                            <Link to="/journal-management"><Button variant="secondary" className="text-sm"><BarChart3 className="mr-2 h-4 w-4" /> Jurnallar</Button></Link>
+                        </>
+                    }
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <PinmSummaryCard icon={DollarSign} title="Jami tushum" value={`${(totalRevenue / 1000).toFixed(0)}k so'm`} linkLabel="Moliya" to="/financials" />
+                    <PinmSummaryCard icon={Users} title="Foydalanuvchilar" value={totalUsersCount} linkLabel="Ko'rish" to="/users" />
+                    <PinmSummaryCard icon={FileText} title="Jami maqolalar" value={totalArticlesCount} linkLabel="Ko'rish" to="/articles" />
+                    <PinmSummaryCard icon={CheckCircle} title="Nashr etilgan" value={published} linkLabel="Ko'rish" to="/articles" />
                 </div>
 
-                {/* KPI */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                    {[
-                        { icon: DollarSign, title: 'Jami tushum', value: `${(totalRevenue / 1000).toFixed(0)}k so'm`, gradient: 'bg-gradient-to-r from-green-500 to-emerald-400', to: '/financials', delay: '0.05s' },
-                        { icon: Users, title: 'Foydalanuvchilar', value: totalUsersCount, gradient: 'bg-gradient-to-r from-indigo-500 to-violet-400', to: '/users', delay: '0.1s' },
-                        { icon: FileText, title: 'Jami maqolalar', value: totalArticlesCount, gradient: 'bg-gradient-to-r from-purple-500 to-pink-400', to: '/articles', delay: '0.15s' },
-                        { icon: CheckCircle, title: 'Nashr etilgan', value: published, gradient: 'bg-gradient-to-r from-cyan-500 to-blue-400', to: '/articles', delay: '0.2s' },
-                    ].map((item, i) => (
-                        <div key={i} className={`dashboard-animate-in dashboard-animate-in-${i + 1}`}>
-                            <StatCard icon={item.icon} title={item.title} value={item.value} gradient={item.gradient} to={item.to} />
-                        </div>
-                    ))}
-                </div>
-
-                {/* Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="dashboard-animate-in dashboard-animate-in-3 overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-xl shadow-xl">
-                        <div className="h-1.5 bg-gradient-to-r from-blue-500 to-cyan-400" />
+                    <div className="editorial-card overflow-hidden">
                         <div className="p-6">
                             <div className="flex items-center gap-3 mb-5">
-                                <div className="p-2.5 rounded-xl bg-blue-500/20">
-                                    <PieChartIcon className="h-6 w-6 text-blue-800" />
+                                <div className="p-2.5 rounded-md bg-[rgba(139,21,56,0.08)]">
+                                    <PieChartIcon className="h-6 w-6 text-[var(--editorial-primary)]" />
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-900">Maqolalar holati</h3>
+                                <h3 className="text-lg font-serif font-bold text-[var(--editorial-text)]">Maqolalar holati</h3>
                             </div>
                             <div className="w-full" style={{ minHeight: 256, height: 256 }}>
                                 <ResponsiveContainer width="100%" height={256}>
@@ -829,22 +806,21 @@ const Dashboard: React.FC = () => {
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
-                            <div className="flex flex-wrap gap-4 justify-center pt-4 border-t border-slate-200/90">
-                                {[{ l: 'Yangi', c: 'bg-blue-500', v: newSubmissions }, { l: 'Taqrizda', c: 'bg-amber-500', v: inReview }, { l: 'Nashr', c: 'bg-green-500', v: published }, { l: 'Rad', c: 'bg-red-500', v: rejected }].map(({ l, c, v }) => (
-                                    <span key={l} className="inline-flex items-center gap-2 text-sm text-slate-500"><span className={`w-2.5 h-2.5 rounded-full ${c} shadow-sm`} /> {l}: <span className="font-semibold text-slate-900">{v}</span></span>
+                            <div className="flex flex-wrap gap-4 justify-center pt-4 border-t border-[var(--editorial-border)]">
+                                {[{ l: 'Yangi', c: 'bg-[var(--editorial-primary)]', v: newSubmissions }, { l: 'Taqrizda', c: 'bg-amber-500', v: inReview }, { l: 'Nashr', c: 'bg-[var(--editorial-teal)]', v: published }, { l: 'Rad', c: 'bg-red-500', v: rejected }].map(({ l, c, v }) => (
+                                    <span key={l} className="inline-flex items-center gap-2 text-sm text-[var(--editorial-muted)]"><span className={`w-2.5 h-2.5 rounded-full ${c} shadow-sm`} /> {l}: <span className="font-semibold text-[var(--editorial-text)]">{v}</span></span>
                                 ))}
                             </div>
                         </div>
                     </div>
 
-                    <div className="dashboard-animate-in dashboard-animate-in-4 overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-xl shadow-xl">
-                        <div className="h-1.5 bg-gradient-to-r from-cyan-500 to-blue-500" />
+                    <div className="editorial-card overflow-hidden">
                         <div className="p-6">
                             <div className="flex items-center gap-3 mb-5">
-                                <div className="p-2.5 rounded-xl bg-cyan-500/20">
-                                    <BarChart3 className="h-6 w-6 text-cyan-800" />
+                                <div className="p-2.5 rounded-md bg-[rgba(139,21,56,0.08)]">
+                                    <BarChart3 className="h-6 w-6 text-[var(--editorial-primary)]" />
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-900">Kitob buyurtmalari</h3>
+                                <h3 className="text-lg font-serif font-bold text-[var(--editorial-text)]">Kitob buyurtmalari</h3>
                             </div>
                             <div className="w-full" style={{ minHeight: 256, height: 256 }}>
                                 <ResponsiveContainer width="100%" height={256}>
@@ -856,57 +832,40 @@ const Dashboard: React.FC = () => {
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
-                            <div className="flex justify-between items-center text-sm pt-4 border-t border-slate-200/90">
-                                <span className="text-slate-500">Jami: <span className="font-semibold text-slate-900">{bookOrdersTotal}</span></span>
-                                <span className="font-semibold text-emerald-800">Tushum: {(bookTotalRevenue / 1000).toFixed(0)}k so'm</span>
+                            <div className="flex justify-between items-center text-sm pt-4 border-t border-[var(--editorial-border)]">
+                                <span className="text-[var(--editorial-muted)]">Jami: <span className="font-semibold text-[var(--editorial-text)]">{bookOrdersTotal}</span></span>
+                                <span className="font-semibold text-[var(--editorial-teal)]">Tushum: {(bookTotalRevenue / 1000).toFixed(0)}k so'm</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Secondary stats */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {[
-                        { icon: Inbox, title: 'Yangi kelganlar', value: newSubmissions, gradient: 'bg-gradient-to-r from-blue-500 to-cyan-400', to: '/articles' },
-                        { icon: Clock, title: 'Taqrizda', value: inReview, gradient: 'bg-gradient-to-r from-amber-500 to-orange-400', to: '/articles' },
-                        { icon: Shield, title: 'O‘rtacha plagiat', value: `${avgPlag}%`, gradient: 'bg-gradient-to-r from-orange-500 to-red-400' },
-                        { icon: Bot, title: 'O‘rtacha AI', value: `${avgAi}%`, gradient: 'bg-gradient-to-r from-purple-500 to-pink-400' },
-                    ].map((item, i) => (
-                        <div key={i} className="dashboard-animate-in"><StatCard icon={item.icon} title={item.title} value={item.value} gradient={item.gradient} to={(item as any).to} /></div>
-                    ))}
+                    <PinmSummaryCard icon={Inbox} title="Yangi kelganlar" value={newSubmissions} linkLabel="Ko'rish" to="/articles" />
+                    <PinmSummaryCard icon={Clock} title="Taqrizda" value={inReview} linkLabel="Ko'rish" to="/articles" />
+                    <PinmSummaryCard icon={Shield} title="O'rtacha plagiat" value={`${avgPlag}%`} linkLabel="Maqolalar" to="/articles" />
+                    <PinmSummaryCard icon={Bot} title="O'rtacha AI" value={`${avgAi}%`} linkLabel="Maqolalar" to="/articles" />
                 </div>
 
-                {/* Two columns + Recent */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 dashboard-animate-in overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-xl p-6 shadow-xl">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 rounded-xl bg-blue-500/20"><Eye className="h-5 w-5 text-blue-800" /></div>
-                            <h3 className="text-lg font-bold text-slate-900">Eng ko‘p ko‘rilgan maqolalar</h3>
-                        </div>
+                    <Card title="Eng ko'p ko'rilgan maqolalar" className="lg:col-span-2">
                         <div className="space-y-2">
                             {topArticles.length > 0 ? topArticles.map((a: any, i: number) => {
-                                const rankStyle = i === 0 ? 'bg-amber-500/30 text-amber-900 border-amber-500/50' : i === 1 ? 'bg-gray-400/30 text-slate-600 border-gray-400/50' : i === 2 ? 'bg-orange-600/30 text-orange-900 border-orange-500/50' : 'bg-white/10 text-slate-500 border-slate-200/90';
+                                const rankStyle = i === 0 ? 'bg-[rgba(139,21,56,0.12)] text-[var(--editorial-primary)] border-[var(--editorial-primary)]/30' : i === 1 ? 'bg-slate-100 text-[var(--editorial-muted)] border-[var(--editorial-border)]' : i === 2 ? 'bg-amber-500/15 text-amber-900 border-amber-500/30' : 'bg-transparent text-[var(--editorial-muted)] border-[var(--editorial-border)]';
                                 return (
-                                    <Link key={a.id} to={`/articles/${a.id}`} className="flex items-center gap-4 p-3 rounded-xl bg-slate-100/70 hover:bg-white/10 border border-transparent hover:border-slate-200/90 transition-all duration-200 group">
-                                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-sm font-bold ${rankStyle}`}>{i + 1}</span>
-                                        <span className="flex-1 text-sm text-slate-900 truncate group-hover:text-blue-700">{a.title}</span>
-                                        <span className="flex items-center gap-1 text-sm font-medium text-blue-800 shrink-0"><Eye size={14} /> {a.views_count || 0}</span>
+                                    <Link key={a.id} to={`/articles/${a.id}`} className="editorial-card flex items-center gap-4 p-3 hover:border-[var(--editorial-primary)]/35 transition-colors group">
+                                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-sm font-bold ${rankStyle}`}>{i + 1}</span>
+                                        <span className="flex-1 text-sm text-[var(--editorial-text)] truncate group-hover:text-[var(--editorial-primary)]">{a.title}</span>
+                                        <span className="flex items-center gap-1 text-sm font-medium text-[var(--editorial-primary)] shrink-0"><Eye size={14} /> {a.views_count || 0}</span>
                                     </Link>
                                 );
                             }) : (
-                                <div className="flex flex-col items-center justify-center py-12 text-slate-500">
-                                    <FileText className="h-12 w-12 mb-3 opacity-50" />
-                                    <p className="text-sm">Hozircha maqolalar yo‘q</p>
-                                </div>
+                                <div className="editorial-empty py-12">Hozircha maqolalar yo'q</div>
                             )}
                         </div>
-                    </div>
+                    </Card>
 
-                    <div className="dashboard-animate-in overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-xl p-6 shadow-xl">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 rounded-xl bg-indigo-500/20"><UserCheck className="h-5 w-5 text-indigo-400" /></div>
-                            <h3 className="text-lg font-bold text-slate-900">Jurnal adminlari</h3>
-                        </div>
+                    <Card title="Jurnal adminlari">
                         <div className="space-y-3">
                             {journalAdmins.length > 0 ? journalAdmins.map((admin: any) => {
                                 const aid = String(admin.id);
@@ -927,37 +886,31 @@ const Dashboard: React.FC = () => {
                                     return aj && mJournalIds.includes(aj) && a.status === 'Published';
                                 }).length;
                                 return (
-                                    <div key={admin.id} className="flex items-center gap-4 p-3 rounded-xl bg-slate-100/70 hover:bg-white/10 border border-transparent hover:border-slate-200/90 transition-all">
+                                    <div key={admin.id} className="editorial-card flex items-center gap-4 p-3">
                                         {admin.avatar_url || admin.avatarUrl ? (
-                                            <img src={admin.avatar_url || admin.avatarUrl} alt="" className="h-11 w-11 rounded-full object-cover ring-2 ring-slate-200/80 hover:ring-indigo-400/50 transition-all" />
+                                            <img src={admin.avatar_url || admin.avatarUrl} alt="" className="h-11 w-11 rounded-full object-cover ring-2 ring-[var(--editorial-border)]" />
                                         ) : (
-                                            <div className="h-11 w-11 rounded-full bg-indigo-500/30 ring-2 ring-slate-200/80 flex items-center justify-center text-white font-bold text-sm">
+                                            <div className="h-11 w-11 rounded-full bg-[rgba(139,21,56,0.12)] ring-2 ring-[var(--editorial-border)] flex items-center justify-center text-[var(--editorial-primary)] font-bold text-sm">
                                                 {(admin.first_name || admin.firstName || '?')[0]}{(admin.last_name || admin.lastName || '')[0]}
                                             </div>
                                         )}
                                         <div className="min-w-0 flex-1">
-                                            <p className="font-semibold text-slate-900 truncate">{admin.first_name || admin.firstName} {admin.last_name || admin.lastName}</p>
-                                            <p className="text-xs text-slate-500">Nashrlar: <span className="text-indigo-300 font-semibold">{pubCount}</span></p>
+                                            <p className="font-semibold text-[var(--editorial-text)] truncate">{admin.first_name || admin.firstName} {admin.last_name || admin.lastName}</p>
+                                            <p className="text-xs text-[var(--editorial-muted)]">Nashrlar: <span className="text-[var(--editorial-primary)] font-semibold">{pubCount}</span></p>
                                         </div>
                                     </div>
                                 );
                             }) : (
-                                <div className="flex flex-col items-center justify-center py-10 text-slate-500">
-                                    <Users className="h-10 w-10 mb-2 opacity-50" />
-                                    <p className="text-sm">Ro‘yxat bo‘sh</p>
-                                </div>
+                                <div className="editorial-empty py-10">Ro'yxat bo'sh</div>
                             )}
                         </div>
-                    </div>
+                    </Card>
                 </div>
 
-                {/* Recent transactions + User stats */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="dashboard-animate-in overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-xl p-6 shadow-xl">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 rounded-xl bg-emerald-500/20"><Wallet className="h-5 w-5 text-emerald-800" /></div>
-                            <h3 className="text-lg font-bold text-slate-900">So‘ngi to‘lovlar</h3>
-                            <Link to="/financials" className="ml-auto text-sm text-blue-800 hover:text-blue-700 font-medium">Barchasi →</Link>
+                    <Card title="So'ngi to'lovlar">
+                        <div className="flex justify-end -mt-2 mb-3">
+                            <Link to="/financials" className="text-sm text-[var(--editorial-primary)] hover:opacity-80 font-medium">Barchasi →</Link>
                         </div>
                         <div className="space-y-2">
                             {recentTx.length > 0 ? recentTx.map((t: any) => {
@@ -966,14 +919,14 @@ const Dashboard: React.FC = () => {
                                 const isPending = t.status === 'pending';
                                 const amountStr = `${isFailed ? '' : '+'}${Number(t.amount || 0).toLocaleString()} so'm`;
                                 return (
-                                    <div key={t.id} className="flex flex-col gap-1 p-3 rounded-xl bg-slate-100/70">
+                                    <div key={t.id} className="editorial-card flex flex-col gap-1 p-3">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-sm text-slate-500">{serviceLabels[t.service_type] || t.service_type}</span>
+                                            <span className="text-sm text-[var(--editorial-muted)]">{serviceLabels[t.service_type] || t.service_type}</span>
                                             <span className={`text-sm font-semibold ${
-                                                isCompleted ? 'text-emerald-800' : isFailed ? 'text-red-700' : 'text-yellow-800'
+                                                isCompleted ? 'text-[var(--editorial-teal)]' : isFailed ? 'text-red-700' : 'text-amber-800'
                                             }`}>
                                                 {amountStr}
-                                                {isPending && <span className="text-xs font-normal text-slate-500 ml-1">(kutilmoqda)</span>}
+                                                {isPending && <span className="text-xs font-normal text-[var(--editorial-muted)] ml-1">(kutilmoqda)</span>}
                                             </span>
                                         </div>
                                         {isFailed && (
@@ -982,14 +935,14 @@ const Dashboard: React.FC = () => {
                                     </div>
                                 );
                             }) : (
-                                <p className="text-center text-slate-500 py-6 text-sm">Tranzaksiyalar yo‘q</p>
+                                <div className="editorial-empty py-6">Tranzaksiyalar yo'q</div>
                             )}
                         </div>
-                    </div>
+                    </Card>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <StatCard icon={UserIcon} title="Mualliflar" value={totalAuthors} gradient="bg-gradient-to-r from-blue-500 to-cyan-400" to="/users" />
-                        <StatCard icon={UserCheck} title="Taqrizchilar" value={totalReviewers} gradient="bg-gradient-to-r from-violet-500 to-purple-400" to="/users" />
-                        <StatCard icon={TrendingUp} title="Yuqori plagiat ≥50%" value={highPlag} gradient="bg-gradient-to-r from-red-500 to-rose-400" />
+                        <PinmSummaryCard icon={UserIcon} title="Mualliflar" value={totalAuthors} linkLabel="Ko'rish" to="/users" />
+                        <PinmSummaryCard icon={UserCheck} title="Taqrizchilar" value={totalReviewers} linkLabel="Ko'rish" to="/users" />
+                        <PinmSummaryCard icon={TrendingUp} title="Yuqori plagiat ≥50%" value={highPlag} linkLabel="Maqolalar" to="/articles" />
                     </div>
                 </div>
             </div>

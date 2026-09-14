@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import { Download, Filter, Search, Loader2 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { txAmount } from '../utils/amount';
@@ -169,12 +170,15 @@ const Financials: React.FC = () => {
 
     if (loading) {
         return (
-            <Card title="Moliyaviy tranzaksiyalar">
-                <div className="flex justify-center items-center h-64">
-                    <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                    <span className="ml-3">Ma'lumotlar yuklanmoqda...</span>
-                </div>
-            </Card>
+            <div className="max-w-6xl mx-auto">
+                <EditorialPageHeader title="Moliyaviy tranzaksiyalar" subtitle="Platforma tushum va chiqimlarini kuzatish." />
+                <Card>
+                    <div className="flex justify-center items-center h-64">
+                        <Loader2 className="h-8 w-8 animate-spin text-[var(--editorial-primary)]" />
+                        <span className="ml-3 text-[var(--editorial-muted)]">Ma'lumotlar yuklanmoqda...</span>
+                    </div>
+                </Card>
+            </div>
         );
     }
 
@@ -220,43 +224,39 @@ const Financials: React.FC = () => {
     });
 
     return (
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card>
-                    <div className="flex items-center">
-                        <div className="p-3 rounded-xl bg-green-500/20 mr-4">
-                            <div className="h-8 w-8 text-emerald-800 font-bold text-xl">+</div>
-                        </div>
+        <div className="space-y-6 max-w-6xl mx-auto">
+            <EditorialPageHeader
+                title="Moliyaviy tranzaksiyalar"
+                subtitle="Platforma tushum, chiqim va tranzaksiyalar tarixi."
+            />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="editorial-card p-5">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-md bg-[rgba(10,122,140,0.12)] text-[var(--editorial-teal)] font-bold text-xl">+</div>
                         <div>
-                            <p className="text-sm text-slate-500">Jami tushum</p>
-                            <p className="text-2xl font-bold text-slate-900">{totalIncome.toLocaleString()} so'm</p>
+                            <p className="text-sm text-[var(--editorial-muted)]">Jami tushum</p>
+                            <p className="text-2xl font-serif font-bold text-[var(--editorial-text)] tabular-nums">{totalIncome.toLocaleString()} so'm</p>
                         </div>
                     </div>
-                </Card>
-                
-                <Card>
-                    <div className="flex items-center">
-                        <div className="p-3 rounded-xl bg-red-500/20 mr-4">
-                            <div className="h-8 w-8 text-red-700 font-bold text-xl">-</div>
-                        </div>
+                </div>
+                <div className="editorial-card p-5">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-md bg-red-500/15 text-red-700 font-bold text-xl">−</div>
                         <div>
-                            <p className="text-sm text-slate-500">Jami chiqim</p>
-                            <p className="text-2xl font-bold text-slate-900">{totalExpenses.toLocaleString()} so'm</p>
+                            <p className="text-sm text-[var(--editorial-muted)]">Jami chiqim</p>
+                            <p className="text-2xl font-serif font-bold text-[var(--editorial-text)] tabular-nums">{totalExpenses.toLocaleString()} so'm</p>
                         </div>
                     </div>
-                </Card>
-                
-                <Card>
-                    <div className="flex items-center">
-                        <div className="p-3 rounded-xl bg-blue-500/20 mr-4">
-                            <div className="h-8 w-8 text-blue-800 font-bold text-xl">=</div>
-                        </div>
+                </div>
+                <div className="editorial-card p-5">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-md bg-[rgba(139,21,56,0.08)] text-[var(--editorial-primary)] font-bold text-xl">=</div>
                         <div>
-                            <p className="text-sm text-slate-500">Balans</p>
-                            <p className="text-2xl font-bold text-slate-900">{(totalIncome - totalExpenses).toLocaleString()} so'm</p>
+                            <p className="text-sm text-[var(--editorial-muted)]">Balans</p>
+                            <p className="text-2xl font-serif font-bold text-[var(--editorial-text)] tabular-nums">{(totalIncome - totalExpenses).toLocaleString()} so'm</p>
                         </div>
                     </div>
-                </Card>
+                </div>
             </div>
             
             {/* Service Type Breakdown */}
@@ -300,17 +300,17 @@ const Financials: React.FC = () => {
                 </Card>
             </div>
 
-            <Card title="Moliyaviy tranzaksiyalar">
+            <Card title="Tranzaksiyalar ro'yxati">
                 <div className="mb-6 flex flex-col lg:flex-row gap-4">
                     <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-slate-600 mb-2">Qidirish</label>
+                            <label className="editorial-field-label block mb-2">Qidirish</label>
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 h-4 w-4" />
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--editorial-muted)] h-4 w-4" />
                                 <input
                                     type="text"
                                     placeholder="Foydalanuvchi yoki xizmat bo'yicha qidirish..."
-                                    className="w-full pl-10"
+                                    className="w-full pl-10 editorial-select !py-2.5"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
@@ -318,7 +318,7 @@ const Financials: React.FC = () => {
                         </div>
                         
                         <div>
-                            <label className="block text-sm font-medium text-slate-600 mb-2">Sana oralig'i</label>
+                            <label className="editorial-field-label block mb-2">Sana oralig'i</label>
                             <div className="grid grid-cols-2 gap-2">
                                 <input
                                     type="date"
@@ -336,9 +336,9 @@ const Financials: React.FC = () => {
                         </div>
                         
                         <div>
-                            <label className="block text-sm font-medium text-slate-600 mb-2">Xizmat turi</label>
+                            <label className="editorial-field-label block mb-2">Xizmat turi</label>
                             <select
-                                className="w-full"
+                                className="editorial-select w-full"
                                 value={serviceType}
                                 onChange={(e) => setServiceType(e.target.value)}
                             >
@@ -357,9 +357,9 @@ const Financials: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto rounded-lg border border-slate-200/90">
+                <div className="overflow-x-auto rounded-lg border border-[var(--editorial-border)]">
                     <table className="w-full text-left">
-                        <thead className="bg-slate-100/70">
+                        <thead className="bg-[rgba(139,21,56,0.04)]">
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Foydalanuvchi</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Xizmat</th>
@@ -381,7 +381,7 @@ const Financials: React.FC = () => {
                                     const amountColor = isCompleted ? 'text-emerald-800' : isFailed ? 'text-red-700' : 'text-yellow-800';
                                     const ctx = transactionContext(transaction);
                                     return (
-                                        <tr key={transaction.id} className="hover:bg-slate-100/70 transition-colors">
+                                        <tr key={transaction.id} className="hover:bg-[rgba(139,21,56,0.03)] transition-colors">
                                             <td className="px-4 py-4 text-sm text-slate-600">{userName}</td>
                                             <td className="px-4 py-4 text-sm text-slate-600">
                                                 {serviceTypeNames[transaction.service_type] || transaction.service_type || 'Noma\'lum'}

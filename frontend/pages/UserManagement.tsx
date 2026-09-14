@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import { Role } from '../types';
 import { Search, User, Shield, Eye, Edit, Trash2, Plus, X, Download, FileText, Languages, ClipboardCheck, CreditCard, Activity } from 'lucide-react';
 import { apiService } from '../services/apiService';
@@ -267,11 +268,11 @@ const UserManagement: React.FC = () => {
     };
 
     const roleColors: Record<string, string> = {
-        'author': 'bg-blue-500/20 text-blue-900',
-        'reviewer': 'bg-purple-500/20 text-purple-900',
-        'journal_admin': 'bg-indigo-500/20 text-indigo-300',
-        'super_admin': 'bg-red-500/20 text-red-800',
-        'accountant': 'bg-green-500/20 text-emerald-900',
+        'author': 'bg-[rgba(139,21,56,0.08)] text-[var(--editorial-primary)]',
+        'reviewer': 'bg-amber-500/15 text-amber-900',
+        'journal_admin': 'bg-[rgba(10,122,140,0.12)] text-[var(--editorial-teal)]',
+        'super_admin': 'bg-red-500/15 text-red-800',
+        'accountant': 'bg-emerald-500/15 text-emerald-900',
     };
 
     /** Export all loaded users to an Excel (.xlsx) file. */
@@ -299,7 +300,7 @@ const UserManagement: React.FC = () => {
     if (loading) {
         return (
             <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--editorial-primary)]"></div>
             </div>
         );
     }
@@ -315,12 +316,27 @@ const UserManagement: React.FC = () => {
 
     return (
         <>
-            <Card title="Foydalanuvchilar boshqaruvi">
+            <div className="space-y-6 max-w-6xl mx-auto">
+            <EditorialPageHeader
+                title="Foydalanuvchilar boshqaruvi"
+                subtitle="Platforma foydalanuvchilarini qidirish, qo'shish va tahrirlash."
+                actions={
+                    <>
+                        <Button type="button" variant="secondary" onClick={handleExportExcel} disabled={validUsers.length === 0}>
+                            <Download className="mr-2 h-4 w-4" /> Excelda yuklab olish
+                        </Button>
+                        <Button onClick={handleOpenModal}>
+                            <Plus className="mr-2 h-4 w-4" /> Yangi foydalanuvchi
+                        </Button>
+                    </>
+                }
+            />
+            <Card>
                 <div className="mb-6 space-y-4">
                     <div className="flex flex-col sm:flex-row gap-4">
                         <div className="flex-1">
-                            <div className="flex items-center bg-slate-100/70 border border-slate-200/90 rounded-xl focus-within:border-accent-color focus-within:ring-2 focus-within:ring-accent-color-glow transition-all">
-                                <Search className="text-slate-500 mx-4 shrink-0" size={20} />
+                            <div className="flex items-center editorial-card !p-0 focus-within:border-[var(--editorial-primary)]/40 transition-colors">
+                                <Search className="text-[var(--editorial-muted)] mx-4 shrink-0" size={20} />
                                 <input
                                     type="text"
                                     placeholder="Ism, familiya, email yoki telefon bo'yicha qidirish..."
@@ -330,20 +346,14 @@ const UserManagement: React.FC = () => {
                                 />
                             </div>
                         </div>
-                        <Button type="button" variant="secondary" onClick={handleExportExcel} disabled={validUsers.length === 0}>
-                            <Download className="mr-2 h-4 w-4" /> Excelda yuklab olish
-                        </Button>
-                        <Button onClick={handleOpenModal}>
-                            <Plus className="mr-2 h-4 w-4" /> Yangi foydalanuvchi
-                        </Button>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="flex items-center gap-2">
-                            <label className="text-sm font-medium text-slate-500 whitespace-nowrap">Rol:</label>
+                            <label className="editorial-field-label whitespace-nowrap">Rol:</label>
                             <select
                                 value={filterRole}
                                 onChange={(e) => setFilterRole(e.target.value)}
-                                className="bg-slate-100/70 border border-slate-200/90 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 min-w-[180px]"
+                                className="editorial-select min-w-[180px]"
                             >
                                 <option value="">Barcha rollar</option>
                                 {Object.entries(roleNames).map(([value, label]) => (
@@ -352,11 +362,11 @@ const UserManagement: React.FC = () => {
                             </select>
                         </div>
                         <div className="flex items-center gap-2">
-                            <label className="text-sm font-medium text-slate-500 whitespace-nowrap">Tashkilot:</label>
+                            <label className="editorial-field-label whitespace-nowrap">Tashkilot:</label>
                             <select
                                 value={filterAffiliation}
                                 onChange={(e) => setFilterAffiliation(e.target.value)}
-                                className="bg-slate-100/70 border border-slate-200/90 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 min-w-[220px]"
+                                className="editorial-select min-w-[220px]"
                             >
                                 <option value="">Barcha tashkilotlar</option>
                                 {uniqueAffiliations.map((aff) => (
@@ -368,7 +378,7 @@ const UserManagement: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={() => { setFilterRole(''); setFilterAffiliation(''); }}
-                                className="text-sm text-blue-800 hover:text-blue-700"
+                                className="text-sm text-[var(--editorial-primary)] hover:opacity-80"
                             >
                                 Filterni tozalash
                             </button>
@@ -376,9 +386,9 @@ const UserManagement: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto rounded-lg border border-slate-200/90">
+                <div className="overflow-x-auto rounded-lg border border-[var(--editorial-border)]">
                     <table className="w-full text-left">
-                        <thead className="bg-slate-100/70">
+                        <thead className="bg-[rgba(139,21,56,0.04)]">
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Foydalanuvchi</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Rol</th>
@@ -390,15 +400,15 @@ const UserManagement: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-200/80">
                             {filteredUsers.map(user => (
-                                <tr key={user.id} className="hover:bg-slate-100/70 transition-colors">
+                                <tr key={user.id} className="hover:bg-[rgba(139,21,56,0.03)] transition-colors">
                                     <td className="px-4 py-4">
                                         <div className="flex items-center">
                                             <div className="flex-shrink-0 h-10 w-10">
                                                 {user.avatar_url ? (
                                                     <img className="h-10 w-10 rounded-full object-cover" src={user.avatar_url} alt={user.first_name} />
                                                 ) : (
-                                                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-                                                        <User className="h-5 w-5 text-slate-900" />
+                                                    <div className="h-10 w-10 rounded-full bg-[rgba(139,21,56,0.12)] flex items-center justify-center">
+                                                        <User className="h-5 w-5 text-[var(--editorial-primary)]" />
                                                     </div>
                                                 )}
                                             </div>
@@ -438,17 +448,14 @@ const UserManagement: React.FC = () => {
                 </div>
 
                 {filteredUsers.length === 0 && (
-                    <div className="text-center py-12">
-                        <User className="mx-auto h-12 w-12 text-slate-500" />
-                        <h3 className="mt-2 text-sm font-medium text-slate-900">Foydalanuvchilar topilmadi</h3>
-                        <p className="mt-1 text-sm text-slate-500">
-                            {searchQuery || filterRole || filterAffiliation
-                                ? 'Qidiruv yoki filtrlarga mos foydalanuvchi yo\'q. Filterni o\'zgartiring yoki tozalang.'
-                                : 'Hozircha foydalanuvchilar mavjud emas.'}
-                        </p>
+                    <div className="editorial-empty py-12">
+                        {searchQuery || filterRole || filterAffiliation
+                            ? 'Qidiruv yoki filtrlarga mos foydalanuvchi yo\'q. Filterni o\'zgartiring yoki tozalang.'
+                            : 'Hozircha foydalanuvchilar mavjud emas.'}
                     </div>
                 )}
             </Card>
+            </div>
             
             {/* New User Modal */}
             {isModalOpen && (

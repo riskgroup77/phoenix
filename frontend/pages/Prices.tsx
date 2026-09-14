@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import EditorialPageHeader from '../components/EditorialPageHeader';
+import EditorialTabs from '../components/EditorialTabs';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
 import { DollarSign, TrendingUp, Edit2, Save, X, Loader2 } from 'lucide-react';
@@ -156,50 +158,27 @@ const Prices: React.FC = () => {
 
     const groupedServices = groupServicesByCategory();
 
-    return (
-        <div className="space-y-6">
-            <Card>
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-green-500/20">
-                            <DollarSign className="h-6 w-6 text-emerald-800" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Barcha Narxlar</h1>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                Xizmat va jurnal narxlarini boshqarish
-                            </p>
-                        </div>
-                    </div>
-                </div>
+    const priceTabs = [
+        { id: 'services', label: 'Xizmat narxlari', count: servicePrices.length },
+        { id: 'journals', label: 'Jurnal narxlari', count: journalPrices.length },
+    ];
 
-                {/* Tabs */}
-                <div className="flex gap-2 mb-6 border-b border-slate-200/90 dark:border-slate-700/60">
-                    <button
-                        onClick={() => setActiveTab('services')}
-                        className={`px-4 py-2 text-sm font-medium transition-colors ${
-                            activeTab === 'services'
-                                ? 'text-emerald-700 dark:text-emerald-400 border-b-2 border-green-400'
-                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                    >
-                        Xizmat Narxlari ({servicePrices.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('journals')}
-                        className={`px-4 py-2 text-sm font-medium transition-colors ${
-                            activeTab === 'journals'
-                                ? 'text-blue-700 dark:text-blue-400 border-b-2 border-blue-400'
-                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
-                    >
-                        Jurnal Narxlari ({journalPrices.length})
-                    </button>
-                </div>
+    return (
+        <div className="space-y-6 max-w-6xl mx-auto">
+            <EditorialPageHeader
+                title="Barcha narxlar"
+                subtitle="Xizmat va jurnal narxlarini boshqarish."
+            />
+            <Card>
+                <EditorialTabs
+                    tabs={priceTabs}
+                    activeId={activeTab}
+                    onChange={(id) => setActiveTab(id as 'services' | 'journals')}
+                />
 
                 {loading ? (
                     <div className="flex items-center justify-center py-12">
-                        <Loader2 className="h-8 w-8 animate-spin text-emerald-800" />
+                        <Loader2 className="h-8 w-8 animate-spin text-[var(--editorial-primary)]" />
                     </div>
                 ) : (
                     <>
@@ -208,9 +187,9 @@ const Prices: React.FC = () => {
                             <div className="space-y-6">
                                 {Object.entries(groupedServices).map(([category, categoryPrices]) => (
                                     <div key={category}>
-                                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                                        <h3 className="text-lg font-serif font-semibold text-[var(--editorial-text)] mb-3 flex items-center gap-2">
                                             {category}
-                                            <span className="text-xs px-2 py-1 rounded bg-white/10 text-slate-600">
+                                            <span className="text-xs px-2 py-1 rounded bg-[rgba(139,21,56,0.08)] text-[var(--editorial-muted)]">
                                                 {categoryPrices.length} ta xizmat
                                             </span>
                                         </h3>
@@ -218,7 +197,7 @@ const Prices: React.FC = () => {
                                             {categoryPrices.map((price) => (
                                                 <div
                                                     key={price.id}
-                                                    className="p-4 rounded-xl bg-slate-100/70 dark:bg-slate-800/50 border border-slate-200/90 dark:border-slate-700/60 hover:border-green-500/30 transition-colors"
+                                                    className="editorial-card hover:border-[var(--editorial-primary)]/35 transition-colors"
                                                 >
                                                     <div className="mb-3">
                                                         <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{price.label}</p>
@@ -242,7 +221,7 @@ const Prices: React.FC = () => {
                                                                 <Button
                                                                     onClick={() => handleSaveService(price.id)}
                                                                     disabled={saving}
-                                                                    className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700"
+                                                                    className="flex-1 flex items-center justify-center gap-2"
                                                                 >
                                                                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                                                                     Saqlash
@@ -259,7 +238,7 @@ const Prices: React.FC = () => {
                                                     ) : (
                                                         <div className="flex items-center justify-between">
                                                             <div>
-                                                                <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">
+                                                                <p className="text-lg font-bold text-[var(--editorial-primary)]">
                                                                     {formatPrice(price.amount)}
                                                                 </p>
                                                                 <p className="text-xs text-slate-500 mt-1">
@@ -289,13 +268,13 @@ const Prices: React.FC = () => {
                                 {journalPrices.map((journal) => (
                                     <div
                                         key={journal.id}
-                                        className="p-4 rounded-xl bg-slate-100/70 dark:bg-slate-800/50 border border-slate-200/90 dark:border-slate-700/60 hover:border-blue-500/30 transition-colors"
+                                        className="editorial-card hover:border-[var(--editorial-primary)]/35 transition-colors"
                                     >
                                         <div className="mb-3">
                                             <div className="flex items-center gap-2">
-                                                <p className="text-lg font-semibold text-slate-900 dark:text-white">{journal.name}</p>
+                                                <p className="text-lg font-serif font-semibold text-[var(--editorial-text)]">{journal.name}</p>
                                                 {journal.issn && (
-                                                    <span className="text-xs px-2 py-1 rounded bg-white/10 text-slate-600">
+                                                    <span className="text-xs px-2 py-1 rounded bg-[rgba(139,21,56,0.08)] text-[var(--editorial-muted)]">
                                                         ISSN: {journal.issn}
                                                     </span>
                                                 )}
@@ -351,7 +330,7 @@ const Prices: React.FC = () => {
                                                     <Button
                                                         onClick={() => handleSaveJournal(journal.id)}
                                                         disabled={saving}
-                                                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                                                        className="flex items-center gap-2"
                                                     >
                                                         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                                                         Saqlash
@@ -370,13 +349,13 @@ const Prices: React.FC = () => {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
                                                     <div>
                                                         <p className="text-xs text-slate-500 mb-1">Nashr qilish to'lovi</p>
-                                                        <p className="text-lg font-bold text-emerald-800">
+                                                        <p className="text-lg font-bold text-[var(--editorial-primary)]">
                                                             {formatPrice(journal.publicationFee)}
                                                         </p>
                                                     </div>
                                                     <div>
                                                         <p className="text-xs text-slate-500 mb-1">Bet narxi</p>
-                                                        <p className="text-lg font-bold text-cyan-800">
+                                                        <p className="text-lg font-bold text-[var(--editorial-teal)]">
                                                             {formatPrice(journal.pricePerPage)}
                                                         </p>
                                                     </div>

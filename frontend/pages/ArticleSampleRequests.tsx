@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
 import { FileText, Loader2 } from 'lucide-react';
@@ -50,38 +51,32 @@ const ArticleSampleRequests: React.FC = () => {
   const isReviewer = user.role === 'reviewer' || user.role === 'super_admin';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <EditorialPageHeader
+        title="Maqola namuna so'rovlari"
+        subtitle={
+          isReviewer
+            ? "Mualliflar maqola namunasi olish uchun yuborgan so'rovlar. Talablar va mavzuni ko'ring."
+            : "Sizning maqola namuna so'rovlaringiz. Taqrizchi bajarganida status yangilanadi."
+        }
+      />
       <Card>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2.5 rounded-xl bg-amber-500/20">
-            <FileText className="h-6 w-6 text-amber-800" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">Maqola namuna so'rovlari</h1>
-            <p className="text-sm text-slate-500">
-              {isReviewer
-                ? "Mualliflar maqola namunasi olish uchun yuborgan so'rovlar. Talablar va mavzuni ko'ring."
-                : "Sizning maqola namuna so'rovlaringiz. Taqrizchi bajarganida status yangilanadi."}
-            </p>
-          </div>
-        </div>
-
         {loading ? (
-          <p className="text-slate-500 flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" /> Yuklanmoqda…
+          <p className="text-[var(--editorial-muted)] flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin text-[var(--editorial-primary)]" /> Yuklanmoqda…
           </p>
         ) : list.length === 0 ? (
-          <p className="text-slate-500">So'rovlar yo'q.</p>
+          <div className="editorial-empty py-8">So'rovlar yo'q.</div>
         ) : (
           <div className="space-y-4">
             {list.map((req) => (
               <div
                 key={req.id}
-                className="p-4 rounded-xl bg-slate-100/70 border border-slate-200/90 flex flex-col gap-2"
+                className="editorial-card flex flex-col gap-2 hover:border-[var(--editorial-primary)]/35 transition-colors"
               >
-                <p className="font-medium text-slate-900">{req.author_short}</p>
-                <p className="text-sm text-slate-600 line-clamp-2">{req.topic}</p>
-                <p className="text-xs text-slate-500">
+                <p className="font-serif font-medium text-[var(--editorial-text)]">{req.author_short}</p>
+                <p className="text-sm text-[var(--editorial-body)] line-clamp-2">{req.topic}</p>
+                <p className="text-xs text-[var(--editorial-muted)]">
                   {new Date(req.created_at).toLocaleDateString('uz-UZ')} ·{' '}
                   {qualityLabels[req.quality_level] || req.quality_level} · {req.pages} sahifa ·{' '}
                   {req.status === 'submitted'
