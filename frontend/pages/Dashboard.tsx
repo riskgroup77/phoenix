@@ -979,99 +979,91 @@ const Dashboard: React.FC = () => {
         });
         const revenueThisWeek = weeklyTransactions.reduce((sum, t) => sum + Math.abs(txAmount(t.amount)), 0);
 
+        const completedCount = validTransactions.filter(t => t.status === 'completed').length;
+        const pendingCount = validTransactions.filter(t => t.status === 'pending').length;
+        const failedCount = validTransactions.filter(t => t.status === 'failed').length;
+
         return (
-            <div className="space-y-8">
-                <h2 className="text-3xl font-bold text-slate-900">Moliyachi Boshqaruv Paneli</h2>
-                <p className="text-slate-600 -mt-6">Platformaning moliyaviy holatini kuzatib boring.</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                   <StatCard icon={DollarSign} title="Jami Tushum" value={`${(totalRevenue / 1000).toFixed(0)}k so'm`} gradient="bg-gradient-to-r from-green-500 to-emerald-400" to="/financials" />
-                   <StatCard icon={Wallet} title="Bugungi Tushum" value={`${revenueToday.toLocaleString()} so'm`} gradient="bg-gradient-to-r from-blue-500 to-cyan-400" to="/financials" />
-                   <StatCard icon={FileText} title="Bugungi Tranzaksiyalar" value={todaysTransactions.length} gradient="bg-gradient-to-r from-yellow-500 to-orange-400" to="/financials" />
-                   <StatCard icon={Timer} title="Haftalik Tushum" value={`${(revenueThisWeek / 1000).toFixed(0)}k so'm`} gradient="bg-gradient-to-r from-purple-500 to-indigo-400" to="/financials" />
+            <div className="space-y-8 max-w-6xl mx-auto">
+                <EditorialPageHeader
+                    title="Moliyachi boshqaruv paneli"
+                    subtitle="Platformaning moliyaviy holatini kuzatib boring."
+                    actions={
+                        <Link to="/financials">
+                            <Button variant="secondary" className="text-sm">
+                                Batafsil moliyaviy hisobot <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </Link>
+                    }
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <PinmSummaryCard icon={DollarSign} title="Jami tushum" value={`${(totalRevenue / 1000).toFixed(0)}k so'm`} linkLabel="Moliya" to="/financials" />
+                    <PinmSummaryCard icon={Wallet} title="Bugungi tushum" value={`${revenueToday.toLocaleString()} so'm`} linkLabel="Ko'rish" to="/financials" />
+                    <PinmSummaryCard icon={FileText} title="Bugungi tranzaksiyalar" value={todaysTransactions.length} linkLabel="Ko'rish" to="/financials" />
+                    <PinmSummaryCard icon={Timer} title="Haftalik tushum" value={`${(revenueThisWeek / 1000).toFixed(0)}k so'm`} linkLabel="Ko'rish" to="/financials" />
                 </div>
-                
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <Card title="So'ngi Tranzaksiyalar">
-                        <div className="space-y-4">
+                    <Card title="So'ngi tranzaksiyalar">
+                        <div className="space-y-3">
                             {validTransactions.slice(0, 5).map(transaction => {
-                                const user = users.find(u => u.id === transaction.user);
-                                const userName = user ? `${user.first_name} ${user.last_name}` : 'Noma\'lum foydalanuvchi';
+                                const txUser = users.find(u => u.id === transaction.user);
+                                const userName = txUser ? `${txUser.first_name} ${txUser.last_name}` : 'Noma\'lum foydalanuvchi';
                                 const isCompleted = transaction.status === 'completed';
                                 const isFailed = transaction.status === 'failed' || transaction.status === 'cancelled';
                                 const isPending = transaction.status === 'pending';
                                 const amountStr = `${isFailed ? '' : '+'}${Number(transaction.amount || 0).toLocaleString()} so'm`;
                                 return (
-                                    <div key={transaction.id} className="p-4 bg-slate-100/70 rounded-lg">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="font-medium text-slate-900">{userName}</p>
-                                                <p className="text-sm text-slate-500">
+                                    <div key={transaction.id} className="editorial-card flex flex-col gap-1 p-3">
+                                        <div className="flex justify-between items-start gap-3">
+                                            <div className="min-w-0">
+                                                <p className="font-medium text-[var(--editorial-text)] truncate">{userName}</p>
+                                                <p className="text-sm text-[var(--editorial-muted)]">
                                                     {serviceTypeNames[transaction.service_type] || transaction.service_type || 'Noma\'lum xizmat'}
                                                 </p>
                                             </div>
-                                            <div className="text-right">
-                                                <p className={`font-medium ${isCompleted ? 'text-emerald-800' : isFailed ? 'text-red-700' : 'text-yellow-800'}`}>
+                                            <div className="text-right shrink-0">
+                                                <p className={`font-medium ${isCompleted ? 'text-[var(--editorial-teal)]' : isFailed ? 'text-red-700' : 'text-amber-800'}`}>
                                                     {amountStr}
-                                                    {isPending && <span className="text-xs font-normal text-slate-500 ml-1">(kutilmoqda)</span>}
+                                                    {isPending && <span className="text-xs font-normal text-[var(--editorial-muted)] ml-1">(kutilmoqda)</span>}
                                                 </p>
-                                                <p className="text-xs text-slate-500">
+                                                <p className="text-xs text-[var(--editorial-muted)]">
                                                     {new Date(transaction.created_at).toLocaleDateString()}
                                                 </p>
                                             </div>
                                         </div>
                                         {isFailed && (
-                                            <p className="text-xs text-red-800/90 mt-1">Sabab: {transaction.error_note || 'To\'lov bekor qilindi'}</p>
+                                            <p className="text-xs text-red-800/90">Sabab: {transaction.error_note || 'To\'lov bekor qilindi'}</p>
                                         )}
                                     </div>
                                 );
                             })}
-                            
+
                             {validTransactions.length === 0 && (
-                                <p className="text-center text-slate-500 py-4">Hozircha tranzaksiyalar mavjud emas.</p>
+                                <div className="editorial-empty py-8">Hozircha tranzaksiyalar mavjud emas.</div>
                             )}
                         </div>
                     </Card>
-                    
-                    <Card title="To'lov Statistikasi">
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center">
-                                <span className="text-slate-600">Muvaffaqiyatli to'lovlar</span>
-                                <span className="font-medium text-slate-900">
-                                    {validTransactions.filter(t => t.status === 'completed').length}
-                                </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-slate-600">Kutilayotgan to'lovlar</span>
-                                <span className="font-medium text-slate-900">
-                                    {validTransactions.filter(t => t.status === 'pending').length}
-                                </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-slate-600">Muvaffaqiyatsiz to'lovlar</span>
-                                <span className="font-medium text-slate-900">
-                                    {validTransactions.filter(t => t.status === 'failed').length}
-                                </span>
-                            </div>
-                            <div className="pt-4 mt-4 border-t border-slate-200/90">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-slate-600">Umumiy tranzaksiyalar</span>
-                                    <span className="font-bold text-slate-900">{validTransactions.length}</span>
+
+                    <Card title="To'lov statistikasi">
+                        <div className="space-y-3">
+                            {[
+                                { label: 'Muvaffaqiyatli to\'lovlar', value: completedCount, color: 'text-[var(--editorial-teal)]' },
+                                { label: 'Kutilayotgan to\'lovlar', value: pendingCount, color: 'text-amber-800' },
+                                { label: 'Muvaffaqiyatsiz to\'lovlar', value: failedCount, color: 'text-red-700' },
+                            ].map(({ label, value, color }) => (
+                                <div key={label} className="editorial-card flex justify-between items-center p-3">
+                                    <span className="text-[var(--editorial-muted)]">{label}</span>
+                                    <span className={`font-serif font-semibold text-lg tabular-nums ${color}`}>{value}</span>
                                 </div>
+                            ))}
+                            <div className="editorial-card flex justify-between items-center p-3 mt-2 border-[var(--editorial-primary)]/20">
+                                <span className="font-medium text-[var(--editorial-text)]">Umumiy tranzaksiyalar</span>
+                                <span className="font-serif font-bold text-xl text-[var(--editorial-primary)] tabular-nums">{validTransactions.length}</span>
                             </div>
                         </div>
                     </Card>
                 </div>
-                
-                <Card title="Tezkor Amallar">
-                    <div className="flex flex-wrap gap-4 justify-center">
-                        <Link
-                            to="/financials"
-                            className="inline-flex items-center justify-center px-6 py-3 font-semibold rounded-full bg-white/10 text-slate-900 hover:bg-white/20 border border-slate-200/90 focus:ring-4 focus:ring-white/30 transition-all duration-200"
-                        >
-                            Batafsil Moliyaviy Hisobot <ArrowRight className="ml-2 h-4 w-4"/>
-                        </Link>
-                    </div>
-                </Card>
             </div>
         );
     };

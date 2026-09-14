@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import EditorialPageHeader from '../components/EditorialPageHeader';
-import { Download, Filter, Search, Loader2 } from 'lucide-react';
+import { Download, Search, Loader2 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { txAmount } from '../utils/amount';
 
@@ -259,42 +259,41 @@ const Financials: React.FC = () => {
                 </div>
             </div>
             
-            {/* Service Type Breakdown */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card title="Tushumlar (Xizmat turlari bo'yicha)">
-                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
                         {Object.entries(incomeByServiceType).length > 0 ? (
                             Object.entries(incomeByServiceType).map(([serviceType, amount]) => (
-                                <div key={serviceType} className="flex justify-between items-center">
-                                    <span className="text-slate-600">
+                                <div key={serviceType} className="editorial-card flex justify-between items-center p-3">
+                                    <span className="text-[var(--editorial-muted)]">
                                         {serviceTypeNames[serviceType] || serviceType}
                                     </span>
-                                    <span className="font-medium text-emerald-800">
+                                    <span className="font-medium text-[var(--editorial-teal)] tabular-nums">
                                         {amount.toLocaleString()} so'm
                                     </span>
                                 </div>
                             ))
                         ) : (
-                            <p className="text-center text-slate-500 py-4">Ma'lumot mavjud emas</p>
+                            <div className="editorial-empty py-6">Ma'lumot mavjud emas</div>
                         )}
                     </div>
                 </Card>
-                
+
                 <Card title="Chiqimlar (Xizmat turlari bo'yicha)">
-                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
                         {Object.entries(expensesByServiceType).length > 0 ? (
                             Object.entries(expensesByServiceType).map(([serviceType, amount]) => (
-                                <div key={serviceType} className="flex justify-between items-center">
-                                    <span className="text-slate-600">
+                                <div key={serviceType} className="editorial-card flex justify-between items-center p-3">
+                                    <span className="text-[var(--editorial-muted)]">
                                         {serviceTypeNames[serviceType] || serviceType}
                                     </span>
-                                    <span className="font-medium text-red-700">
+                                    <span className="font-medium text-red-700 tabular-nums">
                                         {amount.toLocaleString()} so'm
                                     </span>
                                 </div>
                             ))
                         ) : (
-                            <p className="text-center text-slate-500 py-4">Ma'lumot mavjud emas</p>
+                            <div className="editorial-empty py-6">Ma'lumot mavjud emas</div>
                         )}
                     </div>
                 </Card>
@@ -420,14 +419,12 @@ const Financials: React.FC = () => {
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-12 text-center">
-                                        <Filter className="mx-auto h-12 w-12 text-slate-500" />
-                                        <h3 className="mt-2 text-sm font-medium text-slate-900">Tranzaksiyalar topilmadi</h3>
-                                        <p className="mt-1 text-sm text-slate-500">
-                                            {searchQuery || dateRange.start || dateRange.end || serviceType !== 'all' 
-                                                ? 'Tanlangan filtrlar bo\'yicha hech narsa topilmadi.' 
+                                    <td colSpan={7} className="px-4 py-12">
+                                        <div className="editorial-empty py-4">
+                                            {searchQuery || dateRange.start || dateRange.end || serviceType !== 'all'
+                                                ? 'Tanlangan filtrlar bo\'yicha hech narsa topilmadi.'
                                                 : 'Hozircha tranzaksiyalar mavjud emas.'}
-                                        </p>
+                                        </div>
                                     </td>
                                 </tr>
                             )}
