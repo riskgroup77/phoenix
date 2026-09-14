@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { TranslationStatus } from '../types';
 import { Languages, Download, Clock, CheckCircle, RefreshCw, XCircle, FileText, Loader2 } from 'lucide-react';
@@ -142,8 +143,11 @@ const MyTranslations: React.FC = () => {
     }
 
     return (
-        <Card title="Mening Tarjimalarim">
-            <p className="text-slate-600 mb-6 -mt-4">Bu yerda siz buyurtma qilgan tarjimalaringiz holatini kuzatib borishingiz mumkin.</p>
+        <div className="max-w-5xl mx-auto">
+            <EditorialPageHeader
+                title="Mening Tarjimalarim"
+                subtitle="Bu yerda siz buyurtma qilgan tarjimalaringiz holatini kuzatib borishingiz mumkin."
+            />
             <div className="space-y-4">
                 {myRequests.length > 0 ? (
                     myRequests.map(req => {
@@ -151,7 +155,7 @@ const MyTranslations: React.FC = () => {
                         const StatusIcon = statusInfo.icon;
 
                         return (
-                            <div key={req.id} className="p-5 bg-slate-100/70 rounded-xl border border-slate-200/90">
+                            <div key={req.id} className="editorial-card">
                                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                                     <div>
                                         <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-3">
@@ -221,14 +225,14 @@ const MyTranslations: React.FC = () => {
                         );
                     })
                 ) : (
-                    <div className="text-center py-12">
-                        <Languages className="mx-auto h-16 w-16 text-slate-500" />
-                        <h3 className="mt-4 text-xl font-semibold text-slate-900">Sizda Hozircha Tarjima Buyurtmalari Yo'q</h3>
-                        <p className="mt-2 text-sm text-slate-500">"Xizmatlar" bo'limi orqali yangi tarjima buyurtma qilishingiz mumkin.</p>
+                    <div className="editorial-empty">
+                        <Languages className="mx-auto h-12 w-12 text-[var(--editorial-muted)] mb-3" />
+                        <h3 className="font-serif text-lg font-semibold text-[var(--editorial-text)]">Sizda Hozircha Tarjima Buyurtmalari Yo'q</h3>
+                        <p className="mt-2 text-sm">"Xizmatlar" bo'limi orqali yangi tarjima buyurtma qilishingiz mumkin.</p>
                     </div>
                 )}
             </div>
-        </Card>
+        </div>
     );
 };
 

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Button from '../components/ui/Button';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import ModalPortal from '../components/ui/ModalPortal';
 import { CreditCard } from 'lucide-react';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
@@ -705,9 +706,10 @@ const PlagiarismCheck: React.FC = () => {
   return (
       <>
       <div className="no-print mx-auto max-w-4xl px-4 py-8">
-          <p className="mb-6 text-center text-sm text-slate-600">
-            Hujjat yuklang, turini tanlang, tekshirish modullarini sozlang va natijani oling.
-          </p>
+          <EditorialPageHeader
+            title="Antiplagiat tekshiruvi"
+            subtitle="Hujjat yuklang, turini tanlang, tekshirish modullarini sozlang va natijani oling."
+          />
 
           <AntiplagiatUploadPanel
             values={form}

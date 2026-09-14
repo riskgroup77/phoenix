@@ -1,5 +1,6 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
@@ -112,14 +113,17 @@ const MyCollections: React.FC = () => {
     }
 
     return (
-        <Card title="Mening To'plamlarim">
-            <p className="text-slate-600 mb-6 -mt-4">Bu yerda sizning maqolalaringiz kiritilgan jurnallarning oylik to'plamlarini topishingiz mumkin.</p>
+        <div className="max-w-5xl mx-auto">
+            <EditorialPageHeader
+                title="Mening To'plamlarim"
+                subtitle="Bu yerda sizning maqolalaringiz kiritilgan jurnallarning oylik to'plamlarini topishingiz mumkin."
+            />
             <div className="space-y-4">
                 {myCollections.length > 0 ? (
                     myCollections.map(issue => {
                         const journal = journals.find(j => j.id === issue.journal);
                         return (
-                             <div key={issue.id} className="p-5 bg-slate-100/70 rounded-xl border border-slate-200/90">
+                             <div key={issue.id} className="editorial-card">
                                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                                     <div>
                                         <h3 className="text-xl font-bold text-slate-900">{journal?.name}</h3>
@@ -154,14 +158,14 @@ const MyCollections: React.FC = () => {
                         )
                     })
                 ) : (
-                    <div className="text-center py-12">
-                        <Archive className="mx-auto h-16 w-16 text-slate-500" />
-                        <h3 className="mt-4 text-xl font-semibold text-slate-900">To'plamlar Hozircha Mavjud Emas</h3>
-                        <p className="mt-2 text-sm text-slate-500">Maqolangiz biror sonda nashr etilganda va admin to'plam havolasini yuborganda, u shu yerda paydo bo'ladi.</p>
+                    <div className="editorial-empty">
+                        <Archive className="mx-auto h-12 w-12 text-[var(--editorial-muted)] mb-3" />
+                        <h3 className="font-serif text-lg font-semibold text-[var(--editorial-text)]">To'plamlar Hozircha Mavjud Emas</h3>
+                        <p className="mt-2 text-sm">Maqolangiz biror sonda nashr etilganda va admin to'plam havolasini yuborganda, u shu yerda paydo bo'ladi.</p>
                     </div>
                 )}
             </div>
-        </Card>
+        </div>
     );
 };
 

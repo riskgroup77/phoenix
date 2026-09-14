@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Article, ArticleStatus, ARTICLE_STATUS_LABELS, Role, TranslationRequest, TranslationStatus, User } from '../types';
 import Card from '../components/ui/Card';
+import EditorialTabs from '../components/EditorialTabs';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import { Search, Rocket, Languages, ArrowRight, FileText, Printer, Loader2, ChevronDown, Check, Filter, X, Share2, BookOpen, FileDown } from 'lucide-react';
 import Button from '../components/ui/Button';
 import AuthorArticleReport from '../components/AuthorArticleReport';
@@ -836,28 +838,17 @@ const Articles: React.FC = () => {
         );
     }
 
-    const renderTabs = (tabs: {id: string, label: string, statuses?: (ArticleStatus | TranslationStatus)[]}[], tabCounts: {id: string, count: number}[]) => {
-        return (
-             <div className="mb-6 border-b border-slate-200/90 flex">
-                {tabs.map(tab => {
-                    const tabCount = tabCounts.find(tc => tc.id === tab.id)?.count || 0;
-                    return (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`px-4 py-3 font-medium text-sm transition-colors ${
-                                activeTab === tab.id
-                                    ? 'border-b-2 border-blue-400 text-blue-800'
-                                    : 'text-slate-500 hover:text-slate-900'
-                            }`}
-                        >
-                            {tab.label} <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${activeTab === tab.id ? 'bg-blue-500/20 text-blue-900' : 'bg-white/10 text-slate-600'}`}>{tabCount}</span>
-                        </button>
-                    )
-                })}
-            </div>
-        )
-    }
+    const renderTabs = (tabs: {id: string, label: string, statuses?: (ArticleStatus | TranslationStatus)[]}[], tabCounts: {id: string, count: number}[]) => (
+        <EditorialTabs
+            tabs={tabs.map((tab) => ({
+                id: tab.id,
+                label: tab.label,
+                count: tabCounts.find((tc) => tc.id === tab.id)?.count ?? 0,
+            }))}
+            activeId={activeTab}
+            onChange={setActiveTab}
+        />
+    );
     
     const handlePrintReport = () => {
         window.print();
@@ -954,17 +945,22 @@ const Articles: React.FC = () => {
 
     return (
         <>
-            <Card title={title}>
-                {user.role === Role.Author && (
-                    <div className="mb-6 flex flex-wrap gap-2 justify-end">
-                        <Button onClick={() => setShowReportModal(true)} variant="secondary">
-                            <FileText className="mr-2 h-4 w-4" /> Barcha maqolalar bo'yicha ma'lumotnoma
-                        </Button>
-                        <Button onClick={() => setShowNashrHisobotModal(true)} variant="primary">
-                            <BookOpen className="mr-2 h-4 w-4" /> Nashri haqida hisobot
-                        </Button>
-                    </div>
-                )}
+            <EditorialPageHeader
+                title={title}
+                actions={
+                    user.role === Role.Author ? (
+                        <>
+                            <Button onClick={() => setShowReportModal(true)} variant="secondary">
+                                <FileText className="mr-2 h-4 w-4" /> Barcha maqolalar bo'yicha ma'lumotnoma
+                            </Button>
+                            <Button onClick={() => setShowNashrHisobotModal(true)} variant="primary">
+                                <BookOpen className="mr-2 h-4 w-4" /> Nashri haqida hisobot
+                            </Button>
+                        </>
+                    ) : undefined
+                }
+            />
+            <Card>
                 {isReviewer && renderTabs(reviewerTabs, reviewerTabCounts)}
                 {(userRole === Role.Author || userRole === 'author') && renderTabs(authorArticleTabs, authorTabCounts)}
                 {isJournalAdmin && renderTabs(journalAdminTabs, journalAdminTabCounts)}

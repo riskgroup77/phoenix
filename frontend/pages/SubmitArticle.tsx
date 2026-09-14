@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
 import { UploadCloud, CheckCircle, Loader2, XCircle, FileText, Users, Eye, BookOpen, Filter, Layers, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -386,42 +387,30 @@ const SubmitArticle: React.FC = () => {
 
   return (
     <div className={`mx-auto p-6 ${currentStep === 1 ? 'max-w-6xl' : 'max-w-4xl'}`}>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Maqola yuborish</h1>
-        <p className="text-slate-500">Maqolangizni nashr qilish uchun yuboring</p>
+      <EditorialPageHeader
+        title="Maqola yuborish"
+        subtitle="Maqolangizni nashr qilish uchun yuboring"
+      />
+
+      <div className="editorial-stepper mb-8">
+        {steps.map((step) => {
+          const isActive = currentStep === step.id;
+          const isCompleted = currentStep > step.id;
+          return (
+            <div
+              key={step.id}
+              className={`editorial-step ${isActive ? 'editorial-step--active' : ''} ${isCompleted ? 'editorial-step--done' : ''}`}
+            >
+              {step.title}
+            </div>
+          );
+        })}
       </div>
-
-      {/* Progress Steps */}
-      <div className="mb-8">
-        <div className="flex justify-between">
-          {steps.map((step) => {
-            const Icon = step.icon;
-            const isActive = currentStep === step.id;
-            const isCompleted = currentStep > step.id;
-
-            return (
-              <div key={step.id} className="flex flex-col items-center">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 ${
-                  isCompleted ? 'bg-green-600' :
-                  isActive ? 'bg-blue-600' : 'bg-gray-600'
-                }`}>
-                  {isCompleted ? <CheckCircle className="w-6 h-6 text-slate-900" /> : <Icon className="w-6 h-6 text-slate-900" />}
-                </div>
-                <span className={`text-sm font-medium ${
-                  isActive ? 'text-blue-800' : isCompleted ? 'text-emerald-800' : 'text-slate-500'
-                }`}>
-                  {step.title}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-        <div className="mt-4 bg-slate-100/90 rounded-full h-2">
-          <div
-            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
-          />
-        </div>
+      <div className="mb-8 h-1.5 rounded-full bg-[var(--editorial-bg-alt)] overflow-hidden">
+        <div
+          className="h-full bg-[var(--editorial-primary)] transition-all duration-300"
+          style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
+        />
       </div>
 
       {/* Step Content */}

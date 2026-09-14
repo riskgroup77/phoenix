@@ -258,12 +258,12 @@ const ClickPayment: React.FC = () => {
     const showPendingSummary = isPaymentPending && transaction && !isLoading;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 flex items-center justify-center p-4">
-            <Card className="max-w-md w-full">
+        <div className="min-h-screen bg-[var(--editorial-bg,#fdfbf7)] flex items-center justify-center p-4">
+            <Card className="max-w-md w-full shadow-lg border border-[var(--editorial-border,#e2ddd4)]">
                 <div className="text-center mb-6">
-                    <CreditCard className="h-16 w-16 mx-auto mb-4 text-blue-800" />
-                    <h2 className="text-2xl font-bold text-slate-900 mb-2">Click To&apos;lov</h2>
-                    <p className="text-slate-500">
+                    <CreditCard className="h-16 w-16 mx-auto mb-4 text-[var(--editorial-primary,#8b1538)]" />
+                    <h2 className="font-serif text-2xl font-bold text-[var(--editorial-text,#1a1a1a)] mb-2">Click To&apos;lov</h2>
+                    <p className="text-[var(--editorial-muted,#64748b)]">
                         {isPaymentCompleted
                             ? "To'lov tasdiqlandi"
                             : "To'lovni amalga oshirish uchun QR yoki tugmadan foydalaning"}
@@ -272,7 +272,7 @@ const ClickPayment: React.FC = () => {
 
                 {isLoading && !isPaymentCompleted && (
                     <div className="text-center py-8">
-                        <Loader className="h-12 w-12 mx-auto animate-spin text-blue-800 mb-4" />
+                        <Loader className="h-12 w-12 mx-auto animate-spin text-[var(--editorial-primary,#8b1538)] mb-4" />
                         <p className="text-slate-500">To&apos;lov sahifasi tayyorlanmoqda...</p>
                     </div>
                 )}

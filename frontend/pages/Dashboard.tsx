@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
 import { Role, ArticleStatus, ARTICLE_STATUS_LABELS } from '../types';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import { FileText, Edit3, UserCheck, CheckCircle, Users, Inbox, Clock, XCircle, DollarSign, User as UserIcon, Timer, ArrowRight, Wallet, Rocket, Shield, Bot, Eye, Download, TrendingUp, BarChart3, PieChart as PieChartIcon, Upload, BookOpen, Archive, ChevronRight, Languages, ExternalLink, Library, Bell, CreditCard } from 'lucide-react';
 import { toast } from 'react-toastify';
 import Button from '../components/ui/Button';
@@ -304,14 +305,10 @@ const Dashboard: React.FC = () => {
 
         return (
             <div className="space-y-8 max-w-6xl">
-                <div>
-                    <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[var(--editorial-text)] tracking-tight">
-                        Xush kelibsiz, {user.firstName}
-                    </h1>
-                    <p className="mt-2 text-[var(--editorial-muted)] text-sm sm:text-base">
-                        Ilmiy faoliyatingizni boshqarish paneliga xush kelibsiz.
-                    </p>
-                </div>
+                <EditorialPageHeader
+                    title={`Xush kelibsiz, ${user.firstName}`}
+                    subtitle="Ilmiy faoliyatingizni boshqarish paneliga xush kelibsiz."
+                />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <PinmSummaryCard

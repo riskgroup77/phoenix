@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { Role, ArticleStatus, ActivityLogEvent } from '../types';
@@ -314,27 +315,26 @@ const ArticleDetail: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="min-w-0">
-                    <Link to="/articles" className="text-blue-800 hover:text-blue-700 flex items-center gap-2 mb-2 text-sm">
-                        <span>←</span> Maqolalar ro'yxati
-                    </Link>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 break-words">{article.title}</h1>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 ${statusData.color}`}>
-                        <StatusIcon size={16} />
-                        {article.status_label || statusData.text}
-                    </span>
-                    {article.fast_track && (
-                        <span className="px-3 py-1 rounded-full text-sm font-medium bg-yellow-500/20 text-yellow-900 flex items-center gap-2">
-                            <Award size={16} />
-                            Tezkor
+            <Link to="/articles" className="text-[var(--editorial-primary)] hover:opacity-80 flex items-center gap-2 mb-2 text-sm font-medium">
+                <span>←</span> Maqolalar ro'yxati
+            </Link>
+            <EditorialPageHeader
+                title={article.title}
+                actions={
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 ${statusData.color}`}>
+                            <StatusIcon size={16} />
+                            {article.status_label || statusData.text}
                         </span>
-                    )}
-                </div>
-            </div>
+                        {article.fast_track && (
+                            <span className="px-3 py-1 rounded-full text-sm font-medium bg-yellow-500/20 text-yellow-900 flex items-center gap-2">
+                                <Award size={16} />
+                                Tezkor
+                            </span>
+                        )}
+                    </div>
+                }
+            />
 
             {/* Main content grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

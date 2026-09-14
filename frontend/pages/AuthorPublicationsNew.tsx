@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
+import EditorialTabs from '../components/EditorialTabs';
 import Button from '../components/ui/Button';
 import { Plus, Search, Filter, Download, Edit, Trash2, QrCode, BookOpen, Users, FileText, ExternalLink, FileDown } from 'lucide-react';
 import NashrHisobotModal from '../components/NashrHisobotModal';
@@ -307,17 +309,12 @@ const AuthorPublications: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Muallif Nashrlari</h1>
-          <p className="text-slate-500 mt-1 text-sm max-w-2xl">
-            Platformada yuborilgan maqolalar, maqola yozish buyurtmalari va boshqa ilmiy nashrlar shu yerda.
-            Sertifikatlar va UDK hujjatlari «Arxiv hujjatlar» bo&apos;limida.
-          </p>
-        </div>
-        <div className="flex gap-2 shrink-0 flex-wrap">
-          {isAuthor ? (
+    <div className="container mx-auto p-6 max-w-6xl">
+      <EditorialPageHeader
+        title="Muallif Nashrlari"
+        subtitle="Platformada yuborilgan maqolalar, maqola yozish buyurtmalari va boshqa ilmiy nashrlar shu yerda. Sertifikatlar va UDK hujjatlari «Arxiv hujjatlar» bo'limida."
+        actions={
+          isAuthor ? (
             <Button onClick={() => setShowNashrHisobotModal(true)} variant="primary">
               <FileDown className="w-4 h-4 mr-2" />
               Nashr hisoboti
@@ -333,34 +330,20 @@ const AuthorPublications: React.FC = () => {
                 Yangi Nashr
               </Button>
             </>
-          )}
-        </div>
-      </div>
+          )
+        }
+      />
 
       {isAuthor && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          {(
-            [
-              { id: 'platform' as SectionTab, label: 'Platform maqolalari', count: platformArticles.length },
-              { id: 'samples' as SectionTab, label: 'Maqola yozish buyurtmalari', count: sampleOrders.length },
-              { id: 'external' as SectionTab, label: 'Boshqa nashrlar', count: publications.length },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveSection(tab.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeSection === tab.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              {tab.label}
-              <span className="ml-1.5 opacity-80">({tab.count})</span>
-            </button>
-          ))}
-        </div>
+        <EditorialTabs
+          tabs={[
+            { id: 'platform', label: 'Platform maqolalari', count: platformArticles.length },
+            { id: 'samples', label: 'Maqola yozish buyurtmalari', count: sampleOrders.length },
+            { id: 'external', label: 'Boshqa nashrlar', count: publications.length },
+          ]}
+          activeId={activeSection}
+          onChange={(id) => setActiveSection(id as SectionTab)}
+        />
       )}
 
       {/* Filters */}

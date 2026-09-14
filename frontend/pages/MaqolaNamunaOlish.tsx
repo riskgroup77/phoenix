@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
 import { Send, AlertCircle, FileText } from 'lucide-react';
 import apiService from '../services/apiService';
@@ -172,17 +173,10 @@ const MaqolaNamunaOlish: React.FC = () => {
   return (
     <div className="w-full min-h-screen px-4 sm:px-6 lg:px-8 py-6">
       <div className="max-w-[1600px] mx-auto">
-        <div className="flex items-start gap-4 mb-6">
-          <div className="p-3 rounded-xl bg-blue-600/20 dark:bg-blue-500/25 border border-blue-500/30 dark:border-blue-400/35 shrink-0">
-            <FileText className="h-8 w-8 text-blue-800 dark:text-blue-300" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold mb-2 text-slate-900 dark:text-slate-50">Maqola namuna olish</h1>
-            <p className="text-slate-600 dark:text-slate-400 max-w-3xl">
-              Talablar va maqola ma&apos;lumotlarini kiriting. To&apos;lovdan so&apos;ng so&apos;rov taqrizchiga yuboriladi.
-            </p>
-          </div>
-        </div>
+        <EditorialPageHeader
+          title="Maqola namuna olish"
+          subtitle="Talablar va maqola ma'lumotlarini kiriting. To'lovdan so'ng so'rov taqrizchiga yuboriladi."
+        />
 
         <form onSubmit={handleSubmit} className="space-y-8">
           {error && (

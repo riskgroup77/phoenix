@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
@@ -227,20 +228,12 @@ const UdkOlish: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <EditorialPageHeader
+        title="UDK Olish"
+        subtitle="UDK tasdiqlangan ma'lumotnoma: mavzu va annotatsiyani kiriting, to'lovdan keyin taqrizchi UDK kodini aniqlaydi va ma'lumotnoma tayyorlanadi."
+      />
       <Card>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2.5 rounded-xl bg-indigo-500/20">
-            <Library className="h-6 w-6 text-indigo-400" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">UDK Olish</h1>
-            <p className="text-sm text-slate-500">
-              UDK tasdiqlangan ma'lumotnoma: mavzu va annotatsiyani kiriting, to'lovdan keyin taqrizchi UDK kodini aniqlaydi va ma'lumotnoma tayyorlanadi.
-            </p>
-          </div>
-        </div>
-
         {/* UDK so'rovi yuborish formasi */}
         <div className="p-4 rounded-xl bg-slate-100/70 border border-slate-200/90">
           <h2 className="text-sm font-semibold text-slate-600 mb-3 flex items-center gap-2">

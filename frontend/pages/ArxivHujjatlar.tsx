@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import { Download, FileText, ExternalLink, Filter } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { toast } from 'react-toastify';
@@ -166,14 +167,11 @@ const ArxivHujjatlar: React.FC = () => {
     const filtered = archiveFilter ? archiveItems.filter((it) => it.type === archiveFilter) : archiveItems;
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900">Arxiv hujjatlar</h1>
-                <p className="text-slate-500 mt-1">
-                    Nashr sertifikatlari, UDK ma&apos;lumotnomalar, taqriz natijalari, DOI va antiplagiat tekshiruvlari shu yerga avtomatik yig&apos;iladi.
-                    Muallif yuborgan dastlabki fayl (docx) bu ro&apos;yxatda ko&apos;rinmaydi.
-                </p>
-            </div>
+        <div className="space-y-6 max-w-6xl mx-auto">
+            <EditorialPageHeader
+                title="Arxiv hujjatlar"
+                subtitle="Nashr sertifikatlari, UDK ma'lumotnomalar, taqriz natijalari, DOI va antiplagiat tekshiruvlari shu yerga avtomatik yig'iladi. Muallif yuborgan dastlabki fayl (docx) bu ro'yxatda ko'rinmaydi."
+            />
 
             <Card title="">
                 {loading ? (
@@ -181,9 +179,9 @@ const ArxivHujjatlar: React.FC = () => {
                         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
                     </div>
                 ) : archiveItems.length === 0 ? (
-                    <div className="text-center py-12 text-slate-500">
-                        <FileText className="h-14 w-14 mx-auto mb-3 opacity-50" />
-                        <p className="text-lg">Hozircha arxiv hujjatlari yo&apos;q.</p>
+                    <div className="editorial-empty">
+                        <FileText className="h-12 w-12 mx-auto mb-3 text-[var(--editorial-muted)]" />
+                        <p className="font-serif text-lg font-semibold text-[var(--editorial-text)]">Hozircha arxiv hujjatlari yo&apos;q.</p>
                         <p className="text-sm mt-2 max-w-md mx-auto">
                             Nashr sertifikatlari, UDK, taqriz natijalari, DOI va antiplagiat tekshiruvlari shu yerda paydo bo&apos;ladi.
                             Maqolalar «Muallif nashrlari» bo&apos;limida.
@@ -192,11 +190,11 @@ const ArxivHujjatlar: React.FC = () => {
                 ) : (
                     <>
                         <div className="flex flex-wrap items-center gap-2 mb-4">
-                            <Filter className="h-4 w-4 text-slate-500" />
+                            <Filter className="h-4 w-4 text-[var(--editorial-muted)]" />
                             <select
                                 value={archiveFilter}
                                 onChange={(e) => setArchiveFilter(e.target.value)}
-                                className="bg-slate-100/70 border border-slate-200/90 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500"
+                                className="editorial-select"
                             >
                                 <option value="">Barcha turi</option>
                                 {Object.entries(ARCHIVE_TYPE_LABELS).map(([k, v]) => (
@@ -205,9 +203,9 @@ const ArxivHujjatlar: React.FC = () => {
                             </select>
                         </div>
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left">
+                            <table className="editorial-table w-full text-left">
                                 <thead>
-                                    <tr className="border-b border-slate-200/90">
+                                    <tr className="border-b border-[var(--editorial-border)]">
                                         <th className="pb-2 text-sm font-medium text-slate-500">Tur</th>
                                         <th className="pb-2 text-sm font-medium text-slate-500">Nomi / ma&apos;lumot</th>
                                         <th className="pb-2 text-sm font-medium text-slate-500 hidden md:table-cell">Natija</th>

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
 import ModalPortal from '../components/ui/ModalPortal';
 import { UploadCloud, CheckCircle, Loader2, XCircle, BookText, Book, BookCopy, ChevronDown, Check, Info, Minus, Plus } from 'lucide-react';
@@ -429,7 +430,13 @@ const SubmitBook: React.FC = () => {
 
     return (
         <>
-            <Card title="Kitob Nashr Etish Kalkulyatori">
+            <div className="max-w-6xl mx-auto mb-6">
+                <EditorialPageHeader
+                    title="Kitob Nashr Etish Kalkulyatori"
+                    subtitle="Sahifalar, nusxalar va qo'shimcha xizmatlarni tanlang — narx avtomatik hisoblanadi."
+                />
+            </div>
+            <Card>
                 <form onSubmit={handleSubmit}>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         {/* Left Column: Configuration */}

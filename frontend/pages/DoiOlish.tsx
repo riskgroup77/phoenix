@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
@@ -88,20 +89,12 @@ const DoiOlish: React.FC = () => {
   const inputClass = 'w-full px-4 py-2 rounded-lg bg-slate-100/70 border border-slate-200/90 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <EditorialPageHeader
+        title="DOI Raqami Olish"
+        subtitle="Maqolangiz uchun unikal raqamli obyekt identifikatorini (DOI) ro'yxatdan o'tkazish. Ma'lumotlarni kiriting va to'lovni amalga oshiring; so'rov taqrizchiga yuboriladi, DOI link tayyor bo'lgach arxivda ko'rinadi va bildirishnoma keladi."
+      />
       <Card>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2.5 rounded-xl bg-cyan-500/20">
-            <Bot className="h-6 w-6 text-cyan-800" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">DOI Raqami Olish</h1>
-            <p className="text-sm text-slate-500">
-              Maqolangiz uchun unikal raqamli obyekt identifikatorini (DOI) ro'yxatdan o'tkazish. Ma'lumotlarni kiriting va to'lovni amalga oshiring; so'rov taqrizchiga yuboriladi, DOI link tayyor bo'lgach arxivda ko'rinadi va bildirishnoma keladi.
-            </p>
-          </div>
-        </div>
-
         {loading ? (
           <p className="text-slate-500">Yuklanmoqda…</p>
         ) : (

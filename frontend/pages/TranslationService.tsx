@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
 import { Upload, Languages, FileText, Loader2, CheckCircle, AlertCircle, CreditCard } from 'lucide-react';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
@@ -223,7 +224,11 @@ const TranslationService: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <Card title="Ilmiy Tarjima Xizmati">
+      <EditorialPageHeader
+        title="Ilmiy Tarjima Xizmati"
+        subtitle="Hujjatni yuklang, til juftligini tanlang va tarjima buyurtmasini yuboring."
+      />
+      <Card>
         <div className="space-y-6">
           {/* File Upload Section */}
           <div>
