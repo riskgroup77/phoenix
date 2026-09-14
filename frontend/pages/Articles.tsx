@@ -275,11 +275,11 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
 
     return (
         <div 
-            className="p-4 sm:p-5 bg-slate-100/70 rounded-xl hover:bg-white/10 transition-all duration-200 cursor-pointer border border-transparent hover:border-slate-200/90"
+            className="editorial-card cursor-pointer hover:border-[var(--editorial-primary)]/35 transition-colors"
             onClick={() => navigate(`/articles/${article.id}`)}
         >
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4">
-                <h4 className="text-base sm:text-lg font-semibold text-blue-800 leading-snug">{article.title}</h4>
+                <h4 className="text-base sm:text-lg font-semibold text-[var(--editorial-text)] leading-snug">{article.title}</h4>
                 <div className="flex items-center gap-2 shrink-0">
                     {article.fast_track && (
                         <span className="text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap bg-yellow-500/20 text-yellow-900 flex items-center gap-1.5">
@@ -903,11 +903,11 @@ const Articles: React.FC = () => {
         if (filteredArticles.length === 0) {
             return (
                 <div className="space-y-4">
-                    <p className="text-center text-slate-500 py-8">
+                    <div className="editorial-empty py-8">
                         {searchQuery
                             ? `"${searchQuery}" bo'yicha hech narsa topilmadi.`
                             : "Ushbu bo'limda hozircha maqolalar mavjud emas."}
-                    </p>
+                    </div>
                 </div>
             );
         }

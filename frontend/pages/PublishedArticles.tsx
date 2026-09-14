@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
@@ -220,7 +221,7 @@ const PublishedArticles: React.FC = () => {
         return (
             <Card title="Oylik Sonlar va Arxiv">
                 <div className="flex justify-center items-center h-64">
-                    <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                    <Loader2 className="h-8 w-8 animate-spin text-[var(--editorial-primary)]" />
                     <span className="ml-3">Ma'lumotlar yuklanmoqda...</span>
                 </div>
             </Card>
@@ -314,13 +315,16 @@ const PublishedArticles: React.FC = () => {
     };
 
     return (
-        <Card title="Oylik Sonlar va Arxiv">
-            <p className="text-slate-600 mb-4 -mt-4">
-                Bu yerda <strong className="text-slate-900">o‘z jurnallaringiz</strong> uchun oylik to‘plamlarni boshqarishingiz mumkin.
-                {isSuperAdminUser && (
-                    <span className="block mt-1 text-amber-950 text-sm">Super admin: barcha jurnallardan birini tanlashingiz mumkin.</span>
-                )}
-            </p>
+        <div className="max-w-6xl mx-auto">
+            <EditorialPageHeader
+                title="Oylik Sonlar va Arxiv"
+                subtitle={
+                    isSuperAdminUser
+                        ? "O'z jurnallaringiz uchun oylik to'plamlarni boshqaring. Super admin: barcha jurnallardan birini tanlashingiz mumkin."
+                        : "O'z jurnallaringiz uchun oylik to'plamlarni boshqaring."
+                }
+            />
+        <Card>
 
             {managedJournals.length === 0 && !loading && (
                 <div className="mb-6 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-100 text-sm">
@@ -340,14 +344,14 @@ const PublishedArticles: React.FC = () => {
                 </div>
             )}
             
-            <div className="p-4 bg-slate-100/70 rounded-lg mb-6 flex flex-col md:flex-row gap-4">
+            <div className="editorial-card mb-6 flex flex-col md:flex-row gap-4 !p-4">
                 {managedJournals.length > 0 && (
                     <div className="md:min-w-[220px] flex-1">
-                        <label className="block text-xs text-slate-500 mb-1">Jurnal (shu bo‘yicha son va maqolalar)</label>
+                        <label className="editorial-field-label">Jurnal (shu bo'yicha son va maqolalar)</label>
                         <select 
                             value={selectedJournalId} 
                             onChange={e => setSelectedJournalId(e.target.value)} 
-                            className="w-full bg-white/50 border border-slate-200/90 rounded-lg px-3 py-2 text-sm text-slate-900"
+                            className="editorial-select w-full"
                             disabled={loading}
                         >
                             {managedJournals.map(j => (
@@ -365,22 +369,22 @@ const PublishedArticles: React.FC = () => {
                     </div>
                 )}
                 <div>
-                    <label className="text-sm">Yil</label>
+                    <label className="editorial-field-label">Yil</label>
                     <select 
                         value={selectedYear} 
                         onChange={e => setSelectedYear(parseInt(e.target.value))} 
-                        className="w-full"
+                        className="editorial-select w-full"
                         disabled={loading}
                     >
                         {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
                 </div>
                 <div>
-                    <label className="text-sm">Oy</label>
+                    <label className="editorial-field-label">Oy</label>
                     <select 
                         value={selectedMonth} 
                         onChange={e => setSelectedMonth(parseInt(e.target.value))} 
-                        className="w-full"
+                        className="editorial-select w-full"
                         disabled={loading}
                     >
                         {MONTH_NAMES.map((m, i) => <option key={m} value={i}>{m}</option>)}
@@ -570,6 +574,7 @@ const PublishedArticles: React.FC = () => {
                 </div>
             </div>
         </Card>
+        </div>
     );
 };
 

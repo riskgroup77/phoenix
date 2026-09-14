@@ -639,40 +639,43 @@ const Dashboard: React.FC = () => {
         ).length;
 
         return (
-            <div className="space-y-8">
-                <h2 className="text-3xl font-bold text-slate-900">Jurnal administratori paneli</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                   <StatCard icon={Inbox} title="Yangi Kelganlar" value={newSubmissionsCount} gradient="bg-gradient-to-r from-cyan-500 to-blue-400" to="/articles" />
-                   <StatCard icon={Clock} title="Nashrni kutmoqda" value={pendingPublicationCount} gradient="bg-gradient-to-r from-yellow-500 to-orange-400" to="/articles" />
-                   <StatCard icon={CheckCircle} title="Jami nashrlar" value={totalPublishedCount} gradient="bg-gradient-to-r from-green-500 to-emerald-400" to="/published-articles" />
+            <div className="space-y-8 max-w-6xl mx-auto">
+                <EditorialPageHeader
+                    title="Jurnal administratori paneli"
+                    subtitle="Sizga biriktirilgan jurnallar va maqolalar holati."
+                />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   <PinmSummaryCard icon={Inbox} title="Yangi Kelganlar" value={newSubmissionsCount} linkLabel="Ko'rish" to="/articles" />
+                   <PinmSummaryCard icon={Clock} title="Nashrni kutmoqda" value={pendingPublicationCount} linkLabel="Ko'rish" to="/articles?tab=ready" />
+                   <PinmSummaryCard icon={CheckCircle} title="Jami nashrlar" value={totalPublishedCount} linkLabel="Ko'rish" to="/published-articles" />
                 </div>
 
                 <Card title="Mening jurnallarim">
-                    <p className="text-slate-500 text-sm mb-4">Sizga biriktirilgan barcha jurnallar. Maqolalar uchun jurnalni tanlang.</p>
+                    <p className="text-[var(--editorial-muted)] text-sm mb-4">Sizga biriktirilgan barcha jurnallar. Maqolalar uchun jurnalni tanlang.</p>
                     {managedJournals.length === 0 ? (
-                        <p className="text-slate-500 py-6 text-center border border-slate-200/90 rounded-xl bg-white/[0.08]">
+                        <div className="editorial-empty py-8">
                             Hozircha sizga biriktirilgan jurnal yo&apos;q. Super administrator bilan bog&apos;laning.
-                        </p>
+                        </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                             {managedJournals.map((j: any) => (
                                 <div
                                     key={j.id}
-                                    className="rounded-xl border border-slate-200/90 bg-white/[0.06] p-5 flex flex-col gap-3 hover:border-blue-500/40 transition-colors"
+                                    className="editorial-card flex flex-col gap-3 hover:border-[var(--editorial-primary)]/35 transition-colors"
                                 >
                                     <div className="flex items-start gap-3">
-                                        <div className="p-2.5 rounded-lg bg-blue-500/20 shrink-0">
-                                            <BookOpen className="h-6 w-6 text-blue-900" />
+                                        <div className="p-2.5 rounded-md bg-[rgba(139,21,56,0.08)] shrink-0">
+                                            <BookOpen className="h-6 w-6 text-[var(--editorial-primary)]" />
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <h3 className="font-semibold text-slate-900 text-lg leading-snug line-clamp-2">{j.name || '—'}</h3>
-                                            <p className="text-xs text-slate-500 mt-1">ISSN: {j.issn || '—'}</p>
+                                            <h3 className="font-serif font-semibold text-[var(--editorial-text)] text-lg leading-snug line-clamp-2">{j.name || '—'}</h3>
+                                            <p className="text-xs text-[var(--editorial-muted)] mt-1">ISSN: {j.issn || '—'}</p>
                                             {(j.category_name || j.category) && (
-                                                <p className="text-sm text-slate-500 mt-1 line-clamp-2">{j.category_name || (typeof j.category === 'object' && j.category?.name) || j.category}</p>
+                                                <p className="text-sm text-[var(--editorial-muted)] mt-1 line-clamp-2">{j.category_name || (typeof j.category === 'object' && j.category?.name) || j.category}</p>
                                             )}
                                         </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-2 justify-end mt-auto pt-2 border-t border-slate-200/90">
+                                    <div className="flex flex-wrap gap-2 justify-end mt-auto pt-2 border-t border-[var(--editorial-border)]">
                                         <Button
                                             variant="secondary"
                                             className="text-sm"

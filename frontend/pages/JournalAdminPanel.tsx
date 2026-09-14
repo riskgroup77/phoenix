@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { Article, ArticleStatus, Role, Journal } from '../types';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import EditorialPageHeader from '../components/EditorialPageHeader';
+import EditorialTabs from '../components/EditorialTabs';
 import { Search, Edit3, Eye, FileText, CheckCircle, XCircle, Clock, Users, FileEdit, BookOpen, TrendingUp } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { getArticleJournalIdFromApi } from '../utils/articleIds';
@@ -147,7 +149,7 @@ const JournalAdminPanel: React.FC = () => {
     if (loading) {
         return (
             <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--editorial-primary)]"></div>
             </div>
         );
     }
@@ -184,70 +186,41 @@ const JournalAdminPanel: React.FC = () => {
     };
     
     return (
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <Card className="text-center">
-                    <div className="flex items-center justify-center mb-3">
-                        <FileText className="h-8 w-8 text-blue-800" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-slate-900">{tabCounts.new}</h3>
-                    <p className="text-slate-500">Yangi Kelganlar</p>
-                </Card>
-                
-                <Card className="text-center">
-                    <div className="flex items-center justify-center mb-3">
-                        <Clock className="h-8 w-8 text-yellow-800" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-slate-900">{tabCounts.pending}</h3>
-                    <p className="text-slate-500">Nashrni kutmoqda</p>
-                </Card>
-                
-                <Card className="text-center">
-                    <div className="flex items-center justify-center mb-3">
-                        <BookOpen className="h-8 w-8 text-emerald-800" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-slate-900">{tabCounts.all}</h3>
-                    <p className="text-slate-500">Jami nashrlar</p>
-                </Card>
-            </div>
-            
-            <Card title="Jurnal Administratori Paneli">
-                <div className="mb-6 border-b border-slate-200/90 flex">
-                    <button
-                        onClick={() => setActiveTab('new')}
-                        className={`px-4 py-3 font-medium text-sm transition-colors ${
-                            activeTab === 'new'
-                                ? 'border-b-2 border-blue-400 text-blue-800'
-                                : 'text-slate-500 hover:text-slate-900'
-                        }`}
-                    >
-                        Yangi Kelganlar <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${activeTab === 'new' ? 'bg-blue-500/20 text-blue-900' : 'bg-white/10 text-slate-600'}`}>{tabCounts.new}</span>
-                    </button>
-                    
-                    <button
-                        onClick={() => setActiveTab('pending')}
-                        className={`px-4 py-3 font-medium text-sm transition-colors ${
-                            activeTab === 'pending'
-                                ? 'border-b-2 border-yellow-400 text-yellow-800'
-                                : 'text-slate-500 hover:text-slate-900'
-                        }`}
-                    >
-                        Nashrni kutmoqda <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${activeTab === 'pending' ? 'bg-yellow-500/20 text-yellow-900' : 'bg-white/10 text-slate-600'}`}>{tabCounts.pending}</span>
-                    </button>
-                    
-                    <button
-                        onClick={() => setActiveTab('all')}
-                        className={`px-4 py-3 font-medium text-sm transition-colors ${
-                            activeTab === 'all'
-                                ? 'border-b-2 border-green-400 text-emerald-800'
-                                : 'text-slate-500 hover:text-slate-900'
-                        }`}
-                    >
-                        Barcha Maqolalar <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${activeTab === 'all' ? 'bg-green-500/20 text-emerald-900' : 'bg-white/10 text-slate-600'}`}>{tabCounts.all}</span>
-                    </button>
+        <div className="space-y-6 max-w-6xl mx-auto">
+            <EditorialPageHeader
+                title="Jurnal Administratori Paneli"
+                subtitle="Jurnalingizga kelgan maqolalarni ko'rib chiqing va holatini boshqaring."
+            />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+                <div className="editorial-card text-center">
+                    <FileText className="h-7 w-7 mx-auto text-[var(--editorial-primary)] mb-2" />
+                    <p className="font-serif text-2xl font-bold text-[var(--editorial-text)] tabular-nums">{tabCounts.new}</p>
+                    <p className="text-sm text-[var(--editorial-muted)] mt-1">Yangi Kelganlar</p>
                 </div>
-                
-                <div className="flex items-center bg-slate-100/70 border border-slate-200/90 rounded-xl mb-6 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                <div className="editorial-card text-center">
+                    <Clock className="h-7 w-7 mx-auto text-[var(--editorial-primary)] mb-2" />
+                    <p className="font-serif text-2xl font-bold text-[var(--editorial-text)] tabular-nums">{tabCounts.pending}</p>
+                    <p className="text-sm text-[var(--editorial-muted)] mt-1">Nashrni kutmoqda</p>
+                </div>
+                <div className="editorial-card text-center">
+                    <BookOpen className="h-7 w-7 mx-auto text-[var(--editorial-teal)] mb-2" />
+                    <p className="font-serif text-2xl font-bold text-[var(--editorial-text)] tabular-nums">{tabCounts.all}</p>
+                    <p className="text-sm text-[var(--editorial-muted)] mt-1">Jami nashrlar</p>
+                </div>
+            </div>
+
+            <Card>
+                <EditorialTabs
+                    tabs={[
+                        { id: 'new', label: 'Yangi Kelganlar', count: tabCounts.new },
+                        { id: 'pending', label: 'Nashrni kutmoqda', count: tabCounts.pending },
+                        { id: 'all', label: 'Barcha Maqolalar', count: tabCounts.all },
+                    ]}
+                    activeId={activeTab}
+                    onChange={(id) => setActiveTab(id as 'new' | 'pending' | 'all')}
+                />
+
+                <div className="flex items-center border border-[var(--editorial-border)] rounded-md mb-6 px-3 focus-within:border-[var(--editorial-primary)] transition-colors bg-white/80">
                     <Search className="text-slate-500 mx-4 shrink-0" size={20} />
                     <input
                         type="text"
@@ -277,7 +250,7 @@ const JournalAdminPanel: React.FC = () => {
                             return (
                                 <div 
                                     key={article.id}
-                                    className="p-5 bg-slate-100/70 rounded-xl hover:bg-white/10 transition-all duration-200 border border-transparent hover:border-slate-200/90"
+                                    className="editorial-card hover:border-[var(--editorial-primary)]/35 transition-colors"
                                 >
                                     <div className="flex justify-between items-start gap-4">
                                         <div className="flex-1">
@@ -346,11 +319,11 @@ const JournalAdminPanel: React.FC = () => {
                             );
                         })
                     ) : (
-                        <p className="text-center text-slate-500 py-8">
+                        <div className="editorial-empty py-8">
                             {searchQuery 
                                 ? `"${searchQuery}" bo'yicha hech narsa topilmadi.` 
                                 : "Ushbu bo'limda hozircha maqolalar mavjud emas."}
-                        </p>
+                        </div>
                     )}
                 </div>
             </Card>
