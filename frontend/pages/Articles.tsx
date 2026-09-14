@@ -430,11 +430,11 @@ const TranslationItem: React.FC<{ request: TranslationRequestApiResponse }> = ({
 
     return (
         <div 
-            className="p-4 sm:p-5 bg-slate-100/70 rounded-xl hover:bg-white/10 transition-all duration-200 cursor-pointer border border-transparent hover:border-slate-200/90"
+            className="editorial-card cursor-pointer hover:border-[var(--editorial-primary)]/35 transition-colors"
             onClick={() => navigate(`/translations/${request.id}`)}
         >
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4">
-                <h4 className="text-base sm:text-lg font-semibold text-indigo-400 flex items-center gap-2 min-w-0"><Languages size={18} className="shrink-0"/> <span className="truncate">{request.title}</span></h4>
+                <h4 className="text-base sm:text-lg font-semibold text-[var(--editorial-text)] flex items-center gap-2 min-w-0"><Languages size={18} className="shrink-0 text-[var(--editorial-primary)]"/> <span className="truncate">{request.title}</span></h4>
                 <span className={`text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap ${statusData.color}`}>
                     {statusData.text}
                 </span>
@@ -861,11 +861,11 @@ const Articles: React.FC = () => {
                     {filteredTranslations.length > 0 ? (
                         filteredTranslations.map(req => <TranslationItem key={req.id} request={req} />)
                     ) : (
-                        <p className="text-center text-slate-500 py-8">
+                        <div className="editorial-empty py-8">
                             {searchQuery 
                                 ? `"${searchQuery}" bo'yicha hech narsa topilmadi.` 
                                 : 'Yangi tarjima so\'rovlari mavjud emas.'}
-                        </p>
+                        </div>
                     )}
                 </div>
             );

@@ -422,17 +422,17 @@ const Dashboard: React.FC = () => {
         const qualityLabels: Record<string, string> = { quyi: 'Quyi', orta: "O'rta", yuqori: 'Yuqori' };
 
         return (
-            <div className="space-y-8">
-                <div className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-blue-500/10 via-transparent to-cyan-500/5 p-6 sm:p-8">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Ishchi stol — {user.firstName}!</h1>
-                    <p className="text-slate-500 mt-2">Barcha buyurtmalar shu yerda: taqriz, DOI, maqola namuna, tarjima va kitob nashr.</p>
-                </div>
+            <div className="space-y-8 max-w-6xl mx-auto">
+                <EditorialPageHeader
+                    title={`Ishchi stol — ${user.firstName}`}
+                    subtitle="Barcha buyurtmalar shu yerda: taqriz, DOI, maqola namuna, tarjima va kitob nashr."
+                />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatCard icon={Inbox} title="Taqrizga kelganlar" value={articlesForReview.length} gradient="bg-gradient-to-r from-blue-500 to-cyan-400" to="/articles" />
-                    <StatCard icon={Bot} title="DOI so'rovlari" value={doiSubmitted.length} gradient="bg-gradient-to-r from-cyan-500 to-teal-400" />
-                    <StatCard icon={Languages} title="Tarjima buyurtmalari" value={translationsPending.length} gradient="bg-gradient-to-r from-violet-500 to-purple-400" to="/articles?tab=translations" />
-                    <StatCard icon={BookOpen} title="Kitob nashr buyurtmalari" value={bookOrders.length} gradient="bg-gradient-to-r from-amber-500 to-orange-400" to="/articles?tab=book-orders" />
+                    <PinmSummaryCard icon={Inbox} title="Taqrizga kelganlar" value={articlesForReview.length} linkLabel="Ko'rish" to="/articles" />
+                    <PinmSummaryCard icon={Bot} title="DOI so'rovlari" value={doiSubmitted.length} linkLabel="Ko'rish" to="/doi-requests" />
+                    <PinmSummaryCard icon={Languages} title="Tarjima buyurtmalari" value={translationsPending.length} linkLabel="Ko'rish" to="/articles?tab=translations" />
+                    <PinmSummaryCard icon={BookOpen} title="Kitob nashr buyurtmalari" value={bookOrders.length} linkLabel="Ko'rish" to="/articles?tab=book-orders" />
                 </div>
 
                 {/* Taqrizga kelgan maqolalar */}
@@ -451,7 +451,7 @@ const Dashboard: React.FC = () => {
                                     (journal ? journal.name : '') ||
                                     "Noma'lum";
                                 return (
-                                    <div key={article.id} className="p-4 bg-slate-100/70 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                    <div key={article.id} className="editorial-card flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                         <div>
                                             <div className="flex items-center gap-3">
                                                 {article.fast_track && (
@@ -459,9 +459,9 @@ const Dashboard: React.FC = () => {
                                                         <Rocket size={14} /> TOP
                                                     </span>
                                                 )}
-                                                <p className="font-semibold text-blue-800">{article.title}</p>
+                                                <p className="font-semibold text-[var(--editorial-text)]">{article.title}</p>
                                             </div>
-                                            <p className="text-sm text-slate-500 mt-1">Muallif: {authorLabel} | Jurnal: {journalLabel}</p>
+                                            <p className="text-sm text-[var(--editorial-muted)] mt-1">Muallif: {authorLabel} | Jurnal: {journalLabel}</p>
                                         </div>
                                         <Button onClick={() => navigate(`/articles/${article.id}`)} variant="secondary" className="w-full sm:w-auto">
                                             Ko'rib chiqish <ArrowRight className="ml-2 h-4 w-4"/>
@@ -470,11 +470,11 @@ const Dashboard: React.FC = () => {
                                 );
                             })
                         ) : (
-                            <p className="text-center text-slate-500 py-6">Hozircha taqriz uchun yangi so'rovlar yo'q.</p>
+                            <div className="editorial-empty py-8">Hozircha taqriz uchun yangi so'rovlar yo'q.</div>
                         )}
                         {articlesForReview.length > 0 && (
-                            <div className="pt-2 border-t border-slate-200/90">
-                                <Link to="/articles" className="inline-flex items-center gap-2 text-sm font-medium text-blue-800 hover:text-blue-700">Barchasi <ArrowRight className="h-4 w-4" /></Link>
+                            <div className="pt-2 border-t border-[var(--editorial-border)]">
+                                <Link to="/articles" className="inline-flex items-center gap-2 text-sm font-medium text-[var(--editorial-primary)] hover:opacity-80">Barchasi <ArrowRight className="h-4 w-4" /></Link>
                             </div>
                         )}
                     </div>
@@ -484,16 +484,16 @@ const Dashboard: React.FC = () => {
                 <Card title="DOI raqami olish — taqrizchida">
                     <p className="text-slate-500 text-sm mb-4">Mualliflar DOI so'rovi yuborgan. Link kiriting va saqlang — muallifga xabar ketadi.</p>
                     {doiSubmitted.length === 0 ? (
-                        <p className="text-slate-500 py-4">Kutilayotgan DOI so'rovlari yo'q.</p>
+                        <div className="editorial-empty py-6">Kutilayotgan DOI so'rovlari yo'q.</div>
                     ) : (
                         <div className="space-y-4">
                             {doiSubmitted.map((req: any) => (
-                                <div key={req.id} className="p-4 rounded-xl bg-slate-100/70 border border-slate-200/90 flex flex-col sm:flex-row sm:items-center gap-3">
+                                <div key={req.id} className="editorial-card flex flex-col sm:flex-row sm:items-center gap-3">
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-slate-900">{req.author_short}</p>
-                                        <p className="text-xs text-slate-500">{new Date(req.created_at).toLocaleDateString('uz-UZ')}</p>
+                                        <p className="font-medium text-[var(--editorial-text)]">{req.author_short}</p>
+                                        <p className="text-xs text-[var(--editorial-muted)]">{new Date(req.created_at).toLocaleDateString('uz-UZ')}</p>
                                         {req.file_url && (
-                                            <a href={req.file_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-cyan-800 hover:underline mt-1">
+                                            <a href={req.file_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-[var(--editorial-primary)] hover:underline mt-1">
                                                 <ExternalLink size={14} /> Fayl
                                             </a>
                                         )}
@@ -504,7 +504,7 @@ const Dashboard: React.FC = () => {
                                             placeholder="DOI link (https://...)"
                                             value={doiLinkInputs[req.id] || ''}
                                             onChange={(e) => setDoiLinkInputs((p) => ({ ...p, [req.id]: e.target.value }))}
-                                            className="flex-1 min-w-[200px] px-3 py-2 rounded-lg bg-slate-100/70 border border-slate-200/90 text-slate-900 text-sm placeholder-slate-400"
+                                            className="editorial-select flex-1 min-w-[200px]"
                                         />
                                         <Button
                                             onClick={() => handleDoiSaveLink(req.id)}
@@ -525,14 +525,14 @@ const Dashboard: React.FC = () => {
                 <Card title="Maqola namuna olish buyurtmalari">
                     <p className="text-slate-500 text-sm mb-4">Mualliflar maqola namunasi uchun buyurtma bergan.</p>
                     {(!articleSampleRequests || articleSampleRequests.length === 0) ? (
-                        <p className="text-slate-500 py-4">So'rovlar yo'q.</p>
+                        <div className="editorial-empty py-6">So'rovlar yo'q.</div>
                     ) : (
                         <ul className="space-y-3">
                             {articleSampleRequests.slice(0, 5).map((req: any) => (
-                                <li key={req.id} className="p-4 rounded-xl bg-slate-100/70 border border-slate-200/90">
-                                    <p className="font-medium text-slate-900">{req.author_short}</p>
-                                    <p className="text-sm text-slate-600 line-clamp-2">{req.topic}</p>
-                                    <p className="text-xs text-slate-500 mt-1">
+                                <li key={req.id} className="editorial-card">
+                                    <p className="font-medium text-[var(--editorial-text)]">{req.author_short}</p>
+                                    <p className="text-sm text-[var(--editorial-body)] line-clamp-2">{req.topic}</p>
+                                    <p className="text-xs text-[var(--editorial-muted)] mt-1">
                                         {new Date(req.created_at).toLocaleDateString('uz-UZ')} · {qualityLabels[req.quality_level] || req.quality_level} · {req.pages} sahifa
                                     </p>
                                 </li>
@@ -545,28 +545,28 @@ const Dashboard: React.FC = () => {
                 <Card title="Ilmiy tarjima buyurtmalari">
                     <p className="text-slate-500 text-sm mb-4">Tarjima qilish uchun kelgan buyurtmalar.</p>
                     {translationsPending.length === 0 ? (
-                        <p className="text-slate-500 py-4">Kutilayotgan tarjima buyurtmalari yo'q.</p>
+                        <div className="editorial-empty py-6">Kutilayotgan tarjima buyurtmalari yo'q.</div>
                     ) : (
                         <ul className="space-y-3">
                             {translationsPending.slice(0, 5).map((tr: any) => (
                                 <li key={tr.id}>
                                     <Link
                                         to={`/translations/${tr.id}`}
-                                        className="flex items-center justify-between gap-3 p-4 rounded-xl bg-slate-100/70 border border-slate-200/90 hover:bg-white/8"
+                                        className="editorial-card flex items-center justify-between gap-3 hover:border-[var(--editorial-primary)]/35 transition-colors"
                                     >
                                         <div>
-                                            <p className="font-medium text-slate-900">{tr.title}</p>
-                                            <p className="text-sm text-slate-500">{tr.source_language} → {tr.target_language} · {tr.status}</p>
+                                            <p className="font-medium text-[var(--editorial-text)]">{tr.title}</p>
+                                            <p className="text-sm text-[var(--editorial-muted)]">{tr.source_language} → {tr.target_language} · {tr.status}</p>
                                         </div>
-                                        <ChevronRight className="h-5 w-5 text-slate-500 shrink-0" />
+                                        <ChevronRight className="h-5 w-5 text-[var(--editorial-muted)] shrink-0" />
                                     </Link>
                                 </li>
                             ))}
                         </ul>
                     )}
                     {translationsPending.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-slate-200/90">
-                            <Link to="/articles?tab=translations" className="inline-flex items-center gap-2 text-sm font-medium text-blue-800 hover:text-blue-700">Barcha tarjimalar <ArrowRight className="h-4 w-4" /></Link>
+                        <div className="mt-3 pt-3 border-t border-[var(--editorial-border)]">
+                            <Link to="/articles?tab=translations" className="inline-flex items-center gap-2 text-sm font-medium text-[var(--editorial-primary)] hover:opacity-80">Barcha tarjimalar <ArrowRight className="h-4 w-4" /></Link>
                         </div>
                     )}
                 </Card>
@@ -575,20 +575,20 @@ const Dashboard: React.FC = () => {
                 <Card title="Kitob nashr etish buyurtmalari">
                     <p className="text-slate-500 text-sm mb-4">Kitob chop etish bo'yicha buyurtmalar.</p>
                     {bookOrders.length === 0 ? (
-                        <p className="text-slate-500 py-4">Hozircha buyurtmalar yo'q.</p>
+                        <div className="editorial-empty py-6">Hozircha buyurtmalar yo'q.</div>
                     ) : (
                         <ul className="space-y-3">
                             {bookOrders.slice(0, 5).map((a: any) => (
                                 <li key={a.id}>
                                     <Link
                                         to={`/articles/${a.id}`}
-                                        className="flex items-center justify-between gap-3 p-4 rounded-xl bg-slate-100/70 border border-slate-200/90 hover:bg-white/8"
+                                        className="editorial-card flex items-center justify-between gap-3 hover:border-[var(--editorial-primary)]/35 transition-colors"
                                     >
                                         <div>
-                                            <p className="font-medium text-slate-900">{a.title}</p>
-                                            <p className="text-sm text-slate-500">{a.status}</p>
+                                            <p className="font-medium text-[var(--editorial-text)]">{a.title}</p>
+                                            <p className="text-sm text-[var(--editorial-muted)]">{a.status}</p>
                                         </div>
-                                        <ChevronRight className="h-5 w-5 text-slate-500 shrink-0" />
+                                        <ChevronRight className="h-5 w-5 text-[var(--editorial-muted)] shrink-0" />
                                     </Link>
                                 </li>
                             ))}

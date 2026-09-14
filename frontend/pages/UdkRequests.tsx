@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
@@ -116,39 +117,33 @@ const UdkRequests: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <EditorialPageHeader
+        title="UDK so'rovlari"
+        subtitle={
+          isReviewer
+            ? "Mualliflar UDK raqami olish uchun yuborgan so'rovlar. Mavzu va annotatsiyani o'qib, mos UDK kodini kiriting."
+            : "Sizning UDK so'rovlaringiz. Taqrizchi UDK kodini kiritgach bu yerda ko'rinadi."
+        }
+      />
       <Card>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2.5 rounded-xl bg-indigo-500/20">
-            <Library className="h-6 w-6 text-indigo-400" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">UDK so'rovlari</h1>
-            <p className="text-sm text-slate-500">
-              {isReviewer
-                ? "Mualliflar UDK raqami olish uchun yuborgan so'rovlar. Mavzu va annotatsiyani o'qib, mos UDK kodini kiriting."
-                : "Sizning UDK so'rovlaringiz. Taqrizchi UDK kodini kiritgach bu yerda ko'rinadi."}
-            </p>
-          </div>
-        </div>
-
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
+            <Loader2 className="h-8 w-8 animate-spin text-[var(--editorial-primary)]" />
           </div>
         ) : list.length === 0 ? (
-          <p className="text-slate-500 py-4">UDK so'rovlari yo'q.</p>
+          <div className="editorial-empty py-8">UDK so'rovlari yo'q.</div>
         ) : (
           <div className="space-y-4">
             {/* Kutilayotgan so'rovlar (submitted) */}
             {isReviewer && submittedList.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-yellow-800 mb-3">Kutilayotgan so'rovlar ({submittedList.length})</h3>
+                <h3 className="font-serif text-lg font-semibold text-[var(--editorial-primary)] mb-3">Kutilayotgan so'rovlar ({submittedList.length})</h3>
                 <div className="space-y-4">
                   {submittedList.map((req) => (
                     <div
                       key={req.id}
-                      className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20"
+                      className="editorial-card border-[var(--editorial-primary)]/25 bg-[rgba(139,21,56,0.04)]"
                     >
                       <div className="flex flex-col lg:flex-row lg:items-start gap-4">
                         <div className="flex-1 min-w-0">
@@ -180,7 +175,7 @@ const UdkRequests: React.FC = () => {
                               [req.id]: { ...prev[req.id], code: e.target.value }
                             }))}
                             placeholder="UDK kodi (masalan: 332.055.2)"
-                            className="px-3 py-2 rounded-lg bg-slate-100/70 border border-slate-200/90 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500"
+                            className="editorial-select w-full"
                           />
                           <input
                             type="text"
@@ -190,7 +185,7 @@ const UdkRequests: React.FC = () => {
                               [req.id]: { ...prev[req.id], description: e.target.value }
                             }))}
                             placeholder="UDK tavsifi (ixtiyoriy)"
-                            className="px-3 py-2 rounded-lg bg-slate-100/70 border border-slate-200/90 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500"
+                            className="editorial-select w-full"
                           />
                           <div className="flex gap-2">
                             <Button
@@ -219,13 +214,13 @@ const UdkRequests: React.FC = () => {
             )}
 
             {/* Barcha so'rovlar ro'yxati */}
-            <h3 className="text-lg font-semibold text-slate-900 mb-3">
+            <h3 className="font-serif text-lg font-semibold text-[var(--editorial-text)] mb-3">
               {isReviewer ? 'Barcha so\'rovlar' : 'Mening so\'rovlarim'}
             </h3>
             {list.map((req) => (
               <div
                 key={req.id}
-                className="p-4 rounded-xl bg-slate-100/70 border border-slate-200/90"
+                className="editorial-card"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex-1 min-w-0">

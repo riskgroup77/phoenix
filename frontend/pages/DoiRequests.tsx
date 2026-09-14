@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
@@ -67,32 +68,26 @@ const DoiRequests: React.FC = () => {
   const submittedList = list.filter((r) => r.status === 'submitted');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <EditorialPageHeader
+        title="DOI so'rovlari"
+        subtitle={
+          isReviewer
+            ? "Mualliflar DOI raqami olish uchun yuborgan so'rovlar. Saytdan DOI raqamini oling, taqrizchi linkini kiriting va saqlang — muallif arxivida ko'radi va bildirishnoma oladi."
+            : "Sizning DOI so'rovlaringiz. Taqrizchi link kiritgach shu yerda va arxivda ko'rinadi."
+        }
+      />
       <Card>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2.5 rounded-xl bg-cyan-500/20">
-            <Bot className="h-6 w-6 text-cyan-800" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">DOI so'rovlari</h1>
-            <p className="text-sm text-slate-500">
-              {isReviewer
-                ? "Mualliflar DOI raqami olish uchun yuborgan so'rovlar. Saytdan DOI raqamini oling, taqrizchi linkini kiriting va saqlang — muallif arxivida ko'radi va bildirishnoma oladi."
-                : "Sizning DOI so'rovlaringiz. Taqrizchi link kiritgach shu yerda va arxivda ko'rinadi."}
-            </p>
-          </div>
-        </div>
-
         {loading ? (
-          <p className="text-slate-500">Yuklanmoqda…</p>
+          <p className="text-[var(--editorial-muted)]">Yuklanmoqda…</p>
         ) : list.length === 0 ? (
-          <p className="text-slate-500">So'rovlar yo'q.</p>
+          <div className="editorial-empty py-8">So'rovlar yo'q.</div>
         ) : (
           <div className="space-y-4">
             {list.map((req) => (
               <div
                 key={req.id}
-                className="p-4 rounded-xl bg-slate-100/70 border border-slate-200/90 flex flex-col sm:flex-row sm:items-center gap-4"
+                className="editorial-card flex flex-col sm:flex-row sm:items-center gap-4"
               >
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-slate-900 truncate">{req.author_short}</p>
@@ -104,7 +99,7 @@ const DoiRequests: React.FC = () => {
                       href={req.file_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-sm text-cyan-800 hover:underline mt-2"
+                      className="inline-flex items-center gap-1 text-sm text-[var(--editorial-primary)] hover:underline mt-2"
                     >
                       <ExternalLink size={14} /> Faylni yuklab olish
                     </a>
@@ -127,7 +122,7 @@ const DoiRequests: React.FC = () => {
                       value={linkInputs[req.id] ?? ''}
                       onChange={(e) => setLinkInputs((prev) => ({ ...prev, [req.id]: e.target.value }))}
                       placeholder="https://..."
-                      className="px-3 py-2 rounded-lg bg-slate-100/70 border border-slate-200/90 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-cyan-500 min-w-[200px]"
+                      className="editorial-select min-w-[200px]"
                     />
                     <Button
                       onClick={() => handleSaveLink(req.id)}

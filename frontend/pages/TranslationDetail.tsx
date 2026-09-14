@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
 import Card from '../components/ui/Card';
+import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
 import { Download, UploadCloud, Send, Languages, ArrowRight, User, Calendar, FileText, Check, Loader2 } from 'lucide-react';
 import { apiService } from '../services/apiService';
@@ -82,7 +83,7 @@ const TranslationDetail: React.FC = () => {
     if (loading) {
         return (
             <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--editorial-primary)]" />
             </div>
         );
     }
@@ -197,20 +198,14 @@ const TranslationDetail: React.FC = () => {
         !translationNeedsPay;
 
     return (
+        <div className="max-w-6xl mx-auto">
+            <EditorialPageHeader
+                title={request.title}
+                subtitle={`${request.source_language?.toUpperCase() || "Noma'lum"} → ${request.target_language?.toUpperCase() || "Noma'lum"}`}
+            />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
                 <Card>
-                    <div className="flex items-center gap-4 mb-4 pb-4 border-b border-slate-200/90">
-                        <Languages className="w-10 h-10 text-indigo-400" />
-                        <div>
-                            <h2 className="text-2xl font-bold text-slate-900">{request.title}</h2>
-                            <p className="text-lg font-semibold text-indigo-300">
-                                {request.source_language?.toUpperCase() || "Noma'lum"}{' '}
-                                <ArrowRight size={16} className="inline-block mx-2" />{' '}
-                                {request.target_language?.toUpperCase() || "Noma'lum"}
-                            </p>
-                        </div>
-                    </div>
 
                     {(request.payment_status_label || costNum > 0) && (
                         <div
@@ -253,14 +248,14 @@ const TranslationDetail: React.FC = () => {
                     )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mt-6">
-                        <div className="flex items-center gap-3 p-3 bg-slate-100/70 rounded-md">
+                        <div className="editorial-card flex items-center gap-3 p-3 !mb-0">
                             <User className="w-5 h-5 text-slate-500" />
                             <div>
                                 <p className="text-xs text-slate-500">Muallif</p>
                                 <p className="font-semibold text-slate-900">{request.author_name || "Noma'lum"}</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 p-3 bg-slate-100/70 rounded-md">
+                        <div className="editorial-card flex items-center gap-3 p-3 !mb-0">
                             <Calendar className="w-5 h-5 text-slate-500" />
                             <div>
                                 <p className="text-xs text-slate-500">Sana</p>
@@ -271,7 +266,7 @@ const TranslationDetail: React.FC = () => {
                                 </p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 p-3 bg-slate-100/70 rounded-md">
+                        <div className="editorial-card flex items-center gap-3 p-3 !mb-0">
                             <FileText className="w-5 h-5 text-slate-500" />
                             <div>
                                 <p className="text-xs text-slate-500">So&apos;zlar soni</p>
@@ -280,7 +275,7 @@ const TranslationDetail: React.FC = () => {
                                 </p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 p-3 bg-slate-100/70 rounded-md">
+                        <div className="editorial-card flex items-center gap-3 p-3 !mb-0">
                             <FileText className="w-5 h-5 text-slate-500" />
                             <div>
                                 <p className="text-xs text-slate-500">Narxi</p>
@@ -324,7 +319,7 @@ const TranslationDetail: React.FC = () => {
                             ko&apos;rinadi.
                         </p>
                         <label htmlFor="file-upload" className="cursor-pointer">
-                            <div className="p-8 border-2 border-dashed rounded-lg border-slate-200 text-center bg-slate-100/70 hover:bg-white/10 transition-colors">
+                            <div className="p-8 border-2 border-dashed rounded-lg border-[var(--editorial-border)] text-center bg-[var(--editorial-bg-alt)] hover:border-[var(--editorial-primary)]/40 transition-colors">
                                 <UploadCloud className="mx-auto h-12 w-12 text-slate-500" />
                                 <p className="mt-2 text-sm text-slate-500">
                                     {translatedFile ? `Tanlandi: ${translatedFile.name}` : 'Tayyor faylni tanlang'}
@@ -361,6 +356,7 @@ const TranslationDetail: React.FC = () => {
                     </Card>
                 )}
             </div>
+        </div>
         </div>
     );
 };
