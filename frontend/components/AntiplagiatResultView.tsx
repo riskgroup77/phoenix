@@ -4,8 +4,24 @@ import Button from './ui/Button';
 import { Printer, Download, FileText, X, Link as LinkIcon, ArrowLeft } from 'lucide-react';
 import AntiplagiatCertificate from './AntiplagiatCertificate';
 import PlagiarismFullReport from './PlagiarismFullReport';
+import PlagiarismShortReport from './PlagiarismShortReport';
 import type { AntiplagiatCertificateData } from './AntiplagiatCertificate';
 import type { PlagiarismFullReportData } from './PlagiarismFullReport';
+
+const ScoreBar: React.FC<{ label: string; value: number; color: string }> = ({ label, value, color }) => (
+  <div>
+    <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
+      <span>{label}</span>
+      <span style={{ color }}>{value.toFixed(2)}%</span>
+    </div>
+    <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
+      <div
+        className="h-full rounded-full transition-all"
+        style={{ width: `${Math.min(100, Math.max(0, value))}%`, backgroundColor: color }}
+      />
+    </div>
+  </div>
+);
 
 interface ResultSummary {
   plagiarism: number;
@@ -33,6 +49,7 @@ const AntiplagiatResultView: React.FC<Props> = ({
   backLabel = "Arxiv hujjatlarga qaytish",
 }) => {
   const [showFullReport, setShowFullReport] = useState(false);
+  const [showShortReport, setShowShortReport] = useState(false);
 
   const handlePrint = () => {
     window.print();
@@ -54,26 +71,24 @@ const AntiplagiatResultView: React.FC<Props> = ({
             Hujjat: <strong>{certificateData.fileName}</strong> · Sertifikat № {certificateData.certificateNumber} ·{' '}
             {certificateData.checkDate}
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-center">
-              <p className="text-xs font-semibold text-slate-600">Originallik</p>
-              <p className="text-2xl font-bold text-emerald-700">{originalityPercent.toFixed(2)}%</p>
-            </div>
-            <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-center">
-              <p className="text-xs font-semibold text-slate-600">O&apos;zlashtirish</p>
-              <p className="text-2xl font-bold text-red-700">{result.plagiarism.toFixed(2)}%</p>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
+            <ScoreBar label="Originallik" value={originalityPercent} color="#16a34a" />
+            <ScoreBar label="Iqtibos keltirishlar" value={result.citations} color="#2563eb" />
+            <ScoreBar label="O'z-o'zidan iqtibos keltirishlar" value={result.selfCitation} color="#ca8a04" />
+            <ScoreBar label="O'zlashtirib olishlar" value={result.plagiarism} color="#dc2626" />
+          </div>
+          <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
+            Tekshiruv matnli kesishmalarni, iboralarni almashtirish va parafraz qilish holatlarini ham hisobga oladi.
+            Ko&apos;rsatkichlar jami 100% ni tashkil qiladi (antiplag.uz metodologiyasi).
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div className="rounded-lg border border-violet-100 bg-violet-50 p-3 text-center">
               <p className="text-xs font-semibold text-slate-600">SI matn</p>
-              <p className="text-2xl font-bold text-violet-700">{result.aiContent.toFixed(2)}%</p>
+              <p className="text-xl font-bold text-violet-700">{result.aiContent.toFixed(2)}%</p>
             </div>
-            <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-center">
-              <p className="text-xs font-semibold text-slate-600">Iqtiboslar</p>
-              <p className="text-2xl font-bold text-blue-700">{result.citations.toFixed(2)}%</p>
-            </div>
-            <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-center">
-              <p className="text-xs font-semibold text-slate-600">O&apos;z-o&apos;ziga iqtibos</p>
-              <p className="text-2xl font-bold text-amber-700">{result.selfCitation.toFixed(2)}%</p>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-center col-span-2 md:col-span-1">
+              <p className="text-xs font-semibold text-slate-600">Manbalar</p>
+              <p className="text-xl font-bold text-slate-800">{result.sources.length} ta</p>
             </div>
           </div>
           <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
@@ -85,6 +100,10 @@ const AntiplagiatResultView: React.FC<Props> = ({
         </div>
 
         <div className="flex flex-wrap gap-2 no-print">
+          <Button onClick={() => setShowShortReport(true)} variant="secondary">
+            <FileText className="mr-2 h-4 w-4" />
+            Qisqacha hisobot
+          </Button>
           <Button onClick={() => setShowFullReport(true)}>
             <FileText className="mr-2 h-4 w-4" />
             To&apos;liq hisobot
@@ -136,6 +155,27 @@ const AntiplagiatResultView: React.FC<Props> = ({
           <AntiplagiatCertificate data={certificateData} />
         </div>
       </div>
+
+      {showShortReport && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col print:bg-white">
+          <div className="flex justify-between items-center p-4 bg-white/55 border-b border-slate-200/90 no-print">
+            <h3 className="text-xl font-bold text-slate-900">Qisqacha antiplagiat hisoboti</h3>
+            <div className="flex gap-3">
+              <Button onClick={() => window.print()} variant="primary">
+                <Printer className="mr-2 h-4 w-4" />
+                Chop etish / PDF
+              </Button>
+              <Button onClick={() => setShowShortReport(false)} variant="secondary">
+                <X className="mr-2 h-4 w-4" />
+                Yopish
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-auto p-6 print:p-0 print:overflow-visible">
+            <PlagiarismShortReport data={fullReportData} />
+          </div>
+        </div>
+      )}
 
       {showFullReport && (
         <div className="fixed inset-0 bg-black/90 z-50 flex flex-col print:bg-white">

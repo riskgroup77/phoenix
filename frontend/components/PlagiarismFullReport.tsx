@@ -57,7 +57,7 @@ export interface PlagiarismFullReportData {
     annotatedDocument?: AnnotatedParagraph[];
 }
 
-const MetricBox: React.FC<{ value: number; label: string; color: string; bg: string }> = ({ value, label, color, bg }) => (
+export const MetricBox: React.FC<{ value: number; label: string; color: string; bg: string }> = ({ value, label, color, bg }) => (
     <div className="rounded-md p-2.5 text-center border flex-1 min-w-0" style={{ backgroundColor: bg, borderColor: `${color}44` }}>
         <p className="text-xl sm:text-2xl font-bold leading-none" style={{ color }}>{value.toFixed(2)}%</p>
         <p className="text-[8px] font-bold uppercase tracking-wide mt-1.5 leading-tight" style={{ color: REPORT_COLOR_DARK }}>{label}</p>
@@ -71,7 +71,7 @@ const InfoRow: React.FC<{ label: string; value: string | number }> = ({ label, v
     </div>
 );
 
-const LEGEND = [
+export const ANTIPLAG_REPORT_LEGEND = [
     {
         title: "O'zlashtirib olish",
         color: '#dc2626',
@@ -111,7 +111,7 @@ const SourceRefBadges: React.FC<{ refs: number[] }> = ({ refs }) => {
     );
 };
 
-const SourcesTable: React.FC<{ sources: PlagiarismSource[]; compact?: boolean }> = ({ sources, compact }) => (
+export const SourcesTable: React.FC<{ sources: PlagiarismSource[]; compact?: boolean }> = ({ sources, compact }) => (
     <table className="w-full text-[9px] border-collapse">
         <thead>
             <tr style={{ backgroundColor: REPORT_COLOR_TEAL, color: '#fff' }}>
@@ -169,7 +169,11 @@ const SourcesTable: React.FC<{ sources: PlagiarismSource[]; compact?: boolean }>
     </table>
 );
 
-const CoverPage: React.FC<{ data: PlagiarismFullReportData; coverSources: PlagiarismSource[] }> = ({ data, coverSources }) => (
+export const PlagiarismReportCoverPage: React.FC<{
+    data: PlagiarismFullReportData;
+    coverSources: PlagiarismSource[];
+    title?: string;
+}> = ({ data, coverSources, title = 'Hujjat tekshirish natijalari' }) => (
     <ReportCoverFrame>
         <div className="flex justify-between items-start gap-4 mb-3 text-[10px] shrink-0">
             <PhoenixLogoMark size="sm" showText={false} />
@@ -191,7 +195,7 @@ const CoverPage: React.FC<{ data: PlagiarismFullReportData; coverSources: Plagia
                 className="text-lg sm:text-xl font-bold uppercase tracking-wide"
                 style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}
             >
-                Hujjat tekshirish natijalari
+                {title}
             </h1>
         </div>
 
@@ -236,7 +240,7 @@ const CoverPage: React.FC<{ data: PlagiarismFullReportData; coverSources: Plagia
         </div>
 
         <div className="rounded-lg border p-2 mb-2 text-[7px] leading-relaxed text-slate-600 bg-slate-50/90 shrink-0" style={{ borderColor: '#99f6e4' }}>
-            {LEGEND.map((item) => (
+            {ANTIPLAG_REPORT_LEGEND.map((item) => (
                 <p key={item.title} className="mb-1">
                     <strong style={{ color: item.color }}>{item.title}</strong> — {item.text}
                 </p>
@@ -381,7 +385,7 @@ const PlagiarismFullReport: React.FC<{ data: PlagiarismFullReportData }> = ({ da
     return (
         <div className="space-y-6" id="plagiarism-full-report">
             <div className="shadow-xl print:shadow-none">
-                <CoverPage data={data} coverSources={coverSources} />
+                <PlagiarismReportCoverPage data={data} coverSources={coverSources} />
             </div>
 
             {Array.from({ length: totalSourcePages }).map((_, pageIndex) => {

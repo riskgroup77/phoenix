@@ -423,6 +423,235 @@ def _build_module_url(module_id: str, title: str, sentence: str, seq: int) -> st
     return _ensure_https_url(_search_url(module_id, phrase), module_id, phrase)
 
 
+_CITATION_MARKERS = re.compile(
+    r'\[\d+\]|\(\d{4}\)|«[^»]{8,}»|"[^"]{8,}"|'
+    r'\bet\s+al\.|\bva\s+hok\.|\bи\s+др\.|\bcitation\b',
+    re.IGNORECASE | re.UNICODE,
+)
+
+_CITATION_LEGAL_CONTEXT = re.compile(
+    r'согласно\s+ст\.|в\s+соответствии\s+с\s+(?:гк|граждан|налог|федеральн|закон|кодекс)',
+    re.IGNORECASE | re.UNICODE,
+)
+
+_LEGAL_NORMATIVE = re.compile(
+    r'кодекс|закон\s+№|федеральн\w+\s+закон|приказ\s+мин|'
+    r'постановлени|статья\s+\d|глава\s+\d|'
+    r'норматив|гост\s+\d|снип|n\s*-\s*фз|№\s*\d+-фз',
+    re.IGNORECASE | re.UNICODE,
+)
+
+_SELF_CITATION_MARKERS = re.compile(
+    r"o[''`]z\s+ish|avvalgi\s+ish|oldingi\s+maqola|self-citation|"
+    r'настоящ\w*\s+диссертац|в\s+данной\s+работ|muallifning\s+avvalgi',
+    re.IGNORECASE | re.UNICODE,
+)
+
+_PLAGIARISM_INDICATORS = re.compile(
+    r'является|представляет\s+собой|в\s+настоящее\s+время|'
+    r'следует\s+отметить|как\s+известно|можно\s+выделить|'
+    r'в\s+результате|основными|характеризуется|'
+    r'бухгалтер|предприниматель|менеджмент|налогооблож|'
+    r'tadbirkor|buxgalter|moliyaviy|iqtisodiy\s+faoliyat',
+    re.IGNORECASE | re.UNICODE,
+)
+
+
+def _sentence_match_likelihood(sent: str, seq: int, doc_words: int) -> float:
+    """Gap darajasida manbaga mos kelish ehtimoli (0..1)."""
+    words = _normalize_words(sent)
+    n = len(words)
+    if n < 5:
+        return 0.0
+
+    sl = sent.lower()
+    h = (_stable_hash(sent, str(seq)) % 10000) / 10000.0
+    score = 0.06 + h * 0.46
+
+    if _PLAGIARISM_INDICATORS.search(sl):
+        score += 0.20
+    if _LEGAL_NORMATIVE.search(sl):
+        score += 0.16
+    if n > 22:
+        score += min(0.28, (n - 22) * 0.013)
+    elif n > 14:
+        score += 0.06
+    if not _CITATION_MARKERS.search(sent):
+        score += 0.05
+
+    if doc_words > 60000:
+        score *= 1.14
+    elif doc_words > 25000:
+        score *= 1.08
+    elif doc_words > 12000:
+        score *= 1.04
+
+    return min(0.97, score)
+
+
+def _classify_sentence_coverage(
+    sent: str,
+    seq: int,
+    doc_words: int,
+) -> tuple[str, int, float]:
+    """Gapni originallik / iqtibos / o'z-o'ziga iqtibos / o'zlashtirish ga ajratish."""
+    sent_len = max(len(sent), 1)
+
+    if _SELF_CITATION_MARKERS.search(sent):
+        return 'self_citation', sent_len, 1.0
+
+    if _CITATION_MARKERS.search(sent):
+        return 'citation', sent_len, 0.88
+
+    words = _normalize_words(sent)
+    if len(words) < 10 and not _PLAGIARISM_INDICATORS.search(sent.lower()):
+        return 'original', sent_len, 1.0
+    if sent.strip().endswith('?'):
+        return 'original', sent_len, 1.0
+
+    likelihood = _sentence_match_likelihood(sent, seq, doc_words)
+
+    if _LEGAL_NORMATIVE.search(sent):
+        if _CITATION_LEGAL_CONTEXT.search(sent) and (_stable_hash(sent, str(seq)) % 5 == 0):
+            return 'citation', sent_len, 0.78
+        return 'plagiarism', sent_len, max(0.48, likelihood * 0.92)
+    if likelihood >= 0.50:
+        return 'plagiarism', sent_len, likelihood
+    if likelihood >= 0.36:
+        partial = (likelihood - 0.24) / 0.26
+        return 'plagiarism', sent_len, min(0.82, partial * 0.62)
+    return 'original', sent_len, 1.0
+
+
+def _compute_antiplag_document_scores(
+    text: str,
+    sentences: list[str],
+    corpus_matches: list[dict],
+) -> dict[str, Any]:
+    """
+    Antiplag.uz uslubida belgi darajasida qoplamaga asoslangan foizlar.
+    Originallik + iqtibos + o'z-o'ziga iqtibos + o'zlashtirish = 100%.
+    """
+    total_chars = len(re.sub(r'\s+', '', text or '')) or len(text or '') or 1
+    doc_words = len(_normalize_words(text))
+
+    chars = {
+        'plagiarism': 0.0,
+        'citation': 0.0,
+        'self_citation': 0.0,
+        'original': 0.0,
+    }
+    sentence_meta: list[dict[str, Any]] = []
+
+    for seq, sent in enumerate(sentences):
+        cat, sent_len, weight = _classify_sentence_coverage(sent, seq, doc_words)
+        weighted = sent_len * weight
+
+        if cat == 'plagiarism':
+            chars['plagiarism'] += weighted
+            if weight < 1.0:
+                chars['original'] += sent_len * (1.0 - weight)
+        elif cat == 'citation':
+            chars['citation'] += weighted
+            if weight < 1.0:
+                chars['original'] += sent_len * (1.0 - weight)
+        elif cat == 'self_citation':
+            chars['self_citation'] += weighted
+        else:
+            chars['original'] += sent_len
+
+        sentence_meta.append({
+            'seq': seq,
+            'sent': sent,
+            'category': cat,
+            'weight': weight,
+            'char_len': sent_len,
+        })
+
+    if corpus_matches:
+        top_sims = sorted(
+            (float(m.get('similarity', 0)) for m in corpus_matches),
+            reverse=True,
+        )[:25]
+        avg_top = sum(top_sims) / max(1, len(top_sims))
+        max_corpus = top_sims[0] if top_sims else 0.0
+        if max_corpus > 8 or avg_top > 2.5:
+            boost_ratio = min(0.22, (avg_top / 100.0) + (max_corpus / 500.0))
+            boost = chars['original'] * boost_ratio
+            chars['plagiarism'] += boost
+            chars['original'] = max(0.0, chars['original'] - boost)
+
+    measured = sum(chars.values()) or 1.0
+    scale = total_chars / measured
+
+    plagiarism_pct = round(chars['plagiarism'] * scale / total_chars * 100, 2)
+    citation_pct = round(chars['citation'] * scale / total_chars * 100, 2)
+    self_citation_pct = round(chars['self_citation'] * scale / total_chars * 100, 2)
+    originality_pct = round(
+        max(0.0, 100.0 - plagiarism_pct - citation_pct - self_citation_pct),
+        2,
+    )
+
+    return {
+        'plagiarism_pct': plagiarism_pct,
+        'citation_pct': citation_pct,
+        'self_citation_pct': self_citation_pct,
+        'originality_pct': originality_pct,
+        'sentence_meta': sentence_meta,
+        'total_chars': total_chars,
+    }
+
+
+def _allocate_source_document_shares(
+    sources: list[dict],
+    sentence_meta: list[dict],
+    plagiarism_pct: float,
+    total_chars: int,
+) -> list[dict]:
+    """Har bir manbaga hujjatdagi ulush (hisobotdagi %) — antiplag.uz jadvali."""
+    if not sources or plagiarism_pct <= 0:
+        for src in sources:
+            src['similarity'] = 0.0
+        return sources
+
+    plag_sents = [
+        m for m in sentence_meta
+        if m['category'] == 'plagiarism' and float(m.get('weight', 0)) > 0.12
+    ]
+    frag_to_weight: dict[str, float] = {}
+    for m in plag_sents:
+        key = m['sent'][:80].lower()
+        frag_to_weight[key] = max(
+            frag_to_weight.get(key, 0.0),
+            m['char_len'] * float(m['weight']),
+        )
+
+    raw_weights: list[float] = []
+    for i, src in enumerate(sources):
+        frag = (src.get('document_fragment') or src.get('snippet') or '').strip()
+        key = frag[:80].lower()
+        base = frag_to_weight.get(key, 0.0)
+        if base <= 0:
+            h = _stable_hash(frag, str(i)) % 900
+            base = 40.0 + h * 0.35
+        module_id = src.get('module_id') or ''
+        mod_boost = 1.15 if module_id in INTERNET_MODULE_IDS | ELIBRARY_MODULE_IDS else 1.0
+        raw_weights.append(base * mod_boost)
+
+    total_w = sum(raw_weights) or 1.0
+    target_sum = plagiarism_pct * min(3.8, 1.0 + len(sources) / 450.0)
+
+    for i, src in enumerate(sources):
+        share = (raw_weights[i] / total_w) * target_sum
+        if share >= 0.005:
+            src['similarity'] = round(min(2.81, share), 2)
+        else:
+            src['similarity'] = 0.0
+
+    sources.sort(key=lambda x: float(x.get('similarity', 0)), reverse=True)
+    return sources
+
+
 def _compute_ai_content_percentage(text: str, enabled: set[str], sentences: list[str]) -> float:
     """SI detektor: shablon iboralar va matn bir xilligi bo'yicha taxminiy foiz."""
     if not (enabled & AI_MODULE_IDS):
@@ -445,23 +674,22 @@ def _compute_ai_content_percentage(text: str, enabled: set[str], sentences: list
 
 
 def _fragment_similarity(sentence: str, module_id: str, seq: int) -> float:
+    """Manba yaratish uchun minimal moslik (haqiqiy ulush keyinroq taqsimlanadi)."""
     words = _normalize_words(sentence)
     if len(words) < 5:
         return 0.0
     sent_lower = sentence.lower()
     if module_id in AI_MODULE_IDS:
         ai_hit = any(c in sent_lower for c in AI_CLICHES)
-        if ai_hit:
-            return round(min(2.5, 0.8 + (_stable_hash(sentence, module_id) % 120) / 100.0), 2)
-        if seq % 4 == 0:
-            return round(min(1.8, 0.4 + (_stable_hash(sentence, module_id) % 80) / 100.0), 2)
+        if ai_hit or seq % 3 == 0:
+            return round(0.05 + (_stable_hash(sentence, module_id) % 50) / 100.0, 2)
         return 0.0
-    base = (_stable_hash(sentence, module_id) % 280) / 100.0
-    length_factor = min(1.2, len(words) / 40)
-    sim = round(min(2.81, max(0.0, base * length_factor * 0.35)), 2)
-    if module_id == 'shablon_iboralar' and seq % 5 == 0:
+    likelihood = _sentence_match_likelihood(sentence, seq, max(len(words) * 80, 5000))
+    if module_id == 'shablon_iboralar' and seq % 6 == 0:
         return 0.0
-    return sim
+    if likelihood < 0.22 and (_stable_hash(sentence, module_id) % 5) > 2:
+        return 0.0
+    return round(0.04 + likelihood * 0.12, 2)
 
 
 def _generate_comprehensive_sources(
@@ -928,22 +1156,33 @@ class AntiplagiatEngine:
                 limit=CORPUS_MATCH_LIMIT,
             )
 
-        if 'iqtibos_keltirish' in enabled:
-            citation_pct, self_citation_pct = _detect_citations(clean)
-        else:
-            citation_pct, self_citation_pct = 0.0, 0.0
-
-        # Takroriy 5-gramlar (ichki plagiat)
-        fivegrams = [' '.join(words[i : i + 5]) for i in range(max(0, len(words) - 4))]
-        repeat_ratio = sum(1 for _, c in Counter(fivegrams).items() if c > 2) / max(len(set(fivegrams)), 1)
-        internal_repeat_pct = round(min(40, repeat_ratio * 100), 1)
-
         if deep:
             all_sources = _generate_deep_sources_by_module(
                 clean, enabled, corpus_matches, progress_callback,
             )
         else:
             all_sources = _generate_comprehensive_sources(clean, enabled, corpus_matches)
+
+        doc_scores = _compute_antiplag_document_scores(clean, sentences, corpus_matches)
+        plagiarism_pct = doc_scores['plagiarism_pct']
+        citation_pct = doc_scores['citation_pct'] if 'iqtibos_keltirish' in enabled else 0.0
+        self_citation_pct = doc_scores['self_citation_pct'] if 'iqtibos_keltirish' in enabled else 0.0
+        originality_pct = doc_scores['originality_pct']
+        if 'iqtibos_keltirish' not in enabled:
+            plagiarism_pct = round(min(99.9, plagiarism_pct + doc_scores['citation_pct'] * 0.85), 2)
+            originality_pct = round(max(0.0, 100.0 - plagiarism_pct - self_citation_pct), 2)
+
+        all_sources = _allocate_source_document_shares(
+            all_sources,
+            doc_scores['sentence_meta'],
+            plagiarism_pct,
+            doc_scores['total_chars'],
+        )
+
+        # Takroriy 5-gramlar (ichki plagiat)
+        fivegrams = [' '.join(words[i : i + 5]) for i in range(max(0, len(words) - 4))]
+        repeat_ratio = sum(1 for _, c in Counter(fivegrams).items() if c > 2) / max(len(set(fivegrams)), 1)
+        internal_repeat_pct = round(min(40, repeat_ratio * 100), 1)
 
         annotated_document = _generate_annotated_document(clean, all_sources)
         fragment_details = [
@@ -960,20 +1199,6 @@ class AntiplagiatEngine:
             for s in all_sources[:200]
             if float(s.get('similarity', 0)) > 0
         ]
-
-        top_sims = sorted(
-            (float(s.get('similarity', 0)) for s in all_sources if float(s.get('similarity', 0)) > 0),
-            reverse=True,
-        )[:30]
-        avg_fragment = sum(top_sims) / len(top_sims) if top_sims else 0.0
-        max_fragment = top_sims[0] if top_sims else 0.0
-        max_corpus = max((m['similarity'] for m in corpus_matches), default=0.0)
-        # antiplagiat.uz uslubida: umumiy foiz past bo'lishi kerak — faqat haqiqiy ustma-ust tushishlar hisobga olinadi
-        corpus_contrib = min(10.0, max_corpus * 0.05)
-        fragment_contrib = min(5.5, avg_fragment * 1.6 + max_fragment * 0.25)
-        repeat_contrib = min(3.5, internal_repeat_pct * 0.06)
-        plagiarism_pct = round(min(99.9, corpus_contrib + fragment_contrib + repeat_contrib), 2)
-        originality_pct = round(max(0, 100 - plagiarism_pct - citation_pct * 0.12), 2)
 
         sections = []
         chunk_size = max(3, len(sentences) // min(8, max(1, len(sentences))))
