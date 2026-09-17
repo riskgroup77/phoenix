@@ -101,3 +101,22 @@ class User(AbstractBaseUser, PermissionsMixin):
         if badge not in self.gamification_badges:
             self.gamification_badges.append(badge)
             self.save()
+
+
+class TelegramSession(models.Model):
+    """Persistent JWT session for Telegram bot users (auto-login on return)."""
+
+    telegram_id = models.BigIntegerField(unique=True, db_index=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='telegram_sessions')
+    access_token = models.TextField()
+    refresh_token = models.TextField()
+    telegram_username = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _('Telegram session')
+        verbose_name_plural = _('Telegram sessions')
+
+    def __str__(self):
+        return f'TG {self.telegram_id} → {self.user.phone}'

@@ -1,14 +1,5 @@
 @echo off
-REM Run the Telegram bot
-
-REM Activate virtual environment if it exists
-if exist "venv\Scripts\activate.bat" (
-    call venv\Scripts\activate.bat
-) else if exist "..\venv\Scripts\activate.bat" (
-    call ..\venv\Scripts\activate.bat
-)
-
-REM Run the bot
-python bot.py
-
-pause
+cd /d "%~dp0.."
+if exist venv\Scripts\activate.bat call venv\Scripts\activate.bat
+set DJANGO_SETTINGS_MODULE=config.settings_local
+python bot\bot.py

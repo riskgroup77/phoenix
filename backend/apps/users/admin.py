@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User
+from .models import User, TelegramSession
 
 
 @admin.register(User)
@@ -25,3 +25,10 @@ class UserAdmin(BaseUserAdmin):
             'fields': ('phone', 'email', 'password1', 'password2', 'first_name', 'last_name', 'role'),
         }),
     )
+
+
+@admin.register(TelegramSession)
+class TelegramSessionAdmin(admin.ModelAdmin):
+    list_display = ['telegram_id', 'user', 'telegram_username', 'updated_at']
+    search_fields = ['telegram_id', 'user__phone', 'telegram_username']
+    raw_id_fields = ['user']

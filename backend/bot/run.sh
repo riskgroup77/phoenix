@@ -1,12 +1,11 @@
 #!/bin/bash
-# Run the Telegram bot
+# Muallif Telegram bot — backend/ papkasidan ishga tushiring
+cd "$(dirname "$0")/.." || exit 1
 
-# Activate virtual environment if it exists
 if [ -d "venv" ]; then
-    source venv/bin/activate
-elif [ -d "../venv" ]; then
-    source ../venv/bin/activate
+  # shellcheck source=/dev/null
+  source venv/bin/activate
 fi
 
-# Run the bot
-python bot.py
+export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings_local}"
+python bot/bot.py
