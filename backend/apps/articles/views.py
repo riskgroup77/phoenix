@@ -807,7 +807,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
                     'status': 'processing',
                     'message': (
                         'Chuqur antiplagiat tekshiruvi boshlandi. '
-                        '75+ modul bo\'yicha skanerlash 10–15 daqiqa davom etishi mumkin.'
+                        'Barcha modullar bo\'yicha skanerlash 10–15 daqiqa davom etishi mumkin.'
                     ),
                     **get_plagiarism_check_status(article),
                 },

@@ -166,29 +166,76 @@ def run_plagiarism_check(
         )
 
     try:
-        engine = get_antiplagiat_engine()
         file_path = resolve_article_document_path(article)
-        if file_path:
-            result = engine.check_file(
-                file_path,
-                exclude_article_id=article_id,
-                enabled_modules=resolved_modules,
-                progress_callback=on_progress,
-                deep=True,
-            )
-        else:
+        if not file_path:
             text_content = extract_article_text(article)
             if not text_content or len(text_content.strip()) < 50:
                 raise ValueError(
                     'Plagiat tekshiruvi uchun hujjat matni yetarli emas. DOCX yoki PDF faylni qayta yuklang.'
                 )
-            result = engine.check_text(
-                text_content,
-                exclude_article_id=article_id,
-                enabled_modules=resolved_modules,
-                progress_callback=on_progress,
-                deep=True,
-            )
+
+        from apps.articles.antiplagiat_api_client import external_antiplagiat_enabled
+        from apps.articles.antiplagiat_engine import get_antiplagiat_engine
+
+        use_external = external_antiplagiat_enabled() and bool(file_path)
+        result = None
+        if use_external:
+            try:
+                from apps.articles.antiplagiat_external import run_external_plagiarism_check
+
+                report_meta = article.plagiarism_report if isinstance(article.plagiarism_report, dict) else {}
+                author_bits = [
+                    str(report_meta.get('author_first_name') or '').strip(),
+                    str(report_meta.get('author_last_name') or '').strip(),
+                ]
+                author_name = ' '.join(x for x in author_bits if x).strip()
+                if not author_name and user:
+                    author_name = f'{getattr(user, "first_name", "")} {getattr(user, "last_name", "")}'.strip()
+
+                result = run_external_plagiarism_check(
+                    file_path=file_path,
+                    external_user_id=str(user.id)[:40],
+                    enabled_modules=resolved_modules,
+                    document_name=str(report_meta.get('document_name') or article.title or ''),
+                    author_name=author_name,
+                    progress_callback=on_progress,
+                )
+            except Exception as ext_err:
+                fallback = getattr(settings, 'ANTIPLAGIAT_API_FALLBACK_LOCAL', True)
+                logger.warning(
+                    'external antiplagiat failed for %s, fallback=%s: %s',
+                    article_id,
+                    fallback,
+                    ext_err,
+                    exc_info=True,
+                )
+                if not fallback:
+                    raise RuntimeError(f'Antiplagiat API xatosi: {ext_err}') from ext_err
+                on_progress(
+                    phase='fallback_local',
+                    progress_percent=5,
+                    module_label='Tashqi API ishlamadi — ichki tekshiruv...',
+                    module_id='fallback',
+                )
+
+        if result is None:
+            engine = get_antiplagiat_engine()
+            if file_path:
+                result = engine.check_file(
+                    file_path,
+                    exclude_article_id=article_id,
+                    enabled_modules=resolved_modules,
+                    progress_callback=on_progress,
+                    deep=True,
+                )
+            else:
+                result = engine.check_text(
+                    text_content,
+                    exclude_article_id=article_id,
+                    enabled_modules=resolved_modules,
+                    progress_callback=on_progress,
+                    deep=True,
+                )
 
         plagiarism_percentage = float(result.get('plagiarism_percentage', 0))
         ai_content_percentage = float(result.get('ai_content_percentage', 0))

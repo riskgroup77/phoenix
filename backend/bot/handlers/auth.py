@@ -1,6 +1,7 @@
 """Login, register, logout, session restore."""
 import logging
 
+import requests
 from asgiref.sync import sync_to_async
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
@@ -48,6 +49,7 @@ async def login_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     phone = context.user_data.get('login_phone', '')
     password = update.message.text or ''
     tg_user = update.effective_user
+    await update.message.reply_text('⏳ Tekshirilmoqda, biroz kuting...')
     client = PhonixApiClient()
     try:
         data = await sync_to_async(client.login)(phone, password)
@@ -69,9 +71,19 @@ async def login_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
     except ApiError as e:
         await update.message.reply_text(f"❌ Kirish xatoligi: {format_api_error(e)}", reply_markup=guest_keyboard())
+    except requests.Timeout:
+        await update.message.reply_text(
+            "❌ Server javob bermadi (vaqt tugadi). Bir necha daqiqadan keyin qayta urinib ko'ring.",
+            reply_markup=guest_keyboard(),
+        )
+    except requests.ConnectionError:
+        await update.message.reply_text(
+            "❌ API serverga ulanib bo'lmadi. Texnik xizmat bilan bog'laning.",
+            reply_markup=guest_keyboard(),
+        )
     except Exception as e:
         logger.exception('login failed')
-        await update.message.reply_text(f"❌ Kirishda xatolik: {e}", reply_markup=guest_keyboard())
+        await update.message.reply_text(f"❌ Kirishda xatolik: {format_api_error(e)}", reply_markup=guest_keyboard())
     return ConversationHandler.END
 
 

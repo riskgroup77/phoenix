@@ -22,6 +22,7 @@ export interface AntiplagiatCertificateData {
     selfCitation: string;
     plagiarism: string;
     originality: string;
+    aiContent?: string;
     searchModules: string;
 }
 
@@ -36,6 +37,7 @@ const AntiplagiatCertificate: React.FC<{ data: AntiplagiatCertificateData }> = (
         { label: 'IQTIBOSLAR', value: data.citations },
         { label: "O'Z-O'ZIGA IQTIBOS", value: data.selfCitation },
         { label: "O'ZLASHTIRISH", value: data.plagiarism, highlight: 'red' },
+        ...(data.aiContent ? [{ label: 'SI MATN', value: data.aiContent, highlight: 'red' as const }] : []),
         { label: 'ORIGINALLAIK', value: data.originality, highlight: 'green' },
         { label: 'WEB-SAYT', value: 'www.ilmiyfaoliyat.uz' },
         { label: 'QIDIRUV TIZIMLARI', value: data.searchModules },

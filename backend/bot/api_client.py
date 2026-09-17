@@ -2,6 +2,7 @@
 import json
 import os
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 import requests
 
@@ -25,6 +26,13 @@ class PhonixApiClient:
         self.frontend_url = (frontend_url or os.getenv('FRONTEND_BASE_URL', 'https://ilmiyfaoliyat.uz')).rstrip('/')
         self.access_token = access_token
         self.refresh_token = refresh_token
+        self.request_timeout = int(os.getenv('API_REQUEST_TIMEOUT', '45'))
+
+    def _needs_proxy_ssl_header(self) -> bool:
+        """Loopback HTTP: Django SECURE_SSL_REDIRECT 301 → https://127.0.0.1 (timeout)."""
+        parsed = urlparse(self.base_url)
+        host = (parsed.hostname or '').lower()
+        return parsed.scheme == 'http' and host in ('127.0.0.1', 'localhost', '::1')
 
     def payment_page_url(self, transaction_id: str) -> str:
         return f"{self.frontend_url}/#/payment/click?transaction_id={transaction_id}"
@@ -35,6 +43,9 @@ class PhonixApiClient:
             h['Content-Type'] = 'application/json'
         if self.access_token:
             h['Authorization'] = f'Bearer {self.access_token}'
+        if self._needs_proxy_ssl_header():
+            # Nginx kabi — ichki HTTP so'rovda SSL redirect oldini oladi.
+            h['X-Forwarded-Proto'] = 'https'
         return h
 
     def _parse(self, resp: requests.Response) -> Any:
@@ -70,7 +81,8 @@ class PhonixApiClient:
             data=data,
             files=files,
             params=params,
-            timeout=120,
+            timeout=self.request_timeout,
+            allow_redirects=False,
         )
 
         if resp.status_code == 401 and retry_refresh and self.refresh_token and not path.startswith('/auth/'):
@@ -92,10 +104,13 @@ class PhonixApiClient:
         if not self.refresh_token:
             return False
         try:
+            headers = self._headers()
             resp = requests.post(
                 f"{self.base_url}/token/refresh/",
                 json={'refresh': self.refresh_token},
-                timeout=30,
+                headers=headers,
+                timeout=self.request_timeout,
+                allow_redirects=False,
             )
             data = self._parse(resp)
             if resp.ok and data.get('access'):
@@ -150,8 +165,42 @@ class PhonixApiClient:
             files.update(extra_files)
         return self._request('POST', '/articles/', data=data, files=files)
 
-    def check_plagiarism(self, article_id: str) -> dict:
-        return self._request('POST', f'/articles/{article_id}/check_plagiarism/', json_data={})
+    def save_plagiarism_config(
+        self,
+        article_id: str,
+        *,
+        enabled_modules: list[str],
+        document_name: str = '',
+        author_first_name: str = '',
+        author_last_name: str = '',
+    ) -> dict:
+        return self._request(
+            'PATCH',
+            f'/articles/{article_id}/',
+            json_data={
+                'plagiarism_report': {
+                    'pending_enabled_modules': enabled_modules,
+                    'document_name': document_name,
+                    'author_first_name': author_first_name,
+                    'author_last_name': author_last_name,
+                    'is_standalone': True,
+                },
+            },
+        )
+
+    def check_plagiarism(
+        self,
+        article_id: str,
+        *,
+        enabled_modules: list[str] | None = None,
+        force: bool = False,
+    ) -> dict:
+        body: dict = {}
+        if enabled_modules:
+            body['enabled_modules'] = enabled_modules
+        if force:
+            body['force'] = True
+        return self._request('POST', f'/articles/{article_id}/check_plagiarism/', json_data=body or None)
 
     # --- Journals ---
     def journals(self) -> list:

@@ -21,8 +21,9 @@ def author_main_keyboard() -> ReplyKeyboardMarkup:
             ['📝 Maqola yuborish', '✨ Xizmatlar'],
             ['📚 To\'plamlarim', '🌐 Tarjimalarim'],
             ['📁 Arxiv hujjatlar', '📖 Muallif nashrlari'],
+            ['💰 To\'lov qilish', '💳 To\'lovlar'],
             ['👤 Profil', '🔔 Bildirishnomalar'],
-            ['💳 To\'lovlar', '🔓 Chiqish'],
+            ['🔓 Chiqish'],
         ],
         resize_keyboard=True,
     )

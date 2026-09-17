@@ -711,6 +711,139 @@ html.dark .journal-a4-image-fallback {
   background: linear-gradient(145deg, #334155 0%, #1e293b 100%);
 }
 
+/* Antiplag.uz uslubidagi antiplagiat sahifasi */
+.antiplagiat-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.antiplagiat-hero {
+  text-align: center;
+  padding: 1.5rem 1rem 0.5rem;
+  border-radius: 12px;
+  background: linear-gradient(165deg, #f0f9ff 0%, #ecfeff 45%, #f8fafc 100%);
+  border: 1px solid #bae6fd;
+}
+
+.antiplagiat-hero-kicker {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0369a1;
+  margin-bottom: 0.5rem;
+}
+
+.antiplagiat-hero-title {
+  font-size: clamp(1.35rem, 3vw, 1.85rem);
+  font-weight: 800;
+  color: #0c4a6e;
+  line-height: 1.25;
+  margin: 0 0 0.5rem;
+}
+
+.antiplagiat-hero-sub {
+  font-size: 0.9rem;
+  color: #475569;
+  max-width: 42rem;
+  margin: 0 auto 1rem;
+  line-height: 1.5;
+}
+
+.antiplagiat-hero-link {
+  color: #0284c7;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.antiplagiat-mode-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  padding-bottom: 0.25rem;
+}
+
+.antiplagiat-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.antiplagiat-mode-btn:hover {
+  border-color: #0284c7;
+  color: #0369a1;
+}
+
+.antiplagiat-mode-btn.is-active {
+  background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+  border-color: #0284c7;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.28);
+}
+
+.antiplagiat-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.antiplagiat-preset-btn {
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.antiplagiat-preset-btn.is-active {
+  background: #e0f2fe;
+  border-color: #0284c7;
+  color: #0369a1;
+}
+
+.antiplagiat-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  max-width: 48rem;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.antiplagiat-feature-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.antiplagiat-feature-card h3 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f2744;
+  margin: 0 0 0.35rem;
+}
+
+.antiplagiat-feature-card p {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.45;
+}
+
 /* Antiplagiat.uz uslubidagi yuklash paneli */
 .antiplagiat-panel {
   background: #fff;
@@ -762,8 +895,8 @@ html.dark .journal-a4-image-fallback {
 }
 
 .antiplagiat-tab-active {
-  color: #2563eb;
-  border-bottom-color: #2563eb;
+  color: #0284c7;
+  border-bottom-color: #0284c7;
 }
 
 .antiplagiat-panel-body {

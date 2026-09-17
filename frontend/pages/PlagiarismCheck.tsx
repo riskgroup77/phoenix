@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Button from '../components/ui/Button';
-import EditorialPageHeader from '../components/EditorialPageHeader';
 import ModalPortal from '../components/ui/ModalPortal';
 import { CreditCard } from 'lucide-react';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
@@ -296,6 +295,7 @@ const PlagiarismCheck: React.FC = () => {
       selfCitation: `${Number(selfCitationPct || 0).toFixed(1)}%`,
       plagiarism: `${plagiarismPercentage}%`,
       originality: `${originality.toFixed(2)}%`,
+      aiContent: aiContentPercentage > 0 ? `${aiContentPercentage.toFixed(1)}%` : undefined,
       searchModules,
     };
     setCertificateData(newCertificateData);
@@ -678,7 +678,7 @@ const PlagiarismCheck: React.FC = () => {
             return;
           }
 
-          setCheckStatusLabel('75+ modul bo\'yicha skanerlash boshlandi (10–15 daqiqa)...');
+          setCheckStatusLabel(`${ANTIPLAGIAT_MODULES.length}+ modul bo'yicha skanerlash boshlandi (10–15 daqiqa)...`);
           const ready = await pollUntilPlagiarismReady(targetArticleId);
           if (!ready) {
             throw new Error('Tekshiruv vaqti tugadi. Keyinroq natijani «Arxiv hujjatlar»dan ko\'ring.');
@@ -705,12 +705,7 @@ const PlagiarismCheck: React.FC = () => {
 
   return (
       <>
-      <div className="no-print mx-auto max-w-4xl px-4 py-8">
-          <EditorialPageHeader
-            title="Antiplagiat tekshiruvi"
-            subtitle="Hujjat yuklang, turini tanlang, tekshirish modullarini sozlang va natijani oling."
-          />
-
+      <div className="no-print mx-auto max-w-4xl px-4 py-6">
           <AntiplagiatUploadPanel
             values={form}
             onChange={patchForm}
@@ -730,7 +725,7 @@ const PlagiarismCheck: React.FC = () => {
                     Chuqur antiplagiat tekshiruvi
                   </p>
                   <p className="mb-3 text-center text-xs text-[var(--editorial-muted,#64748b)]">
-                    antiplagiat.uz uslubida — har bir modul alohida skanerlanadi (10–15 daqiqa)
+                    Antiplag.uz uslubida — har bir modul alohida skanerlanadi (10–15 daqiqa)
                   </p>
                   {checkStatusLabel && (
                     <p className="mb-2 text-center text-sm text-[var(--editorial-primary,#8b1538)]">

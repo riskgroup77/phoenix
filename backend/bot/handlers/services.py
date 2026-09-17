@@ -2,15 +2,25 @@
 import logging
 
 from asgiref.sync import sync_to_async
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
+from apps.articles.antiplagiat_modules import MODULE_PRESETS, module_catalog_count
 from bot.api_client import ApiError
+from bot.app_links import (
+    SERVICE_APP_PATHS,
+    plagiarism_check_url,
+    plagiarism_result_url,
+    service_url,
+)
+from bot.payment_helpers import reply_with_payment_button
 from bot.constants import (
     BACK,
     BOOK_ABSTRACT,
     BOOK_COVER,
     BOOK_FILE,
+    BOOK_JOURNAL,
+    BOOK_JOURNAL_SEARCH,
     BOOK_KEYWORDS,
     BOOK_PAGES,
     BOOK_TITLE,
@@ -19,6 +29,7 @@ from bot.constants import (
     DOI_FIRST,
     DOI_LAST,
     PLAG_FILE,
+    PLAG_MODULES,
     PLAG_TITLE,
     SAMPLE_PAGES,
     SAMPLE_QUALITY,
@@ -35,6 +46,8 @@ from bot.constants import (
 )
 from bot.handlers.auth import require_author
 from bot.handlers.articles import _download_doc
+from bot.journal_browse import init_journal_session, send_filter_menu
+from bot.journal_callbacks import process_journal_pick_callback, process_journal_search_message
 from bot.keyboards import (
     author_main_keyboard,
     cancel_keyboard,
@@ -42,21 +55,47 @@ from bot.keyboards import (
     services_keyboard,
     translation_lang_keyboard,
 )
+from bot.list_browse import app_link_button, carousel_keyboard
 from bot.session import get_client_from_context
 from bot.utils import format_api_error, format_money, parse_keywords, truncate
 
 logger = logging.getLogger(__name__)
 
 
+BOOK_HEADING = "📖 *Kitob nashr* — 1-qadam: Jurnal tanlash"
+
+
 async def show_services_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await require_author(update, context):
         return
-    if update.message:
-        await update.message.reply_text(
-            "✨ **Xizmatlar**\n\nSaytdagi barcha muallif xizmatlari:",
-            parse_mode='Markdown',
-            reply_markup=services_keyboard(),
-        )
+    client = get_client_from_context(context)
+    if not update.message or not client:
+        return
+    kb = carousel_keyboard(
+        'lv:srv', 0, 1,
+        action_rows=[
+            [
+                app_link_button(client, '🛡️ Antiplagiat', service_url(client, SERVICE_APP_PATHS['plagiarism'])),
+                app_link_button(client, '🔗 DOI', service_url(client, SERVICE_APP_PATHS['doi'])),
+            ],
+            [
+                app_link_button(client, '📑 UDK', service_url(client, SERVICE_APP_PATHS['udk'])),
+                app_link_button(client, '🌐 Tarjima', service_url(client, SERVICE_APP_PATHS['translation'])),
+            ],
+            [
+                app_link_button(client, '📋 Maqola namuna', service_url(client, SERVICE_APP_PATHS['sample'])),
+                app_link_button(client, '📖 Kitob', service_url(client, SERVICE_APP_PATHS['book'])),
+            ],
+        ],
+    )
+    await update.message.reply_text(
+        "✨ *Xizmatlar*\n\n"
+        "Botda buyurtma bering yoki ilovada oching.\n"
+        "Quyidagi tugmalar orqali saytga o'tishingiz mumkin:",
+        parse_mode='Markdown',
+        reply_markup=kb,
+    )
+    await update.message.reply_text("Bot xizmatlari menyusi:", reply_markup=services_keyboard())
 
 
 async def services_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -69,7 +108,11 @@ async def doi_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not await require_author(update, context):
         return ConversationHandler.END
     if update.message:
-        await update.message.reply_text("🔗 DOI olish — ismingizni kiriting:", reply_markup=cancel_keyboard())
+        await update.message.reply_text(
+            "🔗 *DOI olish* — 1/3 qadam\n\nIsmingizni kiriting:",
+            parse_mode='Markdown',
+            reply_markup=cancel_keyboard(),
+        )
     return DOI_FIRST
 
 
@@ -104,14 +147,20 @@ async def doi_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             'last_name': context.user_data['doi_last'],
         }
         result = await sync_to_async(client.doi_request)(fields, file_bytes, filename)
-        msg = "✅ DOI so'rovi yuborildi!"
         tx_id = result.get('transaction_id')
         amount = result.get('amount')
         if tx_id and amount:
-            pay = await sync_to_async(client.process_payment)(str(tx_id))
-            url = pay.get('payment_url') or client.payment_page_url(str(tx_id))
-            msg += f"\n💳 {format_money(amount)}\n🔗 {url}"
-        await update.message.reply_text(msg, reply_markup=services_keyboard())
+            await reply_with_payment_button(
+                update.message,
+                client,
+                str(tx_id),
+                text="✅ DOI so'rovi yuborildi!\n\nTo'lovni ilovada amalga oshiring:",
+                amount=amount,
+            )
+        else:
+            await update.message.reply_text("✅ DOI so'rovi yuborildi!", reply_markup=services_keyboard())
+            return ConversationHandler.END
+        await update.message.reply_text("Xizmatlar menyusi:", reply_markup=services_keyboard())
     except ApiError as e:
         await update.message.reply_text(f"❌ {format_api_error(e)}", reply_markup=services_keyboard())
     return ConversationHandler.END
@@ -174,14 +223,20 @@ async def udk_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return UDK_FILE
     try:
         result = await sync_to_async(client.udk_request)(fields, file_bytes, filename)
-        msg = "✅ UDK so'rovi yuborildi!"
         tx_id = result.get('transaction_id')
         amount = result.get('amount')
         if tx_id and amount:
-            pay = await sync_to_async(client.process_payment)(str(tx_id))
-            url = pay.get('payment_url') or client.payment_page_url(str(tx_id))
-            msg += f"\n💳 {format_money(amount)}\n🔗 {url}"
-        await update.message.reply_text(msg, reply_markup=services_keyboard())
+            await reply_with_payment_button(
+                update.message,
+                client,
+                str(tx_id),
+                text="✅ UDK so'rovi yuborildi!\n\nTo'lovni ilovada amalga oshiring:",
+                amount=amount,
+            )
+        else:
+            await update.message.reply_text("✅ UDK so'rovi yuborildi!", reply_markup=services_keyboard())
+            return ConversationHandler.END
+        await update.message.reply_text("Xizmatlar menyusi:", reply_markup=services_keyboard())
     except ApiError as e:
         await update.message.reply_text(f"❌ {format_api_error(e)}", reply_markup=services_keyboard())
     return ConversationHandler.END
@@ -274,30 +329,169 @@ async def translation_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE
             'translation_request': tr.get('id'),
         })
         tx_id = tx.get('id')
-        msg = "✅ Tarjima buyurtmasi yaratildi!"
         if tx_id:
-            pay = await sync_to_async(client.process_payment)(str(tx_id))
-            url = pay.get('payment_url') or client.payment_page_url(str(tx_id))
-            msg += f"\n🔗 To'lov: {url}"
-        await update.message.reply_text(msg, reply_markup=services_keyboard())
+            await reply_with_payment_button(
+                update.message,
+                client,
+                str(tx_id),
+                text="✅ Tarjima buyurtmasi yaratildi!\n\nTo'lovni ilovada amalga oshiring:",
+                amount=fields['cost'],
+            )
+            await update.message.reply_text("Xizmatlar menyusi:", reply_markup=services_keyboard())
+        else:
+            await update.message.reply_text("✅ Tarjima buyurtmasi yaratildi!", reply_markup=services_keyboard())
     except ApiError as e:
         await update.message.reply_text(f"❌ {format_api_error(e)}", reply_markup=services_keyboard())
     return ConversationHandler.END
 
 
 # --- Plagiarism ---
+def _plag_module_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(
+            f"🔬 Barcha modullar ({len(MODULE_PRESETS['all'])})",
+            callback_data='plagm:all',
+        )],
+        [InlineKeyboardButton(
+            f"⭐ Asosiy ({len(MODULE_PRESETS['core'])})",
+            callback_data='plagm:core',
+        )],
+        [InlineKeyboardButton(
+            f"🌍 Global bazalar ({len(MODULE_PRESETS['global'])})",
+            callback_data='plagm:global',
+        )],
+        [InlineKeyboardButton(
+            f"🇺🇿 Milliy bazalar ({len(MODULE_PRESETS['milliy'])})",
+            callback_data='plagm:milliy',
+        )],
+    ])
+
+
 async def plag_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not await require_author(update, context):
         return ConversationHandler.END
     if update.message:
-        await update.message.reply_text("🛡️ Antiplagiat — maqola nomini kiriting:", reply_markup=cancel_keyboard())
+        total = module_catalog_count()
+        await update.message.reply_text(
+            f"🛡️ *Antiplagiat* — chuqur tekshiruv {total}+ modul bo'yicha.\n\n"
+            "Maqola nomini kiriting:",
+            parse_mode='Markdown',
+            reply_markup=cancel_keyboard(),
+        )
     return PLAG_TITLE
 
 
 async def plag_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message and context.user_data is not None:
         context.user_data['plag_title'] = update.message.text.strip()
-        await update.message.reply_text("Maqola faylini yuboring (DOC/DOCX/PDF):")
+        await update.message.reply_text(
+            "Tekshiruv profilini tanlang (modullar soni tugmada ko'rsatilgan):",
+            reply_markup=_plag_module_keyboard(),
+        )
+    return PLAG_MODULES
+
+
+def _format_plag_status_message(article: dict) -> str:
+    report = article.get('plagiarism_report') or {}
+    if not isinstance(report, dict):
+        report = {}
+    status = str(report.get('check_status') or 'idle')
+    progress = float(report.get('progress_percent') or 0)
+    modules_total = int(report.get('modules_total') or 0)
+    modules_done = int(report.get('modules_completed') or 0)
+    current = str(report.get('current_module_label') or '')
+    phase = str(report.get('check_phase') or '')
+    error = str(report.get('check_error') or '')
+    title = str(report.get('document_name') or article.get('title') or 'Hujjat')[:80]
+
+    if status == 'completed' or article.get('plagiarism_checked_at'):
+        plag = article.get('plagiarism_percentage')
+        orig = article.get('originality_percentage')
+        return (
+            f"✅ *Antiplagiat tayyor*\n\n"
+            f"📄 {title}\n"
+            f"O'zlashtirish: *{plag}%*\n"
+            f"Originallik: *{orig}%*\n\n"
+            "To'liq hisobot uchun «Natija sahifasi» tugmasini bosing."
+        )
+
+    if status == 'failed':
+        return (
+            f"❌ *Tekshiruv xatosi*\n\n"
+            f"📄 {title}\n"
+            f"{error or 'Noma\'lum xato.'}\n\n"
+            "Iltimos, ilovada qayta urinib ko'ring yoki qo'llab-quvvatlashga murojaat qiling."
+        )
+
+    if status == 'processing':
+        bar_filled = int(progress // 10)
+        bar = '█' * bar_filled + '░' * (10 - bar_filled)
+        mod_line = f"\nModullar: {modules_done}/{modules_total}" if modules_total else ''
+        phase_line = f"\nBosqich: {phase}" if phase else ''
+        cur_line = f"\nHozir: {current}" if current else ''
+        return (
+            f"⏳ *Tekshiruv davom etmoqda*\n\n"
+            f"📄 {title}\n"
+            f"[{bar}] {progress:.0f}%{mod_line}{phase_line}{cur_line}\n\n"
+            "Chuqur tekshiruv 10–30 daqiqa davom etishi mumkin."
+        )
+
+    paid_hint = ''
+    if (article.get('status') or '').lower() == 'draft':
+        paid_hint = "\n\n💳 Avval to'lovni amalga oshiring — keyin tekshiruv avtomatik boshlanadi."
+
+    return (
+        f"ℹ️ *Antiplagiat holati*\n\n"
+        f"📄 {title}\n"
+        f"Holat: {status or 'kutilmoqda'}{paid_hint}"
+    )
+
+
+async def plag_status_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query or not query.data:
+        return
+    if not await require_author(update, context):
+        return
+    await query.answer()
+    article_id = query.data.split(':', 1)[-1].strip()
+    client = get_client_from_context(context)
+    if not client or not article_id:
+        return
+    try:
+        article = await sync_to_async(client.article_detail)(article_id)
+        text = _format_plag_status_message(article)
+        aid = str(article.get('id') or article_id)
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton('🔄 Yangilash', callback_data=f'plags:{aid}')],
+            [
+                app_link_button(client, '📊 Natija', plagiarism_result_url(client, aid)),
+                app_link_button(client, '🛡️ Antiplagiat', plagiarism_check_url(client)),
+            ],
+        ])
+        await query.edit_message_text(text, parse_mode='Markdown', reply_markup=kb)
+    except ApiError as e:
+        await query.edit_message_text(f"❌ {format_api_error(e)}")
+
+
+async def plag_module_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    if not query or context.user_data is None:
+        return PLAG_MODULES
+    await query.answer()
+    preset = (query.data or '').split(':', 1)[-1]
+    modules = MODULE_PRESETS.get(preset) or MODULE_PRESETS['all']
+    context.user_data['plag_modules'] = modules
+    context.user_data['plag_preset'] = preset
+    preset_labels = {
+        'all': 'Barcha modullar', 'core': 'Asosiy', 'global': 'Global bazalar', 'milliy': 'Milliy bazalar',
+    }
+    label = preset_labels.get(preset, preset)
+    await query.edit_message_text(
+        f"✅ Tanlandi: *{label}* ({len(modules)} modul).\n\n"
+        "Endi maqola faylini yuboring (DOC/DOCX/PDF):",
+        parse_mode='Markdown',
+    )
     return PLAG_FILE
 
 
@@ -308,20 +502,33 @@ async def plag_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     client = get_client_from_context(context)
     if not client:
         return ConversationHandler.END
+    enabled_modules = context.user_data.get('plag_modules') or MODULE_PRESETS['all']
+    preset = context.user_data.get('plag_preset', 'all')
+    preset_labels = {
+        'all': 'Barcha modullar', 'core': 'Asosiy', 'global': 'Global bazalar', 'milliy': 'Milliy bazalar',
+    }
     try:
         file_bytes, filename = await _download_doc(update, context)
         user = context.user_data.get('user') or {}
         journals = await sync_to_async(client.journals)()
         journal_id = str(journals[0]['id']) if journals else ''
+        title = context.user_data.get('plag_title') or 'Antiplagiat tekshiruvi'
         fields = {
-            'title': context.user_data['plag_title'],
+            'title': title,
             'abstract': 'Antiplagiat tekshiruvi',
             'keywords': ['plagiarism'],
             'journal': journal_id,
             'page_count': 1,
         }
         article = await sync_to_async(client.create_article_multipart)(fields, file_bytes, filename)
-        aid = article.get('id')
+        aid = str(article.get('id', ''))
+        await sync_to_async(client.save_plagiarism_config)(
+            aid,
+            enabled_modules=enabled_modules,
+            document_name=title,
+            author_first_name=user.get('first_name') or '',
+            author_last_name=user.get('last_name') or '',
+        )
         amount = await sync_to_async(client.service_price)('language_editing', 100000)
         tx = await sync_to_async(client.create_transaction)({
             'amount': amount,
@@ -330,24 +537,93 @@ async def plag_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             'article': aid,
         })
         tx_id = tx.get('id')
-        msg = f"✅ Maqola yaratildi (ID: {aid}).\n"
+        module_label = preset_labels.get(preset, preset)
         if tx_id:
-            pay = await sync_to_async(client.process_payment)(str(tx_id))
-            url = pay.get('payment_url') or client.payment_page_url(str(tx_id))
-            msg += f"Avval to'lovni amalga oshiring:\n🔗 {url}\n\nTo'lovdan keyin saytda yoki qayta /start orqali tekshiruvni boshlang."
-        await update.message.reply_text(msg, reply_markup=services_keyboard())
+            await sync_to_async(client.process_payment)(str(tx_id))
+            pay_kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton(
+                    f"💳 To'lov qilish — {format_money(amount)}",
+                    url=client.payment_page_url(str(tx_id)),
+                )],
+                [
+                    app_link_button(client, '📊 Natija sahifasi', plagiarism_result_url(client, aid)),
+                    app_link_button(client, '🛡️ Antiplagiat', plagiarism_check_url(client)),
+                ],
+                [InlineKeyboardButton('🔄 Tekshiruv holati', callback_data=f'plags:{aid}')],
+            ])
+            await update.message.reply_text(
+                f"✅ Maqola yaratildi.\n"
+                f"Profil: *{module_label}* ({len(enabled_modules)} modul)\n\n"
+                "1️⃣ Avval to'lovni amalga oshiring.\n"
+                "2️⃣ To'lovdan keyin chuqur tekshiruv *avtomatik* boshlanadi (10–15 daqiqa).\n"
+                "3️⃣ Natijani ilovada yoki «Natija sahifasi» tugmasidan ko'ring.",
+                parse_mode='Markdown',
+                reply_markup=pay_kb,
+                disable_web_page_preview=True,
+            )
+            await update.message.reply_text("Xizmatlar menyusi:", reply_markup=services_keyboard())
+        else:
+            await update.message.reply_text(
+                f"✅ Maqola yaratildi (ID: {aid}).",
+                reply_markup=services_keyboard(),
+            )
     except ApiError as e:
         await update.message.reply_text(f"❌ {format_api_error(e)}", reply_markup=services_keyboard())
     return ConversationHandler.END
 
 
 # --- Book ---
+async def _on_book_journal_selected(update: Update, context: ContextTypes.DEFAULT_TYPE, jid: str, jname: str) -> int:
+    context.user_data['book_journal_id'] = jid
+    if update.effective_chat:
+        await context.bot.send_message(
+            update.effective_chat.id,
+            f"✅ Jurnal: *{jname}*\n\n2-qadam: Kitob nomini kiriting:",
+            parse_mode='Markdown',
+            reply_markup=cancel_keyboard(),
+        )
+    return BOOK_TITLE
+
+
 async def book_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not await require_author(update, context):
         return ConversationHandler.END
-    if update.message:
-        await update.message.reply_text("📖 Kitob nashr — kitob nomini kiriting:", reply_markup=cancel_keyboard())
-    return BOOK_TITLE
+    client = get_client_from_context(context)
+    if not client:
+        return ConversationHandler.END
+    try:
+        journals = await sync_to_async(client.journals)()
+        if not journals:
+            if update.message:
+                await update.message.reply_text("❌ Jurnallar topilmadi.", reply_markup=services_keyboard())
+            return ConversationHandler.END
+        init_journal_session(context, 'book', journals)
+        context.user_data['book_heading'] = BOOK_HEADING
+        await send_filter_menu(update, context, prefix='book', heading=BOOK_HEADING)
+        return BOOK_JOURNAL
+    except Exception as e:
+        if update.message:
+            await update.message.reply_text(f"❌ {format_api_error(e)}", reply_markup=services_keyboard())
+        return ConversationHandler.END
+
+
+async def book_journal_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    return await process_journal_search_message(
+        update, context, prefix='book', journal_state=BOOK_JOURNAL, heading=BOOK_HEADING,
+    )
+
+
+async def book_journal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    return await process_journal_pick_callback(
+        update,
+        context,
+        prefix='book',
+        journal_state=BOOK_JOURNAL,
+        search_state=BOOK_JOURNAL_SEARCH,
+        on_selected=_on_book_journal_selected,
+        cancel_message="Kitob nashr bekor qilindi.",
+        cancel_keyboard=services_keyboard,
+    )
 
 
 async def book_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -406,8 +682,7 @@ async def book_cover(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text("Rasm yuboring yoki «-»")
         return BOOK_COVER
     try:
-        journals = await sync_to_async(client.journals)()
-        journal_id = str(journals[0]['id']) if journals else ''
+        journal_id = str(context.user_data.get('book_journal_id') or '')
         user = context.user_data.get('user') or {}
         title = f"[KITOB] {context.user_data['book_title']}"
         fields = {
@@ -428,12 +703,20 @@ async def book_cover(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             'article': aid,
         })
         tx_id = tx.get('id')
-        msg = f"✅ Kitob buyurtmasi yuborildi! ID: {aid}"
         if tx_id:
-            pay = await sync_to_async(client.process_payment)(str(tx_id))
-            url = pay.get('payment_url') or client.payment_page_url(str(tx_id))
-            msg += f"\n🔗 To'lov: {url}"
-        await update.message.reply_text(msg, reply_markup=services_keyboard())
+            await reply_with_payment_button(
+                update.message,
+                client,
+                str(tx_id),
+                text=f"✅ Kitob buyurtmasi yuborildi! ID: {aid}\n\nTo'lovni ilovada amalga oshiring:",
+                amount=book_amount,
+            )
+            await update.message.reply_text("Xizmatlar menyusi:", reply_markup=services_keyboard())
+        else:
+            await update.message.reply_text(
+                f"✅ Kitob buyurtmasi yuborildi! ID: {aid}",
+                reply_markup=services_keyboard(),
+            )
     except ApiError as e:
         await update.message.reply_text(f"❌ {format_api_error(e)}", reply_markup=services_keyboard())
     return ConversationHandler.END
@@ -500,12 +783,17 @@ async def sample_requirements(update: Update, context: ContextTypes.DEFAULT_TYPE
         result = await sync_to_async(client.article_sample_request)(payload)
         tx_id = result.get('transaction_id')
         amount = result.get('amount')
-        msg = "✅ Maqola namuna so'rovi yuborildi!"
         if tx_id and amount:
-            pay = await sync_to_async(client.process_payment)(str(tx_id))
-            url = pay.get('payment_url') or client.payment_page_url(str(tx_id))
-            msg += f"\n💳 {format_money(amount)}\n🔗 {url}"
-        await update.message.reply_text(msg, reply_markup=services_keyboard())
+            await reply_with_payment_button(
+                update.message,
+                client,
+                str(tx_id),
+                text="✅ Maqola namuna so'rovi yuborildi!\n\nTo'lovni ilovada amalga oshiring:",
+                amount=amount,
+            )
+            await update.message.reply_text("Xizmatlar menyusi:", reply_markup=services_keyboard())
+        else:
+            await update.message.reply_text("✅ Maqola namuna so'rovi yuborildi!", reply_markup=services_keyboard())
     except ApiError as e:
         await update.message.reply_text(f"❌ {format_api_error(e)}", reply_markup=services_keyboard())
     return ConversationHandler.END

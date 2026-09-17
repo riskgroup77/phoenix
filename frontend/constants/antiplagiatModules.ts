@@ -89,15 +89,128 @@ export const ANTIPLAGIAT_MODULES: AntiplagiatModule[] = [
   // Cross-language
   { id: 'crosslang_uz_ru', label: "Cross-language: o'zbek ↔ rus", category: 'Cross-language' },
   { id: 'crosslang_uz_en', label: "Cross-language: o'zbek ↔ ingliz", category: 'Cross-language' },
+  // Qo'shimcha global bazalar
+  { id: 'google_scholar', label: 'Google Scholar', category: 'Global' },
+  { id: 'lens_org', label: 'Lens.org (patent + ilmiy matn)', category: 'Global' },
+  { id: 'base_bielefeld', label: 'BASE (Bielefeld Academic Search)', category: 'Global' },
+  { id: 'dblp', label: 'DBLP (informatika va AI)', category: 'Global' },
+  { id: 'eric', label: "ERIC (ta'lim fanlari)", category: 'Global' },
+  { id: 'europe_pmc', label: 'Europe PMC (biotibbiyot)', category: 'Global' },
+  { id: 'zenodo', label: 'Zenodo (CERN ochiq arxiv)', category: 'Global' },
+  { id: 'figshare', label: 'Figshare', category: 'Global' },
+  { id: 'jstor', label: 'JSTOR', category: 'Global' },
+  { id: 'worldcat', label: 'WorldCat (kutubxonalar katalogi)', category: 'Global' },
+  { id: 'osti', label: 'OSTI.GOV (AQSh energetika ilmi)', category: 'Global' },
+  { id: 'cnki', label: 'CNKI (Xitoy ilmiy bazasi)', category: 'Global' },
+  { id: 'dimensions_ai', label: 'Dimensions.ai', category: 'Global' },
+  { id: 'orcid_works', label: "ORCID ishlar ro'yxati", category: 'Global' },
+  // O'zbekiston milliy bazalar (kengaytma)
+  { id: 'natlib_uz', label: "O'zbekiston Milliy kutubxonasi (dissertatsiyalar)", category: "O'zbekiston" },
+  { id: 'edu_uz', label: 'edu.uz — OTM ilmiy portallari', category: "O'zbekiston" },
+  { id: 'science_uz', label: 'science.gov.uz — ilmiy loyihalar', category: "O'zbekiston" },
+  { id: 'arb_uz', label: 'Arxiv.uz — ochiq arxiv', category: "O'zbekiston" },
+  { id: 'adliya_uz', label: 'Adliya va qonunchilik bazasi', category: "O'zbekiston" },
+  { id: 'mygov_uz', label: 'my.gov.uz ochiq ma\'lumotlar', category: "O'zbekiston" },
+  { id: 'tiiame_uz', label: 'TIIAME ilmiy nashrlar', category: "O'zbekiston" },
+  { id: 'agrar_uz', label: "O'zbekiston agrar ilm-fanlar bazasi", category: "O'zbekiston" },
+  { id: 'medportal_uz', label: "O'zbekiston tibbiyot ilmiy jurnallar", category: "O'zbekiston" },
+  { id: 'phoenix_archive', label: 'Phoenix ichki arxiv (barcha nashrlar)', category: 'Milliy' },
+  // Markaziy Osiyo
+  { id: 'kazakh_nauka', label: 'Kazakhstan Science', category: 'Markaziy Osiyo' },
+  { id: 'elibrary_kz', label: 'e-lib.kz (Qozog\'iston)', category: 'Markaziy Osiyo' },
+  { id: 'kyrgyz_elibrary', label: 'Qirg\'iziston elibrary', category: 'Markaziy Osiyo' },
+  { id: 'tajik_dissertation', label: 'Tojikiston dissertatsiyalar', category: 'Markaziy Osiyo' },
+  { id: 'turkmen_library', label: 'Turkmaniston ilmiy kutubxona', category: 'Markaziy Osiyo' },
+  { id: 'elibrary_am', label: 'Armaniston elibrary', category: 'Markaziy Osiyo' },
+  { id: 'e_library_by', label: 'Belarus e-library', category: 'MDH' },
+  // Preprint
+  { id: 'biorxiv', label: 'bioRxiv', category: 'Preprint' },
+  { id: 'medrxiv', label: 'medRxiv', category: 'Preprint' },
+  { id: 'osf_io', label: 'OSF Preprints', category: 'Preprint' },
+  { id: 'copernicus', label: 'Copernicus Publications', category: 'Publisher' },
+  { id: 'plos_journals', label: 'PLOS journals', category: 'Publisher' },
+  { id: 'biomed_central', label: 'BioMed Central', category: 'Publisher' },
+  { id: 'openaire', label: 'OpenAIRE', category: 'Global' },
+  { id: 'redalyc', label: 'Redalyc', category: 'Global' },
+  { id: 'ingentaconnect', label: 'IngentaConnect', category: 'Publisher' },
+  { id: 'proquest', label: 'ProQuest dissertatsiyalar', category: 'Global' },
+  { id: 'sabinet', label: 'Sabinet (Afrika)', category: 'Global' },
+  // Cross-language
+  { id: 'internet_ar', label: 'Internet (arab segmenti)', category: 'Internet' },
+  { id: 'internet_fa', label: 'Internet (fors segmenti)', category: 'Internet' },
+  { id: 'crosslang_uz_kk', label: "Cross-language: o'zbek ↔ qoraqalpoq", category: 'Cross-language' },
+  { id: 'crosslang_uz_ar', label: "Cross-language: o'zbek ↔ arab", category: 'Cross-language' },
+  { id: 'antiplagiat_ru_db', label: 'Antiplagiat.ru ma\'lumotlar bazasi', category: 'Milliy' },
 ];
 
 export const DEFAULT_ENABLED_MODULE_IDS = ANTIPLAGIAT_MODULES.map((m) => m.id);
+
+/** SI (sun'iy intellekt) detektor modullari */
+export const AI_MODULE_IDS = [
+  'chatgpt_ai',
+  'gemini_ai',
+  'claude_ai',
+  'ai_detection',
+] as const;
+
+/** Antiplag.uz uslubidagi tezkor profillar — backend MODULE_PRESETS bilan sinxron */
+export const CORE_MODULE_IDS = [
+  'milliy_reestr', 'elibrary_ru', 'elibrary_translations', 'openalex', 'crossref',
+  'semantic_scholar', 'google_scholar', 'core_ac', 'doaj', 'arxiv', 'pubmed',
+  'scopus', 'wos', 'ieee', 'springer', 'slib_uz', 'ziyonet_uz', 'oak_journals_uz',
+  'internet_uz', 'internet_ru_paraphrase', 'internet_en_paraphrase', 'internet_plus',
+  'shablon_iboralar', 'chatgpt_ai', 'gemini_ai', 'ai_detection',
+  'dissertation_uz', 'cyberleninka', 'patentlar', 'researchgate', 'academia_edu',
+  'crosslang_uz_ru', 'crosslang_uz_en', 'bmk_dissertatsiyalari', 'otm_halqasi',
+  'company_collection',
+];
+
+export const GLOBAL_MODULE_IDS = ANTIPLAGIAT_MODULES.filter((m) =>
+  [
+    'crossref', 'openalex', 'core_ac', 'pubmed', 'arxiv', 'doaj', 'semantic_scholar',
+    'datacite', 'hal_archives', 'ssrn', 'scopus', 'wos', 'elsevier', 'wiley',
+    'taylor_francis', 'nature', 'mdpi', 'acm_digital', 'google_scholar', 'lens_org',
+    'base_bielefeld', 'dblp', 'eric', 'europe_pmc', 'zenodo', 'figshare', 'jstor',
+    'worldcat', 'osti', 'cnki', 'dimensions_ai', 'orcid_works', 'springer', 'ieee',
+    'ieee_search', 'ieee_crosslang', 'milliy_reestr',
+  ].includes(m.id),
+).map((m) => m.id);
+
+export type AntiplagiatCheckMode = 'plagiarism' | 'ai' | 'both';
+
+export const MILLIY_MODULE_IDS = [
+  'milliy_reestr', 'phoenix_archive', 'company_collection', 'otm_halqasi',
+  'slib_uz', 'ziyonet_uz', 'ziyouz_uz', 'oak_journals_uz', 'olis_uz', 'dissertation_uz',
+  'natlib_uz', 'edu_uz', 'science_uz', 'arb_uz', 'adliya_uz', 'mygov_uz',
+  'lex_uz', 'normativ_uz', 'tiiame_uz', 'agrar_uz', 'medportal_uz',
+  'internet_uz', 'internet_kk', 'internet_tr', 'crosslang_uz_ru', 'crosslang_uz_en',
+  'crosslang_uz_kk', 'crosslang_uz_ar', 'nbu_kolleksiya', 'elektron_kutubxona',
+  'rdk_toplami', 'tabobat', 'unilibrary', 'antiplagiat_ru_db',
+];
+
+export type ModulePresetId = 'all' | 'core' | 'global' | 'milliy' | 'ai';
+
+export const MODULE_PRESETS: Record<ModulePresetId, string[]> = {
+  all: DEFAULT_ENABLED_MODULE_IDS,
+  core: CORE_MODULE_IDS.filter((id) => DEFAULT_ENABLED_MODULE_IDS.includes(id)),
+  global: GLOBAL_MODULE_IDS.filter((id) => DEFAULT_ENABLED_MODULE_IDS.includes(id)),
+  milliy: MILLIY_MODULE_IDS.filter((id) => DEFAULT_ENABLED_MODULE_IDS.includes(id)),
+  ai: [...AI_MODULE_IDS],
+};
+
+export function modulesForCheckMode(mode: AntiplagiatCheckMode): string[] {
+  if (mode === 'ai') return [...MODULE_PRESETS.ai];
+  if (mode === 'both') return [...DEFAULT_ENABLED_MODULE_IDS];
+  return [...MODULE_PRESETS.core];
+}
 
 export const ANTIPLAGIAT_MODULE_CATEGORIES = [
   'Global',
   'Publisher',
   "O'zbekiston",
+  'Markaziy Osiyo',
   'MDH',
+  'Preprint',
   'Internet',
   'Cross-language',
   'AI',

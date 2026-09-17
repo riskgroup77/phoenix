@@ -1,5 +1,4 @@
 """Article submission flow."""
-import json
 import logging
 
 from asgiref.sync import sync_to_async
@@ -8,21 +7,26 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from bot.api_client import ApiError
 from bot.constants import (
-    BACK,
     CANCEL,
     SUBMIT_ABSTRACT,
     SUBMIT_FILE,
-    SUBMIT_KEYWORDS,
     SUBMIT_JOURNAL,
+    SUBMIT_JOURNAL_SEARCH,
+    SUBMIT_KEYWORDS,
     SUBMIT_PAGES,
     SUBMIT_TITLE,
 )
 from bot.handlers.auth import require_author
-from bot.keyboards import author_main_keyboard, cancel_keyboard, journal_inline_keyboard
+from bot.journal_browse import init_journal_session, send_filter_menu
+from bot.journal_callbacks import process_journal_pick_callback, process_journal_search_message
+from bot.keyboards import author_main_keyboard, cancel_keyboard
+from bot.payment_helpers import reply_with_payment_button
 from bot.session import get_client_from_context, save_session
 from bot.utils import format_api_error, format_money, parse_keywords
 
 logger = logging.getLogger(__name__)
+
+SUBMIT_HEADING = "📝 *Maqola yuborish* — 1-qadam: Jurnal tanlash"
 
 
 async def _download_doc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> tuple[bytes, str]:
@@ -30,6 +34,17 @@ async def _download_doc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> t
     tg_file = await context.bot.get_file(doc.file_id)
     data = await tg_file.download_as_bytearray()
     return bytes(data), doc.file_name or 'document.docx'
+
+
+async def _on_journal_selected(update: Update, context: ContextTypes.DEFAULT_TYPE, jid: str, jname: str) -> int:
+    if update.effective_chat:
+        await context.bot.send_message(
+            update.effective_chat.id,
+            f"✅ Jurnal: *{jname}*\n\n2-qadam: Maqola sarlavhasini yozing:",
+            parse_mode='Markdown',
+            reply_markup=cancel_keyboard(),
+        )
+    return SUBMIT_TITLE
 
 
 async def article_submit_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -44,13 +59,10 @@ async def article_submit_start(update: Update, context: ContextTypes.DEFAULT_TYP
             if update.message:
                 await update.message.reply_text("❌ Jurnallar topilmadi.", reply_markup=author_main_keyboard())
             return ConversationHandler.END
+        init_journal_session(context, 'submit', journals)
         context.user_data['submit_journals'] = journals
-        if update.message:
-            await update.message.reply_text(
-                "📝 **Maqola yuborish**\n\n1-qadam: Jurnalni tanlang:",
-                parse_mode='Markdown',
-                reply_markup=journal_inline_keyboard(journals, 'submitj'),
-            )
+        context.user_data['submit_heading'] = SUBMIT_HEADING
+        await send_filter_menu(update, context, prefix='submit', heading=SUBMIT_HEADING)
         return SUBMIT_JOURNAL
     except Exception as e:
         if update.message:
@@ -58,24 +70,27 @@ async def article_submit_start(update: Update, context: ContextTypes.DEFAULT_TYP
         return ConversationHandler.END
 
 
-async def article_submit_journal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    query = update.callback_query
-    if not query or context.user_data is None:
-        return ConversationHandler.END
-    await query.answer()
-    data = query.data or ''
-    if data == 'submitj:cancel':
-        await query.edit_message_text("❌ Bekor qilindi.")
-        return ConversationHandler.END
-    if not data.startswith('submitj:'):
+async def article_submit_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if update.message and update.message.text == CANCEL:
+        await update.message.reply_text("Filtr menyusiga qaytdingiz.")
+        await send_filter_menu(update, context, prefix='submit', heading=SUBMIT_HEADING)
         return SUBMIT_JOURNAL
-    jid = data.split(':', 1)[1]
-    context.user_data['submit_journal_id'] = jid
-    journals = context.user_data.get('submit_journals') or []
-    jname = next((j.get('name') for j in journals if str(j.get('id')) == jid), 'Jurnal')
-    context.user_data['submit_journal_name'] = jname
-    await query.edit_message_text(f"✅ Jurnal: {jname}\n\n2-qadam: Maqola sarlavhasini yozing:")
-    return SUBMIT_TITLE
+    return await process_journal_search_message(
+        update, context, prefix='submit', journal_state=SUBMIT_JOURNAL, heading=SUBMIT_HEADING,
+    )
+
+
+async def article_submit_journal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    return await process_journal_pick_callback(
+        update,
+        context,
+        prefix='submit',
+        journal_state=SUBMIT_JOURNAL,
+        search_state=SUBMIT_JOURNAL_SEARCH,
+        on_selected=_on_journal_selected,
+        cancel_message="Maqola yuborish bekor qilindi.",
+        cancel_keyboard=author_main_keyboard,
+    )
 
 
 async def article_submit_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -160,7 +175,6 @@ async def article_submit_file(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"🆔 ID: {article_id}\n"
         )
 
-        # Publication fee if journal requires payment
         journals = context.user_data.get('submit_journals') or []
         jid = context.user_data.get('submit_journal_id')
         journal = next((j for j in journals if str(j.get('id')) == str(jid)), {})
@@ -179,13 +193,19 @@ async def article_submit_file(update: Update, context: ContextTypes.DEFAULT_TYPE
             })
             tx_id = tx.get('id')
             if tx_id:
-                pay = await sync_to_async(client.process_payment)(str(tx_id))
-                pay_url = pay.get('payment_url') or client.payment_page_url(str(tx_id))
-                msg += f"\n💳 Nashr to'lovi: {format_money(amount)}\n🔗 To'lov: {pay_url}"
+                await update.message.reply_text(msg, reply_markup=author_main_keyboard())
+                await reply_with_payment_button(
+                    update.message,
+                    client,
+                    str(tx_id),
+                    text="💳 Nashr to'lovi — ilovada to'lov qiling:",
+                    amount=amount,
+                )
+                msg = ''
 
-        await update.message.reply_text(msg, disable_web_page_preview=False, reply_markup=author_main_keyboard())
+        if msg:
+            await update.message.reply_text(msg, reply_markup=author_main_keyboard())
 
-        # Persist refreshed tokens if any
         tg_id = update.effective_user.id if update.effective_user else None
         if tg_id and client.access_token:
             from bot.session import get_user_by_id

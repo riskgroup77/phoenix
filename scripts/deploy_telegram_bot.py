@@ -35,15 +35,17 @@ cd {REMOTE}
 git fetch origin main && git reset --hard origin/main
 cd {REMOTE}/backend
 source venv/bin/activate
+export DJANGO_SETTINGS_MODULE=config.settings
 pip install -q "python-telegram-bot>=21.10,<23.0.0"
 python manage.py migrate --noinput
 
-# .env ga token va ichki API (server loopback)
+# .env ga token va ichki API (loopback — server o'z public domeniga hairpin qila olmaydi)
+# api_client.py X-Forwarded-Proto: https yuboradi (SECURE_SSL_REDIRECT 301 oldini olish)
 grep -q '^TELEGRAM_BOT_TOKEN=' .env 2>/dev/null && sed -i 's|^TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN={TOKEN}|' .env || echo 'TELEGRAM_BOT_TOKEN={TOKEN}' >> .env
 grep -q '^API_BASE_URL=' .env 2>/dev/null && sed -i 's|^API_BASE_URL=.*|API_BASE_URL=http://127.0.0.1:{BACKEND_PORT}/api/v1|' .env || echo 'API_BASE_URL=http://127.0.0.1:{BACKEND_PORT}/api/v1' >> .env
 grep -q '^FRONTEND_BASE_URL=' .env 2>/dev/null || echo 'FRONTEND_BASE_URL=https://ilmiyfaoliyat.uz' >> .env
 
-cat > /etc/systemd/system/phoenix-telegram-bot.service << 'UNIT'
+cat > /tmp/phoenix-telegram-bot.service << 'UNIT'
 [Unit]
 Description=Phoenix Author Telegram Bot
 After=network.target phoenix-backend.service
@@ -63,11 +65,13 @@ RestartSec=10
 WantedBy=multi-user.target
 UNIT
 
-echo qazxsw123@! | sudo -S systemctl daemon-reload
-echo qazxsw123@! | sudo -S systemctl enable phoenix-telegram-bot
-echo qazxsw123@! | sudo -S systemctl restart phoenix-telegram-bot
-sleep 2
-echo qazxsw123@! | sudo -S systemctl status phoenix-telegram-bot --no-pager | head -20
+SUDO_PW="${{SUDO_PW:-qazxsw123@!}}"
+echo "$SUDO_PW" | sudo -S cp /tmp/phoenix-telegram-bot.service /etc/systemd/system/phoenix-telegram-bot.service
+echo "$SUDO_PW" | sudo -S systemctl daemon-reload
+echo "$SUDO_PW" | sudo -S systemctl enable phoenix-telegram-bot
+echo "$SUDO_PW" | sudo -S systemctl restart phoenix-telegram-bot
+sleep 3
+echo "$SUDO_PW" | sudo -S systemctl status phoenix-telegram-bot --no-pager | head -25
 """
 
 

@@ -9,7 +9,8 @@ Ishga tushirish (backend/ papkasidan):
 
 .env:
   TELEGRAM_BOT_TOKEN=...
-  API_BASE_URL=http://127.0.0.1:8000/api/v1
+  # Serverda: ichki loopback (nginx emas). api_client X-Forwarded-Proto yuboradi.
+  API_BASE_URL=http://127.0.0.1:8050/api/v1
   FRONTEND_BASE_URL=https://ilmiyfaoliyat.uz
 """
 import logging
@@ -37,6 +38,8 @@ from bot.constants import (  # noqa: E402
     BOOK_ABSTRACT,
     BOOK_COVER,
     BOOK_FILE,
+    BOOK_JOURNAL,
+    BOOK_JOURNAL_SEARCH,
     BOOK_KEYWORDS,
     BOOK_PAGES,
     BOOK_TITLE,
@@ -46,6 +49,7 @@ from bot.constants import (  # noqa: E402
     LOGIN_PASSWORD,
     LOGIN_PHONE,
     PLAG_FILE,
+    PLAG_MODULES,
     PLAG_TITLE,
     REG_FIRST,
     REG_LAST,
@@ -58,6 +62,7 @@ from bot.constants import (  # noqa: E402
     SUBMIT_ABSTRACT,
     SUBMIT_FILE,
     SUBMIT_JOURNAL,
+    SUBMIT_JOURNAL_SEARCH,
     SUBMIT_KEYWORDS,
     SUBMIT_PAGES,
     SUBMIT_TITLE,
@@ -76,6 +81,7 @@ from bot.handlers.articles import (  # noqa: E402
     article_submit_journal_callback,
     article_submit_keywords,
     article_submit_pages,
+    article_submit_search,
     article_submit_start,
     article_submit_title,
 )
@@ -90,11 +96,15 @@ from bot.handlers.auth import (  # noqa: E402
     register_phone,
     register_start,
 )
+from bot.handlers.dashboard import dashboard_callback  # noqa: E402
+from bot.handlers.list_views import list_view_callback  # noqa: E402
 from bot.handlers.router import help_command, menu_router, start  # noqa: E402
 from bot.handlers.services import (  # noqa: E402
     book_abstract,
     book_cover,
     book_file,
+    book_journal_callback,
+    book_journal_search,
     book_keywords,
     book_pages,
     book_start,
@@ -104,7 +114,9 @@ from bot.handlers.services import (  # noqa: E402
     doi_last,
     doi_start,
     plag_file,
+    plag_module_callback,
     plag_start,
+    plag_status_callback,
     plag_title,
     sample_pages,
     sample_quality,
@@ -163,7 +175,15 @@ def build_application() -> Application:
     app.add_handler(ConversationHandler(
         entry_points=[MessageHandler(filters.Regex('^📝 Maqola yuborish$'), article_submit_start)],
         states={
-            SUBMIT_JOURNAL: [CallbackQueryHandler(article_submit_journal_callback, pattern=r'^submitj:')],
+            SUBMIT_JOURNAL: [
+                CallbackQueryHandler(
+                    article_submit_journal_callback,
+                    pattern=r'^(submitj:|submitf:|submitb:)',
+                ),
+            ],
+            SUBMIT_JOURNAL_SEARCH: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, article_submit_search),
+            ],
             SUBMIT_TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, article_submit_title)],
             SUBMIT_ABSTRACT: [MessageHandler(filters.TEXT & ~filters.COMMAND, article_submit_abstract)],
             SUBMIT_KEYWORDS: [MessageHandler(filters.TEXT & ~filters.COMMAND, article_submit_keywords)],
@@ -217,6 +237,9 @@ def build_application() -> Application:
         entry_points=[MessageHandler(filters.Regex('^🛡️ Antiplagiat$'), plag_start)],
         states={
             PLAG_TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, plag_title)],
+            PLAG_MODULES: [
+                CallbackQueryHandler(plag_module_callback, pattern=r'^plagm:'),
+            ],
             PLAG_FILE: [MessageHandler(filters.Document.ALL, plag_file)],
         },
         fallbacks=[CommandHandler('cancel', logout)],
@@ -227,6 +250,10 @@ def build_application() -> Application:
     app.add_handler(ConversationHandler(
         entry_points=[MessageHandler(filters.Regex('^📖 Kitob nashr$'), book_start)],
         states={
+            BOOK_JOURNAL: [
+                CallbackQueryHandler(book_journal_callback, pattern=r'^(bookf:|bookb:|bookj:)'),
+            ],
+            BOOK_JOURNAL_SEARCH: [MessageHandler(filters.TEXT & ~filters.COMMAND, book_journal_search)],
             BOOK_TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, book_title)],
             BOOK_ABSTRACT: [MessageHandler(filters.TEXT & ~filters.COMMAND, book_abstract)],
             BOOK_KEYWORDS: [MessageHandler(filters.TEXT & ~filters.COMMAND, book_keywords)],
@@ -250,6 +277,10 @@ def build_application() -> Application:
         fallbacks=[CommandHandler('cancel', logout)],
         allow_reentry=True,
     ))
+
+    app.add_handler(CallbackQueryHandler(list_view_callback, pattern=r'^lv:'))
+    app.add_handler(CallbackQueryHandler(dashboard_callback, pattern=r'^dash:'))
+    app.add_handler(CallbackQueryHandler(plag_status_callback, pattern=r'^plags:'))
 
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CommandHandler('help', help_command))

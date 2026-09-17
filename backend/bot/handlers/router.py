@@ -6,9 +6,17 @@ from telegram.ext import ContextTypes
 
 from bot.constants import BACK
 from bot.handlers.auth import logout
-from bot.handlers.dashboard import show_articles, show_collections, show_dashboard, show_publications
-from bot.handlers.profile import show_archive, show_notifications, show_payments, show_profile
-from bot.handlers.services import services_back, show_services_menu, show_translations
+from bot.handlers.dashboard import show_dashboard
+from bot.handlers.list_views import (
+    show_archive,
+    show_articles,
+    show_collections,
+    show_notifications,
+    show_publications,
+    show_translations,
+)
+from bot.handlers.profile import open_payment_app, show_payments, show_profile
+from bot.handlers.services import services_back, show_services_menu
 from bot.keyboards import author_main_keyboard, guest_keyboard
 from bot.session import apply_client_to_context, restore_client
 
@@ -63,7 +71,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/logout — Chiqish\n"
         "/help — Yordam\n\n"
         "Sayt: https://ilmiyfaoliyat.uz\n"
-        "To'lovlar uchun bot yuborgan havolani oching.",
+        "To'lov uchun «💰 To'lov qilish» tugmasini bosing — ilova ochiladi.",
         parse_mode='Markdown',
         reply_markup=kb,
     )
@@ -87,6 +95,7 @@ async def menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         '📖 Muallif nashrlari': show_publications,
         '👤 Profil': show_profile,
         '🔔 Bildirishnomalar': show_notifications,
+        '💰 To\'lov qilish': open_payment_app,
         '💳 To\'lovlar': show_payments,
         BACK: services_back,
     }

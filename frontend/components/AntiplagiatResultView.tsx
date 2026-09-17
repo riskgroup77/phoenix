@@ -54,7 +54,7 @@ const AntiplagiatResultView: React.FC<Props> = ({
             Hujjat: <strong>{certificateData.fileName}</strong> · Sertifikat № {certificateData.certificateNumber} ·{' '}
             {certificateData.checkDate}
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-center">
               <p className="text-xs font-semibold text-slate-600">Originallik</p>
               <p className="text-2xl font-bold text-emerald-700">{originalityPercent.toFixed(2)}%</p>
@@ -62,6 +62,10 @@ const AntiplagiatResultView: React.FC<Props> = ({
             <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-center">
               <p className="text-xs font-semibold text-slate-600">O&apos;zlashtirish</p>
               <p className="text-2xl font-bold text-red-700">{result.plagiarism.toFixed(2)}%</p>
+            </div>
+            <div className="rounded-lg border border-violet-100 bg-violet-50 p-3 text-center">
+              <p className="text-xs font-semibold text-slate-600">SI matn</p>
+              <p className="text-2xl font-bold text-violet-700">{result.aiContent.toFixed(2)}%</p>
             </div>
             <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-center">
               <p className="text-xs font-semibold text-slate-600">Iqtiboslar</p>

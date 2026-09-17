@@ -387,6 +387,18 @@ GEMINI_PLAGIARISM_INPUT_CHARS = int(os.getenv('GEMINI_PLAGIARISM_INPUT_CHARS', '
 # Antiplagiat: suniy intellektsiz algoritmik rejim (default). True bo'lsa Gemini ham qo'shiladi.
 ANTIPLAGIAT_USE_AI = os.getenv('ANTIPLAGIAT_USE_AI', 'false').lower() in ('1', 'true', 'yes', 'on')
 
+# Antiplagiat ApiCorp (antiplag.uz / antiplagiat.ru) — haqiqiy tashqi tekshiruv
+ANTIPLAGIAT_API_ENABLED = os.getenv('ANTIPLAGIAT_API_ENABLED', 'true').lower() in ('1', 'true', 'yes', 'on')
+ANTIPLAGIAT_API_WSDL = (os.getenv('ANTIPLAGIAT_API_WSDL') or '').strip()
+ANTIPLAGIAT_API_LOGIN = (os.getenv('ANTIPLAGIAT_API_LOGIN') or '').strip()
+ANTIPLAGIAT_API_PASSWORD = (os.getenv('ANTIPLAGIAT_API_PASSWORD') or '').strip()
+ANTIPLAGIAT_API_COMPANY_URL = (os.getenv('ANTIPLAGIAT_API_COMPANY_URL') or 'https://antiplag.uz').strip().rstrip('/')
+ANTIPLAGIAT_API_DEVELOPER_ID = (os.getenv('ANTIPLAGIAT_API_DEVELOPER_ID') or '').strip()
+ANTIPLAGIAT_API_ADD_TO_INDEX = os.getenv('ANTIPLAGIAT_API_ADD_TO_INDEX', 'false').lower() in ('1', 'true', 'yes', 'on')
+ANTIPLAGIAT_API_POLL_INTERVAL_SEC = int(os.getenv('ANTIPLAGIAT_API_POLL_INTERVAL_SEC', '15'))
+ANTIPLAGIAT_API_POLL_MAX_SEC = int(os.getenv('ANTIPLAGIAT_API_POLL_MAX_SEC', '1800'))
+ANTIPLAGIAT_API_FALLBACK_LOCAL = os.getenv('ANTIPLAGIAT_API_FALLBACK_LOCAL', 'true').lower() in ('1', 'true', 'yes', 'on')
+
 # Click API HTTP client
 CLICK_HTTP_TIMEOUT_SEC = int(os.getenv('CLICK_HTTP_TIMEOUT_SEC', '45'))
 
