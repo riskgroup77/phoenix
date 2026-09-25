@@ -37,10 +37,14 @@ def fulfill_language_editing_payment(transaction):
     article_id = str(article.id)
     user_id = str(user.id)
 
-    def _bg():
-        from apps.articles.plagiarism_check_service import run_auto_plagiarism_check
+    from apps.articles.tasks import enqueue_plagiarism_check
 
-        run_auto_plagiarism_check(article_id, user_id)
+    if not enqueue_plagiarism_check(article_id, user_id, force=True):
 
-    threading.Thread(target=_bg, daemon=True, name=f'plagiarism-{article_id[:8]}').start()
+        def _bg():
+            from apps.articles.plagiarism_check_service import run_auto_plagiarism_check
+
+            run_auto_plagiarism_check(article_id, user_id)
+
+        threading.Thread(target=_bg, daemon=True, name=f'plagiarism-{article_id[:8]}').start()
     logger.info('Article %s: auto plagiarism check queued', article.id)

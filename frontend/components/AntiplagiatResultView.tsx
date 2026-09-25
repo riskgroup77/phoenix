@@ -79,7 +79,8 @@ const AntiplagiatResultView: React.FC<Props> = ({
           </div>
           <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
             Tekshiruv matnli kesishmalarni, iboralarni almashtirish va parafraz qilish holatlarini ham hisobga oladi.
-            Ko&apos;rsatkichlar jami 100% ni tashkil qiladi (antiplag.uz metodologiyasi).
+            Ko&apos;rsatkichlar jami 100% ni tashkil qiladi. Haqiqiy manbalar: platforma korpusi,
+            OpenAlex, Crossref va (sozlangan bo&apos;lsa) Semantic Scholar / CORE — simulyatsiyasiz overlap.
           </p>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div className="rounded-lg border border-violet-100 bg-violet-50 p-3 text-center">

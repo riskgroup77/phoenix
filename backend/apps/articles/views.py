@@ -778,29 +778,38 @@ class ArticleViewSet(viewsets.ModelViewSet):
             user_pk = str(request.user.id)
             mark_plagiarism_processing(article, enabled_modules)
 
-            def _run_bg():
-                from django.contrib.auth import get_user_model
+            from apps.articles.tasks import enqueue_plagiarism_check
 
-                from apps.articles.models import Article
+            if not enqueue_plagiarism_check(
+                article_pk,
+                user_pk,
+                enabled_modules=enabled_modules,
+                force=True,
+            ):
 
-                User = get_user_model()
-                try:
-                    art = Article.objects.get(pk=article_pk)
-                    usr = User.objects.get(pk=user_pk)
-                    run_plagiarism_check(
-                        art,
-                        usr,
-                        force=True,
-                        enabled_modules=enabled_modules,
-                    )
-                except Exception as bg_err:
-                    logger.error('[CHECK_PLAGE] background check failed: %s', bg_err, exc_info=True)
+                def _run_bg():
+                    from django.contrib.auth import get_user_model
 
-            threading.Thread(
-                target=_run_bg,
-                daemon=True,
-                name=f'plagiarism-api-{article_pk[:8]}',
-            ).start()
+                    from apps.articles.models import Article
+
+                    User = get_user_model()
+                    try:
+                        art = Article.objects.get(pk=article_pk)
+                        usr = User.objects.get(pk=user_pk)
+                        run_plagiarism_check(
+                            art,
+                            usr,
+                            force=True,
+                            enabled_modules=enabled_modules,
+                        )
+                    except Exception as bg_err:
+                        logger.error('[CHECK_PLAGE] background check failed: %s', bg_err, exc_info=True)
+
+                threading.Thread(
+                    target=_run_bg,
+                    daemon=True,
+                    name=f'plagiarism-api-{article_pk[:8]}',
+                ).start()
 
             return Response(
                 {

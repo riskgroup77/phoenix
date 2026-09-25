@@ -19,6 +19,8 @@ from collections import Counter
 from datetime import datetime, timedelta
 from typing import Any, Callable
 
+from django.conf import settings
+
 ProgressCallback = Callable[..., None]
 
 from apps.articles.antiplagiat_modules import (
@@ -609,9 +611,16 @@ def _allocate_source_document_shares(
     total_chars: int,
 ) -> list[dict]:
     """Har bir manbaga hujjatdagi ulush (hisobotdagi %) — antiplag.uz jadvali."""
-    if not sources or plagiarism_pct <= 0:
-        for src in sources:
+    if not sources:
+        return sources
+
+    for src in sources:
+        if src.get('match_type') == 'verified' and float(src.get('similarity') or 0) > 0:
+            continue
+        if plagiarism_pct <= 0:
             src['similarity'] = 0.0
+
+    if plagiarism_pct <= 0:
         return sources
 
     plag_sents = [
@@ -628,6 +637,9 @@ def _allocate_source_document_shares(
 
     raw_weights: list[float] = []
     for i, src in enumerate(sources):
+        if src.get('match_type') == 'verified' and float(src.get('similarity') or 0) > 0:
+            raw_weights.append(0.0)
+            continue
         frag = (src.get('document_fragment') or src.get('snippet') or '').strip()
         key = frag[:80].lower()
         base = frag_to_weight.get(key, 0.0)
@@ -642,6 +654,8 @@ def _allocate_source_document_shares(
     target_sum = plagiarism_pct * min(3.8, 1.0 + len(sources) / 450.0)
 
     for i, src in enumerate(sources):
+        if src.get('match_type') == 'verified' and float(src.get('similarity') or 0) > 0:
+            continue
         share = (raw_weights[i] / total_w) * target_sum
         if share >= 0.005:
             src['similarity'] = round(min(2.81, share), 2)
@@ -1118,6 +1132,43 @@ def _find_suspicious_phrases(text: str, enabled: set[str], limit: int = 6) -> li
     return sources
 
 
+def _merge_real_and_heuristic_sources(
+    real_hits: list[dict],
+    heuristic_sources: list[dict],
+) -> list[dict]:
+    """Haqiqiy manbalar birinchi; qolgan modul qamrovi uchun heuristika."""
+    merged: list[dict] = []
+    seen: set[str] = set()
+
+    for hit in real_hits:
+        frag = (hit.get('document_fragment') or hit.get('snippet') or '')[:80].lower()
+        url = (hit.get('source') or '')[:100].lower()
+        key = f'{url}|{frag}'
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append({**hit, 'match_type': hit.get('match_type') or 'verified'})
+
+    for src in heuristic_sources:
+        if len(merged) >= MAX_REPORT_SOURCES:
+            break
+        frag = (src.get('document_fragment') or src.get('snippet') or '')[:80].lower()
+        url = (src.get('source') or src.get('title') or '')[:100].lower()
+        key = f'{url}|{frag}'
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append({**src, 'match_type': 'heuristic'})
+
+    merged.sort(
+        key=lambda x: (
+            0 if x.get('match_type') == 'verified' else 1,
+            -float(x.get('similarity') or 0),
+        ),
+    )
+    return _finalize_sources(merged[:MAX_REPORT_SOURCES])
+
+
 class AntiplagiatEngine:
     """Suniy intellektsiz to'liq antiplagiat tekshiruvi."""
 
@@ -1126,6 +1177,7 @@ class AntiplagiatEngine:
         text: str,
         *,
         exclude_article_id=None,
+        exclude_author_id=None,
         enabled_modules: list[str] | None = None,
         progress_callback: ProgressCallback | None = None,
         deep: bool = True,
@@ -1156,6 +1208,22 @@ class AntiplagiatEngine:
                 limit=CORPUS_MATCH_LIMIT,
             )
 
+        real_hits: list[dict] = []
+        real_coverage: dict[str, Any] = {}
+        use_real = deep and getattr(settings, 'ANTIPLAG_REAL_SCAN_ENABLED', True)
+        if use_real:
+            from apps.articles.antiplagiat_real_scan import run_real_antiplag_scan
+
+            real_hits, real_coverage = run_real_antiplag_scan(
+                clean,
+                sentences,
+                corpus=corpus,
+                enabled=enabled,
+                exclude_article_id=str(exclude_article_id) if exclude_article_id else None,
+                exclude_author_id=str(exclude_author_id) if exclude_author_id else None,
+                progress_callback=progress_callback,
+            )
+
         if deep:
             all_sources = _generate_deep_sources_by_module(
                 clean, enabled, corpus_matches, progress_callback,
@@ -1163,11 +1231,29 @@ class AntiplagiatEngine:
         else:
             all_sources = _generate_comprehensive_sources(clean, enabled, corpus_matches)
 
+        all_sources = _merge_real_and_heuristic_sources(real_hits, all_sources)
+
         doc_scores = _compute_antiplag_document_scores(clean, sentences, corpus_matches)
         plagiarism_pct = doc_scores['plagiarism_pct']
         citation_pct = doc_scores['citation_pct'] if 'iqtibos_keltirish' in enabled else 0.0
         self_citation_pct = doc_scores['self_citation_pct'] if 'iqtibos_keltirish' in enabled else 0.0
         originality_pct = doc_scores['originality_pct']
+
+        if real_coverage.get('verified_hit_count', 0) >= 2:
+            v_plag = float(real_coverage.get('verified_plagiarism_pct') or 0)
+            plagiarism_pct = round(min(99.0, 0.55 * v_plag + 0.45 * plagiarism_pct), 2)
+            self_from_hits = sum(
+                1 for h in real_hits if h.get('self_citation') and float(h.get('similarity') or 0) > 0
+            )
+            if self_from_hits and 'iqtibos_keltirish' in enabled:
+                self_citation_pct = round(
+                    min(25.0, self_citation_pct + min(8.0, self_from_hits * 0.15)),
+                    2,
+                )
+            originality_pct = round(
+                max(0.0, 100.0 - plagiarism_pct - citation_pct - self_citation_pct),
+                2,
+            )
         if 'iqtibos_keltirish' not in enabled:
             plagiarism_pct = round(min(99.9, plagiarism_pct + doc_scores['citation_pct'] * 0.85), 2)
             originality_pct = round(max(0.0, 100.0 - plagiarism_pct - self_citation_pct), 2)
@@ -1255,7 +1341,11 @@ class AntiplagiatEngine:
             'sources': all_sources,
             'fragment_details': fragment_details,
             'annotated_document': annotated_document,
-            'analysis_mode': 'deep_module_scan',
+            'analysis_mode': 'hybrid_real_scan' if real_hits else 'deep_module_scan',
+            'algorithm_version': '3.0',
+            'real_scan_hits': len(real_hits),
+            'verified_plagiarism_pct': real_coverage.get('verified_plagiarism_pct'),
+            'verified_hit_count': real_coverage.get('verified_hit_count'),
             'ai_content_percent': ai_content_pct,
             'llm_model': None,
             'sources_count': len(all_sources),
@@ -1282,6 +1372,7 @@ class AntiplagiatEngine:
         file_path: str,
         *,
         exclude_article_id=None,
+        exclude_author_id=None,
         enabled_modules: list[str] | None = None,
         progress_callback: ProgressCallback | None = None,
         deep: bool = True,
@@ -1292,6 +1383,7 @@ class AntiplagiatEngine:
         return self.check_text(
             text,
             exclude_article_id=exclude_article_id,
+            exclude_author_id=exclude_author_id,
             enabled_modules=enabled_modules,
             progress_callback=progress_callback,
             deep=deep,

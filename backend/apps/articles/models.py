@@ -246,3 +246,42 @@ class ArticleOperatorMessage(models.Model):
 
     def __str__(self):
         return f"{self.article_id} — {self.created_at}"
+
+
+class AntiplagCorpusDocument(models.Model):
+    """Antiplagiat ichki indeks — import qilingan milliy arxiv / OTM hujjatlari."""
+
+    SOURCE_TYPES = (
+        ('import', 'Import (JSON/CSV)'),
+        ('natlib', 'Milliy kutubxona'),
+        ('otm', 'OTM arxivi'),
+        ('journal', 'Jurnal arxivi'),
+        ('other', 'Boshqa'),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    external_key = models.CharField(max_length=160, unique=True, db_index=True)
+    title = models.CharField(max_length=500)
+    full_text = models.TextField()
+    source_url = models.URLField(max_length=500, blank=True)
+    source_type = models.CharField(max_length=40, choices=SOURCE_TYPES, default='import')
+    author_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='antiplag_corpus_documents',
+    )
+    author_names = models.CharField(max_length=300, blank=True)
+    language = models.CharField(max_length=12, default='uz')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        verbose_name = 'Antiplagiat korpus hujjati'
+        verbose_name_plural = 'Antiplagiat korpus hujjatlari'
+
+    def __str__(self):
+        return self.title[:80]

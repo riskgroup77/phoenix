@@ -179,7 +179,14 @@ export function buildAntiplagiatViewFromArticle(article: AntiplagiatArticlePaylo
     selfCitation: `${selfCitationPct.toFixed(1)}%`,
     plagiarism: `${plagiarismPercentage.toFixed(2)}%`,
     originality: `${originality.toFixed(2)}%`,
-    searchModules: `${enabledCount} ta moduldan / ${enabledCount} tasida tekshirilgan`,
+    searchModules: (() => {
+      const verified = Number(report.verified_hit_count ?? report.real_scan_hits ?? 0);
+      const mode = String(report.analysis_mode || '');
+      const verifiedLabel =
+        verified > 0 ? ` · haqiqiy overlap: ${verified} ta manba` : '';
+      const hybrid = mode.includes('hybrid') ? ' (korpus + OpenAlex/Crossref)' : '';
+      return `${enabledCount} ta modul${hybrid}${verifiedLabel}`;
+    })(),
   };
 
   const fullReportData: PlagiarismFullReportData = {

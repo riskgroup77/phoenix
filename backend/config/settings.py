@@ -399,6 +399,34 @@ ANTIPLAGIAT_API_POLL_INTERVAL_SEC = int(os.getenv('ANTIPLAGIAT_API_POLL_INTERVAL
 ANTIPLAGIAT_API_POLL_MAX_SEC = int(os.getenv('ANTIPLAGIAT_API_POLL_MAX_SEC', '1800'))
 ANTIPLAGIAT_API_FALLBACK_LOCAL = os.getenv('ANTIPLAGIAT_API_FALLBACK_LOCAL', 'true').lower() in ('1', 'true', 'yes', 'on')
 
+# Phoenix ichki antiplagiat (haqiqiy korpus + ochiq API)
+ANTIPLAG_REAL_SCAN_ENABLED = os.getenv('ANTIPLAG_REAL_SCAN_ENABLED', 'true').lower() in ('1', 'true', 'yes', 'on')
+ANTIPLAG_USE_CELERY = os.getenv('ANTIPLAG_USE_CELERY', 'true').lower() in ('1', 'true', 'yes', 'on')
+ANTIPLAG_API_CACHE_TTL = int(os.getenv('ANTIPLAG_API_CACHE_TTL', '86400'))
+ANTIPLAG_API_RATE_DELAY_SEC = float(os.getenv('ANTIPLAG_API_RATE_DELAY_SEC', '0.35'))
+ANTIPLAG_OPEN_API_MAX_QUERIES = int(os.getenv('ANTIPLAG_OPEN_API_MAX_QUERIES', '45'))
+ANTIPLAG_REAL_SCAN_MAX_SENTENCES = int(os.getenv('ANTIPLAG_REAL_SCAN_MAX_SENTENCES', '220'))
+ANTIPLAG_SEMANTIC_SCHOLAR_API_KEY = (os.getenv('ANTIPLAG_SEMANTIC_SCHOLAR_API_KEY') or '').strip()
+ANTIPLAG_CORE_API_KEY = (os.getenv('ANTIPLAG_CORE_API_KEY') or '').strip()
+
+_redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+if _redis_url:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': _redis_url,
+            'KEY_PREFIX': 'phoenix',
+            'TIMEOUT': 300,
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'phoenix-antiplag',
+        }
+    }
+
 # Click API HTTP client
 CLICK_HTTP_TIMEOUT_SEC = int(os.getenv('CLICK_HTTP_TIMEOUT_SEC', '45'))
 

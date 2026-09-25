@@ -224,6 +224,7 @@ def run_plagiarism_check(
                 result = engine.check_file(
                     file_path,
                     exclude_article_id=article_id,
+                    exclude_author_id=getattr(article, 'author_id', None),
                     enabled_modules=resolved_modules,
                     progress_callback=on_progress,
                     deep=True,
@@ -232,6 +233,7 @@ def run_plagiarism_check(
                 result = engine.check_text(
                     text_content,
                     exclude_article_id=article_id,
+                    exclude_author_id=getattr(article, 'author_id', None),
                     enabled_modules=resolved_modules,
                     progress_callback=on_progress,
                     deep=True,
