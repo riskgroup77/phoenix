@@ -179,8 +179,8 @@ def udk_request_list(request):
     user = request.user
     role = getattr(user, 'role', None)
     
-    if role in ['reviewer', 'super_admin']:
-        # Taqrizchi barcha submitted va completed so'rovlarni ko'radi
+    if role in ['reviewer', 'super_admin', 'operator']:
+        # Taqrizchi barcha so'rovlarni ko'radi; operator — kuzatish uchun (o'zgartira olmaydi)
         qs = UdkRequest.objects.all().order_by('-created_at')[:100]
     else:
         # Muallif faqat o'zini ko'radi

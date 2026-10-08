@@ -17,7 +17,8 @@ class TranslationRequestViewSet(viewsets.ModelViewSet):
         role = getattr(self.request.user, 'role', None) if self.request.user.is_authenticated else None
         if isinstance(role, str):
             role = role.strip().lower()
-        if role in ('super_admin', 'reviewer'):
+        if role in ('super_admin', 'reviewer') or (role == 'operator' and self.request.method in ('GET', 'HEAD', 'OPTIONS')):
+            # Operator — faqat kuzatish (o'zgartirish update/destroy da rol bo'yicha taqiqlangan)
             return TranslationRequest.objects.select_related('author', 'reviewer').all()
         return TranslationRequest.objects.select_related('author', 'reviewer').filter(
             author=self.request.user

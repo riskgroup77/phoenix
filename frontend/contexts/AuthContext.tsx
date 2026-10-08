@@ -50,11 +50,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const token = localStorage.getItem('access_token');
       if (!token) return;
       const notificationsData = await apiService.notifications.list();
+      // API sahifalangan ({count, results}) yoki oddiy massiv qaytarishi mumkin
       const notificationsArray = Array.isArray(notificationsData)
         ? notificationsData
-        : (notificationsData?.data && Array.isArray(notificationsData.data)
+        : Array.isArray(notificationsData?.results)
+          ? notificationsData.results
+          : Array.isArray(notificationsData?.data)
             ? notificationsData.data
-            : []);
+            : Array.isArray(notificationsData?.data?.results)
+              ? notificationsData.data.results
+              : [];
       const mappedNotifications: Notification[] = notificationsArray.map((n: any) => ({
         id: n.id,
         message: n.message,

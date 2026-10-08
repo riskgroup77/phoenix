@@ -41,6 +41,11 @@ class JournalViewSet(viewsets.ModelViewSet):
             role = role.strip().lower()
         if role == 'journal_admin':
             return base.filter(journal_admin=self.request.user)
+        # Demo (namuna) jurnallar haqiqiy mualliflar ro'yxatida ko'rinmaydi — ularga maqola yuborib pul to'lamasin
+        from config.demo import demo_q, is_demo_user
+
+        if role in ('author', 'reviewer') and not is_demo_user(self.request.user):
+            return base.exclude(demo_q('journal_admin__'))
         return base.all()
     
     def create(self, request, *args, **kwargs):

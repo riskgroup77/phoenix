@@ -47,6 +47,9 @@ class TransactionViewSet(viewsets.ModelViewSet):
         role = getattr(self.request.user, 'role', None)
         if role == 'super_admin' or role == 'accountant' or self.request.user.is_superuser:
             return base.order_by('-created_at')
+        if role == 'operator' and self.request.method in ('GET', 'HEAD', 'OPTIONS'):
+            # Operator to'lovlarni kuzatadi (murojaatlarga javob berish uchun), o'zgartira olmaydi
+            return base.order_by('-created_at')
         return base.filter(user=self.request.user).order_by('-created_at')
     
     def perform_create(self, serializer):

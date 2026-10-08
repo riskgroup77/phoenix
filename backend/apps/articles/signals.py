@@ -32,6 +32,10 @@ def article_track_previous_status(sender, instance, **kwargs):
 @receiver(post_save, sender=Article)
 def article_record_status_event(sender, instance, created, **kwargs):
     """Holat o'zgarsa tarixga yozish (maqola sahifasidagi vaqt chizig'i shu jadvaldan)."""
+    from config.demo import is_seeding
+
+    if is_seeding():  # demo to'ldiruvchi tarixni o'zi (o'tgan sanalar bilan) yozadi
+        return
     prev = getattr(instance, '_previous_status', None)
     status = instance.status
     if not created and prev == status:
@@ -59,7 +63,9 @@ def article_record_status_event(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=Article)
 def article_notify_staff_on_submission(sender, instance, created, **kwargs):
-    if _is_standalone_antiplagiat(instance):
+    from config.demo import is_seeding
+
+    if _is_standalone_antiplagiat(instance) or is_seeding():
         return
 
     prev = getattr(instance, '_previous_status', None)
@@ -99,7 +105,9 @@ def _index_article_by_pk(pk):
 @receiver(post_save, sender=Article)
 def article_update_antiplag_index(sender, instance, created, update_fields=None, **kwargs):
     """Maqola matni/holati o'zgarsa — indeks fon oqimida yangilanadi (matn o'zgarmagan bo'lsa tez o'tadi)."""
-    if update_fields is not None and not (set(update_fields) & _INDEX_FIELDS):
+    from config.demo import is_seeding
+
+    if is_seeding() or (update_fields is not None and not (set(update_fields) & _INDEX_FIELDS)):
         return
     try:
         from .antiplagiat_index import schedule

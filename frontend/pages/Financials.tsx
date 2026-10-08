@@ -198,12 +198,13 @@ const Financials: React.FC = () => {
         );
     }
 
-    // Calculate totals (amount har doim son — string bo'lsa ham)
-    const totalIncome = filteredTransactions
+    // Calculate totals (amount har doim son — string bo'lsa ham). Namuna (demo) to'lovlar hisobga olinmaydi.
+    const realTransactions = filteredTransactions.filter((t) => !t.is_demo);
+    const totalIncome = realTransactions
         .filter((t) => txAmount(t.amount) > 0 && t.status === 'completed')
         .reduce((sum, t) => sum + txAmount(t.amount), 0);
 
-    const totalExpenses = filteredTransactions
+    const totalExpenses = realTransactions
         .filter((t) => txAmount(t.amount) < 0 && t.status === 'completed')
         .reduce((sum, t) => sum + Math.abs(txAmount(t.amount)), 0);
 
@@ -211,7 +212,7 @@ const Financials: React.FC = () => {
     const incomeByServiceType: Record<string, number> = {};
     const expensesByServiceType: Record<string, number> = {};
 
-    filteredTransactions.forEach((t) => {
+    realTransactions.forEach((t) => {
         if (t.status === 'completed') {
             const service = t.service_type || 'other';
             const amt = txAmount(t.amount);

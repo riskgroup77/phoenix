@@ -23,8 +23,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from apps.users.models import User
-
-DEMO_EMAIL_DOMAIN = 'demo.ilmiyfaoliyat.uz'
+from config.demo import DEMO_EMAIL_DOMAIN
 
 DEMO_USERS = [
     {

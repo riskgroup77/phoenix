@@ -90,7 +90,7 @@ const OperatorDashboard: React.FC = () => {
       ].length;
 
       const totalRevenue = txData
-        .filter((tx: any) => tx.status === 'completed')
+        .filter((tx: any) => tx.status === 'completed' && !tx.is_demo)  // demo to'lovlar tushum emas
         .reduce((sum: number, tx: any) => sum + Math.abs(parseFloat(tx.amount)), 0);
 
       setStats({

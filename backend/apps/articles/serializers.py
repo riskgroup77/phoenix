@@ -657,6 +657,18 @@ class CreateArticleSerializer(serializers.ModelSerializer):
                 return user_by_phone
         return None
 
+    def validate_journal(self, journal):
+        """Namuna (demo) jurnalga haqiqiy foydalanuvchi maqola yubora olmaydi (pul to'lab qo'ymasin)."""
+        from config.demo import is_demo_journal, is_demo_user
+
+        request = self.context.get('request')
+        if (self.instance is None and journal is not None and is_demo_journal(journal)
+                and request is not None and not is_demo_user(request.user)):
+            raise serializers.ValidationError(
+                "Bu namuna (demo) jurnal — haqiqiy maqolalar qabul qilinmaydi. Boshqa jurnalni tanlang."
+            )
+        return journal
+
     def create(self, validated_data):
         co_author_contacts = validated_data.pop('co_author_contacts', [])
         validated_data['author'] = self.context['request'].user

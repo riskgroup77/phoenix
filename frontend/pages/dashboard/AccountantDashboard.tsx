@@ -29,7 +29,8 @@ const AccountantDashboard: React.FC<Props> = ({ firstName, transactions }) => {
   const now = Date.now();
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
-  const paid = transactions.filter((x) => x.status === 'completed' && x.service_type !== 'top_up');
+  // Namuna (demo) to'lovlar tushumga qo'shilmaydi
+  const paid = transactions.filter((x) => x.status === 'completed' && x.service_type !== 'top_up' && !x.is_demo);
   const sum = (list: any[]) => list.reduce((s, x) => s + Math.abs(txAmount(x.amount)), 0);
   const today = paid.filter((x) => new Date(x.completed_at || x.created_at).getTime() >= startOfDay.getTime());
   const week = paid.filter((x) => now - new Date(x.completed_at || x.created_at).getTime() <= 7 * DAY);

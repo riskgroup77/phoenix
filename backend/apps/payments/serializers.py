@@ -10,6 +10,8 @@ class TransactionSerializer(serializers.ModelSerializer):
     context_label = serializers.SerializerMethodField()
     service_label = serializers.SerializerMethodField()
     receipt_number = serializers.SerializerMethodField()
+    # Namuna (demo) to'lov — ro'yxatda ko'rinadi, lekin tushum summalariga qo'shilmaydi
+    is_demo = serializers.SerializerMethodField()
 
     class Meta:
         model = Transaction
@@ -22,6 +24,11 @@ class TransactionSerializer(serializers.ModelSerializer):
     
     def get_user_name(self, obj):
         return obj.user.get_full_name()
+
+    def get_is_demo(self, obj):
+        from config.demo import is_demo_user
+
+        return is_demo_user(obj.user)
 
     def get_service_label(self, obj):
         from .labels import service_label

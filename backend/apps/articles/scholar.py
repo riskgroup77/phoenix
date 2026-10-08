@@ -18,6 +18,8 @@ from django.utils.html import escape
 from django.views.decorators.cache import cache_page
 from django.views.decorators.http import require_GET
 
+from config.demo import demo_q
+
 from .antiplagiat_utils import is_standalone_antiplagiat
 from .models import Article
 
@@ -33,7 +35,10 @@ def _published_article(pk) -> Article:
         .filter(pk=pk, status='Published')
         .first()
     )
-    if article is None or is_standalone_antiplagiat(article):
+    from config.demo import is_demo_article
+
+    # Demo (namuna) maqolalar Google Scholar'ga chiqmaydi — soxta ilmiy yozuv indekslanmasin
+    if article is None or is_standalone_antiplagiat(article) or is_demo_article(article):
         raise Http404('Maqola topilmadi')
     return article
 
@@ -228,6 +233,7 @@ def sitemap_xml(request):
     articles = (
         Article.objects.filter(status='Published')
         .exclude(title__istartswith='plagiarism check')
+        .exclude(demo_q('author__') | demo_q('journal__journal_admin__'))
         .only('id', 'submission_date')
         .order_by('-submission_date')[:5000]
     )

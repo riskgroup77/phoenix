@@ -431,11 +431,14 @@ class UserViewSet(viewsets.ModelViewSet):
         rejected = article_stats['rejected'] or 0
         
         # Get financial statistics (optimized)
+        from config.demo import demo_q
+
+        # Demo to'lovlar tushumga qo'shilmaydi
         financial_stats = Transaction.objects.filter(
             status='completed'
         ).exclude(
             service_type='top_up'
-        ).aggregate(
+        ).exclude(demo_q('user__')).aggregate(
             total_revenue=Sum('amount'),
             total_count=Count('id')
         )
@@ -448,7 +451,7 @@ class UserViewSet(viewsets.ModelViewSet):
         book_orders_completed = book_orders_qs.filter(status='completed').count()
         book_orders_pending = book_orders_qs.filter(status='pending').count()
         book_orders_failed = book_orders_qs.filter(status='failed').count()
-        book_revenue_stats = book_orders_qs.filter(status='completed').aggregate(
+        book_revenue_stats = book_orders_qs.filter(status='completed').exclude(demo_q('user__')).aggregate(
             total_revenue=Sum('amount')
         )
         book_total_revenue = abs(float(book_revenue_stats['total_revenue'] or 0))

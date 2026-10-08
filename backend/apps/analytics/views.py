@@ -17,6 +17,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 
+from config.demo import demo_q
+
 from .sla import processing_stats, reviewer_queue
 
 User = get_user_model()
@@ -105,6 +107,7 @@ def overview(request):
         tx = (
             Transaction.objects.filter(status='completed')
             .exclude(service_type='top_up')
+            .exclude(demo_q('user__'))  # demo to'lovlar tushumga qo'shilmaydi
             .annotate(paid_at=Coalesce('completed_at', 'created_at'))
         )
         tx_period = tx.filter(paid_at__gte=period_start)
@@ -177,6 +180,7 @@ def overview(request):
         if role == 'super_admin':
             for row in (
                 Transaction.objects.filter(status='completed', service_type='publication_fee')
+                .exclude(demo_q('user__'))
                 .annotate(paid_at=Coalesce('completed_at', 'created_at'))
                 .filter(paid_at__gte=period_start)
                 .values('article__journal_id').annotate(total=Sum('amount'))

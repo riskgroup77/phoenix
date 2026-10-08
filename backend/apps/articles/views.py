@@ -557,6 +557,10 @@ class ArticleViewSet(viewsets.ModelViewSet):
             return Response({'detail': "Ruxsat yo'q."}, status=status.HTTP_403_FORBIDDEN)
         if article.status != 'Published':
             return Response({'detail': 'Crossref faqat nashr etilgan maqola uchun.'}, status=status.HTTP_400_BAD_REQUEST)
+        from config.demo import is_demo_article
+
+        if is_demo_article(article):
+            return Response({'detail': "Namuna (demo) maqola uchun DOI berilmaydi."}, status=status.HTTP_400_BAD_REQUEST)
 
         if request.method == 'GET':
             if request.query_params.get('info'):
@@ -1190,6 +1194,9 @@ class DoiRequestViewSet(viewsets.ModelViewSet):
         role = getattr(self.request.user, 'role', None) or 'author'
         if role == 'reviewer' or role == 'super_admin':
             return DoiRequest.objects.filter(status='submitted').select_related('user').order_by('-created_at')
+        if role == 'operator' and self.request.method in ('GET', 'HEAD', 'OPTIONS'):
+            # Operator barcha so'rovlarni kuzatadi (faqat o'qish; DOI linkni taqrizchi kiritadi)
+            return DoiRequest.objects.select_related('user').order_by('-created_at')
         return DoiRequest.objects.filter(user=self.request.user).order_by('-created_at')
 
     def get_serializer_class(self):
@@ -1232,7 +1239,7 @@ class ArticleSampleRequestViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         role = getattr(self.request.user, 'role', None) or 'author'
-        if role in ('reviewer', 'super_admin'):
+        if role in ('reviewer', 'super_admin', 'operator'):  # viewset faqat o'qish uchun
             return ArticleSampleRequest.objects.select_related('user').order_by('-created_at')
         return ArticleSampleRequest.objects.filter(user=self.request.user).order_by('-created_at')
 

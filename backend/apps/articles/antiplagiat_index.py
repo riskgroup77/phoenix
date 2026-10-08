@@ -149,8 +149,14 @@ def remove_document(doc_key: str) -> None:
 
 def article_is_indexable(article) -> bool:
     from apps.articles.antiplagiat_corpus import _looks_like_standalone_check
+    from config.demo import is_demo_article
 
-    return article.status not in ('Draft', 'Rejected') and not _looks_like_standalone_check(article)
+    # Demo (namuna) maqolalar haqiqiy foydalanuvchilar tekshiruvida manba bo'lmasin
+    return (
+        article.status not in ('Draft', 'Rejected')
+        and not _looks_like_standalone_check(article)
+        and not is_demo_article(article)
+    )
 
 
 def article_index_text(article) -> str:

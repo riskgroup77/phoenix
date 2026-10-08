@@ -8,5 +8,7 @@ from .telegram import schedule_delivery
 
 @receiver(post_save, sender=Notification)
 def notification_to_telegram(sender, instance, created, **kwargs):
-    if created:
+    from config.demo import is_seeding
+
+    if created and not is_seeding():
         schedule_delivery(instance.pk)

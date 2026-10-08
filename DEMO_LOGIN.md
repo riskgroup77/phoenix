@@ -37,3 +37,23 @@ python manage.py rotate_demo_passwords --apply  # tasodifiy parollarga almashtir
 
 Eslatma: deploy skripti har safar demo parollarni yana oddiy holatga qaytaradi. Demo hisoblarni butunlay
 o'chirish uchun deploy skriptidagi `setup_demo_and_admin` qatorini olib tashlang.
+
+## Saytni namuna ma'lumotlar bilan to'ldirish
+
+Barcha rollar uchun "jonli" ko'rinish: 5 jurnal (har birida 3 son), 70 maqola (barcha holatlarda, nashr
+etilganlari PDF bilan), haqiqiy antiplagiat hisobotlari, taqrizlar, to'lovlar, UDK / DOI / tarjima / namuna
+so'rovlari, operator chatlari, bildirishnomalar — sanalar oxirgi 12 oyga taqsimlangan.
+
+```bash
+cd backend
+python manage.py seed_demo_data            # to'ldirish (qayta ishga tushirsa — eskisini o'chirib, yangidan)
+python manage.py seed_demo_data --purge    # hammasini o'chirish (demo login hisoblari qoladi)
+```
+
+Namuna ma'lumotlar haqiqiy ma'lumotlardan ajratilgan:
+
+- Google Scholar sahifalari va `sitemap.xml` ga chiqmaydi;
+- haqiqiy foydalanuvchilarning antiplagiat tekshiruvida manba bo'lmaydi;
+- demo to'lovlar tushum (daromad) summalariga qo'shilmaydi (ro'yxatlarda ko'rinadi);
+- haqiqiy mualliflar demo jurnallarni ko'rmaydi va ularga maqola yubora olmaydi;
+- to'ldirish paytida xodimlarga Telegram / bildirishnoma yuborilmaydi.
