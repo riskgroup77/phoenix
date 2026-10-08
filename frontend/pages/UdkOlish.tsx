@@ -390,7 +390,7 @@ const UdkOlish: React.FC = () => {
               >
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-slate-900 truncate">{c.title}</p>
-                  <p className="text-sm text-indigo-300">UDK: {c.udk_code}</p>
+                  <p className="text-sm font-semibold text-[var(--editorial-primary)]">UDK: {c.udk_code}</p>
                   {c.udk_description && <p className="text-xs text-slate-500 mt-0.5">{c.udk_description}</p>}
                   {c.created_at && (
                     <p className="text-xs text-slate-500 mt-1">

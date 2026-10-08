@@ -189,7 +189,7 @@ const Prices: React.FC = () => {
                                     <div key={category}>
                                         <h3 className="text-lg font-serif font-semibold text-[var(--editorial-text)] mb-3 flex items-center gap-2">
                                             {category}
-                                            <span className="text-xs px-2 py-1 rounded bg-[rgba(139,21,56,0.08)] text-[var(--editorial-muted)]">
+                                            <span className="text-xs px-2 py-1 rounded bg-[rgba(31,63,143,0.08)] text-[var(--editorial-muted)]">
                                                 {categoryPrices.length} ta xizmat
                                             </span>
                                         </h3>
@@ -274,7 +274,7 @@ const Prices: React.FC = () => {
                                             <div className="flex items-center gap-2">
                                                 <p className="text-lg font-serif font-semibold text-[var(--editorial-text)]">{journal.name}</p>
                                                 {journal.issn && (
-                                                    <span className="text-xs px-2 py-1 rounded bg-[rgba(139,21,56,0.08)] text-[var(--editorial-muted)]">
+                                                    <span className="text-xs px-2 py-1 rounded bg-[rgba(31,63,143,0.08)] text-[var(--editorial-muted)]">
                                                         ISSN: {journal.issn}
                                                     </span>
                                                 )}

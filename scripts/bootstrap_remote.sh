@@ -28,12 +28,15 @@ fi
 chmod +x deploy_phonix.sh
 
 # 3. PostgreSQL (alohida Docker konteyner — 5434, boshqa DB larga tegmaydi)
+# DB paroli repoda saqlanmaydi: PHONIX_DB_PASSWORD bering yoki yangi konteyner uchun tasodifiy yaratiladi.
+DB_PW="${PHONIX_DB_PASSWORD:-}"
 if ! sudo_cmd docker ps --format '{{.Names}}' | grep -qx phoenix-postgres; then
   echo "PostgreSQL konteyner yaratilmoqda (127.0.0.1:5434)..."
+  [ -z "$DB_PW" ] && DB_PW=$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')
   sudo_cmd docker run -d --name phoenix-postgres \
     --restart unless-stopped \
     -e POSTGRES_USER=phoenix \
-    -e POSTGRES_PASSWORD=phoenix_prod_2026 \
+    -e POSTGRES_PASSWORD="$DB_PW" \
     -e POSTGRES_DB=phoenix_scientific \
     -p 127.0.0.1:5434:5432 \
     -v phoenix_pgdata:/var/lib/postgresql/data \
@@ -44,6 +47,10 @@ fi
 # 4. Backend .env
 cd "$REMOTE_DIR/backend"
 if [ ! -f .env ]; then
+  if [ -z "$DB_PW" ]; then
+    echo "XATO: phoenix-postgres mavjud, lekin .env yo'q. PHONIX_DB_PASSWORD=<joriy DB paroli> bilan qayta ishga tushiring." >&2
+    exit 1
+  fi
   cp env.production.example .env
   SK=$(python3 -c 'import secrets; print(secrets.token_urlsafe(50))')
   sed -i "s/your-strong-secret-key-here-change-in-production-generate-with-django-secret-key-generator/$SK/" .env
@@ -51,7 +58,7 @@ if [ ! -f .env ]; then
   sed -i 's/DB_HOST=localhost/DB_HOST=127.0.0.1/' .env
   sed -i 's/DB_PORT=5432/DB_PORT=5434/' .env
   sed -i 's/DB_USER=postgres/DB_USER=phoenix/' .env
-  sed -i 's/DB_PASSWORD=postgres/DB_PASSWORD=phoenix_prod_2026/' .env
+  sed -i "s|DB_PASSWORD=postgres|DB_PASSWORD=$DB_PW|" .env
   sed -i 's/USE_SQLITE=False/USE_SQLITE=False/' .env
   sed -i 's|REDIS_URL=redis://localhost:6379/0|REDIS_URL=redis://127.0.0.1:6379/2|' .env
   echo ".env yaratildi"

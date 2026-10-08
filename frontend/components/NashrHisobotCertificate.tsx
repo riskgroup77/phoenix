@@ -1,4 +1,5 @@
 import React from 'react';
+import { verifyUrl } from '../utils/verifyLink';
 import { CertificateBackground, CertificateQRBlock, CertificateBrandBlock, CERT_COLOR_DARK, CERT_COLOR_TEAL, CERT_COLOR_TEXT } from './CertificateLayout';
 
 export interface PublishedArticle {
@@ -91,7 +92,7 @@ const CoverPage: React.FC<{ data: NashrHisobotData }> = ({ data }) => (
             <div className="mt-auto pt-8 flex items-end justify-between gap-10 flex-wrap">
                 <CertificateBrandBlock />
                 <CertificateQRBlock
-                    qrUrl={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=https://ilmiyfaoliyat.uz/verify/${data.documentNumber}&bgcolor=ffffff`}
+                    qrValue={verifyUrl(data.documentNumber)}
                     label="HUJJATNI TEKSHIRISH UCHUN QR KODDAN FOYDALANING"
                 />
             </div>
@@ -189,7 +190,7 @@ const TablePage: React.FC<{ data: NashrHisobotData }> = ({ data }) => (
             <div className="mt-6 pt-6 flex items-end justify-between gap-10 flex-wrap shrink-0">
                 <CertificateBrandBlock />
                 <CertificateQRBlock
-                    qrUrl={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=https://ilmiyfaoliyat.uz/verify/${data.documentNumber}&bgcolor=ffffff`}
+                    qrValue={verifyUrl(data.documentNumber)}
                     label="QR KODDAN FOYDALANING"
                 />
             </div>

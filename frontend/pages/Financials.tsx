@@ -250,7 +250,7 @@ const Financials: React.FC = () => {
                 </div>
                 <div className="editorial-card p-5">
                     <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-md bg-[rgba(139,21,56,0.08)] text-[var(--editorial-primary)] font-bold text-xl">=</div>
+                        <div className="p-2.5 rounded-md bg-[rgba(31,63,143,0.08)] text-[var(--editorial-primary)] font-bold text-xl">=</div>
                         <div>
                             <p className="text-sm text-[var(--editorial-muted)]">Balans</p>
                             <p className="text-2xl font-serif font-bold text-[var(--editorial-text)] tabular-nums">{(totalIncome - totalExpenses).toLocaleString()} so'm</p>
@@ -358,7 +358,7 @@ const Financials: React.FC = () => {
 
                 <div className="overflow-x-auto rounded-lg border border-[var(--editorial-border)]">
                     <table className="w-full text-left">
-                        <thead className="bg-[rgba(139,21,56,0.04)]">
+                        <thead className="bg-[rgba(31,63,143,0.04)]">
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Foydalanuvchi</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Xizmat</th>
@@ -380,7 +380,7 @@ const Financials: React.FC = () => {
                                     const amountColor = isCompleted ? 'text-emerald-800' : isFailed ? 'text-red-700' : 'text-yellow-800';
                                     const ctx = transactionContext(transaction);
                                     return (
-                                        <tr key={transaction.id} className="hover:bg-[rgba(139,21,56,0.03)] transition-colors">
+                                        <tr key={transaction.id} className="hover:bg-[rgba(31,63,143,0.03)] transition-colors">
                                             <td className="px-4 py-4 text-sm text-slate-600">{userName}</td>
                                             <td className="px-4 py-4 text-sm text-slate-600">
                                                 {serviceTypeNames[transaction.service_type] || transaction.service_type || 'Noma\'lum'}

@@ -3,7 +3,7 @@ GitHub Webhooks orqali deploy (SSH / GitHub Actions secret shart emas).
 
 Sozlash:
   1) .env: GITHUB_DEPLOY_WEBHOOK_SECRET=<uzun tasodifiy qiymat>
-  2) GitHub → phonixB (yoki phonixF) → Settings → Webhooks → Add webhook
+  2) GitHub → riskgroup77/phoenix → Settings → Webhooks → Add webhook
      Payload URL: https://api.ilmiyfaoliyat.uz/hooks/github/deploy/
      Content type: application/json
      Secret: xuddi shu GITHUB_DEPLOY_WEBHOOK_SECRET
@@ -95,7 +95,7 @@ def github_deploy_webhook(request) -> HttpResponse:
     if allowed_repos and repo_name not in allowed_repos:
         return JsonResponse({'ok': True, 'ignored': f'repo:{repo_name}'}, status=200)
 
-    branch = (getattr(settings, 'GITHUB_DEPLOY_HOOK_BRANCH', 'master') or 'master').strip()
+    branch = (getattr(settings, 'GITHUB_DEPLOY_HOOK_BRANCH', 'main') or 'main').strip()
     ref = data.get('ref') or ''
     if ref != f'refs/heads/{branch}':
         return JsonResponse({'ok': True, 'ignored': f'ref:{ref}'}, status=200)

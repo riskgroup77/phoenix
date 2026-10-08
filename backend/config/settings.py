@@ -97,6 +97,7 @@ INSTALLED_APPS = [
     'apps.reviews',
     'apps.notifications',
     'apps.udc',
+    'apps.analytics',
 ]
 
 # CorsMiddleware must be as high as possible (before WhiteNoise / CommonMiddleware) so
@@ -109,6 +110,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'config.current_request.CurrentRequestMiddleware',
     'config.monitoring_middleware.RequestMonitoringMiddleware',
     'config.middleware.AdminLoginRateLimitMiddleware',
     'config.middleware.ApiSecurityHeadersMiddleware',
@@ -220,6 +222,9 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.FormParser',
         'rest_framework.parsers.MultiPartParser',
     ),
+    # Nginx orqasida: haqiqiy mijoz IP — X-Forwarded-For dagi OXIRGI qiymat (nginx qo'shadi).
+    # Aks holda mijoz sarlavhani almashtirib login/throttle limitlarini chetlab o'tadi.
+    'NUM_PROXIES': int(os.getenv('NUM_PROXIES', '1')),
     'DEFAULT_THROTTLE_CLASSES': (
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
@@ -332,6 +337,37 @@ CORS_ALLOW_CREDENTIALS = True
 # Frontend base URL (for Click return_url after payment)
 FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://localhost:3000').rstrip('/')
 
+# Telegram: bildirishnomalarni botga yuborish (apps/notifications/telegram.py)
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
+# Profil sahifasidagi "Botni ochish" havolasi uchun (masalan: IlmiyFaoliyatBot, @ belgisiz)
+TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME', '').lstrip('@')
+
+# Crossref DOI depozit (apps/articles/crossref.py). Bo'sh bo'lsa XML faqat yuklab olinadi.
+CROSSREF_DEPOSITOR_NAME = os.getenv('CROSSREF_DEPOSITOR_NAME', 'Phoenix Ilmiy Nashrlar Markazi')
+CROSSREF_DEPOSITOR_EMAIL = os.getenv('CROSSREF_DEPOSITOR_EMAIL', '')
+CROSSREF_REGISTRANT = os.getenv('CROSSREF_REGISTRANT', 'Phoenix Ilmiy Nashrlar Markazi')
+CROSSREF_USERNAME = os.getenv('CROSSREF_USERNAME', '')
+CROSSREF_PASSWORD = os.getenv('CROSSREF_PASSWORD', '')
+CROSSREF_DEPOSIT_URL = os.getenv('CROSSREF_DEPOSIT_URL', 'https://doi.crossref.org/servlet/deposit')
+# Crossref a'zoligidagi DOI prefiksi (masalan 10.12345). Maqolada DOI bo'lmasa shu prefiks bilan beriladi.
+CROSSREF_DOI_PREFIX = os.getenv('CROSSREF_DOI_PREFIX', '')
+# Ochiq maqola sahifasida PDF havolasi (citation_pdf_url) berilsinmi
+SCHOLAR_EXPOSE_PDF = os.getenv('SCHOLAR_EXPOSE_PDF', 'true').lower() in ('1', 'true', 'yes')
+
+# Taqrizchi ishlari muddati (kun): apps/analytics/sla.py
+REVIEW_SLA_DAYS = {
+    'article': int(os.getenv('SLA_ARTICLE_DAYS', '7')),
+    'article_fast': int(os.getenv('SLA_ARTICLE_FAST_DAYS', '3')),
+    'doi': int(os.getenv('SLA_DOI_DAYS', '3')),
+    'udk': int(os.getenv('SLA_UDK_DAYS', '2')),
+    'translation': int(os.getenv('SLA_TRANSLATION_DAYS', '5')),
+    'sample': int(os.getenv('SLA_SAMPLE_DAYS', '7')),
+    'peer_review': int(os.getenv('SLA_PEER_REVIEW_DAYS', '14')),
+}
+
+# Ochiq maqola sahifalari (Google Scholar meta-teglari) uchun sayt manzili: https://ilmiyfaoliyat.uz
+PUBLIC_SITE_URL = os.getenv('PUBLIC_SITE_URL', FRONTEND_BASE_URL).rstrip('/')
+
 CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -380,8 +416,8 @@ GEMINI_API_KEY = (
     or (os.getenv('GENAI_API_KEY') or '').strip()
 )
 
-# Gemini model: .env da GEMINI_MODEL (masalan gemini-1.5-flash, gemini-2.0-flash)
-GEMINI_MODEL = (os.getenv('GEMINI_MODEL') or 'gemini-1.5-flash').strip()
+# Gemini model: .env da GEMINI_MODEL (gemini-1.5-* modellari Google tomonidan to'xtatilgan)
+GEMINI_MODEL = (os.getenv('GEMINI_MODEL') or 'gemini-2.5-flash').strip()
 GEMINI_MAX_OUTPUT_TOKENS = int(os.getenv('GEMINI_MAX_OUTPUT_TOKENS', '8192'))
 GEMINI_PLAGIARISM_INPUT_CHARS = int(os.getenv('GEMINI_PLAGIARISM_INPUT_CHARS', '25000'))
 # Antiplagiat: suniy intellektsiz algoritmik rejim (default). True bo'lsa Gemini ham qo'shiladi.
@@ -408,6 +444,62 @@ ANTIPLAG_OPEN_API_MAX_QUERIES = int(os.getenv('ANTIPLAG_OPEN_API_MAX_QUERIES', '
 ANTIPLAG_REAL_SCAN_MAX_SENTENCES = int(os.getenv('ANTIPLAG_REAL_SCAN_MAX_SENTENCES', '220'))
 ANTIPLAG_SEMANTIC_SCHOLAR_API_KEY = (os.getenv('ANTIPLAG_SEMANTIC_SCHOLAR_API_KEY') or '').strip()
 ANTIPLAG_CORE_API_KEY = (os.getenv('ANTIPLAG_CORE_API_KEY') or '').strip()
+
+# OpenSearch fragment indeksi
+ANTIPLAG_OPENSEARCH_ENABLED = os.getenv('ANTIPLAG_OPENSEARCH_ENABLED', 'false').lower() in (
+    '1', 'true', 'yes', 'on',
+)
+ANTIPLAG_OPENSEARCH_URL = (os.getenv('ANTIPLAG_OPENSEARCH_URL') or 'http://127.0.0.1:9200').strip()
+ANTIPLAG_OPENSEARCH_INDEX = (os.getenv('ANTIPLAG_OPENSEARCH_INDEX') or 'phoenix_antiplag_fragments').strip()
+ANTIPLAG_OPENSEARCH_USER = (os.getenv('ANTIPLAG_OPENSEARCH_USER') or '').strip()
+ANTIPLAG_OPENSEARCH_PASSWORD = (os.getenv('ANTIPLAG_OPENSEARCH_PASSWORD') or '').strip()
+ANTIPLAG_OPENSEARCH_VERIFY_CERTS = os.getenv('ANTIPLAG_OPENSEARCH_VERIFY_CERTS', 'false').lower() in (
+    '1', 'true', 'yes', 'on',
+)
+
+# E5 parafraz
+ANTIPLAG_EMBEDDINGS_ENABLED = os.getenv('ANTIPLAG_EMBEDDINGS_ENABLED', 'true').lower() in (
+    '1', 'true', 'yes', 'on',
+)
+ANTIPLAG_EMBEDDING_MODEL = (os.getenv('ANTIPLAG_EMBEDDING_MODEL') or 'intfloat/multilingual-e5-small').strip()
+ANTIPLAG_EMBEDDING_BATCH = int(os.getenv('ANTIPLAG_EMBEDDING_BATCH', '16'))
+ANTIPLAG_PARAPHRASE_THRESHOLD = float(os.getenv('ANTIPLAG_PARAPHRASE_THRESHOLD', '0.78'))
+ANTIPLAG_PARAPHRASE_MAX_LEXICAL = float(os.getenv('ANTIPLAG_PARAPHRASE_MAX_LEXICAL', '0.34'))
+ANTIPLAG_PARAPHRASE_MAX_SENTENCES = int(os.getenv('ANTIPLAG_PARAPHRASE_MAX_SENTENCES', '35'))
+
+# Internet / Garant snippet qidiruv
+GOOGLE_CSE_API_KEY = (os.getenv('GOOGLE_CSE_API_KEY') or '').strip()
+GOOGLE_CSE_CX = (os.getenv('GOOGLE_CSE_CX') or '').strip()
+BING_SEARCH_API_KEY = (os.getenv('BING_SEARCH_API_KEY') or '').strip()
+ANTIPLAG_WEB_SEARCH_DELAY_SEC = float(os.getenv('ANTIPLAG_WEB_SEARCH_DELAY_SEC', '0.4'))
+ANTIPLAG_WEB_MAX_QUERIES = int(os.getenv('ANTIPLAG_WEB_MAX_QUERIES', '35'))
+ANTIPLAG_WEB_MAX_SENTENCES = int(os.getenv('ANTIPLAG_WEB_MAX_SENTENCES', str(ANTIPLAG_WEB_MAX_QUERIES)))
+# Web qidiruvda topilgan eng mos sahifalarning to'liq matni ham yuklab solishtiriladi (0 — o'chiq)
+ANTIPLAG_WEB_FETCH_PAGES = int(os.getenv('ANTIPLAG_WEB_FETCH_PAGES', '5'))
+
+
+def _env_bool(name: str, default: str) -> bool:
+    return os.getenv(name, default).lower() in ('1', 'true', 'yes', 'on')
+
+
+# Barmoq izlari indeksi (algoritm 5.0): butun hujjat butun ichki baza bilan solishtiriladi
+# Yangi/yangilangan maqola va arxiv hujjatlari avtomatik indekslanadi (signals, fon oqimida)
+ANTIPLAG_AUTO_INDEX = _env_bool('ANTIPLAG_AUTO_INDEX', 'true')
+ANTIPLAG_INDEX_SYNC = _env_bool('ANTIPLAG_INDEX_SYNC', 'false')
+# Mustaqil tekshiruvga yuklangan hujjatlar ham (faqat barmoq izlari, matnsiz) indekslansinmi —
+# keyingi tekshiruvlarda «nashr etilmagan hujjat» sifatida topiladi. Foydalanuvchi shartlariga kiritilgach yoqing.
+ANTIPLAG_INDEX_PRIVATE_CHECKS = _env_bool('ANTIPLAG_INDEX_PRIVATE_CHECKS', 'false')
+ANTIPLAG_INDEX_MAX_SOURCES = int(os.getenv('ANTIPLAG_INDEX_MAX_SOURCES', '40'))
+# Ochiq API: HAR BIR modul uchun so'rovlar soni (hujjat bo'ylab tanlangan gaplar)
+ANTIPLAG_OPEN_API_QUERIES_PER_MODULE = int(os.getenv('ANTIPLAG_OPEN_API_QUERIES_PER_MODULE', '30'))
+# Ochiq kirishdagi PDF'lar (OpenAlex, Semantic Scholar) to'liq matni bilan solishtirish
+ANTIPLAG_FULLTEXT_ENABLED = _env_bool('ANTIPLAG_FULLTEXT_ENABLED', 'true')
+ANTIPLAG_FULLTEXT_MAX_DOCS = int(os.getenv('ANTIPLAG_FULLTEXT_MAX_DOCS', '10'))
+# Indeksda shuncha (yoki hujjatlarning 1%) dan ko'p hujjatda uchragan bo'lak umumiy ibora hisoblanadi
+ANTIPLAG_COMMON_SHINGLE_MIN_DOCS = int(os.getenv('ANTIPLAG_COMMON_SHINGLE_MIN_DOCS', '30'))
+# OAI-PMH manbalari (harvest_oai --all): vergul bilan ajratilgan endpoint URL'lar ("url|insecure" mumkin).
+# Bo'sh bo'lsa — antiplagiat_oai.DEFAULT_OAI_SOURCES (tekshirilgan bepul O'zbekiston manbalari)
+ANTIPLAG_OAI_SOURCES = [u.strip() for u in (os.getenv('ANTIPLAG_OAI_SOURCES') or '').split(',') if u.strip()]
 
 _redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 if _redis_url:
@@ -469,6 +561,10 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+# Redis ishlamasa so'rov (ping / navbatga qo'yish) uzoq osilib qolmasin — thread fallback ishlaydi
+CELERY_BROKER_CONNECTION_TIMEOUT = 3
+CELERY_BROKER_TRANSPORT_OPTIONS = {'max_retries': 1, 'socket_timeout': 3, 'socket_connect_timeout': 3}
+CELERY_TASK_PUBLISH_RETRY = False
 
 # Logging — fayl: faqat DJANGO_LOG_TO_FILE=true yoki DEBUG (read-only konteynerlarda xatoliksiz)
 _log_env = (os.getenv('DJANGO_LOG_TO_FILE') or '').strip().lower()
@@ -558,9 +654,10 @@ if not DEBUG and not CLICK_SECRET_KEY and not any(
 
 # GitHub Webhook deploy (boshqa servis — SSH/Actions shart emas). Secret bo‘lmasa URL 404.
 GITHUB_DEPLOY_WEBHOOK_SECRET = (os.getenv('GITHUB_DEPLOY_WEBHOOK_SECRET') or '').strip()
-GITHUB_DEPLOY_HOOK_BRANCH = (os.getenv('GITHUB_DEPLOY_HOOK_BRANCH') or 'master').strip()
+# Joriy repo: riskgroup77/phoenix (monorepo), asosiy branch — main
+GITHUB_DEPLOY_HOOK_BRANCH = (os.getenv('GITHUB_DEPLOY_HOOK_BRANCH') or 'main').strip()
 DEPLOY_HOOK_SCRIPT = (os.getenv('DEPLOY_HOOK_SCRIPT') or '/phonix/deploy_phonix.sh').strip()
-_github_repos = (os.getenv('GITHUB_DEPLOY_REPO') or 'aiziyrak-coder/phonixB,aiziyrak-coder/phonixF').strip()
+_github_repos = (os.getenv('GITHUB_DEPLOY_REPO') or 'riskgroup77/phoenix').strip()
 GITHUB_DEPLOY_REPOS = frozenset(r.strip() for r in _github_repos.split(',') if r.strip())
 
 def _sentry_before_send(event, hint):

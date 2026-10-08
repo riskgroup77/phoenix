@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
-import { UploadCloud, CheckCircle, Loader2, XCircle, FileText, Users, Eye, BookOpen, Filter, Layers, X } from 'lucide-react';
+import { UploadCloud, CheckCircle, Loader2, XCircle, FileText, Users, Eye, BookOpen, Filter, Layers, X, History, Check, CreditCard, Search as SearchIcon, ShieldCheck, BadgeCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { PUBLICATION_TYPES, SUBJECT_AREAS } from '../constants/authorCategories';
 import { apiService } from '../services/apiService';
@@ -16,11 +16,36 @@ import {
 } from '../utils/submitArticleUtils';
 import JournalA4Card, { type JournalCardData } from '../components/JournalA4Card';
 import { toast } from 'react-toastify';
+import { useFormDraft } from '../hooks/useFormDraft';
+import { useT } from '../i18n/LanguageContext';
+import { formatUzDate } from '../utils/uzDate';
+
+const MAX_FILE_MB = 20;
+
+type SubmitDraft = {
+  title: string;
+  authorName: string;
+  journalId: string;
+  abstract: string;
+  keywords: string;
+  references: string;
+  pageCount: number;
+  coAuthors: { name: string; identifier: string }[];
+  step: number;
+};
+
+const hhmm = (ms: number) => {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
 
 const SubmitArticle: React.FC = () => {
   const { user } = useAuth();
+  const { t } = useT();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
+  const [dragOver, setDragOver] = useState(false);
+  const [draftNotice, setDraftNotice] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [journals, setJournals] = useState<JournalCardData[]>([]);
@@ -51,12 +76,82 @@ const SubmitArticle: React.FC = () => {
 
   const SUBMIT_ARTICLE_PENDING_KEY = 'phonix_submit_article_pending';
 
+  // Avtomatik qoralama (fayldan tashqari barcha maydonlar) — sahifa yopilsa ham yo'qolmaydi
+  const draftData = useMemo<SubmitDraft>(
+    () => ({
+      title: formData.title,
+      authorName: formData.authorName,
+      journalId: formData.journalId,
+      abstract: formData.abstract,
+      keywords: formData.keywords,
+      references: formData.references,
+      pageCount: formData.pageCount,
+      coAuthors: formData.coAuthors,
+      step: currentStep,
+    }),
+    [formData.title, formData.authorName, formData.journalId, formData.abstract, formData.keywords, formData.references, formData.pageCount, formData.coAuthors, currentStep],
+  );
+  const draft = useFormDraft<SubmitDraft>('submit-article', user?.id, draftData, {
+    enabled: !!user,
+    isEmpty: (d) => !d.journalId && !d.title.trim() && !d.abstract.trim() && !d.keywords.trim() && d.coAuthors.length === 0,
+  });
+
+  useEffect(() => {
+    const r = draft.restored;
+    if (!r) return;
+    const d = r.data;
+    setFormData((prev) => ({
+      ...prev,
+      title: d.title || '',
+      authorName: d.authorName || prev.authorName,
+      journalId: d.journalId || '',
+      abstract: d.abstract || '',
+      keywords: d.keywords || '',
+      references: d.references || '',
+      pageCount: d.pageCount || 1,
+      coAuthors: Array.isArray(d.coAuthors) ? d.coAuthors : [],
+    }));
+    // Fayl brauzerda saqlanmaydi — jurnal tanlangan bo'lsa fayl qadamidan davom etiladi
+    setCurrentStep(d.journalId ? 2 : 1);
+    setDraftNotice(r.savedAt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const resetDraft = () => {
+    draft.clear();
+    setDraftNotice(null);
+    setFormData({
+      title: '',
+      authorName: [user?.firstName, user?.lastName].filter(Boolean).join(' '),
+      journalId: '',
+      file: null,
+      abstract: '',
+      keywords: '',
+      references: '',
+      pageCount: 1,
+      coAuthors: [],
+    });
+    setErrors({});
+    setCurrentStep(1);
+  };
+
+  // Fayl tanlangan, lekin yuborilmagan bo'lsa — sahifadan chiqishda ogohlantirish
+  useEffect(() => {
+    if (!formData.file) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [formData.file]);
+
   const steps = [
-    { id: 1, title: 'Jurnal tanlash', icon: BookOpen },
-    { id: 2, title: 'Fayl yuklash', icon: UploadCloud },
-    { id: 3, title: 'Maqola tavsifi', icon: FileText },
-    { id: 4, title: 'Hammualliflar', icon: Users },
-    { id: 5, title: 'Tasdiqlash', icon: Eye },
+    { id: 1, title: t('Jurnal tanlash'), icon: BookOpen },
+    { id: 2, title: t('Fayl yuklash'), icon: UploadCloud },
+    { id: 3, title: t('Maqola tavsifi'), icon: FileText },
+    { id: 4, title: t('Hammualliflar'), icon: Users },
+    { id: 5, title: t('Tasdiqlash'), icon: Eye },
   ];
 
   useEffect(() => {
@@ -193,16 +288,24 @@ const SubmitArticle: React.FC = () => {
     setCurrentStep(currentStep - 1);
   };
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const name = file.name.toLowerCase();
-      if (!name.endsWith('.docx') && !name.endsWith('.doc')) {
-        toast.error('Faqat DOC yoki DOCX (Word) fayllarini yuklash mumkin');
-        return;
-      }
-      setFormData({ ...formData, file, pageCount: estimatePageCountFromFile(file) });
+  const acceptFile = (file: File | undefined | null) => {
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    if (!name.endsWith('.docx') && !name.endsWith('.doc')) {
+      toast.error(t('Faqat DOC yoki DOCX (Word) fayllarini yuklash mumkin'));
+      return;
     }
+    if (file.size > MAX_FILE_MB * 1024 * 1024) {
+      toast.error(t('Fayl hajmi {n} MB dan oshmasligi kerak', { n: MAX_FILE_MB }));
+      return;
+    }
+    setFormData((prev) => ({ ...prev, file, pageCount: estimatePageCountFromFile(file) }));
+    setErrors((e) => ({ ...e, file: '' }));
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    acceptFile(event.target.files?.[0]);
+    event.target.value = '';
   };
 
   const buildPayload = (options?: {
@@ -226,7 +329,8 @@ const SubmitArticle: React.FC = () => {
   /** Create article (called when no payment required or after payment completed). */
   const doSubmitArticle = async () => {
     await apiService.articles.create(buildPayload(), { mainFile: formData.file! });
-    toast.success('Maqola muvaffaqiyatli yuborildi');
+    draft.clear();
+    toast.success(t('Maqola muvaffaqiyatli yuborildi'));
     setFormData({
       title: '',
       authorName: '',
@@ -289,6 +393,8 @@ const SubmitArticle: React.FC = () => {
           toast.error('Maqola yaratilmadi. Qayta urinib ko\'ring.');
           return;
         }
+        // Maqola serverda saqlandi — brauzerdagi qoralama endi kerak emas
+        draft.clear();
 
         const result = await paymentService.createTransactionAndPay(
           amountForPayment,
@@ -388,30 +494,53 @@ const SubmitArticle: React.FC = () => {
   return (
     <div className={`mx-auto p-6 ${currentStep === 1 ? 'max-w-6xl' : 'max-w-4xl'}`}>
       <EditorialPageHeader
-        title="Maqola yuborish"
-        subtitle="Maqolangizni nashr qilish uchun yuboring"
+        title={t('Maqola yuborish')}
+        subtitle={t('Maqolangizni nashr qilish uchun yuboring')}
+        actions={
+          draft.savedAt ? (
+            <span className="inline-flex items-center gap-1.5 text-sm text-[var(--editorial-muted)]" aria-live="polite">
+              <Check className="w-4 h-4 text-[var(--milliy-firuza)]" aria-hidden /> {t('Qoralama saqlandi · {time}', { time: hhmm(draft.savedAt) })}
+            </span>
+          ) : undefined
+        }
       />
 
-      <div className="editorial-stepper mb-8">
+      {draftNotice && (
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-[12px] border border-[var(--editorial-border)] bg-[var(--milliy-firuza-soft)] px-4 py-3 text-sm">
+          <History className="w-5 h-5 text-[var(--milliy-firuza)] shrink-0" aria-hidden />
+          <span className="flex-1 min-w-[220px] text-[var(--editorial-text)]">
+            {t('Oldingi qoralamangiz tiklandi ({date}, {time}).', { date: formatUzDate(draftNotice), time: hhmm(draftNotice) })}{' '}
+            {formData.journalId && !formData.file && t('Maqola faylini qayta biriktiring.')}
+          </span>
+          <button type="button" onClick={resetDraft} className="milliy-btn-secondary !min-h-[2.25rem] !px-3 text-sm">
+            {t('Yangidan boshlash')}
+          </button>
+          <button type="button" onClick={() => setDraftNotice(null)} className="editorial-icon-btn" aria-label={t('Yopish')}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      <ol className="milliy-stepper mb-8" aria-label={t('Bosqichlar')}>
         {steps.map((step) => {
           const isActive = currentStep === step.id;
           const isCompleted = currentStep > step.id;
           return (
-            <div
-              key={step.id}
-              className={`editorial-step ${isActive ? 'editorial-step--active' : ''} ${isCompleted ? 'editorial-step--done' : ''}`}
-            >
-              {step.title}
-            </div>
+            <li key={step.id} className="flex-1 min-w-[7.5rem]">
+              <button
+                type="button"
+                onClick={() => isCompleted && setCurrentStep(step.id)}
+                disabled={!isCompleted}
+                aria-current={isActive ? 'step' : undefined}
+                className={`milliy-step w-full ${isActive ? 'milliy-step--active' : ''} ${isCompleted ? 'milliy-step--done cursor-pointer' : 'cursor-default'}`}
+              >
+                <span className="milliy-step-num">{isCompleted ? <Check className="w-4 h-4" aria-hidden /> : step.id}</span>
+                <span className="truncate">{step.title}</span>
+              </button>
+            </li>
           );
         })}
-      </div>
-      <div className="mb-8 h-1.5 rounded-full bg-[var(--editorial-bg-alt)] overflow-hidden">
-        <div
-          className="h-full bg-[var(--editorial-primary)] transition-all duration-300"
-          style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
-        />
-      </div>
+      </ol>
 
       {/* Step Content */}
       <Card className="p-6">
@@ -501,10 +630,33 @@ const SubmitArticle: React.FC = () => {
         {currentStep === 2 && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-xl font-semibold text-slate-900 mb-4">Fayl yuklash</h2>
+              <h2 className="text-xl font-semibold text-slate-900 mb-4">{t('Fayl yuklash')}</h2>
               <div
-                className="border-2 border-dashed border-slate-200 rounded-lg p-8 text-center cursor-pointer hover:border-gray-500 transition-colors"
+                role="button"
+                tabIndex={0}
+                aria-label={t('Maqola faylini tanlash')}
+                className={`border-2 border-dashed rounded-[14px] p-8 text-center cursor-pointer transition-colors ${
+                  dragOver
+                    ? 'border-[var(--editorial-primary)] bg-[var(--milliy-firuza-soft)]'
+                    : 'border-[var(--editorial-border)] hover:border-[var(--editorial-primary)]'
+                }`}
                 onClick={() => fileInputRef.current?.click()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    fileInputRef.current?.click();
+                  }
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  acceptFile(e.dataTransfer.files?.[0]);
+                }}
               >
                 {formData.file ? (
                   <div className="space-y-2">
@@ -517,8 +669,8 @@ const SubmitArticle: React.FC = () => {
                 ) : (
                   <div className="space-y-2">
                     <UploadCloud className="w-12 h-12 text-slate-500 mx-auto" />
-                    <p className="text-slate-900 font-medium">Faylni tanlang</p>
-                    <p className="text-slate-500 text-sm">DOC yoki DOCX (Word)</p>
+                    <p className="text-slate-900 font-medium">{t('Faylni shu yerga tashlang yoki tanlash uchun bosing')}</p>
+                    <p className="text-slate-500 text-sm">{t('DOC yoki DOCX (Word), {n} MB gacha', { n: MAX_FILE_MB })}</p>
                   </div>
                 )}
               </div>
@@ -709,6 +861,48 @@ const SubmitArticle: React.FC = () => {
                 </div>
               </div>
 
+              {(() => {
+                const j = journals.find((x) => x.id === formData.journalId);
+                const amount = computePublicationPaymentAmount(j, formData.pageCount);
+                const pre = (j?.payment_model || 'pre-payment') === 'pre-payment';
+                return (
+                  <div className="rounded-[12px] border border-[var(--editorial-border)] p-4 flex flex-col gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="flex items-center gap-2 font-bold text-[var(--editorial-text)]">
+                        <CreditCard className="w-5 h-5 text-[var(--milliy-firuza)]" aria-hidden /> {t("Nashr to'lovi")}
+                      </span>
+                      <span className="text-xl font-extrabold tabular-nums">
+                        {amount > 0 ? `${Math.round(amount).toLocaleString('ru-RU').replace(/,/g, ' ')} ${t("so'm")}` : t('Bepul / kelishiladi')}
+                      </span>
+                    </div>
+                    {amount > 0 && (
+                      <p className="m-0 text-sm text-[var(--editorial-muted)]">
+                        {pre
+                          ? t("To'lov yuborishdan oldin olinadi (Click). To'lovdan so'ng maqola tahririyatga tushadi.")
+                          : t("To'lov maqola qabul qilingandan keyin olinadi.")}
+                      </p>
+                    )}
+                    <ol className="m-0 pl-0 list-none grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
+                      {[
+                        { icon: CreditCard, label: t("To'lov") },
+                        { icon: SearchIcon, label: t('Muharrir tekshiruvi') },
+                        { icon: ShieldCheck, label: t('Taqriz va antiplagiat') },
+                        { icon: BadgeCheck, label: t('Nashr va sertifikat') },
+                      ].map((s, i) => (
+                        <li key={s.label} className="flex items-center gap-2 rounded-[10px] bg-[var(--editorial-bg-alt)] px-3 py-2 font-semibold text-[var(--editorial-body)]">
+                          <span className="milliy-step-num !w-6 !h-6 !text-[11px]">{i + 1}</span>
+                          <s.icon className="w-4 h-4 text-[var(--milliy-firuza)] shrink-0" aria-hidden />
+                          {s.label}
+                        </li>
+                      ))}
+                    </ol>
+                    <p className="m-0 text-xs text-[var(--editorial-muted)]">
+                      {t("Har bir bosqich «Maqolalarim» sahifasidagi tarixda ko'rinadi va Telegram'ga xabar keladi.")}
+                    </p>
+                  </div>
+                );
+              })()}
+
               {formData.coAuthors.length > 0 && (
                 <div>
                   <h3 className="text-lg font-medium text-slate-900 mb-2">Hammualliflar</h3>
@@ -750,12 +944,12 @@ const SubmitArticle: React.FC = () => {
             disabled={currentStep === 1}
             variant="secondary"
           >
-            Orqaga
+            {t('Orqaga')}
           </Button>
 
           {currentStep < steps.length ? (
             <Button onClick={nextStep}>
-              Keyingi
+              {t('Keyingi')}
             </Button>
           ) : (
             <Button
@@ -764,7 +958,7 @@ const SubmitArticle: React.FC = () => {
               className="flex items-center gap-2"
             >
               {loading && !paymentPendingTransactionId && <Loader2 className="w-4 h-4 animate-spin" />}
-              {paymentPendingTransactionId ? 'To\'lov kutilmoqda' : 'Yuborish'}
+              {paymentPendingTransactionId ? t("To'lov kutilmoqda") : t('Yuborish')}
             </Button>
           )}
         </div>

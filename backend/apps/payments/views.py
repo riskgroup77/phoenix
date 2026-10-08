@@ -80,6 +80,55 @@ class TransactionViewSet(viewsets.ModelViewSet):
         full_serializer = TransactionSerializer(transaction, context=self.get_serializer_context())
         return Response(full_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
+    @action(detail=True, methods=['get'])
+    def receipt(self, request, pk=None):
+        """To'lov cheki (PDF). Faqat yakunlangan to'lov; egasi, bosh admin yoki buxgalter."""
+        from django.http import HttpResponse
+        from .labels import receipt_number
+        from .receipt_pdf import build_receipt_pdf
+
+        tx = self.get_object()
+        if tx.status != 'completed':
+            return Response(
+                {'detail': "Chek faqat yakunlangan to'lov uchun beriladi."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            pdf = build_receipt_pdf(tx)
+        except Exception as exc:
+            logger.exception('Receipt PDF failed for %s: %s', tx.pk, exc)
+            return Response({'detail': 'Chekni yaratib bo\'lmadi.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{receipt_number(tx)}.pdf"'
+        response['Cache-Control'] = 'private, no-store'
+        return response
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """Foydalanuvchining to'lovlari bo'yicha jami: summa, soni, xizmatlar kesimida."""
+        from django.db.models import Count, Sum
+        from .labels import service_label
+
+        qs = Transaction.objects.filter(user=request.user)
+        completed = qs.filter(status='completed')
+        totals = completed.aggregate(total=Sum('amount'), count=Count('id'))
+        by_service = [
+            {
+                'service_type': row['service_type'],
+                'label': service_label(row['service_type']),
+                'total': float(row['total'] or 0),
+                'count': row['count'],
+            }
+            for row in completed.values('service_type').annotate(total=Sum('amount'), count=Count('id')).order_by('-total')
+        ]
+        return Response({
+            'total_paid': float(totals['total'] or 0),
+            'completed_count': totals['count'] or 0,
+            'pending_count': qs.filter(status='pending').count(),
+            'failed_count': qs.filter(status__in=('failed', 'cancelled')).count(),
+            'by_service': by_service,
+        })
+
     @action(detail=True, methods=['post'])
     def prepare_payment(self, request, pk=None):
         """Prepare payment for transaction"""
@@ -112,7 +161,19 @@ class TransactionViewSet(viewsets.ModelViewSet):
         """
         transaction = self.get_object()
         provider = request.query_params.get('provider', 'click').lower()
-        
+        if transaction.status in ('completed', 'cancelled'):
+            return Response({
+                'success': False,
+                'error_code': -4,
+                'error': 'Bu tranzaksiya allaqachon yakunlangan yoki bekor qilingan.',
+                'error_note': 'Bu tranzaksiya allaqachon yakunlangan yoki bekor qilingan.',
+            }, status=status.HTTP_400_BAD_REQUEST)
+        from .pricing import is_underpriced
+        if is_underpriced(transaction):
+            msg = 'Bu buyurtma summasi joriy narxga mos emas. Iltimos, to\'lovni qaytadan boshlang.'
+            return Response({'success': False, 'error_code': -2, 'error': msg, 'error_note': msg},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         try:
             # Select payment provider
             if provider == 'payme':
@@ -270,7 +331,7 @@ def click_prepare_view(request):
         return JsonResponse(result)
     except Exception as e:
         logger.error(f"Error in click_prepare_view: {str(e)}", exc_info=True)
-        return JsonResponse({'error': -9, 'error_note': str(e)}, status=400)
+        return JsonResponse({'error': -9, 'error_note': 'Internal error'}, status=400)
 
 
 @csrf_exempt
@@ -323,7 +384,7 @@ def click_complete_view(request):
         return JsonResponse(result)
     except Exception as e:
         logger.error(f"Error in click_complete_view: {str(e)}", exc_info=True)
-        return JsonResponse({'error': -9, 'error_note': str(e)}, status=400)
+        return JsonResponse({'error': -9, 'error_note': 'Internal error'}, status=400)
 
 
 @method_decorator(csrf_exempt, name='dispatch')

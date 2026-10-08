@@ -9,6 +9,7 @@ Callback URL'lar Click merchant panelda quyidagicha bo'lishi kerak:
 from django.conf import settings
 from django.utils import timezone
 import hashlib
+import hmac
 import time
 import requests
 import logging
@@ -48,6 +49,27 @@ def _find_transaction_by_merchant_trans_id(merchant_trans_id):
         return Transaction.objects.get(merchant_trans_id=merchant_trans_id)
     except Transaction.DoesNotExist:
         return None
+
+
+def _click_signature_ok(received, expected) -> bool:
+    """Click imzosini doimiy vaqtda solishtirish; imzo yo'q bo'lsa — rad."""
+    if not received or not expected:
+        return False
+    return hmac.compare_digest(str(received).strip().lower(), str(expected).lower())
+
+
+def _click_amount_matches(click_amount_raw, our_amount) -> bool:
+    """Click odatda so'mda yuboradi; ba'zan tiyinda (×100). Kichik farqqa ruxsat."""
+    try:
+        click_amount = float(click_amount_raw)
+    except (TypeError, ValueError):
+        return False
+    our = float(our_amount)
+    if our <= 0:
+        return False
+    if abs(click_amount - our) <= 0.02:
+        return True
+    return click_amount >= 100 and abs((click_amount / 100) - our) <= 0.02
 
 
 def _fulfill_after_payment(transaction):
@@ -914,41 +936,36 @@ class ClickPaymentService:
             logger.debug("Expected=%s received=%s", expected_sign, sign_string)
             logger.debug("=== SIGNATURE DEBUG END ===")
             
-            if sign_string != expected_sign:
-                logger.error(f"Signature mismatch! Expected: {expected_sign}, Got: {sign_string}")
-                logger.error(f"Please check: 1) Secret key is correct for service_id={service_id}, 2) Parameter order matches Click documentation")
-                logger.error(f"Correct format: md5(click_trans_id + service_id + SECRET_KEY + merchant_trans_id + amount + action + sign_time)")
+            if not service_secret_key:
+                logger.error('Click prepare: service_id=%s uchun secret key sozlanmagan', service_id)
                 return {'error': -1, 'error_note': 'Invalid signature'}
-            
+            if not _click_signature_ok(sign_string, expected_sign):
+                logger.error('Click prepare signature mismatch (service_id=%s, merchant_trans_id=%s)', service_id, merchant_trans_id)
+                return {'error': -1, 'error_note': 'Invalid signature'}
+
+            if str(action) != '0':
+                return {'error': -3, 'error_note': 'Action not found'}
+
             # Find transaction - merchant_trans_id = transaction_param (bizning transaction.id)
             transaction = _find_transaction_by_merchant_trans_id(merchant_trans_id)
             if not transaction:
                 logger.warning(f"Transaction not found for merchant_trans_id={merchant_trans_id}")
-                if sign_string == expected_sign:
-                    logger.info(f"Test payment (merchant_trans_id={merchant_trans_id}). Signature OK.")
-                    return {
-                        'click_trans_id': click_trans_id,
-                        'merchant_trans_id': str(merchant_trans_id),
-                        'merchant_prepare_id': str(merchant_trans_id),
-                        'error': 0,
-                        'error_note': 'Success (test payment)'
-                    }
                 return {'error': -5, 'error_note': 'Transaction not found'}
-            
-            # Check amount — Click usually sends soums; sometimes tiyin (1 sum = 100 tiyin). Allow small tolerance.
-            try:
-                click_amount = float(amount)
-            except (TypeError, ValueError):
-                click_amount = 0
-            our_amount = float(transaction.amount)
-            amount_ok = abs(click_amount - our_amount) <= 0.02
-            if not amount_ok and click_amount >= 100 and our_amount > 0:
-                # Try tiyin: Click might send amount * 100
-                if abs((click_amount / 100) - our_amount) <= 0.02:
-                    amount_ok = True
-            if not amount_ok:
+
+            if transaction.status == 'completed':
+                return {'error': -4, 'error_note': 'Already paid'}
+            if transaction.status == 'cancelled':
+                return {'error': -9, 'error_note': 'Transaction cancelled'}
+
+            if not _click_amount_matches(amount, transaction.amount):
                 logger.warning(f"Amount mismatch: Click sent {amount}, we have {transaction.amount}")
-                return {'error': -2, 'error_note': f'Invalid amount: expected {our_amount}, got {amount}'}
+                return {'error': -2, 'error_note': f'Invalid amount: expected {float(transaction.amount)}, got {amount}'}
+
+            # Tuzatishdan oldin mijoz summasi bilan yaratilgan arzon buyurtmalar to'lanmasin
+            from .pricing import is_underpriced
+            if is_underpriced(transaction):
+                logger.warning('Click prepare: underpriced transaction %s (amount=%s)', transaction.id, transaction.amount)
+                return {'error': -2, 'error_note': 'Incorrect parameter amount'}
             
             # Save Click transaction ID and prepare status
             transaction.click_trans_id = click_trans_id
@@ -970,7 +987,7 @@ class ClickPaymentService:
             
         except Exception as e:
             logger.error(f"Error in handle_prepare: {str(e)}", exc_info=True)
-            return {'error': -9, 'error_note': f'Server xatolik: {str(e)}'}
+            return {'error': -9, 'error_note': 'Server xatolik'}
     
     def handle_complete(self, data):
         """Handle Click complete request
@@ -1038,10 +1055,34 @@ class ClickPaymentService:
             logger.debug("Complete signature: expected=%s received=%s", expected_sign, sign_string)
             logger.debug("=== COMPLETE SIGNATURE DEBUG END ===")
             
-            if sign_string and sign_string != expected_sign:
-                logger.error(f"Complete signature mismatch! Expected: {expected_sign}, Got: {sign_string}")
-                logger.error(f"Correct format: md5(click_trans_id + service_id + SECRET_KEY + merchant_trans_id + merchant_prepare_id + amount + action + sign_time)")
+            # Imzo MAJBURIY: sign_string yuborilmasa ham rad etiladi (aks holda istalgan kishi
+            # tranzaksiyani "to'langan" qilib qo'yishi mumkin edi).
+            if not service_secret_key or not _click_signature_ok(sign_string, expected_sign):
+                logger.error(
+                    'Click complete signature invalid/missing (service_id=%s, merchant_trans_id=%s)',
+                    service_id_for_complete,
+                    merchant_trans_id,
+                )
                 return {'error': -1, 'error_note': 'Invalid signature'}
+
+            if str(action) != '1':
+                return {'error': -3, 'error_note': 'Action not found'}
+
+            # merchant_prepare_id — prepare javobida biz qaytargan transaction.id
+            if str(merchant_prepare_id or '').strip().lower() != str(transaction.id).lower():
+                logger.warning(
+                    'Click complete: merchant_prepare_id mismatch tx=%s got=%s',
+                    transaction.id,
+                    merchant_prepare_id,
+                )
+                return {'error': -6, 'error_note': 'Transaction does not exist'}
+
+            if not _click_amount_matches(amount, transaction.amount):
+                logger.warning('Click complete amount mismatch: Click %s, tx %s', amount, transaction.amount)
+                return {'error': -2, 'error_note': 'Incorrect parameter amount'}
+
+            if transaction.status == 'cancelled':
+                return {'error': -9, 'error_note': 'Transaction cancelled'}
 
             # Click may send error as int 0 or string "0"
             try:
@@ -1114,4 +1155,4 @@ class ClickPaymentService:
         except Exception as e:
             import traceback
             logger.error(f"Error in handle_complete: {str(e)}", exc_info=True)
-            return {'error': -9, 'error_note': f'Server xatolik: {str(e)}'}
+            return {'error': -9, 'error_note': 'Server xatolik'}

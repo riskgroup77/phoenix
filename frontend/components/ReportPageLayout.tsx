@@ -1,11 +1,12 @@
 import React from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 
-export const REPORT_COLOR_DARK = '#1e2d4a';
-export const REPORT_COLOR_NAVY = '#0f2744';
-export const REPORT_COLOR_TEAL = '#0a7a8c';
+export const REPORT_COLOR_DARK = '#17306f';
+export const REPORT_COLOR_NAVY = '#1f3f8f';
+export const REPORT_COLOR_TEAL = '#0b6f74';
 export const REPORT_COLOR_TEAL_LIGHT = '#14b8a6';
 export const REPORT_COLOR_GOLD = '#b8860b';
-export const REPORT_COLOR_TEXT = '#1e293b';
+export const REPORT_COLOR_TEXT = '#172033';
 
 /** A4 o'lchamlari */
 export const A4_PORTRAIT_STYLE: React.CSSProperties = {
@@ -180,8 +181,8 @@ export const PhoenixLogoMark: React.FC<{ size?: 'sm' | 'md' | 'lg'; showText?: b
 };
 
 /** QR + dafna novdasi */
-export const LaurelQRBlock: React.FC<{ qrUrl: string; label?: string }> = ({
-    qrUrl,
+export const LaurelQRBlock: React.FC<{ qrValue: string; label?: string }> = ({
+    qrValue,
     label = 'TEKSHIRISH UCHUN QR KODDAN FOYDALANING',
 }) => (
     <div className="flex flex-col items-center gap-2">
@@ -194,7 +195,9 @@ export const LaurelQRBlock: React.FC<{ qrUrl: string; label?: string }> = ({
                     strokeWidth="1.5"
                 />
             </svg>
-            <img src={qrUrl} alt="QR" className="relative w-12 h-12 bg-white" width={48} height={48} />
+            <div role="img" aria-label="QR" className="relative w-12 h-12 bg-white [&>svg]:block [&>svg]:w-full [&>svg]:h-full">
+                <QRCodeSVG value={qrValue} size={96} level="M" fgColor="#17306f" bgColor="#ffffff" marginSize={1} />
+            </div>
         </div>
         <p className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-center max-w-[130px] leading-tight" style={{ color: REPORT_COLOR_TEAL }}>
             {label}

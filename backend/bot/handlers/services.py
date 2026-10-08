@@ -5,7 +5,6 @@ from asgiref.sync import sync_to_async
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from apps.articles.antiplagiat_modules import MODULE_PRESETS, module_catalog_count
 from bot.api_client import ApiError
 from bot.app_links import (
     SERVICE_APP_PATHS,
@@ -346,24 +345,37 @@ async def translation_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 # --- Plagiarism ---
-def _plag_module_keyboard() -> InlineKeyboardMarkup:
+PLAG_PRESET_LABELS = {
+    'all': 'Barcha mavjud bazalar',
+    'core': 'Barcha mavjud bazalar',
+    'global': 'Ochiq ilmiy bazalar',
+    'milliy': 'Ichki baza',
+}
+
+
+def _plag_presets_sync() -> dict[str, list[str]]:
+    """Faqat haqiqatan tekshiriladigan modullar (antiplagiat_available) asosidagi profillar."""
+    from apps.articles.antiplagiat_available import available_modules
+
+    mods = available_modules()
+    every = [m['id'] for m in mods]
+    analysis = [m['id'] for m in mods if m['group'] == 'Tahlil']
+    return {
+        'all': every,
+        'core': every,
+        'global': [m['id'] for m in mods if m['group'] == 'Ochiq ilmiy bazalar'] + analysis,
+        'milliy': [m['id'] for m in mods if m['group'] == 'Ichki baza'] + analysis,
+    }
+
+
+_plag_presets = sync_to_async(_plag_presets_sync)
+
+
+def _plag_module_keyboard(presets: dict[str, list[str]]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(
-            f"🔬 Barcha modullar ({len(MODULE_PRESETS['all'])})",
-            callback_data='plagm:all',
-        )],
-        [InlineKeyboardButton(
-            f"⭐ Asosiy ({len(MODULE_PRESETS['core'])})",
-            callback_data='plagm:core',
-        )],
-        [InlineKeyboardButton(
-            f"🌍 Global bazalar ({len(MODULE_PRESETS['global'])})",
-            callback_data='plagm:global',
-        )],
-        [InlineKeyboardButton(
-            f"🇺🇿 Milliy bazalar ({len(MODULE_PRESETS['milliy'])})",
-            callback_data='plagm:milliy',
-        )],
+        [InlineKeyboardButton(f"🔬 {PLAG_PRESET_LABELS['all']} ({len(presets['all'])})", callback_data='plagm:all')],
+        [InlineKeyboardButton(f"🌍 {PLAG_PRESET_LABELS['global']} ({len(presets['global'])})", callback_data='plagm:global')],
+        [InlineKeyboardButton(f"🇺🇿 {PLAG_PRESET_LABELS['milliy']} ({len(presets['milliy'])})", callback_data='plagm:milliy')],
     ])
 
 
@@ -371,9 +383,9 @@ async def plag_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not await require_author(update, context):
         return ConversationHandler.END
     if update.message:
-        total = module_catalog_count()
+        total = len((await _plag_presets())['all'])
         await update.message.reply_text(
-            f"🛡️ *Antiplagiat* — chuqur tekshiruv {total}+ modul bo'yicha.\n\n"
+            f"🛡️ *Antiplagiat* — {total} ta baza va tahlil moduli bo'yicha tekshiruv.\n\n"
             "Maqola nomini kiriting:",
             parse_mode='Markdown',
             reply_markup=cancel_keyboard(),
@@ -386,7 +398,7 @@ async def plag_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         context.user_data['plag_title'] = update.message.text.strip()
         await update.message.reply_text(
             "Tekshiruv profilini tanlang (modullar soni tugmada ko'rsatilgan):",
-            reply_markup=_plag_module_keyboard(),
+            reply_markup=_plag_module_keyboard(await _plag_presets()),
         )
     return PLAG_MODULES
 
@@ -480,13 +492,11 @@ async def plag_module_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         return PLAG_MODULES
     await query.answer()
     preset = (query.data or '').split(':', 1)[-1]
-    modules = MODULE_PRESETS.get(preset) or MODULE_PRESETS['all']
+    presets = await _plag_presets()
+    modules = presets.get(preset) or presets['all']
     context.user_data['plag_modules'] = modules
     context.user_data['plag_preset'] = preset
-    preset_labels = {
-        'all': 'Barcha modullar', 'core': 'Asosiy', 'global': 'Global bazalar', 'milliy': 'Milliy bazalar',
-    }
-    label = preset_labels.get(preset, preset)
+    label = PLAG_PRESET_LABELS.get(preset, preset)
     await query.edit_message_text(
         f"✅ Tanlandi: *{label}* ({len(modules)} modul).\n\n"
         "Endi maqola faylini yuboring (DOC/DOCX/PDF):",
@@ -502,11 +512,9 @@ async def plag_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     client = get_client_from_context(context)
     if not client:
         return ConversationHandler.END
-    enabled_modules = context.user_data.get('plag_modules') or MODULE_PRESETS['all']
+    enabled_modules = context.user_data.get('plag_modules') or (await _plag_presets())['all']
     preset = context.user_data.get('plag_preset', 'all')
-    preset_labels = {
-        'all': 'Barcha modullar', 'core': 'Asosiy', 'global': 'Global bazalar', 'milliy': 'Milliy bazalar',
-    }
+    preset_labels = PLAG_PRESET_LABELS
     try:
         file_bytes, filename = await _download_doc(update, context)
         user = context.user_data.get('user') or {}

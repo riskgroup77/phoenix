@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/ui/Skeleton';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Article, ArticleStatus, ARTICLE_STATUS_LABELS, Role, TranslationRequest, TranslationStatus, User } from '../types';
@@ -155,7 +157,7 @@ const getStatusDisplayData = (status: ArticleStatus | TranslationStatus): { text
     const map: Record<ArticleStatus | TranslationStatus, { text: string; color: string }> = {
         [ArticleStatus.Draft]: { text: 'Qoralama', color: 'bg-gray-500/20 text-slate-600' },
         [ArticleStatus.Yangi]: { text: 'Yangi', color: 'bg-blue-500/20 text-blue-900' },
-        [ArticleStatus.WithEditor]: { text: 'Redaktorda', color: 'bg-indigo-500/20 text-indigo-300' },
+        [ArticleStatus.WithEditor]: { text: 'Redaktorda', color: 'bg-[#e5ecff] text-[#233f8c] dark:bg-[rgba(138,166,240,0.16)] dark:text-[#b9cbf7]' },
         [ArticleStatus.QabulQilingan]: { text: 'Qabul Qilingan', color: 'bg-yellow-500/20 text-yellow-900' },
         [ArticleStatus.Revision]: { text: 'Tahrirga qaytarilgan', color: 'bg-orange-500/20 text-orange-900' },
         [ArticleStatus.Accepted]: { text: 'Ma\'qullangan', color: 'bg-teal-500/20 text-teal-900' },
@@ -377,7 +379,7 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                                         step.done
                                             ? 'bg-emerald-500/20 text-emerald-900'
                                             : step.current
-                                              ? 'bg-blue-500/25 text-blue-200 ring-1 ring-blue-400/50'
+                                              ? 'bg-[rgba(31,63,143,0.12)] text-[var(--editorial-primary)] font-semibold ring-1 ring-[rgba(31,63,143,0.35)]'
                                               : 'bg-slate-100/70 text-slate-500'
                                     }`}
                                 >
@@ -822,11 +824,7 @@ const Articles: React.FC = () => {
     if (!user) return null;
     
     if (loading) {
-        return (
-            <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            </div>
-        );
+        return <ListSkeleton rows={6} />;
     }
     
     if (error) {
@@ -903,11 +901,27 @@ const Articles: React.FC = () => {
         if (filteredArticles.length === 0) {
             return (
                 <div className="space-y-4">
-                    <div className="editorial-empty py-8">
-                        {searchQuery
-                            ? `"${searchQuery}" bo'yicha hech narsa topilmadi.`
-                            : "Ushbu bo'limda hozircha maqolalar mavjud emas."}
-                    </div>
+                    {searchQuery ? (
+                        <EmptyState
+                            compact
+                            illustration="search"
+                            title={`"${searchQuery}" bo'yicha hech narsa topilmadi`}
+                            description="Boshqa so'z bilan qidirib ko'ring yoki filtrni tozalang."
+                        />
+                    ) : userRole === Role.Author || userRole === 'author' ? (
+                        <EmptyState
+                            illustration="documents"
+                            title="Bu bo'limda hozircha maqola yo'q"
+                            description="Maqola yuborganingizdan so'ng uning har bir bosqichini shu yerda kuzatasiz."
+                            action={{ label: 'Maqola yuborish', to: '/submit' }}
+                        />
+                    ) : (
+                        <EmptyState
+                            illustration="inbox"
+                            title="Bu bo'limda hozircha maqola yo'q"
+                            description="Yangi maqolalar kelganda shu yerda ko'rinadi."
+                        />
+                    )}
                 </div>
             );
         }
@@ -1072,7 +1086,9 @@ const Articles: React.FC = () => {
                 const publishedArticles = articles.filter(a => a.status === ArticleStatus.Published);
                 
                 const nashrHisobotData: NashrHisobotData = {
-                    documentNumber: `HSB-${Date.now().toString(36).toUpperCase()}`,
+                    documentNumber: user.id
+                        ? `HSB-${String(user.id).replace(/-/g, '').slice(0, 8).toUpperCase()}`
+                        : `HSB-${Date.now().toString(36).toUpperCase()}`,
                     documentDate: new Date().toLocaleDateString('uz-UZ'),
                     authorFullName: `${user.lastName || ''} ${user.firstName || ''}`.trim() || user.email,
                     authorWorkplace: user.affiliation || "Ko'rsatilmagan",

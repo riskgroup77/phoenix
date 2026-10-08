@@ -1,32 +1,38 @@
-import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import BottomNavBar from './BottomNavBar';
 import AppFooter from './AppFooter';
 import ScrollingBanner from './ScrollingBanner';
 import ArticleChatDock, { MainRightInsetContext } from './ArticleChatDock';
+import CommandPalette from './CommandPalette';
 import { X } from 'lucide-react';
 
+/**
+ * "Milliy zamonaviy" layout: tepada lojuvard panel (asosiy menyu), kontent markazda (1200px).
+ * Kichik ekranlarda to'liq menyu chap tomondan ochiladi (Sidebar) + pastki menyu.
+ */
 const Layout: React.FC = () => {
   const [mainRightInset, setMainRightInset] = useState(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname, location.search]);
 
   return (
     <MainRightInsetContext.Provider value={setMainRightInset}>
-      <div className="pinm-app-shell editorial-shell flex h-screen min-h-0">
+      <div className="pinm-app-shell editorial-shell flex flex-col h-screen min-h-0">
         <ScrollingBanner />
-
-        {/* Desktop: sidebar yuqoridan pastgacha — rasmdagi kabi */}
-        <div className="hidden lg:flex shrink-0 h-full min-h-0">
-          <Sidebar />
-        </div>
+        <Header onMenuClick={() => setMobileNavOpen(true)} />
 
         {mobileNavOpen && (
-          <div className="lg:hidden fixed inset-0 z-50 flex">
+          <div className="lg:hidden fixed inset-0 z-[80] flex" role="dialog" aria-modal="true" aria-label="Menyu">
             <button
               type="button"
-              className="absolute inset-0 bg-black/30"
+              className="absolute inset-0 bg-black/40"
               aria-label="Menyuni yopish"
               onClick={() => setMobileNavOpen(false)}
             />
@@ -35,7 +41,7 @@ const Layout: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setMobileNavOpen(false)}
-                className="absolute top-3 right-3 p-2 rounded-md bg-white text-[var(--editorial-muted)] border border-[var(--editorial-border)]"
+                className="absolute top-3 right-3 w-11 h-11 flex items-center justify-center rounded-[10px] bg-[var(--milliy-surface)] text-[var(--editorial-muted)] border border-[var(--editorial-border)]"
                 aria-label="Yopish"
               >
                 <X className="w-5 h-5" />
@@ -44,10 +50,9 @@ const Layout: React.FC = () => {
           </div>
         )}
 
-        <div className="flex flex-col flex-1 min-w-0 min-h-0">
-          <Header onMenuClick={() => setMobileNavOpen(true)} />
+        <div className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto flex flex-col">
           <main
-            className="pinm-main phoenix-main editorial-main flex-1 overflow-x-hidden overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-8 pb-28 lg:pb-8 transition-[padding] duration-200"
+            className="pinm-main phoenix-main editorial-main flex-1 w-full max-w-[1264px] mx-auto px-4 py-6 sm:px-8 sm:py-8 pb-28 lg:pb-10 transition-[padding] duration-200"
             style={mainRightInset > 0 ? { paddingRight: mainRightInset } : undefined}
           >
             <Outlet />
@@ -56,6 +61,7 @@ const Layout: React.FC = () => {
         </div>
 
         <ArticleChatDock />
+        <CommandPalette />
 
         <div className="lg:hidden">
           <BottomNavBar />

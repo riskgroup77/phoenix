@@ -1,0 +1,30 @@
+# Phoenix Celery worker — antiplagiat tekshiruvlari fon rejimida.
+# Worker bo'lmasa ham tizim ishlaydi (thread fallback), lekin gunicorn qayta ishga tushganda
+# thread'dagi tekshiruv uziladi — productionda worker tavsiya etiladi.
+#
+# O'rnatish:
+#   sudo cp phoenix-celery.service.example /etc/systemd/system/phoenix-celery.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now phoenix-celery
+# User/Group va yo'llarni phoenix-backend.service bilan bir xil qiling.
+
+[Unit]
+Description=Phoenix Scientific Platform Celery worker
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=deploy
+Group=deploy
+WorkingDirectory=/phonix/backend
+Environment=PATH=/phonix/backend/venv/bin
+Environment=DJANGO_SETTINGS_MODULE=config.settings
+Environment=PYTHONUNBUFFERED=1
+# --concurrency=2: antiplagiat CPU/xotira talab qiladi (embedding modeli); serverga qarab o'zgartiring
+ExecStart=/phonix/backend/venv/bin/celery -A config worker -l info --concurrency=2 --max-tasks-per-child=50
+Restart=always
+RestartSec=5
+KillMode=mixed
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

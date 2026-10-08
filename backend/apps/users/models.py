@@ -54,6 +54,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     affiliation = models.CharField(_('affiliation'), max_length=255)
     avatar_url = models.ImageField(_('avatar'), upload_to='avatars/', blank=True, null=True)
     telegram_username = models.CharField(_('telegram username'), max_length=100, blank=True)
+    # Bildirishnomalarni Telegram botga ham yuborish (bot orqali kirilgan bo'lsa)
+    telegram_notifications = models.BooleanField(_('telegram notifications'), default=True)
     
     # Gamification
     gamification_level = models.CharField(_('level'), max_length=50, default='Beginner')
@@ -70,7 +72,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(_('active'), default=True)
     is_staff = models.BooleanField(_('staff status'), default=False)
     date_joined = models.DateTimeField(_('date joined'), auto_now_add=True)
-    last_login = models.DateTimeField(_('last login'), auto_now=True)
+    # auto_now=True bo'lmasin: aks holda har qanday saqlashda "oxirgi kirish" yangilanardi.
+    # Haqiqiy kirish vaqtini SIMPLE_JWT UPDATE_LAST_LOGIN yozadi.
+    last_login = models.DateTimeField(_('last login'), blank=True, null=True)
     
     objects = UserManager()
     

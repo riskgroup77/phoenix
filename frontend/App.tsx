@@ -4,6 +4,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { LanguageProvider } from './i18n/LanguageContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Role } from './types';
 import Layout from './components/Layout';
@@ -39,6 +40,7 @@ import Prices from './pages/Prices';
 import PublicArticleShare from './pages/PublicArticleShare';
 import PublicCollectionShare from './pages/PublicCollectionShare';
 import UdkVerify from './pages/UdkVerify';
+import VerifyDocument from './pages/VerifyDocument';
 import AuthorPublications from './pages/AuthorPublicationsNew';
 import AuthorPublicationDetail from './pages/AuthorPublicationDetail';
 import MaqolaNamunaOlish from './pages/MaqolaNamunaOlish';
@@ -49,6 +51,11 @@ import BrowseByCategory from './pages/BrowseByCategory';
 import ArxivHujjatlar from './pages/ArxivHujjatlar';
 import AllRequests from './pages/AllRequests';
 import OperatorDashboard from './pages/OperatorDashboard';
+import Landing from './pages/Landing';
+import NotFound from './pages/NotFound';
+import Payments from './pages/Payments';
+import Analytics from './pages/Analytics';
+import { PageSkeleton } from './components/ui/Skeleton';
 import { showPaymentTestTools } from './config/env';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -56,10 +63,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-slate-50/90 flex items-center justify-center">
-                <div className="text-center">
-                    <div className="inline-block w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
-                    <p className="text-slate-500">Yuklanmoqda...</p>
+            <div className="min-h-screen bg-[var(--editorial-bg)] px-4 py-10">
+                <div className="max-w-[1264px] mx-auto">
+                    <PageSkeleton />
                 </div>
             </div>
         );
@@ -72,26 +78,46 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return <>{children}</>;
 };
 
-const AppContent: React.FC = () => {
-    const { user } = useAuth();
+/** "/" — kirgan foydalanuvchi o'z paneliga, mehmon esa ochiq bosh sahifaga (jurnallar, narxlar). */
+const HomeRoute: React.FC = () => {
+    const { user, loading } = useAuth();
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-[var(--editorial-bg)] px-4 py-10">
+                <div className="max-w-[1264px] mx-auto">
+                    <PageSkeleton />
+                </div>
+            </div>
+        );
+    }
+    if (user) {
+        return <Navigate to={user.role === Role.Operator ? '/operator-dashboard' : '/dashboard'} replace />;
+    }
+    return <Landing />;
+};
 
+const AppContent: React.FC = () => {
     return (
         <Routes>
+            <Route index element={<HomeRoute />} />
+            <Route path="/katalog" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/payment/click" element={<ClickPayment />} />
             <Route path="/udk-verify" element={<UdkVerify />} />
+            <Route path="/verify/:code" element={<VerifyDocument />} />
             <Route path="/public/article/:id" element={<PublicArticleShare />} />
             <Route path="/public/collection/:id" element={<PublicCollectionShare />} />
             
-            <Route path="/" element={
+            <Route element={
                 <ProtectedRoute>
                     <Layout />
                 </ProtectedRoute>
             }>
-                <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
+                <Route path="payments" element={<Payments />} />
+                <Route path="analytics" element={<RoleRoute allowedRoles={[Role.SuperAdmin, Role.Accountant, Role.JournalAdmin]}><Analytics /></RoleRoute>} />
                 <Route path="operator-dashboard" element={<RoleRoute allowedRoles={[Role.Operator]}><OperatorDashboard /></RoleRoute>} />
                 <Route path="articles" element={<Articles />} />
                 <Route path="articles/:id" element={<ArticleDetail />} />
@@ -129,9 +155,7 @@ const AppContent: React.FC = () => {
                 <Route path="author-publications/:id" element={<AuthorPublicationDetail />} />
             </Route>
 
-            <Route path="*" element={
-                <Navigate to={user ? "/dashboard" : "/login"} replace />
-            } />
+            <Route path="*" element={<NotFound />} />
         </Routes>
     );
 };
@@ -159,10 +183,12 @@ const App: React.FC = () => {
         <HashRouter>
             <ErrorBoundary>
             <ThemeProvider>
+            <LanguageProvider>
             <AuthProvider>
                 <AppContent />
                 <ThemedToasts />
             </AuthProvider>
+            </LanguageProvider>
             </ThemeProvider>
             </ErrorBoundary>
         </HashRouter>

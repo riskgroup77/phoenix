@@ -34,6 +34,16 @@ class Command(BaseCommand):
             action='store_true',
             help='external_key bo\'yicha mavjud yozuvlarni yangilash',
         )
+        parser.add_argument(
+            '--reindex-opensearch',
+            action='store_true',
+            help='Importdan keyin OpenSearch indeksini yangilash',
+        )
+        parser.add_argument(
+            '--with-embeddings',
+            action='store_true',
+            help='OpenSearch indeksiga E5 vektor qo\'shish (sekin)',
+        )
 
     def handle(self, *args, **options):
         path = Path(options['json_path'])
@@ -84,6 +94,17 @@ class Command(BaseCommand):
         from apps.articles.antiplagiat_corpus import invalidate_corpus_cache
 
         invalidate_corpus_cache()
+
+        if options['reindex_opensearch']:
+            from apps.articles.antiplagiat_index_builder import build_fragment_documents
+            from apps.articles.antiplagiat_opensearch import bulk_index_fragments, opensearch_enabled
+
+            if opensearch_enabled():
+                docs = build_fragment_documents()
+                n = bulk_index_fragments(docs, with_embeddings=options['with_embeddings'])
+                self.stdout.write(self.style.SUCCESS(f'OpenSearch: {n} fragment indekslandi.'))
+            else:
+                self.stdout.write(self.style.WARNING('OpenSearch o\'chirilgan — indeks o\'tkazib yuborildi.'))
 
         self.stdout.write(
             self.style.SUCCESS(

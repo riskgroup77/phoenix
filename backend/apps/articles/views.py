@@ -1,6 +1,7 @@
 from django.db.models import Max, Q
 from rest_framework import viewsets, status
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import (
@@ -98,7 +99,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.exception("Article list failed: %s", e)
             return Response(
-                {'detail': str(e)},
+                {'detail': str(e) if settings.DEBUG else "Maqolalar ro'yxatini yuklashda server xatoligi."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -133,7 +134,10 @@ class ArticleViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         except Exception as e:
             logger.exception('Article staff list failed: %s', e)
-            return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {'detail': str(e) if settings.DEBUG else "Maqolalar ro'yxatini yuklashda server xatoligi."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
     
     def _user_role(self):
         role = getattr(self.request.user, 'role', None) or 'author'
@@ -316,6 +320,36 @@ class ArticleViewSet(viewsets.ModelViewSet):
             )
             return Response({'detail': detail}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    def _is_super_admin(self):
+        return self._user_role() == 'super_admin' or getattr(self.request.user, 'is_superuser', False)
+
+    def update(self, request, *args, **kwargs):
+        """
+        Umumiy tahrirlash faqat muallif (o'z maqolasi) yoki bosh admin uchun.
+        Operator / buxgalter / taqrizchi maqolani ko'ra oladi, lekin o'zgartira olmaydi.
+        Holat va natijalar serializer'da read-only — ular alohida amallar orqali o'zgaradi.
+        """
+        article = self.get_object()
+        if not self._is_super_admin() and article.author_id != request.user.id:
+            return Response({'detail': 'Maqolani tahrirlash huquqingiz yo\'q.'}, status=status.HTTP_403_FORBIDDEN)
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """O'chirish: bosh admin yoki muallif — faqat to'lanmagan qoralamasini."""
+        article = self.get_object()
+        if not self._is_super_admin():
+            if article.author_id != request.user.id or article.status != 'Draft':
+                return Response(
+                    {'detail': 'Faqat o\'z qoralamangizni o\'chirishingiz mumkin.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            if Transaction.objects.filter(article=article, status='completed').exists():
+                return Response(
+                    {'detail': 'To\'lovi amalga oshirilgan maqolani o\'chirib bo\'lmaydi.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        return super().destroy(request, *args, **kwargs)
+
     # Maqola yaratilishi bilan avtomatik antiplagiat tekshiruvi O'CHIRILGAN:
     # bepul Gemini chaqiruqlariga yo'l qo'ymaslik va mustaqil (to'langan) tekshiruv bilan farqni saqlash.
     # Tekshiruv faqat check_plagiarism action yoki boshqa rasmiy jarayon orqali amalga oshiriladi.
@@ -338,9 +372,8 @@ class ArticleViewSet(viewsets.ModelViewSet):
     def update_status(self, request, pk=None):
         """Update article status. Author: own; super_admin: any; journal_admin: only own journal."""
         article = self.get_object()
-        if article.author == request.user:
-            pass
-        elif request.user.role == 'super_admin':
+        new_status = request.data.get('status')
+        if self._is_super_admin():
             pass
         elif request.user.role == 'journal_admin':
             if article.journal.journal_admin_id != request.user.id:
@@ -348,13 +381,20 @@ class ArticleViewSet(viewsets.ModelViewSet):
                     {'error': 'Siz faqat o\'z jurnalingizdagi maqolalarni yangilashingiz mumkin'},
                     status=status.HTTP_403_FORBIDDEN
                 )
+        elif article.author_id == request.user.id:
+            # Muallif faqat tahrirga qaytarilgan maqolasini qayta yuborishi mumkin.
+            # (Aks holda o'z maqolasini to'lovsiz "Qabul qilingan"/"Nashr etilgan" qila olardi.)
+            if not (article.status == 'Revision' and new_status == 'Yangi'):
+                return Response(
+                    {'error': 'Muallif maqola holatini o\'zgartira olmaydi (faqat tahrirdan keyin qayta yuborish mumkin).'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
         else:
             return Response(
-                {'error': 'Siz bu maqolani yangilash huquqiga egasiz'},
+                {'error': 'Siz bu maqolani yangilash huquqiga ega emassiz'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        new_status = request.data.get('status')
         
         if not new_status:
             return Response({'error': 'Status kiritilishi shart'}, status=status.HTTP_400_BAD_REQUEST)
@@ -376,6 +416,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
             if decision == 'reject':
                 final_status = 'Rejected'
                 article.status = final_status
+                article._status_note = reason or "Plagiat / AI / originalilik bo'yicha jurnal talablariga mos kelmadi."
                 article.save()
                 ActivityLog.objects.create(
                     article=article,
@@ -403,6 +444,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
             if decision == 'review':
                 final_status = 'PlagiarismReview'
                 article.status = final_status
+                article._status_note = reason or ''
                 article.save()
                 ActivityLog.objects.create(
                     article=article,
@@ -447,10 +489,11 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 })
             # decision == 'accept': final_status stays NashrgaYuborilgan
 
-        article.status = final_status
-        article.save()
-        
         reason_text = request.data.get('reason', '') or ''
+        article.status = final_status
+        article._status_note = reason_text
+        article.save()
+
         ActivityLog.objects.create(
             article=article,
             user=request.user,
@@ -495,6 +538,55 @@ class ArticleViewSet(viewsets.ModelViewSet):
             logger.warning(f"Failed to send status notification: {e}")
         
         return Response({'status': 'success', 'new_status': final_status})
+
+    @action(detail=True, methods=['get', 'post'], url_path='crossref')
+    def crossref(self, request, pk=None):
+        """
+        Crossref DOI: GET — depozit XML (yuklab olish), POST — Crossref'ga yuborish.
+        Faqat nashr etilgan maqola; bosh admin yoki shu jurnal admini.
+        """
+        from django.http import HttpResponse
+        from .crossref import CrossrefError, build_deposit_xml, crossref_configured, deposit, normalized_doi, suggested_doi
+
+        article = self.get_object()
+        role = self._user_role()
+        allowed = role == 'super_admin' or request.user.is_superuser or (
+            role == 'journal_admin' and article.journal and article.journal.journal_admin_id == request.user.id
+        )
+        if not allowed:
+            return Response({'detail': "Ruxsat yo'q."}, status=status.HTTP_403_FORBIDDEN)
+        if article.status != 'Published':
+            return Response({'detail': 'Crossref faqat nashr etilgan maqola uchun.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if request.method == 'GET':
+            if request.query_params.get('info'):
+                return Response({
+                    'configured': crossref_configured(),
+                    'doi': normalized_doi(article),
+                    'suggested_doi': suggested_doi(article),
+                })
+            try:
+                xml = build_deposit_xml(article)
+            except CrossrefError as exc:
+                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            response = HttpResponse(xml, content_type='application/xml; charset=utf-8')
+            response['Content-Disposition'] = f'attachment; filename="crossref-{str(article.pk)[:8]}.xml"'
+            return response
+
+        try:
+            result = deposit(article)
+        except CrossrefError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        if not normalized_doi(article) and result.get('doi'):
+            article.doi = result['doi'][:100]
+            article.save(update_fields=['doi'])
+        ActivityLog.objects.create(
+            article=article,
+            user=request.user,
+            action='Crossref DOI depozit yuborildi',
+            details=f"DOI: {result.get('doi', '')}",
+        )
+        return Response({'status': 'success', 'doi': result.get('doi'), 'message': "Crossref'ga yuborildi. Ro'yxatga olish odatda bir necha daqiqa davom etadi."})
 
     @action(detail=True, methods=['post'])
     def complete_publication(self, request, pk=None):
@@ -815,8 +907,8 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 {
                     'status': 'processing',
                     'message': (
-                        'Chuqur antiplagiat tekshiruvi boshlandi. '
-                        'Barcha modullar bo\'yicha skanerlash 10–15 daqiqa davom etishi mumkin.'
+                        'Antiplagiat tekshiruvi boshlandi. '
+                        'Hujjat hajmiga qarab bir necha daqiqa davom etishi mumkin.'
                     ),
                     **get_plagiarism_check_status(article),
                 },
@@ -829,7 +921,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.error(f"[CHECK_PLAGE] Error checking plagiarism: {str(e)}", exc_info=True)
             return Response(
-                {'error': 'Plagiat tekshiruvida xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.', 'details': str(e)},
+                {'error': 'Plagiat tekshiruvida xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -1143,3 +1235,167 @@ class ArticleSampleRequestViewSet(viewsets.ReadOnlyModelViewSet):
         if role in ('reviewer', 'super_admin'):
             return ArticleSampleRequest.objects.select_related('user').order_by('-created_at')
         return ArticleSampleRequest.objects.filter(user=self.request.user).order_by('-created_at')
+
+# ---------- Hujjatni QR orqali tekshirish (ochiq) ----------
+class _VerifyThrottle(AnonRateThrottle):
+    rate = '30/minute'
+
+
+def _uuid_prefix_filter(manager, prefix: str):
+    """UUID boshlang'ich 8 belgisi bo'yicha qidiruv (PostgreSQL va SQLite da bir xil ishlaydi)."""
+    from django.db.models import CharField
+    from django.db.models.functions import Cast, Lower
+
+    return manager.annotate(_id_text=Lower(Cast('id', output_field=CharField()))).filter(
+        _id_text__startswith=prefix.lower()
+    )
+
+
+def _verify_antiplagiat(code: str):
+    article = (
+        Article.objects.filter(plagiarism_report__certificate_number=code, plagiarism_checked_at__isnull=False)
+        .order_by('-plagiarism_checked_at')
+        .first()
+    )
+    if not article:
+        return None
+    report = article.plagiarism_report if isinstance(article.plagiarism_report, dict) else {}
+    author = ' '.join(
+        x for x in (str(report.get('author_last_name') or '').strip(), str(report.get('author_first_name') or '').strip()) if x
+    ) or (article.author.get_full_name() if article.author_id else '')
+    return {
+        'type': 'antiplagiat',
+        'type_label': 'Antiplagiat sertifikati',
+        'document_number': code,
+        'title': str(report.get('document_name') or article.title or ''),
+        'author': author,
+        'date': timezone.localtime(article.plagiarism_checked_at).strftime('%d.%m.%Y'),
+        'details': {
+            'plagiarism_percent': round(float(article.plagiarism_percentage or 0), 2),
+            'originality_percent': round(float(article.originality_percentage or 0), 2),
+            'citation_percent': report.get('citation_percent'),
+            'self_citation_percent': report.get('self_citation_percent'),
+            'algorithm_version': report.get('algorithm_version'),
+        },
+    }
+
+
+def _verify_acceptance(prefix: str):
+    qs = _uuid_prefix_filter(Article.objects, prefix).filter(
+        status__in=('Accepted', 'NashrgaYuborilgan', 'Published'),
+    ).select_related('author', 'journal')
+    if qs.count() != 1:
+        return None
+    article = qs.first()
+    return {
+        'type': 'acceptance',
+        'type_label': "Maqola qabul qilinganligi haqida ma'lumotnoma",
+        'document_number': f'QBL-{prefix.upper()}',
+        'title': article.title,
+        'author': (article.submitted_author_name or '').strip() or article.author.get_full_name(),
+        'date': timezone.localtime(article.submission_date).strftime('%d.%m.%Y') if article.submission_date else '',
+        'details': {
+            'journal': getattr(article.journal, 'name', '') or '',
+            'status': dict(Article.STATUS_CHOICES).get(article.status, article.status),
+        },
+    }
+
+
+def _verify_receipt(prefix: str):
+    """To'lov cheki: CHK-xxxxxxxx. Ochiq sahifada to'lovchining faqat ism-familiyasi qisqartirib ko'rsatiladi."""
+    from apps.payments.labels import receipt_number, service_label
+    from apps.payments.models import Transaction
+
+    qs = _uuid_prefix_filter(Transaction.objects, prefix).filter(status='completed').select_related('user')
+    if qs.count() != 1:
+        return None
+    tx = qs.first()
+    user = tx.user
+    payer = ''
+    if user:
+        first = (user.first_name or '').strip()
+        payer = f"{first[:1]}. {(user.last_name or '').strip()}".strip('. ').strip() if first else (user.last_name or '')
+    return {
+        'type': 'receipt',
+        'type_label': "To'lov cheki",
+        'document_number': receipt_number(tx),
+        'title': service_label(tx.service_type),
+        'author': payer,
+        'date': timezone.localtime(tx.completed_at or tx.created_at).strftime('%d.%m.%Y'),
+        'details': {
+            'amount': f"{int(tx.amount or 0):,} so'm".replace(',', ' '),
+            'status': "To'langan",
+        },
+    }
+
+
+def _verify_udk(num: int):
+    from apps.udc.models import UDKCertificate
+
+    cert = UDKCertificate.objects.filter(pk=num).select_related('user').first()
+    if not cert:
+        return None
+    return {
+        'type': 'udk',
+        'type_label': "UDK ma'lumotnoma",
+        'document_number': f'UDK-{num:06d}',
+        'title': cert.title,
+        'author': cert.author_name or (cert.user.get_full_name() if cert.user_id else ''),
+        'date': timezone.localtime(cert.created_at).strftime('%d.%m.%Y') if cert.created_at else '',
+        'details': {'udk_code': cert.udk_code, 'udk_description': cert.udk_description or ''},
+    }
+
+
+def _verify_publications_report(prefix: str):
+    qs = _uuid_prefix_filter(User.objects, prefix)
+    if qs.count() != 1:
+        return None
+    user = qs.first()
+    published = Article.objects.filter(author=user, status='Published').count()
+    return {
+        'type': 'publications_report',
+        'type_label': 'Nashrlar hisoboti',
+        'document_number': f'HSB-{prefix.upper()}',
+        'title': 'Muallif nashrlari hisoboti',
+        'author': user.get_full_name(),
+        'date': '',
+        'details': {'published_articles': published},
+    }
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@throttle_classes([_VerifyThrottle])
+def verify_document(request, code):
+    """
+    Sertifikatdagi QR kod orqali hujjat haqiqiyligini tekshirish (login talab qilinmaydi).
+    Kodlar: <raqam> (antiplagiat), QBL-xxxxxxxx (qabul), UDK-000123, HSB-xxxxxxxx (nashrlar hisoboti).
+    """
+    import re as _re
+
+    raw = (code or '').strip()
+    up = raw.upper()
+    result = None
+    if _re.fullmatch(r'\d{6,14}', raw):
+        result = _verify_antiplagiat(raw)
+    elif _re.fullmatch(r'QBL-[0-9A-F]{8}', up):
+        result = _verify_acceptance(up[4:].lower())
+    elif _re.fullmatch(r'UDK-\d{1,9}', up):
+        result = _verify_udk(int(up[4:]))
+    elif _re.fullmatch(r'HSB-[0-9A-F]{8}', up):
+        result = _verify_publications_report(up[4:].lower())
+    elif _re.fullmatch(r'CHK-[0-9A-F]{8}', up):
+        result = _verify_receipt(up[4:].lower())
+    if not result:
+        return Response({'valid': False, 'detail': 'Hujjat topilmadi yoki kod noto\'g\'ri.'}, status=status.HTTP_404_NOT_FOUND)
+    return Response({'valid': True, **result})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def antiplagiat_modules(request):
+    """Joriy sozlamalarda haqiqatan tekshiriladigan antiplagiat modullari (UI tanlovi uchun)."""
+    from .antiplagiat_available import available_modules
+
+    mods = available_modules()
+    return Response({'modules': mods, 'count': len(mods)})

@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.http import HttpResponse
 from django.db.models import Q, Count, Avg
 from django.core.cache import cache
+from django.core.exceptions import ValidationError as DjangoValidationError
 from .models import PeerReview
 from .serializers import PeerReviewSerializer
 from apps.notifications.models import Notification
@@ -20,57 +21,78 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
     serializer_class = PeerReviewSerializer
     permission_classes = [IsAuthenticated]
     
-    def get_queryset(self):
-        """Optimized queryset with caching"""
-        user = self.request.user
-        role = getattr(user, 'role', '') or ''
-        if isinstance(role, str):
-            role = role.strip().lower()
-        
-        # Cache to avoid repeated queries
-        cache_key = f'reviewer_queryset_{user.id}_{role}'
-        queryset = cache.get(cache_key)
-        
-        if queryset is None:
-            qs = PeerReview.objects.select_related('article', 'reviewer').order_by('-created_at')
-            
-            if role == 'reviewer':
-                queryset = qs.filter(reviewer=user)
-            elif role in ['super_admin', 'journal_admin']:
-                queryset = qs.all()
-            else:
-                queryset = qs.filter(article__author=user)
-            
-            # Cache for 5 minutes
-            cache.set(cache_key, queryset, 300)
-        
-        return queryset
+    def _role(self):
+        role = getattr(self.request.user, 'role', '') or ''
+        return role.strip().lower() if isinstance(role, str) else role
 
-    def perform_create(self, serializer):
-        """Create with duplicate prevention"""
-        r = getattr(self.request.user, 'role', '') or ''
-        if isinstance(r, str):
-            r = r.strip().lower()
-        
-        reviewer = serializer.validated_data.get('reviewer')
-        article = serializer.validated_data.get('article')
-        
-        # PREVENT DUPLICATE - Check before creating
-        if reviewer and article:
-            existing = PeerReview.objects.filter(
-                reviewer=reviewer,
-                article=article
-            ).first()
-            
-            if existing:
-                logger.warning(f"⚠️ Duplicate assignment prevented: {reviewer} -> {article}")
-                return Response({
-                    'error': 'Bu mutaxassis allaqachon ushbu maqolaga tayinlangan',
-                    'existing_review_id': str(existing.id)
-                }, status=status.HTTP_400_BAD_REQUEST)
-        
-        review = serializer.save(reviewer=self.request.user if r == 'reviewer' else reviewer)
-        
+    def _can_manage_article(self, article) -> bool:
+        """Taqrizchi tayinlash/tahrirlash: bosh admin yoki shu jurnalning admini."""
+        role = self._role()
+        if role == 'super_admin' or self.request.user.is_superuser:
+            return True
+        return role == 'journal_admin' and getattr(article.journal, 'journal_admin_id', None) == self.request.user.id
+
+    def get_queryset(self):
+        # Eslatma: avval QuerySet Redis'da keshlanardi va mavjud bo'lmagan `created_at` bo'yicha
+        # tartiblanardi — butun API 500 qaytarardi. Kesh olib tashlandi (yangi tayinlovlar darhol ko'rinadi).
+        user = self.request.user
+        role = self._role()
+        qs = PeerReview.objects.select_related('article', 'article__journal', 'reviewer').order_by('-assigned_at')
+        if role == 'super_admin' or user.is_superuser:
+            return qs
+        if role == 'journal_admin':
+            return qs.filter(article__journal__journal_admin=user)
+        if role == 'reviewer':
+            return qs.filter(reviewer=user)
+        return qs.filter(article__author=user)
+
+    def create(self, request, *args, **kwargs):
+        """Taqrizchini faqat bosh admin yoki jurnal admini tayinlaydi."""
+        from apps.articles.models import Article
+
+        article_id = request.data.get('article')
+        reviewer_id = request.data.get('reviewer')
+        try:
+            article = Article.objects.select_related('journal').get(pk=article_id)
+            reviewer = User.objects.get(pk=reviewer_id, role='reviewer', is_active=True)
+        except (Article.DoesNotExist, User.DoesNotExist, ValueError, TypeError, DjangoValidationError):
+            return Response({'error': 'Maqola yoki taqrizchi topilmadi.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not self._can_manage_article(article):
+            return Response({'error': 'Taqrizchi tayinlash huquqingiz yo\'q.'}, status=status.HTTP_403_FORBIDDEN)
+        existing = PeerReview.objects.filter(reviewer=reviewer, article=article).first()
+        if existing:
+            return Response({
+                'error': 'Bu mutaxassis allaqachon ushbu maqolaga tayinlangan',
+                'existing_review_id': str(existing.id),
+            }, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer, reviewer=reviewer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        review = self.get_object()
+        if not self._can_manage_article(review.article):
+            # Taqrizchi natijani submit_review orqali yuboradi; muallif taqrizni o'zgartira olmaydi
+            return Response({'error': 'Taqrizni tahrirlash huquqingiz yo\'q.'}, status=status.HTTP_403_FORBIDDEN)
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        review = self.get_object()
+        if not self._can_manage_article(review.article):
+            return Response({'error': 'Taqrizni o\'chirish huquqingiz yo\'q.'}, status=status.HTTP_403_FORBIDDEN)
+        return super().destroy(request, *args, **kwargs)
+
+    def perform_create(self, serializer, reviewer=None):
+        review = serializer.save(reviewer=reviewer)
+        if review.deadline is None:
+            # Muddat ko'rsatilmasa — standart SLA (settings.REVIEW_SLA_DAYS['peer_review'])
+            from datetime import timedelta
+            from apps.analytics.sla import sla_days
+
+            review.deadline = review.assigned_at + timedelta(days=sla_days('peer_review'))
+            review.save(update_fields=['deadline'])
+
         # Notify reviewer if assigned by admin
         if review.reviewer != self.request.user:
             try:
@@ -84,9 +106,7 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
                 )
             except Exception as e:
                 logger.warning(f"Failed to send review assignment notification: {e}")
-        
-        # Clear cache
-        cache.delete(f'reviewer_queryset_{self.request.user.id}')
+
 
     @action(detail=True, methods=['post'])
     def accept_review(self, request, pk=None):
@@ -95,12 +115,10 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
         if review.reviewer != request.user:
             return Response({'error': 'Bu taqriz sizga tegishli emas'}, status=status.HTTP_403_FORBIDDEN)
         
+        if review.status not in ('pending', 'accepted'):
+            return Response({'error': "Bu taqrizni qabul qilib bo'lmaydi."}, status=status.HTTP_400_BAD_REQUEST)
         review.status = 'in_progress'
-        review.save(update_fields=['status', 'updated_at'])
-        
-        # Clear cache
-        cache.delete(f'reviewer_queryset_{request.user.id}')
-        
+        review.save(update_fields=['status'])
         return Response({'status': 'in_progress'})
 
     @action(detail=True, methods=['post'])
@@ -110,14 +128,12 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
         if review.reviewer != request.user:
             return Response({'error': 'Bu taqriz sizga tegishli emas'}, status=status.HTTP_403_FORBIDDEN)
         
-        reason = request.data.get('reason', '')
+        if review.status == 'completed':
+            return Response({'error': "Yakunlangan taqrizni rad etib bo'lmaydi."}, status=status.HTTP_400_BAD_REQUEST)
+        reason = str(request.data.get('reason', '') or '')[:1000]
         review.status = 'declined'
-        review.decline_reason = reason if hasattr(review, 'decline_reason') else ''
-        review.save(update_fields=['status', 'updated_at'])
-        
-        # Clear cache
-        cache.delete(f'reviewer_queryset_{request.user.id}')
-        
+        review.save(update_fields=['status'])
+
         # Notify admin/editor
         try:
             if review.article.journal and review.article.journal.journal_admin:
@@ -157,13 +173,25 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
                 'error': f'Majburiy maydonlar: {", ".join(missing)}'
             }, status=status.HTTP_400_BAD_REQUEST)
         
+        if review.status == 'declined':
+            return Response({'error': "Rad etilgan taqrizni yuborib bo'lmaydi."}, status=status.HTTP_400_BAD_REQUEST)
+        valid_recs = {c[0] for c in PeerReview.RECOMMENDATION_CHOICES}
+        if data.get('recommendation') not in valid_recs:
+            return Response({'error': "Tavsiya noto'g'ri."}, status=status.HTTP_400_BAD_REQUEST)
+
+        def _score(name):
+            try:
+                return max(0, min(10, int(data.get(name, 0) or 0)))
+            except (TypeError, ValueError):
+                return 0
+
         review.review_content = data.get('review_content', review.review_content)
-        review.recommendation = data.get('recommendation', '')
-        review.originality_score = int(data.get('originality_score', 0))
-        review.methodology_score = int(data.get('methodology_score', 0))
-        review.clarity_score = int(data.get('clarity_score', 0))
-        review.significance_score = int(data.get('significance_score', 0))
-        review.references_score = int(data.get('references_score', 0))
+        review.recommendation = data.get('recommendation')
+        review.originality_score = _score('originality_score')
+        review.methodology_score = _score('methodology_score')
+        review.clarity_score = _score('clarity_score')
+        review.significance_score = _score('significance_score')
+        review.references_score = _score('references_score')
         review.strengths = data.get('strengths', '')
         review.weaknesses = data.get('weaknesses', '')
         review.comments_to_author = data.get('comments_to_author', '')
@@ -182,10 +210,7 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
             total_reviews = reviewer.reviews_completed
             old_avg = reviewer.average_review_time * (total_reviews - 1)
             reviewer.average_review_time = (old_avg + days_taken) / total_reviews
-        reviewer.save()
-        
-        # Clear cache
-        cache.delete(f'reviewer_queryset_{reviewer.id}')
+        reviewer.save(update_fields=['reviews_completed', 'average_review_time'])
 
         # Notify article author
         try:
@@ -222,6 +247,8 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
         FAST specialist finding - 2-3x optimized
         Filter reviewers by disease/specialization with caching
         """
+        if self._role() not in ('super_admin', 'journal_admin') and not request.user.is_superuser:
+            return Response({'error': "Huquq yo'q."}, status=status.HTTP_403_FORBIDDEN)
         specializations = request.query_params.get('specializations', '').split(',')
         specializations = [s.strip() for s in specializations if s.strip()]
         
@@ -330,9 +357,11 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
         
         from apps.articles.models import Article
         try:
-            article = Article.objects.get(id=article_id)
-        except Article.DoesNotExist:
+            article = Article.objects.select_related('journal').get(id=article_id)
+        except (Article.DoesNotExist, ValueError, DjangoValidationError):
             return Response({'error': 'Maqola topilmadi'}, status=status.HTTP_404_NOT_FOUND)
+        if not self._can_manage_article(article):
+            return Response({'error': "Taqrizchi tayinlash huquqingiz yo'q."}, status=status.HTTP_403_FORBIDDEN)
         
         assigned = []
         failed = []
@@ -386,10 +415,7 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
                 failed.append({'reviewer_id': reviewer_id, 'error': 'Reviewer topilmadi'})
             except Exception as e:
                 failed.append({'reviewer_id': reviewer_id, 'error': str(e)})
-        
-        # Clear cache
-        cache.delete(f'reviewer_queryset_{request.user.id}')
-        
+
         return Response({
             'success': True,
             'assigned': assigned,
@@ -408,9 +434,12 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
             ur = ur.strip().lower()
         if review.article.author_id != request.user.id and ur not in ('super_admin', 'journal_admin'):
             return Response({'error': 'Huquq yo\'q.'}, status=status.HTTP_403_FORBIDDEN)
+        # Yopiq (blind) taqrizda taqrizchi shaxsi muallifga oshkor qilinmaydi
+        show_reviewer = review.review_type == 'open' or ur in ('super_admin', 'journal_admin')
+        reviewer_label = (review.reviewer.get_full_name() if review.reviewer else '') if show_reviewer else 'Anonim taqrizchi'
         lines = [
             f"Maqola: {review.article.title}",
-            f"Taqrizchi: {review.reviewer.get_full_name() if review.reviewer else ''}",
+            f"Taqrizchi: {reviewer_label}",
             f"Yakunlangan: {review.completed_at.strftime('%Y-%m-%d %H:%M') if review.completed_at else ''}",
             "",
             "--- Taqriz matni ---",

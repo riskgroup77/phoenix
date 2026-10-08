@@ -21,6 +21,8 @@ urlpatterns = [
         author_report_pdf.author_ma_lumotnoma_signed_url,
     ),
     path('public/<uuid:pk>/', views.public_article_detail, name='public_article_detail'),
+    path('verify/<str:code>/', views.verify_document, name='verify_document'),
+    path('antiplagiat-modules/', views.antiplagiat_modules, name='antiplagiat_modules'),
     path('article-sample/price/', views.article_sample_price),
     path('article-sample/request/', views.article_sample_request_create),
     path('article-sample/requests/', include(article_sample_router.urls)),

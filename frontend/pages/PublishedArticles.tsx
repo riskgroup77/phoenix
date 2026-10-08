@@ -327,7 +327,7 @@ const PublishedArticles: React.FC = () => {
         <Card>
 
             {managedJournals.length === 0 && !loading && (
-                <div className="mb-6 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-100 text-sm">
+                <div className="mb-6 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-100 text-sm">
                     <strong>Sizga biriktirilgan jurnal topilmadi.</strong> Agar bu xato bo‘lsa, super admin jurnal sozlamalarida sizni &quot;jurnal administratori&quot; sifatida biriktirganini tekshiring.
                 </div>
             )}

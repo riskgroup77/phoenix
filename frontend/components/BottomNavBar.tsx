@@ -4,9 +4,11 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Role } from '../types';
 import { bottomNavByRole } from '../config/navConfig';
+import { useT } from '../i18n/LanguageContext';
 
 const BottomNavBar: React.FC = () => {
   const { user } = useAuth();
+  const { t } = useT();
 
   if (!user) return null;
 
@@ -30,7 +32,7 @@ const BottomNavBar: React.FC = () => {
           >
             <link.icon className="w-6 h-6 mb-0.5 shrink-0" strokeWidth={2} />
             <span className="text-[10px] sm:text-xs font-medium leading-tight line-clamp-2">
-              {link.label}
+              {t(link.label)}
             </span>
           </NavLink>
         ))}

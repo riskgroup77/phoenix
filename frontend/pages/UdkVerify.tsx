@@ -88,7 +88,7 @@ const UdkVerify: React.FC = () => {
               {data.udk_code && (
                 <>
                   <dt className="text-slate-500">UDK raqami</dt>
-                  <dd className="text-indigo-300 font-mono font-semibold">{data.udk_code}</dd>
+                  <dd className="text-[var(--editorial-primary)] font-mono font-semibold">{data.udk_code}</dd>
                 </>
               )}
               {data.udk_description && (

@@ -9,6 +9,20 @@ from django.http import HttpResponseForbidden
 logger = logging.getLogger(__name__)
 
 
+def client_ip(request) -> str:
+    """
+    Ishonchli mijoz IP. X-Forwarded-For ning birinchi qiymatini mijoz o'zi yozishi mumkin —
+    nginx ($proxy_add_x_forwarded_for) haqiqiy IP ni OXIRIGA qo'shadi.
+    """
+    num_proxies = int(getattr(settings, 'REST_FRAMEWORK', {}).get('NUM_PROXIES') or 0)
+    xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if num_proxies > 0 and xff:
+        addrs = [a.strip() for a in xff.split(',') if a.strip()]
+        if addrs:
+            return addrs[-min(num_proxies, len(addrs))]
+    return request.META.get('REMOTE_ADDR', 'unknown')
+
+
 class AdminLoginRateLimitMiddleware:
     """
     Limit failed POST /admin/login/ per IP (default 30 failures / 15 min).
@@ -25,9 +39,7 @@ class AdminLoginRateLimitMiddleware:
         if path != '/admin/login' or request.method != 'POST' or settings.DEBUG:
             return self.get_response(request)
 
-        ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get(
-            'REMOTE_ADDR', 'unknown'
-        )
+        ip = client_ip(request)
         key = f'admin_login_fail:{ip}'
 
         n = cache.get(key, 0)

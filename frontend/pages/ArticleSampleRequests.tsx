@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import EmptyState from '../components/EmptyState';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import { useAuth } from '../contexts/AuthContext';
@@ -66,7 +67,7 @@ const ArticleSampleRequests: React.FC = () => {
             <Loader2 className="h-4 w-4 animate-spin text-[var(--editorial-primary)]" /> Yuklanmoqda…
           </p>
         ) : list.length === 0 ? (
-          <div className="editorial-empty py-8">So'rovlar yo'q.</div>
+          <EmptyState compact illustration="inbox" title="So'rovlar yo'q" description="Yangi so'rovlar kelganda shu yerda ko'rinadi." />
         ) : (
           <div className="space-y-4">
             {list.map((req) => (

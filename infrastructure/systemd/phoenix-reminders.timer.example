@@ -1,0 +1,12 @@
+# Har kuni soat 09:00 da (server vaqti) taqrizchilarga muddat eslatmalarini yuborish.
+# Buyruq bir kunda bir martadan ortiq xabar yubormaydi — qayta ishga tushirish xavfsiz.
+
+[Unit]
+Description=Phoenix — kunlik muddat eslatmalari
+
+[Timer]
+OnCalendar=*-*-* 09:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -3,6 +3,7 @@ import { Article, User, ArticleStatus } from '../types';
 import { CertificateBackground, CertificateQRBlock, CertificateBrandBlock, CERT_COLOR_DARK, CERT_COLOR_TEAL, CERT_COLOR_TEXT } from './CertificateLayout';
 import { MOCK_JOURNALS } from '../data/mockData';
 import { apiService } from '../services/apiService';
+import { formatUzDate } from '../utils/uzDate';
 
 const getStatusDisplayData = (status: ArticleStatus): { text: string; color: string } => {
     const map: Record<ArticleStatus, { text: string; color: string }> = {
@@ -35,7 +36,7 @@ interface AuthorArticleReportProps {
 /** Barcha maqolalar bo'yicha ma'lumotnoma — A4, barcha maqolalar, boy dizayn */
 const AuthorArticleReport: React.FC<AuthorArticleReportProps> = ({ articles, author }) => {
     const listArticles = articles;
-    const documentDate = new Date().toLocaleDateString('uz-UZ', { year: 'numeric', month: 'long', day: 'numeric' });
+    const documentDate = formatUzDate(new Date(), true);
     const documentNumber = `MAQ-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
     /** Skaner qilganda brauzerda to'g'ridan-to'g'ri PDF ochiladi (backend imzoli havola) */
     const [pdfOpenUrl, setPdfOpenUrl] = useState<string | null>(null);
@@ -213,7 +214,7 @@ const AuthorArticleReport: React.FC<AuthorArticleReportProps> = ({ articles, aut
                 <div className="mt-auto pt-6 flex items-end justify-between gap-8 flex-wrap">
                     <CertificateBrandBlock />
                     <CertificateQRBlock
-                        qrUrl={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(qrPayload)}&bgcolor=ffffff`}
+                        qrValue={qrPayload}
                         label="PDF faylni ochish uchun QR kodni skanerlang"
                     />
                 </div>

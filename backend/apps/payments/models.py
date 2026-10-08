@@ -1,4 +1,5 @@
 from django.db import models
+from config.uploads import RandomizedUploadPath
 from django.conf import settings
 import uuid
 
@@ -51,7 +52,7 @@ class Transaction(models.Model):
     # Failure reason from Click/Payme when status is failed/cancelled
     error_note = models.CharField(max_length=500, blank=True, default='')
     
-    receipt_path = models.FileField(upload_to='receipts/', blank=True, null=True)
+    receipt_path = models.FileField(upload_to=RandomizedUploadPath('receipts'), blank=True, null=True)
     # Optional JSON for service-specific data (e.g. udk_request: udk_code, udk_description)
     extra_data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

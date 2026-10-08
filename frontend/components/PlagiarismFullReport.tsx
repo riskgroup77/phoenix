@@ -1,9 +1,10 @@
 import React from 'react';
+import { verifyUrl } from '../utils/verifyLink';
+import AntiplagiatReportTitleCover from './AntiplagiatReportTitleCover';
+import AntiplagReportInnerPage from './AntiplagReportInnerPage';
 import {
     LaurelQRBlock,
     PhoenixLogoMark,
-    ReportCoverFrame,
-    ReportInnerFrame,
     REPORT_COLOR_DARK,
     REPORT_COLOR_NAVY,
     REPORT_COLOR_TEAL,
@@ -33,12 +34,15 @@ export interface PlagiarismFragmentDetail {
 export interface AnnotatedParagraph {
     text: string;
     sourceRefs: number[];
+    /** Gaplar va har biriga mos manba (yangi hisobotlarda) */
+    segments?: { text: string; source: number | null }[];
 }
 
 export interface PlagiarismFullReportData {
     checkerName: string;
     checkerId: string;
     checkerOrganization?: string;
+    authorPosition?: string;
     documentNumber: string;
     uploadDate: string;
     originalFileName: string;
@@ -112,7 +116,7 @@ const SourceRefBadges: React.FC<{ refs: number[] }> = ({ refs }) => {
 };
 
 export const SourcesTable: React.FC<{ sources: PlagiarismSource[]; compact?: boolean }> = ({ sources, compact }) => (
-    <table className="w-full text-[9px] border-collapse">
+    <table className={`w-full border-collapse ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
         <thead>
             <tr style={{ backgroundColor: REPORT_COLOR_TEAL, color: '#fff' }}>
                 <th className="border border-teal-700 px-1 py-1 w-10 text-center">№</th>
@@ -151,10 +155,21 @@ export const SourcesTable: React.FC<{ sources: PlagiarismSource[]; compact?: boo
                                         href={source.sourceUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-[7.5px] break-all hover:underline mt-0.5 block"
+                                        className="text-[10px] break-all hover:underline mt-0.5 block font-medium"
                                         style={{ color: REPORT_COLOR_TEAL }}
                                     >
                                         {source.sourceUrl}
+                                    </a>
+                                )}
+                                {!source.sourceUrl && source.sourceName.startsWith('http') && (
+                                    <a
+                                        href={source.sourceName}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[10px] break-all hover:underline mt-0.5 block font-medium"
+                                        style={{ color: REPORT_COLOR_TEAL }}
+                                    >
+                                        {source.sourceName}
                                     </a>
                                 )}
                             </td>
@@ -174,25 +189,25 @@ export const PlagiarismReportCoverPage: React.FC<{
     coverSources: PlagiarismSource[];
     title?: string;
 }> = ({ data, coverSources, title = 'Hujjat tekshirish natijalari' }) => (
-    <ReportCoverFrame>
-        <div className="flex justify-between items-start gap-4 mb-3 text-[10px] shrink-0">
+    <AntiplagReportInnerPage>
+        <div className="flex justify-between items-start gap-4 mb-3 text-[11px] shrink-0">
             <PhoenixLogoMark size="sm" showText={false} />
             <div className="text-right flex-1">
                 <p className="font-bold uppercase tracking-wide text-[9px]" style={{ color: REPORT_COLOR_NAVY }}>
                     Hisobot &quot;Phoenix Antiplagiat&quot; servisi tomonidan taqdim etilgan
                 </p>
-                <p className="text-[10px] mt-1" style={{ color: REPORT_COLOR_TEXT }}>
+                <p className="text-[11px] mt-1" style={{ color: REPORT_COLOR_TEXT }}>
                     Tekshiruvchi: <strong>{data.checkerName}</strong> (ID: {data.checkerId})
                 </p>
                 {data.checkerOrganization && (
-                    <p className="text-[10px] text-slate-500">Tashkilot: {data.checkerOrganization}</p>
+                    <p className="text-[11px] text-slate-500">Tashkilot: {data.checkerOrganization}</p>
                 )}
             </div>
         </div>
 
         <div className="text-center mb-3 shrink-0">
             <h1
-                className="text-lg sm:text-xl font-bold uppercase tracking-wide"
+                className="text-xl sm:text-2xl font-bold uppercase tracking-wide"
                 style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}
             >
                 {title}
@@ -255,12 +270,12 @@ export const PlagiarismReportCoverPage: React.FC<{
 
         <div className="mt-2 flex items-end justify-between gap-4 shrink-0">
             <LaurelQRBlock
-                qrUrl={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(`https://ilmiyfaoliyat.uz/verify/${data.documentNumber}`)}&bgcolor=ffffff`}
+                qrValue={verifyUrl(data.documentNumber)}
                 label="HUJJATNI TEKSHIRISH UCHUN QR KODDAN FOYDALANING"
             />
             <PhoenixLogoMark size="sm" />
         </div>
-    </ReportCoverFrame>
+    </AntiplagReportInnerPage>
 );
 
 const SourcesPage: React.FC<{
@@ -272,7 +287,7 @@ const SourcesPage: React.FC<{
     const pageSources = data.sources.slice(startIdx, endIdx);
 
     return (
-        <ReportInnerFrame pageNum={pageNum}>
+        <AntiplagReportInnerPage>
             <h2 className="text-sm font-bold uppercase tracking-wide mb-2" style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}>
                 Manbalar ro&apos;yxati
             </h2>
@@ -282,7 +297,7 @@ const SourcesPage: React.FC<{
             <div className="flex-1 overflow-hidden min-h-0">
                 <SourcesTable sources={pageSources} />
             </div>
-        </ReportInnerFrame>
+        </AntiplagReportInnerPage>
     );
 };
 
@@ -290,7 +305,7 @@ const FragmentDetailPage: React.FC<{
     fragment: PlagiarismFragmentDetail;
     pageNum: number;
 }> = ({ fragment, pageNum }) => (
-    <ReportInnerFrame pageNum={pageNum}>
+    <AntiplagReportInnerPage>
         <div className="flex items-start justify-between gap-3 mb-3">
             <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}>
                 Matnli kesishma — [{String(fragment.sourceIndex).padStart(2, '0')}]
@@ -323,7 +338,7 @@ const FragmentDetailPage: React.FC<{
                 <p className="text-[9px] leading-relaxed" style={{ color: REPORT_COLOR_TEXT }}>{fragment.sourceFragment}</p>
             </div>
         </div>
-    </ReportInnerFrame>
+    </AntiplagReportInnerPage>
 );
 
 const DocumentTextPage: React.FC<{
@@ -331,7 +346,7 @@ const DocumentTextPage: React.FC<{
     pageNum: number;
     documentName: string;
 }> = ({ paragraphs, pageNum, documentName }) => (
-    <ReportInnerFrame pageNum={pageNum}>
+    <AntiplagReportInnerPage>
         <h2 className="text-sm font-bold uppercase tracking-wide mb-1" style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}>
             Tekshirilayotgan hujjat matni
         </h2>
@@ -347,7 +362,7 @@ const DocumentTextPage: React.FC<{
                 </p>
             ))}
         </div>
-    </ReportInnerFrame>
+    </AntiplagReportInnerPage>
 );
 
 const PlagiarismFullReport: React.FC<{ data: PlagiarismFullReportData }> = ({ data }) => {
@@ -378,13 +393,16 @@ const PlagiarismFullReport: React.FC<{ data: PlagiarismFullReportData }> = ({ da
     const annotated = data.annotatedDocument || [];
     const totalDocPages = Math.ceil(annotated.length / PARAGRAPHS_PER_PAGE);
 
-    const sourcePageStart = 2;
+    const sourcePageStart = 3;
     const fragmentPageStart = sourcePageStart + totalSourcePages;
     const documentPageStart = fragmentPageStart + fragments.length;
 
     return (
         <div className="space-y-6" id="plagiarism-full-report">
             <div className="shadow-xl print:shadow-none">
+                <AntiplagiatReportTitleCover data={data} />
+            </div>
+            <div className="shadow-xl print:shadow-none page-break-before">
                 <PlagiarismReportCoverPage data={data} coverSources={coverSources} />
             </div>
 

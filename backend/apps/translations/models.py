@@ -1,4 +1,5 @@
 from django.db import models
+from config.uploads import RandomizedUploadPath
 from django.conf import settings
 import uuid
 
@@ -20,8 +21,8 @@ class TranslationRequest(models.Model):
     title = models.CharField(max_length=500)
     source_language = models.CharField(max_length=50)
     target_language = models.CharField(max_length=50)
-    source_file_path = models.FileField(upload_to='translations/source/')
-    translated_file_path = models.FileField(upload_to='translations/translated/', blank=True, null=True)
+    source_file_path = models.FileField(upload_to=RandomizedUploadPath('translations/source'))
+    translated_file_path = models.FileField(upload_to=RandomizedUploadPath('translations/translated'), blank=True, null=True)
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Yangi')
     word_count = models.IntegerField(default=0)

@@ -1,8 +1,7 @@
 import React from 'react';
-import {
-    ReportInnerFrame,
-    REPORT_COLOR_NAVY,
-} from './ReportPageLayout';
+import AntiplagReportInnerPage from './AntiplagReportInnerPage';
+import { REPORT_COLOR_NAVY } from './ReportPageLayout';
+import AntiplagiatReportTitleCover from './AntiplagiatReportTitleCover';
 import {
     type PlagiarismFullReportData,
     PlagiarismReportCoverPage,
@@ -19,7 +18,7 @@ const ShortSourcesPage: React.FC<{
     pageNum: number;
     sources: PlagiarismFullReportData['sources'];
 }> = ({ data, pageNum, sources }) => (
-    <ReportInnerFrame pageNum={pageNum}>
+    <AntiplagReportInnerPage>
         <h2
             className="text-sm font-bold uppercase tracking-wide mb-2"
             style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}
@@ -32,7 +31,7 @@ const ShortSourcesPage: React.FC<{
         <div className="flex-1 overflow-hidden min-h-0">
             <SourcesTable sources={sources} compact />
         </div>
-    </ReportInnerFrame>
+    </AntiplagReportInnerPage>
 );
 
 const PlagiarismShortReport: React.FC<{ data: PlagiarismFullReportData }> = ({ data }) => {
@@ -45,6 +44,9 @@ const PlagiarismShortReport: React.FC<{ data: PlagiarismFullReportData }> = ({ d
     return (
         <div className="space-y-6" id="plagiarism-short-report">
             <div className="shadow-xl print:shadow-none">
+                <AntiplagiatReportTitleCover data={data} />
+            </div>
+            <div className="shadow-xl print:shadow-none page-break-before">
                 <PlagiarismReportCoverPage
                     data={data}
                     coverSources={coverSources}
@@ -59,7 +61,7 @@ const PlagiarismShortReport: React.FC<{ data: PlagiarismFullReportData }> = ({ d
                 );
                 return (
                     <div key={`short-src-${pageIndex}`} className="shadow-xl print:shadow-none page-break-before">
-                        <ShortSourcesPage data={data} pageNum={pageIndex + 2} sources={chunk} />
+                        <ShortSourcesPage data={data} pageNum={pageIndex + 3} sources={chunk} />
                     </div>
                 );
             })}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { ListSkeleton } from '../components/ui/Skeleton';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Card from '../components/ui/Card';
@@ -258,6 +259,7 @@ const AuthorPublications: React.FC = () => {
     }
     return buildNashrHisobotData({
       user: {
+        id: user.id ? String(user.id) : undefined,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
@@ -301,11 +303,7 @@ const AuthorPublications: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Yuklanmoqda...</div>
-      </div>
-    );
+      return <ListSkeleton rows={6} />;
   }
 
   return (

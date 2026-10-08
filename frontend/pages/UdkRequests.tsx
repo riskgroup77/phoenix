@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import EmptyState from '../components/EmptyState';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
@@ -132,7 +133,7 @@ const UdkRequests: React.FC = () => {
             <Loader2 className="h-8 w-8 animate-spin text-[var(--editorial-primary)]" />
           </div>
         ) : list.length === 0 ? (
-          <div className="editorial-empty py-8">UDK so'rovlari yo'q.</div>
+          <EmptyState compact illustration="inbox" title="UDK so'rovlari yo'q" description="Yangi so'rovlar kelganda shu yerda ko'rinadi." />
         ) : (
           <div className="space-y-4">
             {/* Kutilayotgan so'rovlar (submitted) */}
@@ -143,12 +144,12 @@ const UdkRequests: React.FC = () => {
                   {submittedList.map((req) => (
                     <div
                       key={req.id}
-                      className="editorial-card border-[var(--editorial-primary)]/25 bg-[rgba(139,21,56,0.04)]"
+                      className="editorial-card border-[var(--editorial-primary)]/25 bg-[rgba(31,63,143,0.04)]"
                     >
                       <div className="flex flex-col lg:flex-row lg:items-start gap-4">
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-slate-900">{req.author_short}</p>
-                          <p className="text-sm text-indigo-300 mt-1 font-medium">{req.title}</p>
+                          <p className="text-sm text-[var(--editorial-primary)] mt-1 font-medium">{req.title}</p>
                           {req.abstract && (
                             <p className="text-xs text-slate-500 mt-2 line-clamp-3">{req.abstract}</p>
                           )}
@@ -230,7 +231,7 @@ const UdkRequests: React.FC = () => {
                         {getStatusLabel(req.status)}
                       </span>
                     </div>
-                    <p className="text-sm text-indigo-300 mt-1">{req.title}</p>
+                    <p className="text-sm text-[var(--editorial-primary)] mt-1">{req.title}</p>
                     <p className="text-xs text-slate-500 mt-1">
                       {new Date(req.created_at).toLocaleDateString('uz-UZ')}
                     </p>

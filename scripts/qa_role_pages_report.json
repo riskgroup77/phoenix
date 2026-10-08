@@ -1,0 +1,1370 @@
+[
+  {
+    "role": "super_admin",
+    "page": "dashboard",
+    "label": "profile",
+    "path": "/auth/profile/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "dashboard",
+    "label": "notifications",
+    "path": "/notifications/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "dashboard",
+    "label": "journals",
+    "path": "/journals/journals/?page_size=50",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "dashboard",
+    "label": "transactions",
+    "path": "/payments/transactions/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "dashboard",
+    "label": "articles_list",
+    "path": "/articles/?page_size=50",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "dashboard",
+    "label": "articles_mine",
+    "path": "/articles/mine/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "dashboard",
+    "label": "articles_staff",
+    "path": "/articles/staff/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "dashboard",
+    "label": "users_stats",
+    "path": "/auth/stats/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "dashboard",
+    "label": "doi_requests",
+    "path": "/articles/doi/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "dashboard",
+    "label": "article_sample",
+    "path": "/articles/article-sample/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "dashboard",
+    "label": "translations",
+    "path": "/translations/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "dashboard",
+    "label": "udk_requests",
+    "path": "/udc/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "users",
+    "label": "users",
+    "path": "/auth/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "articles",
+    "label": "articles_mine",
+    "path": "/articles/mine/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "articles",
+    "label": "articles_staff",
+    "path": "/articles/staff/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "articles",
+    "label": "articles_list",
+    "path": "/articles/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "articles",
+    "label": "journals",
+    "path": "/journals/journals/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "articles",
+    "label": "translations",
+    "path": "/translations/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "journal-management",
+    "label": "journals",
+    "path": "/journals/journals/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "journal-management",
+    "label": "categories",
+    "path": "/journals/categories/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "journal-management",
+    "label": "users",
+    "path": "/auth/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "prices",
+    "label": "service_prices",
+    "path": "/udc/service-prices/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "prices",
+    "label": "journals",
+    "path": "/journals/journals/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "financials",
+    "label": "transactions",
+    "path": "/payments/transactions/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "financials",
+    "label": "users",
+    "path": "/auth/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "author-publications",
+    "label": "my_pubs",
+    "path": "/journals/author-publications/my_publications/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "author-publications",
+    "label": "all_pubs",
+    "path": "/journals/author-publications/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "author-publications",
+    "label": "scientific_fields",
+    "path": "/journals/scientific-fields/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "author-publications",
+    "label": "pub_types",
+    "path": "/journals/author-publications/publication_types/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "article-sample-requests",
+    "label": "samples",
+    "path": "/articles/article-sample/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "doi-requests",
+    "label": "doi",
+    "path": "/articles/doi/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "udk-requests",
+    "label": "udk",
+    "path": "/udc/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "page": "profile",
+    "label": "profile",
+    "path": "/auth/profile/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "dashboard",
+    "label": "profile",
+    "path": "/auth/profile/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "dashboard",
+    "label": "notifications",
+    "path": "/notifications/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "dashboard",
+    "label": "journals",
+    "path": "/journals/journals/?page_size=50",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "dashboard",
+    "label": "transactions",
+    "path": "/payments/transactions/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "dashboard",
+    "label": "articles_list",
+    "path": "/articles/?page_size=50",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "dashboard",
+    "label": "articles_mine",
+    "path": "/articles/mine/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "dashboard",
+    "label": "articles_staff",
+    "path": "/articles/staff/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "dashboard",
+    "label": "users_stats",
+    "path": "/auth/stats/",
+    "status": 403,
+    "ok": true,
+    "detail": "{'error': 'Permission denied'}"
+  },
+  {
+    "role": "journal_admin",
+    "page": "dashboard",
+    "label": "doi_requests",
+    "path": "/articles/doi/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "dashboard",
+    "label": "article_sample",
+    "path": "/articles/article-sample/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "dashboard",
+    "label": "translations",
+    "path": "/translations/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "dashboard",
+    "label": "udk_requests",
+    "path": "/udc/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "journal-admin-panel",
+    "label": "journals",
+    "path": "/journals/journals/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "journal-admin-panel",
+    "label": "articles",
+    "path": "/articles/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "articles",
+    "label": "articles_mine",
+    "path": "/articles/mine/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "articles",
+    "label": "articles_staff",
+    "path": "/articles/staff/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "articles",
+    "label": "articles_list",
+    "path": "/articles/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "articles",
+    "label": "journals",
+    "path": "/journals/journals/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "articles",
+    "label": "translations",
+    "path": "/translations/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "published-articles",
+    "label": "issues",
+    "path": "/journals/issues/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "published-articles",
+    "label": "journals",
+    "path": "/journals/journals/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "published-articles",
+    "label": "articles",
+    "path": "/articles/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "published-articles",
+    "label": "users",
+    "path": "/auth/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "author-publications",
+    "label": "my_pubs",
+    "path": "/journals/author-publications/my_publications/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "author-publications",
+    "label": "all_pubs",
+    "path": "/journals/author-publications/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "author-publications",
+    "label": "scientific_fields",
+    "path": "/journals/scientific-fields/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "author-publications",
+    "label": "pub_types",
+    "path": "/journals/author-publications/publication_types/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "journal_admin",
+    "page": "profile",
+    "label": "profile",
+    "path": "/auth/profile/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "dashboard",
+    "label": "profile",
+    "path": "/auth/profile/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "dashboard",
+    "label": "notifications",
+    "path": "/notifications/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "dashboard",
+    "label": "journals",
+    "path": "/journals/journals/?page_size=50",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "dashboard",
+    "label": "transactions",
+    "path": "/payments/transactions/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "dashboard",
+    "label": "articles_list",
+    "path": "/articles/?page_size=50",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "dashboard",
+    "label": "articles_mine",
+    "path": "/articles/mine/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "dashboard",
+    "label": "articles_staff",
+    "path": "/articles/staff/",
+    "status": 403,
+    "ok": false,
+    "detail": "Ruxsat yo'q."
+  },
+  {
+    "role": "reviewer",
+    "page": "dashboard",
+    "label": "users_stats",
+    "path": "/auth/stats/",
+    "status": 403,
+    "ok": true,
+    "detail": "{'error': 'Permission denied'}"
+  },
+  {
+    "role": "reviewer",
+    "page": "dashboard",
+    "label": "doi_requests",
+    "path": "/articles/doi/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "dashboard",
+    "label": "article_sample",
+    "path": "/articles/article-sample/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "dashboard",
+    "label": "translations",
+    "path": "/translations/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "dashboard",
+    "label": "udk_requests",
+    "path": "/udc/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "articles",
+    "label": "articles_mine",
+    "path": "/articles/mine/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "articles",
+    "label": "articles_staff",
+    "path": "/articles/staff/",
+    "status": 403,
+    "ok": false,
+    "detail": "Ruxsat yo'q."
+  },
+  {
+    "role": "reviewer",
+    "page": "articles",
+    "label": "articles_list",
+    "path": "/articles/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "articles",
+    "label": "journals",
+    "path": "/journals/journals/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "articles",
+    "label": "translations",
+    "path": "/translations/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "doi-requests",
+    "label": "doi",
+    "path": "/articles/doi/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "udk-requests",
+    "label": "udk",
+    "path": "/udc/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "reviewer",
+    "page": "profile",
+    "label": "profile",
+    "path": "/auth/profile/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "dashboard",
+    "label": "profile",
+    "path": "/auth/profile/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "dashboard",
+    "label": "notifications",
+    "path": "/notifications/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "dashboard",
+    "label": "journals",
+    "path": "/journals/journals/?page_size=50",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "dashboard",
+    "label": "transactions",
+    "path": "/payments/transactions/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "dashboard",
+    "label": "articles_list",
+    "path": "/articles/?page_size=50",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "dashboard",
+    "label": "articles_mine",
+    "path": "/articles/mine/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "dashboard",
+    "label": "articles_staff",
+    "path": "/articles/staff/",
+    "status": 403,
+    "ok": true,
+    "detail": "Ruxsat yo'q."
+  },
+  {
+    "role": "author",
+    "page": "dashboard",
+    "label": "users_stats",
+    "path": "/auth/stats/",
+    "status": 403,
+    "ok": true,
+    "detail": "{'error': 'Permission denied'}"
+  },
+  {
+    "role": "author",
+    "page": "dashboard",
+    "label": "doi_requests",
+    "path": "/articles/doi/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "dashboard",
+    "label": "article_sample",
+    "path": "/articles/article-sample/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "dashboard",
+    "label": "translations",
+    "path": "/translations/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "dashboard",
+    "label": "udk_requests",
+    "path": "/udc/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "articles",
+    "label": "articles_mine",
+    "path": "/articles/mine/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "articles",
+    "label": "articles_staff",
+    "path": "/articles/staff/",
+    "status": 403,
+    "ok": true,
+    "detail": "Ruxsat yo'q."
+  },
+  {
+    "role": "author",
+    "page": "articles",
+    "label": "articles_list",
+    "path": "/articles/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "articles",
+    "label": "journals",
+    "path": "/journals/journals/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "articles",
+    "label": "translations",
+    "path": "/translations/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "submit",
+    "label": "journals",
+    "path": "/journals/journals/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "services",
+    "label": "journals",
+    "path": "/journals/journals/?page_size=20",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "my-collections",
+    "label": "issues",
+    "path": "/journals/issues/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "my-collections",
+    "label": "journals",
+    "path": "/journals/journals/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "my-collections",
+    "label": "articles",
+    "path": "/articles/?page_size=100",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "my-translations",
+    "label": "translations",
+    "path": "/translations/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "arxiv",
+    "label": "archive",
+    "path": "/auth/archive/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "author-publications",
+    "label": "my_pubs",
+    "path": "/journals/author-publications/my_publications/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "author-publications",
+    "label": "all_pubs",
+    "path": "/journals/author-publications/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "author-publications",
+    "label": "scientific_fields",
+    "path": "/journals/scientific-fields/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "author-publications",
+    "label": "pub_types",
+    "path": "/journals/author-publications/publication_types/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "profile",
+    "label": "profile",
+    "path": "/auth/profile/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "udk-olish",
+    "label": "udk_price",
+    "path": "/udc/price/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "udk-olish",
+    "label": "udk_requests",
+    "path": "/udc/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "udk-olish",
+    "label": "certificates",
+    "path": "/udc/my-certificates/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "translation-service",
+    "label": "translations",
+    "path": "/translations/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "plagiarism-check",
+    "label": "journals",
+    "path": "/journals/journals/?page_size=500",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "author",
+    "page": "maqola-namuna-olish",
+    "label": "sample_price",
+    "path": "/articles/article-sample/price/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "accountant",
+    "page": "dashboard",
+    "label": "profile",
+    "path": "/auth/profile/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "accountant",
+    "page": "dashboard",
+    "label": "notifications",
+    "path": "/notifications/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "accountant",
+    "page": "dashboard",
+    "label": "journals",
+    "path": "/journals/journals/?page_size=50",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "accountant",
+    "page": "dashboard",
+    "label": "transactions",
+    "path": "/payments/transactions/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "accountant",
+    "page": "dashboard",
+    "label": "articles_list",
+    "path": "/articles/?page_size=50",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "accountant",
+    "page": "dashboard",
+    "label": "articles_mine",
+    "path": "/articles/mine/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "accountant",
+    "page": "dashboard",
+    "label": "articles_staff",
+    "path": "/articles/staff/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "accountant",
+    "page": "dashboard",
+    "label": "users_stats",
+    "path": "/auth/stats/",
+    "status": 403,
+    "ok": true,
+    "detail": "{'error': 'Permission denied'}"
+  },
+  {
+    "role": "accountant",
+    "page": "dashboard",
+    "label": "doi_requests",
+    "path": "/articles/doi/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "accountant",
+    "page": "dashboard",
+    "label": "article_sample",
+    "path": "/articles/article-sample/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "accountant",
+    "page": "dashboard",
+    "label": "translations",
+    "path": "/translations/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "accountant",
+    "page": "dashboard",
+    "label": "udk_requests",
+    "path": "/udc/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "accountant",
+    "page": "financials",
+    "label": "transactions",
+    "path": "/payments/transactions/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "accountant",
+    "page": "financials",
+    "label": "users",
+    "path": "/auth/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "accountant",
+    "page": "profile",
+    "label": "profile",
+    "path": "/auth/profile/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "operator-dashboard",
+    "label": "udk",
+    "path": "/udc/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "operator-dashboard",
+    "label": "doi",
+    "path": "/articles/doi/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "operator-dashboard",
+    "label": "samples",
+    "path": "/articles/article-sample/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "operator-dashboard",
+    "label": "translations",
+    "path": "/translations/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "operator-dashboard",
+    "label": "users",
+    "path": "/auth/",
+    "status": 403,
+    "ok": false,
+    "detail": "Faqat bosh administrator, buxgalter yoki jurnal administratori foydalanuvchilar ro'yxatini ko'rishi mumkin."
+  },
+  {
+    "role": "operator",
+    "page": "operator-dashboard",
+    "label": "transactions",
+    "path": "/payments/transactions/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "operator-dashboard",
+    "label": "chat_inbox",
+    "path": "/articles/operator-chat-inbox/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "articles",
+    "label": "articles_mine",
+    "path": "/articles/mine/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "articles",
+    "label": "articles_staff",
+    "path": "/articles/staff/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "articles",
+    "label": "articles_list",
+    "path": "/articles/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "articles",
+    "label": "journals",
+    "path": "/journals/journals/?page_size=200",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "articles",
+    "label": "translations",
+    "path": "/translations/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "all-requests",
+    "label": "udk",
+    "path": "/udc/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "all-requests",
+    "label": "doi",
+    "path": "/articles/doi/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "all-requests",
+    "label": "samples",
+    "path": "/articles/article-sample/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "all-requests",
+    "label": "translations",
+    "path": "/translations/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "all-requests",
+    "label": "staff",
+    "path": "/articles/staff/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "doi-requests",
+    "label": "doi",
+    "path": "/articles/doi/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "udk-requests",
+    "label": "udk",
+    "path": "/udc/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "article-sample-requests",
+    "label": "samples",
+    "path": "/articles/article-sample/requests/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "role": "operator",
+    "page": "profile",
+    "label": "profile",
+    "path": "/auth/profile/",
+    "status": 200,
+    "ok": true,
+    "detail": ""
+  }
+]

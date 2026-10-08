@@ -1,10 +1,10 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Shield, Sparkles, Layers } from 'lucide-react';
 import {
-  ANTIPLAGIAT_MODULES,
-  ANTIPLAGIAT_MODULE_CATEGORIES,
   HUJJAT_TURI_OPTIONS,
-  MODULE_PRESETS,
+  MODULE_PRESET_LABELS,
+  buildModulePresets,
+  moduleCategories,
   type AntiplagiatCheckMode,
   type ModulePresetId,
   loadEnabledModuleIds,
@@ -12,6 +12,8 @@ import {
   saveEnabledModuleIds,
 } from '../constants/antiplagiatModules';
 import { formatMaxUploadLabel } from '../constants/upload';
+import { useAntiplagiatModules } from '../hooks/useAntiplagiatModules';
+import GirihPattern from './GirihPattern';
 
 type TabId = 'document' | 'modules';
 
@@ -37,14 +39,6 @@ type Props = {
   onFileSelect: (file: File | null) => void;
 };
 
-const PRESET_LABELS: Record<ModulePresetId, string> = {
-  all: 'Barcha modullar',
-  core: 'Asosiy',
-  global: 'Global bazalar',
-  milliy: "O'zbekiston milliy",
-  ai: 'SI detektor',
-};
-
 const AntiplagiatUploadPanel: React.FC<Props> = ({
   values,
   onChange,
@@ -61,6 +55,22 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
   const [moduleCategory, setModuleCategory] = useState<string>('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
+  const { modules: availableModules, loaded: modulesLoaded } = useAntiplagiatModules();
+  const presets = useMemo(() => buildModulePresets(availableModules), [availableModules]);
+  const categories = useMemo(() => moduleCategories(availableModules), [availableModules]);
+  const presetKeys = (Object.keys(MODULE_PRESET_LABELS) as ModulePresetId[]).filter((k) => presets[k].length > 0);
+
+  // Server ro'yxati kelganda: tanlovda faqat haqiqatan mavjud modullar qolsin
+  useEffect(() => {
+    if (!modulesLoaded) return;
+    const available = new Set(availableModules.map((m) => m.id));
+    const kept = values.enabledModuleIds.filter((id) => available.has(id));
+    const next = kept.length ? kept : loadEnabledModuleIds(availableModules);
+    if (next.length !== values.enabledModuleIds.length || next.some((id, i) => id !== values.enabledModuleIds[i])) {
+      onChange({ enabledModuleIds: next });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modulesLoaded, availableModules]);
 
   const filteredTypes = useMemo(() => {
     const q = typeFilter.trim().toLowerCase();
@@ -70,28 +80,26 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
 
   const filteredModules = useMemo(() => {
     const q = moduleSearch.trim().toLowerCase();
-    return ANTIPLAGIAT_MODULES.filter((mod) => {
+    return availableModules.filter((mod) => {
       if (moduleCategory !== 'all' && mod.category !== moduleCategory) return false;
       if (!q) return true;
       return mod.label.toLowerCase().includes(q) || mod.id.toLowerCase().includes(q);
     });
-  }, [moduleSearch, moduleCategory]);
+  }, [moduleSearch, moduleCategory, availableModules]);
 
   const applyPreset = (preset: ModulePresetId) => {
-    const ids = MODULE_PRESETS[preset].filter((id) =>
-      ANTIPLAGIAT_MODULES.some((m) => m.id === id),
-    );
+    const ids = [...presets[preset]];
     saveEnabledModuleIds(ids);
     onChange({ enabledModuleIds: ids, modulePreset: preset });
   };
 
   const setCheckMode = (mode: AntiplagiatCheckMode) => {
-    const ids = modulesForCheckMode(mode);
+    const ids = modulesForCheckMode(mode, availableModules);
     saveEnabledModuleIds(ids);
     onChange({
       checkMode: mode,
       enabledModuleIds: ids,
-      modulePreset: mode === 'ai' ? 'ai' : mode === 'both' ? 'all' : 'core',
+      modulePreset: mode === 'ai' ? 'ai' : 'all',
     });
   };
 
@@ -112,9 +120,9 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
 
   const submitLabel =
     values.checkMode === 'ai'
-      ? 'SI detektor'
+      ? 'SI tahlili'
       : values.checkMode === 'both'
-        ? 'Plagiat + SI tekshirish'
+        ? 'Plagiat + SI tahlili'
         : 'Plagiatga tekshirish';
 
   const canSubmit =
@@ -129,16 +137,14 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
   return (
     <div className="antiplagiat-page">
       <div className="antiplagiat-hero">
+        <GirihPattern opacity={0.12} />
         <p className="antiplagiat-hero-kicker">Ilmiyfaoliyat.uz · Milliy antiplagiat xizmati</p>
         <h1 className="antiplagiat-hero-title">
           Originallik va SI matn aniqlash
         </h1>
         <p className="antiplagiat-hero-sub">
-          {ANTIPLAGIAT_MODULES.length}+ modul, ko&apos;p tilli qidiruv, sertifikat va to&apos;liq hisobot —
-          <a href="https://antiplag.uz/" target="_blank" rel="noopener noreferrer" className="antiplagiat-hero-link">
-            Antiplag.uz
-          </a>{' '}
-          uslubida.
+          Ichki baza va ochiq ilmiy manbalar ({availableModules.length} ta modul) bo&apos;yicha haqiqiy moslik
+          qidiruvi, sertifikat va to&apos;liq hisobot.
         </p>
         <div className="antiplagiat-mode-row">
           <button
@@ -155,7 +161,7 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
             onClick={() => setCheckMode('ai')}
           >
             <Sparkles size={18} />
-            SI detektor
+            SI tahlili
           </button>
           <button
             type="button"
@@ -314,14 +320,14 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
           ) : (
             <div className="space-y-3">
               <div className="antiplagiat-preset-row">
-                {(Object.keys(PRESET_LABELS) as ModulePresetId[]).map((key) => (
+                {presetKeys.map((key) => (
                   <button
                     key={key}
                     type="button"
                     className={`antiplagiat-preset-btn ${values.modulePreset === key ? 'is-active' : ''}`}
                     onClick={() => applyPreset(key)}
                   >
-                    {PRESET_LABELS[key]} ({MODULE_PRESETS[key].length})
+                    {MODULE_PRESET_LABELS[key]} ({presets[key].length})
                   </button>
                 ))}
               </div>
@@ -338,7 +344,7 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
                   onChange={(e) => setModuleCategory(e.target.value)}
                 >
                   <option value="all">Barcha kategoriyalar</option>
-                  {ANTIPLAGIAT_MODULE_CATEGORIES.map((cat) => (
+                  {categories.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
@@ -348,7 +354,7 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
                   const on = values.enabledModuleIds.includes(mod.id);
                   return (
                     <label key={mod.id} className="antiplagiat-module-row">
-                      <span className="antiplagiat-module-label" title={mod.category}>
+                      <span className="antiplagiat-module-label" title={mod.description || mod.category}>
                         {mod.label}
                       </span>
                       <button
@@ -386,16 +392,16 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
 
       <div className="antiplagiat-features">
         <article className="antiplagiat-feature-card">
-          <h3>Ko&apos;p darajali qidiruv</h3>
-          <p>Internet, ilmiy bazalar, milliy reestr va xususiy to&apos;plamlar bo&apos;yicha chuqur skaner.</p>
+          <h3>Haqiqiy manbalar</h3>
+          <p>Hisobotda faqat topilgan haqiqiy moslik va tekshirilgan bazalar ko&apos;rsatiladi.</p>
         </article>
         <article className="antiplagiat-feature-card">
           <h3>Batafsil hisobot</h3>
           <p>O&apos;zlashtirish, iqtibos, o&apos;z-o&apos;ziga iqtibos, manbalar va sertifikat.</p>
         </article>
         <article className="antiplagiat-feature-card">
-          <h3>SI detektor</h3>
-          <p>ChatGPT, Gemini, Claude va umumiy AI generatsiya belgilari bo&apos;yicha tahlil.</p>
+          <h3>SI uslubi tahlili</h3>
+          <p>Sun&apos;iy intellektga xos iboralar bo&apos;yicha taxminiy ko&apos;rsatkich (dalil emas).</p>
         </article>
       </div>
     </div>

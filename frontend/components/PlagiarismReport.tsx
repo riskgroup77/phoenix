@@ -47,6 +47,14 @@ export interface PlagiarismReportData {
   ai_detection: AiDetection;
   stylometric: Stylometric;
   recommendations: string[];
+  /** Antiplagiatni aldash urinishlari (ko'rinmas belgilar, o'xshash harflar, yashirin matn) */
+  bypass_attempts?: {
+    detected: boolean;
+    items: string[];
+    homoglyph_examples?: string[];
+  };
+  /** Tekshiruvdan chiqarilgan adabiyotlar ro'yxati (belgilar) */
+  excluded_bibliography_chars?: number;
   /** hybrid | heuristic_only | insufficient_text */
   analysis_mode?: string;
   llm_model?: string | null;
@@ -226,8 +234,35 @@ const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPerc
         </div>
       </div>
 
+      {report?.bypass_attempts?.detected && (
+        <div role="alert" className="p-4 rounded-xl border border-red-300 bg-red-50 text-sm text-red-900">
+          <p className="font-bold flex items-center gap-2 mb-2">
+            <AlertTriangle size={18} className="text-red-700" /> Antiplagiatni aldashga urinish aniqlandi
+          </p>
+          <ul className="list-disc pl-5 space-y-1">
+            {report.bypass_attempts.items.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+          {!!report.bypass_attempts.homoglyph_examples?.length && (
+            <p className="mt-2 text-xs text-red-800">
+              Misollar: {report.bypass_attempts.homoglyph_examples.join(', ')}
+            </p>
+          )}
+          <p className="mt-2 text-xs text-red-800">
+            Bu belgilar olib tashlanib, tekshiruv asl (ko'rinadigan) matn bo'yicha o'tkazildi.
+          </p>
+        </div>
+      )}
+
+      {!!report?.excluded_bibliography_chars && (
+        <p className="text-xs text-slate-500">
+          Adabiyotlar ro'yxati ({report.excluded_bibliography_chars} belgi) tekshiruvdan va foiz hisobidan chiqarildi.
+        </p>
+      )}
+
       {(report?.disclaimer_uz || report?.analysis_mode) && (
-        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm text-amber-100/95">
+        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm text-amber-900 dark:text-amber-100/95">
           {report?.analysis_mode && (
             <p className="text-xs text-amber-950 mb-2 font-medium">
               Tahlil rejimi:{' '}

@@ -217,12 +217,24 @@ fi
 echo "   Migrations ishga tushirilmoqda..."
 python manage.py migrate --noinput || error_exit "Migrations xatolik"
 
-# Demo foydalanuvchilar, operator va Django admin parollarini tiklash
-echo "   Demo foydalanuvchilar va operator tiklanmoqda..."
+# Demo hisoblar (911111111/muallif, 922222222/taqrizchi, 933333333/muharrir, 955555555/operator).
+# Productionda bosh admin / buxgalter demo hisoblari YARATILMAYDI; shu raqamli haqiqiy userlarga tegilmaydi.
+echo "   Demo hisoblar yangilanmoqda..."
 python manage.py setup_demo_and_admin || echo "   ⚠️  setup_demo_and_admin xato (deploy davom etadi)"
 
 echo "   Kitob nashr tranzaksiyalarini tiklash..."
 python manage.py repair_book_publications || echo "   ⚠️  repair_book_publications xato (deploy davom etadi)"
+
+# Antiplagiat barmoq izlari indeksi — fon rejimida (deployni kutdirmaydi; o'zgarmagan hujjatlar tez o'tadi).
+# To'liq qurilmaguncha tekshiruvlar eski usulda ishlaydi. flock — bir vaqtda faqat bitta nusxa.
+# Indeksdan keyin bepul O'zbekiston jurnallari arxivlari (OAI) yig'iladi — birinchi marta soatlab, keyin faqat yangilari.
+echo "   Antiplagiat indeksi va OAI arxivlari fon rejimida yangilanmoqda (log: /tmp/phonix_antiplag_index.log)..."
+ANTIPLAG_BG="'$(pwd)/venv/bin/python' manage.py build_antiplag_index && '$(pwd)/venv/bin/python' manage.py harvest_oai --all --fill-full-text 300"
+if command -v flock >/dev/null 2>&1; then
+    nohup flock -n /tmp/phonix_antiplag_index.lock nice -n 10 sh -c "$ANTIPLAG_BG" >> /tmp/phonix_antiplag_index.log 2>&1 &
+else
+    nohup nice -n 10 sh -c "$ANTIPLAG_BG" >> /tmp/phonix_antiplag_index.log 2>&1 &
+fi
 
 # Static files
 echo "   Static files collect qilinmoqda..."
@@ -280,6 +292,16 @@ if systemctl is-active --quiet ${SERVICE_NAME}; then
 else
     echo "   Service start qilinmoqda..."
     sudo_cmd systemctl start ${SERVICE_NAME}
+fi
+
+# Celery worker (antiplagiat) — unit o'rnatilgan bo'lsa yangi kod bilan qayta ishga tushiriladi.
+# O'rnatish: infrastructure/systemd/phoenix-celery.service.example
+CELERY_SERVICE="phoenix-celery"
+if systemctl list-unit-files 2>/dev/null | grep -q "^${CELERY_SERVICE}.service"; then
+    echo "   Celery worker qayta ishga tushirilmoqda..."
+    sudo_cmd systemctl restart ${CELERY_SERVICE} || echo "   ⚠️  ${CELERY_SERVICE} restart xato"
+else
+    echo "   ⚠️  ${CELERY_SERVICE} o'rnatilmagan — antiplagiat thread rejimida ishlaydi"
 fi
 
 # Service status

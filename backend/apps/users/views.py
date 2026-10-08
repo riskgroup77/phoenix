@@ -383,7 +383,10 @@ class UserViewSet(viewsets.ModelViewSet):
                 'download_url': f"{api_base}/reviews/{r.id}/review-document/",
                 'view_url': f"/articles/{r.article_id}",
                 'extra': {
-                    'reviewer_name': r.reviewer.get_full_name() if r.reviewer else '',
+                    # Yopiq taqrizda taqrizchi shaxsi oshkor qilinmaydi
+                    'reviewer_name': (
+                        r.reviewer.get_full_name() if r.reviewer and r.review_type == 'open' else 'Anonim taqrizchi'
+                    ),
                     'recommendation': getattr(r, 'recommendation', '') or '',
                 },
             })

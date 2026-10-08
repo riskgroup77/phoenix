@@ -26,7 +26,6 @@ if [ ! -f .env ]; then
     echo "⚠️  .env file not found. Creating default .env file..."
     cat > .env << 'EOF'
 VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
-VITE_GEMINI_API_KEY=AIzaSyBm02i-rm_XNVckLVGOKBqH1GH6tk4pFKE
 VITE_MEDIA_URL=http://127.0.0.1:8000/media/
 VITE_ENV=development
 EOF

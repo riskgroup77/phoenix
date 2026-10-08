@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Debug session ac7877: production API verification for all conversation fixes."""
 import json
+# Parollar muhitdan olinadi (PHONIX_QA_*_PASSWORD) — repoda saqlanmaydi.
 import os
 import time
 import urllib.error
@@ -73,11 +74,11 @@ def main():
     log("META", "main", "production audit started", {"base": BASE}, run_id=run_id)
 
     users = {
-        "author": ("998901001004", "Demo@author1"),
-        "admin": ("998901001001", "Demo@admin1"),
-        "operator": ("998901001007", "Operator@1234567890"),
-        "accountant": ("998901001005", "Demo@account1"),
-        "reviewer": ("998901001003", "Demo@review1"),
+        "author": ("998901001004", os.environ.get("PHONIX_QA_AUTHOR_PASSWORD", "")),
+        "admin": ("998901001001", os.environ.get("PHONIX_QA_SUPER_ADMIN_PASSWORD", "")),
+        "operator": ("998901001007", os.environ.get("PHONIX_QA_OPERATOR_PASSWORD", "")),
+        "accountant": ("998901001005", os.environ.get("PHONIX_QA_ACCOUNTANT_PASSWORD", "")),
+        "reviewer": ("998901001003", os.environ.get("PHONIX_QA_REVIEWER_PASSWORD", "")),
     }
     tokens = {}
     for role, (phone, pw) in users.items():

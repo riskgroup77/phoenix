@@ -3,7 +3,9 @@ Payme Payment Integration Service
 https://developer.help.paycom.uz/
 """
 import base64
+import binascii
 import hashlib
+import hmac
 import time
 import logging
 from decimal import Decimal
@@ -81,29 +83,34 @@ class PaymeService:
         """
         if not authorization_header:
             raise PaymeError(-32504, "Authorization header missing")
-        
+
+        expected_key = self.test_key if self.is_test else self.merchant_key
+        # Kalitlar sozlanmagan bo'lsa HECH QACHON ruxsat bermaymiz:
+        # aks holda "Basic base64(':')" bilan istalgan kishi to'lovni tasdiqlashi mumkin edi.
+        if not self.merchant_id or not expected_key:
+            logger.error('Payme callback rejected: PAYME_MERCHANT_ID / kalit sozlanmagan')
+            raise PaymeError(-32504, "Payme is not configured")
+
         try:
             # Extract credentials from Authorization header
             # Format: "Basic base64(merchant_id:key)"
-            auth_type, credentials = authorization_header.split(' ')
-            
+            auth_type, credentials = authorization_header.split(' ', 1)
+
             if auth_type.lower() != 'basic':
                 raise PaymeError(-32504, "Invalid authorization type")
-            
+
             # Decode base64
-            decoded = base64.b64decode(credentials).decode('utf-8')
-            merchant_id, key = decoded.split(':')
-            
-            # Verify merchant_id and key
-            expected_key = self.test_key if self.is_test else self.merchant_key
-            
-            if merchant_id != self.merchant_id or key != expected_key:
-                logger.error(f"Invalid credentials: merchant_id={merchant_id}, key={key[:5]}...")
+            decoded = base64.b64decode(credentials.strip()).decode('utf-8')
+            # Payme login odatda "Paycom"; kalitda ':' bo'lishi mumkin — faqat birinchi ':' bo'yicha ajratamiz
+            login, key = decoded.split(':', 1)
+
+            if not hmac.compare_digest(key.encode('utf-8'), expected_key.encode('utf-8')):
+                logger.error('Payme callback: invalid credentials (login=%s)', login)
                 raise PaymeError(-32504, "Invalid credentials")
-            
+
             return True
-            
-        except (ValueError, UnicodeDecodeError) as e:
+
+        except (ValueError, UnicodeDecodeError, binascii.Error) as e:
             logger.error(f"Authorization parsing error: {str(e)}")
             raise PaymeError(-32504, "Invalid authorization format")
     
@@ -166,6 +173,10 @@ class PaymeService:
         # Check if already paid
         if transaction.status == 'completed':
             raise PaymeError(-31052, "Transaction already completed")
+
+        from .pricing import is_underpriced
+        if is_underpriced(transaction):
+            raise PaymeError(-31051, "Invalid amount")
         
         return {
             'allow': True
@@ -196,7 +207,14 @@ class PaymeService:
         expected_amount = int(float(transaction.amount) * 100)
         if amount != expected_amount:
             raise PaymeError(-31051, f"Invalid amount")
-        
+
+        if transaction.status in ('completed', 'cancelled'):
+            raise PaymeError(-31099, "Transaction is not payable")
+
+        # Boshqa Payme tranzaksiyasi allaqachon bog'langan — buyurtma band
+        if transaction.payme_trans_id and transaction.payme_trans_id != transaction_id:
+            raise PaymeError(-31099, "Order is already linked to another Payme transaction")
+
         # Check if already has payme transaction
         if hasattr(transaction, 'payme_trans_id') and transaction.payme_trans_id:
             # Transaction already created, return existing
@@ -225,60 +243,37 @@ class PaymeService:
         
         Payme confirms payment
         """
+        from django.db import transaction as db_transaction
+
+        from .services import _fulfill_after_payment
+
         payme_trans_id = params.get('id')
-        
-        # Find transaction by payme_trans_id
-        try:
-            transaction = Transaction.objects.get(payme_trans_id=payme_trans_id)
-        except Transaction.DoesNotExist:
+        if not payme_trans_id:
             raise PaymeError(-31050, "Transaction not found")
-        
-        # Check if already completed
-        if transaction.status == 'completed':
-            return {
-                'transaction': str(transaction.id),
-                'perform_time': int(transaction.completed_at.timestamp() * 1000) if transaction.completed_at else int(time.time() * 1000),
-                'state': self.STATE_COMPLETED
-            }
-        
-        # Complete transaction
-        transaction.status = 'completed'
-        transaction.completed_at = timezone.now()
-        transaction.save()
-        
-        # Fulfill xizmat (Click handle_complete dagi kabi)
-        service_type = getattr(transaction, 'service_type', None)
-        if service_type == 'udk_request':
+
+        with db_transaction.atomic():
             try:
-                from apps.udc.fulfill import fulfill_udk_request
-                fulfill_udk_request(transaction)
-            except Exception as e:
-                logger.error(f"Payme: UDK fulfill failed: {e}", exc_info=True)
-        elif service_type == 'article_sample':
-            try:
-                from apps.articles.fulfill_sample import fulfill_article_sample
-                fulfill_article_sample(transaction)
-            except Exception as e:
-                logger.error(f"Payme: Article sample fulfill failed: {e}", exc_info=True)
-        elif service_type == 'doi_request':
-            try:
-                from apps.articles.fulfill_doi import fulfill_doi_request
-                fulfill_doi_request(transaction)
-            except Exception as e:
-                logger.error(f"Payme: DOI fulfill failed: {e}", exc_info=True)
-        elif service_type == 'language_editing':
-            try:
-                from apps.articles.fulfill_plagiarism_payment import fulfill_language_editing_payment
-                fulfill_language_editing_payment(transaction)
-            except Exception as e:
-                logger.error(f"Payme: antiplagiat/language_editing fulfill failed: {e}", exc_info=True)
-        elif service_type == 'publication_fee':
-            try:
-                from apps.articles.fulfill_publication_fee import fulfill_publication_fee
-                fulfill_publication_fee(transaction)
-            except Exception as e:
-                logger.error(f"Payme: publication_fee fulfill failed: {e}", exc_info=True)
-        
+                transaction = Transaction.objects.select_for_update().get(payme_trans_id=payme_trans_id)
+            except Transaction.DoesNotExist:
+                raise PaymeError(-31050, "Transaction not found")
+
+            # Takroriy PerformTransaction — idempotent javob, xizmat qayta bajarilmaydi
+            if transaction.status == 'completed':
+                return {
+                    'transaction': str(transaction.id),
+                    'perform_time': int(transaction.completed_at.timestamp() * 1000) if transaction.completed_at else int(time.time() * 1000),
+                    'state': self.STATE_COMPLETED
+                }
+            if transaction.status == 'cancelled':
+                raise PaymeError(-31008, "Transaction cancelled")
+
+            transaction.status = 'completed'
+            transaction.completed_at = timezone.now()
+            transaction.save(update_fields=['status', 'completed_at'])
+
+        # Fulfill xizmat — Click bilan bir xil umumiy funksiya (book_publication ham)
+        _fulfill_after_payment(transaction)
+
         logger.info(f"Payme transaction performed: {payme_trans_id} for {transaction.id}")
         
         return {

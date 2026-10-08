@@ -13,32 +13,40 @@
         } catch (e) {}
       })();
     </script>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%231f3f8f'/><text x='32' y='44' font-family='Arial' font-weight='800' font-size='36' text-anchor='middle' fill='white'>P</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- CSP: Google Fonts -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https: http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*;" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
-    <title>ILMIY JURNAL — PINM</title>
+    <title>Phoenix — Ilmiy faoliyat platformasi</title>
+    <meta name="description" content="Ilmiy maqolalarni jurnallarda nashr qilish, antiplagiat tekshiruvi, UDK va DOI xizmatlari. Jurnallar katalogi va maqola holatini kuzatish — ilmiyfaoliyat.uz" />
+    <meta name="theme-color" content="#1f3f8f" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Phoenix — Ilmiy nashrlar markazi" />
+    <meta property="og:title" content="Phoenix — Ilmiy faoliyat platformasi" />
+    <meta property="og:description" content="Jurnallar katalogi, antiplagiat tekshiruvi, UDK va DOI — barchasi bitta platformada." />
+    <meta property="og:url" content="https://ilmiyfaoliyat.uz/" />
+    <link rel="canonical" href="https://ilmiyfaoliyat.uz/" />
   <!-- importmap faqat dev/studio uchun; production build Vite bundle ishlatadi -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Merriweather:wght@400;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --accent-color: #8b1538;
-    --accent-color-glow: rgba(139, 21, 56, 0.18);
-    --background-a: #fdfbf7;
-    --background-b: #f5f0e8;
-    --background-c: #f5f0e8;
-    --ink: #1a1a1a;
-    --ink-muted: #64748b;
+    --accent-color: #1f3f8f;
+    --accent-color-glow: rgba(31, 63, 143, 0.18);
+    --background-a: #f5f7fb;
+    --background-b: #eef2f8;
+    --background-c: #eef2f8;
+    --ink: #172033;
+    --ink-muted: #55607a;
   }
 
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: 'Onest', system-ui, -apple-system, "Segoe UI", sans-serif;
     color: var(--ink);
-    background-color: #fdfbf7;
+    background-color: #f5f7fb;
     overflow-y: auto;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -57,7 +65,7 @@
 
   html.dark body {
     color: var(--ink);
-    background-color: #1a1816;
+    background-color: #0f1626;
   }
 
   html.dark body::before {
@@ -184,21 +192,23 @@
       border-bottom-left-radius: 0 !important;
   }
 
+  /* Milliy zamonaviy: sarlavhalar ham Onest (serif ishlatilmaydi) */
   .font-serif {
-    font-family: 'Merriweather', serif;
+    font-family: 'Onest', system-ui, sans-serif;
   }
 
   /* Editorial sidebar — kritik stillar (cache muammosida ham ishlashi uchun) */
   #root {
-    --editorial-bg: #fdfbf7;
-    --editorial-bg-alt: #f5f0e8;
+    --editorial-bg: #f5f7fb;
+    --editorial-bg-alt: #eef2f8;
     --editorial-sidebar-bg: #ffffff;
-    --editorial-sidebar-border: #e8e4dc;
-    --editorial-nav-text: #2d3748;
-    --editorial-section-label: #718096;
-    --editorial-primary: #8b1538;
-    --editorial-text: #1a1a1a;
-    --editorial-border: #e2ddd4;
+    --editorial-sidebar-border: #e3e8f2;
+    --editorial-nav-text: #2f3a52;
+    --editorial-section-label: #6b7690;
+    --editorial-primary: #1f3f8f;
+    --editorial-text: #172033;
+    --editorial-border: #e3e8f2;
+    --milliy-lapis: #1f3f8f;
   }
   .editorial-sidebar-label {
     font-size: 0.625rem;
@@ -209,7 +219,6 @@
   }
   .editorial-nav-link {
     color: var(--editorial-nav-text);
-    border-left: 3px solid transparent;
   }
   .editorial-nav-link:hover {
     background: var(--editorial-bg-alt);
@@ -217,7 +226,6 @@
   .editorial-nav-link--active {
     color: var(--editorial-primary) !important;
     font-weight: 600;
-    border-left-color: var(--editorial-primary);
   }
   .editorial-nav-link--active .editorial-nav-icon {
     color: var(--editorial-primary) !important;
@@ -265,6 +273,10 @@
   }
 
   @media print {
+    html, body {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
     body * {
       visibility: hidden;
     }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { PageSkeleton } from '../components/ui/Skeleton';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -88,11 +89,7 @@ const AuthorPublicationDetail: React.FC = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Yuklanmoqda...</div>
-      </div>
-    );
+      return <PageSkeleton />;
   }
 
   if (!publication) {

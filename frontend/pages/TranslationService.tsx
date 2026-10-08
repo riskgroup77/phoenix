@@ -397,7 +397,7 @@ const TranslationService: React.FC = () => {
                 <h4 className="font-medium text-blue-900">Muhim Ma'lumot</h4>
                 <p className="mt-1 text-sm text-slate-600">
                   Tarjima xizmati uchun narx so&apos;zlar soniga qarab hisoblanadi. Hozirgi narx:{' '}
-                  <span className="font-semibold text-blue-200">
+                  <span className="font-semibold text-[var(--editorial-primary)]">
                     {analysisResult ? analysisResult.pricePerWord.toLocaleString('uz-UZ') : '100'} so&apos;m
                   </span>{' '}
                   har bir so&apos;z uchun. Jami: so&apos;zlar soni × bu narx. Sifatli tarjima mutaxassislarning

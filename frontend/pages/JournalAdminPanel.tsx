@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { ListSkeleton } from '../components/ui/Skeleton';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Article, ArticleStatus, Role, Journal } from '../types';
@@ -147,11 +148,7 @@ const JournalAdminPanel: React.FC = () => {
     }
     
     if (loading) {
-        return (
-            <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--editorial-primary)]"></div>
-            </div>
-        );
+        return <ListSkeleton rows={6} />;
     }
     
     if (error) {
@@ -237,7 +234,7 @@ const JournalAdminPanel: React.FC = () => {
                             const statusData = {
                                 [ArticleStatus.Draft]: { text: 'Qoralama', color: 'bg-gray-500/20 text-slate-600' },
                                 [ArticleStatus.Yangi]: { text: 'Yangi', color: 'bg-blue-500/20 text-blue-900' },
-                                [ArticleStatus.WithEditor]: { text: 'Redaktorda', color: 'bg-indigo-500/20 text-indigo-300' },
+                                [ArticleStatus.WithEditor]: { text: 'Redaktorda', color: 'bg-[#e5ecff] text-[#233f8c] dark:bg-[rgba(138,166,240,0.16)] dark:text-[#b9cbf7]' },
                                 [ArticleStatus.QabulQilingan]: { text: 'Qabul Qilingan', color: 'bg-yellow-500/20 text-yellow-900' },
                                 [ArticleStatus.Revision]: { text: 'Tahrirga qaytarilgan', color: 'bg-orange-500/20 text-orange-900' },
                                 [ArticleStatus.Accepted]: { text: 'Qabul qilingan', color: 'bg-teal-500/20 text-teal-900' },

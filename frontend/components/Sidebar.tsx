@@ -1,11 +1,13 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Role } from '../types';
 import { sidebarNavByRole } from '../config/navConfig';
 import { SUPPORT_EMAIL } from '../config/env';
 import { Headphones, HelpCircle } from 'lucide-react';
 import EditorialLogo from './EditorialLogo';
+import { isNavItemActive } from '../utils/navActive';
+import { useT } from '../i18n/LanguageContext';
 
 type SidebarProps = {
   onNavigate?: () => void;
@@ -14,41 +16,29 @@ type SidebarProps = {
 
 const Sidebar: React.FC<SidebarProps> = ({ onNavigate, className = '' }) => {
   const { user } = useAuth();
+  const location = useLocation();
+  const { t } = useT();
   if (!user) return null;
 
   const sections = sidebarNavByRole[user.role as Role];
   if (!sections) return null;
 
-  const linkClass = 'editorial-nav-link flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors';
-  const activeClass = 'editorial-nav-link editorial-nav-link--active';
+  const linkClass = 'editorial-nav-link flex items-center gap-3 mx-3 px-3 min-h-[2.75rem] text-sm font-medium transition-colors';
+  const activeClass = `${linkClass} editorial-nav-link--active`;
 
-  const profileTabFromTo = (to: string): string => {
-    const query = to.includes('?') ? to.split('?')[1] : '';
-    return new URLSearchParams(query).get('tab') || 'profile';
-  };
+  const isItemActive = (to: string): boolean => isNavItemActive(to, location.pathname, location.search);
 
   const renderLink = (item: (typeof sections.primary)[0], idx: number) => (
     <NavLink
       key={`${item.to}-${item.label}-${idx}`}
       to={item.to}
       end={item.to === '/dashboard' || item.to === '/operator-dashboard'}
-      isActive={(_, location) => {
-        const [path] = item.to.split('?');
-        if (path === '/profile') {
-          if (location.pathname !== '/profile') return false;
-          const currentTab = new URLSearchParams(location.search).get('tab') || 'profile';
-          return currentTab === profileTabFromTo(item.to);
-        }
-        if (item.to.includes('?')) {
-          return location.pathname === path && location.search.includes(item.to.split('?')[1] || '');
-        }
-        return location.pathname === item.to;
-      }}
       onClick={onNavigate}
-      className={({ isActive }) => (isActive ? activeClass : linkClass)}
+      // React Router v7 da NavLink `isActive` propini qo'llamaydi — query (?tab=) hisobga olinishi uchun o'zimiz hisoblaymiz
+      className={isItemActive(item.to) ? activeClass : linkClass}
     >
       <item.icon className="editorial-nav-icon w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
-      <span className="truncate">{item.label}</span>
+      <span className="truncate">{t(item.label)}</span>
     </NavLink>
   );
 
@@ -65,27 +55,27 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, className = '' }) => {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-2">
-        <SectionLabel first>Asosiy</SectionLabel>
+        <SectionLabel first>{t('Asosiy')}</SectionLabel>
         {sections.primary.map((item, i) => renderLink(item, i))}
 
         {sections.tools && sections.tools.length > 0 && (
           <>
-            <SectionLabel>Vositalar</SectionLabel>
+            <SectionLabel>{t('Vositalar')}</SectionLabel>
             {sections.tools.map((item, i) => renderLink(item, i + 100))}
           </>
         )}
 
         {sections.account && sections.account.length > 0 && (
           <>
-            <SectionLabel>Hisob</SectionLabel>
+            <SectionLabel>{t('Hisob')}</SectionLabel>
             {sections.account.map((item, i) => renderLink(item, i + 200))}
           </>
         )}
 
-        <SectionLabel>Yordam</SectionLabel>
+        <SectionLabel>{t('Yordam')}</SectionLabel>
         <a href={`mailto:${SUPPORT_EMAIL}`} className={linkClass} onClick={onNavigate}>
           <HelpCircle className="editorial-nav-icon w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
-          <span>Yordam</span>
+          <span>{t('Yordam')}</span>
         </a>
       </nav>
 
@@ -97,7 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, className = '' }) => {
             </div>
             <div className="min-w-0 pt-0.5">
               <p className="text-xs font-bold text-[var(--editorial-text)] leading-tight">
-                Qo&apos;llab-quvvatlash
+                {t("Qo'llab-quvvatlash")}
               </p>
               <a href={`mailto:${SUPPORT_EMAIL}`} className="text-[11px] editorial-link break-all leading-snug mt-0.5 inline-block">
                 {SUPPORT_EMAIL}

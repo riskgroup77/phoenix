@@ -5,6 +5,7 @@ import { Printer, Download, FileText, X, Link as LinkIcon, ArrowLeft } from 'luc
 import AntiplagiatCertificate from './AntiplagiatCertificate';
 import PlagiarismFullReport from './PlagiarismFullReport';
 import PlagiarismShortReport from './PlagiarismShortReport';
+import AntiplagiatHighlightView from './AntiplagiatHighlightView';
 import type { AntiplagiatCertificateData } from './AntiplagiatCertificate';
 import type { PlagiarismFullReportData } from './PlagiarismFullReport';
 
@@ -118,6 +119,20 @@ const AntiplagiatResultView: React.FC<Props> = ({
             Chop etish
           </Button>
         </div>
+
+        {(fullReportData.annotatedDocument || []).length > 0 && (
+          <div className="no-print">
+            <AntiplagiatHighlightView
+              paragraphs={fullReportData.annotatedDocument || []}
+              sources={fullReportData.sources.map((s) => ({
+                id: Number(s.id),
+                sourceName: s.sourceName,
+                sourceUrl: s.sourceUrl,
+                percentage: s.percentage,
+              }))}
+            />
+          </div>
+        )}
 
         <Card title="Topilgan manbalar (namuna)" className="no-print max-h-96 overflow-hidden flex flex-col">
           <div className="overflow-y-auto max-h-72 space-y-3 pr-1">

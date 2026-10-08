@@ -1,3 +1,4 @@
+import logging
 import os
 import tempfile
 from django.conf import settings
@@ -8,9 +9,12 @@ from rest_framework.response import Response
 from rest_framework import status, serializers
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import AllowAny
+from config.permissions import SuperAdminWriteAuthenticatedRead
 
 from . import services
 from .models import UdkRequest, UDKCertificate, UDK_REQUEST_STATUS_SUBMITTED, UDK_REQUEST_STATUS_COMPLETED, ServicePrice
+
+logger = logging.getLogger(__name__)
 
 
 # ============ UdkRequest Serializer ============
@@ -65,7 +69,8 @@ class ServicePriceViewSet(ModelViewSet):
     """
     queryset = ServicePrice.objects.all()
     serializer_class = ServicePriceSerializer
-    permission_classes = [IsAuthenticated]
+    # Narxlarni o'qish — har kim (narxlar sahifasi); o'zgartirish — faqat bosh admin
+    permission_classes = [SuperAdminWriteAuthenticatedRead]
     
     def get_queryset(self):
         """Barcha narxlarni qaytarish."""
@@ -228,15 +233,13 @@ def udk_request_complete(request, pk):
         transaction=udk_req.transaction,
     )
     
-    # PDF generatsiya
+    # PDF generatsiya (avval funksiya noto'g'ri argument bilan chaqirilib, TypeError jimgina
+    # yutilardi — natijada UDK so'rovlari uchun PDF hech qachon yaratilmasdi)
     try:
-        from .pdf_generator import generate_udk_certificate_pdf
-        pdf_path = generate_udk_certificate_pdf(cert)
-        if pdf_path:
-            cert.certificate_path = pdf_path
-            cert.save(update_fields=['certificate_path'])
+        from .pdf_generator import save_certificate_pdf
+        save_certificate_pdf(cert)
     except Exception as e:
-        print(f"[UDK] PDF generation error: {e}")
+        logger.error('[UDK] PDF yaratilmadi (certificate=%s): %s', cert.id, e, exc_info=True)
     
     # Muallifga bildirishnoma yuborish
     _notify_author_udk_completed(udk_req, cert)

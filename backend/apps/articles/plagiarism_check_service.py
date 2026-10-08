@@ -82,6 +82,7 @@ def mark_plagiarism_processing(article, enabled_modules: list[str] | None = None
         'sources_found': 0,
         'check_phase': 'starting',
         'check_started_at': timezone.now().isoformat(),
+        'check_updated_at': timezone.now().isoformat(),
         'check_error': '',
     })
     if enabled_modules:
@@ -90,10 +91,51 @@ def mark_plagiarism_processing(article, enabled_modules: list[str] | None = None
     article.save(update_fields=['plagiarism_report'])
 
 
+def _new_certificate_number() -> str:
+    """
+    Tasodifiy 10 xonali sertifikat raqami (QR orqali tekshiriladi).
+    Avval vaqt tamg'asi ishlatilardi — taxmin qilish oson va bir soniyada ikki tekshiruv to'qnashardi.
+    """
+    import secrets
+
+    from apps.articles.models import Article
+
+    for _ in range(10):
+        candidate = str(secrets.randbelow(9 * 10**9) + 10**9)
+        if not Article.objects.filter(plagiarism_report__certificate_number=candidate).exists():
+            return candidate
+    return str(secrets.randbelow(9 * 10**11) + 10**11)
+
+
+STALE_CHECK_SECONDS =int(os.environ.get('PHONIX_ANTIPLAG_STALE_SEC', '1800'))
+
+
+def _is_stale_processing(report: dict) -> bool:
+    """
+    "processing" holati uzoq vaqt yangilanmagan bo'lsa (worker yo'q, gunicorn qayta ishga tushgan,
+    thread o'lgan) — tekshiruv qotib qolgan deb hisoblanadi va qayta boshlash mumkin.
+    """
+    if report.get('check_status') != 'processing':
+        return False
+    stamp = report.get('check_updated_at') or report.get('check_started_at')
+    if not stamp:
+        return True
+    try:
+        last = datetime.fromisoformat(str(stamp))
+    except ValueError:
+        return True
+    if timezone.is_naive(last):
+        last = timezone.make_aware(last)
+    return (timezone.now() - last).total_seconds() > STALE_CHECK_SECONDS
+
+
 def get_plagiarism_check_status(article) -> dict:
     report = article.plagiarism_report if isinstance(article.plagiarism_report, dict) else {}
+    status = report.get('check_status', 'idle')
+    if _is_stale_processing(report):
+        status = 'stalled'
     return {
-        'status': report.get('check_status', 'idle'),
+        'status': status,
         'progress_percent': float(report.get('progress_percent', 0) or 0),
         'modules_total': int(report.get('modules_total', 0) or 0),
         'modules_completed': int(report.get('modules_completed', 0) or 0),
@@ -108,6 +150,28 @@ def get_plagiarism_check_status(article) -> dict:
     }
 
 
+def _index_private_check_later(article, file_path, text_content) -> None:
+    """Mustaqil tekshiruv hujjati — faqat barmoq izlari (matnsiz) indeksga, fon oqimida."""
+    from apps.articles.antiplagiat_index import index_private_check, schedule
+    from apps.articles.models import Article
+
+    def _run(pk, path, text):
+        art = Article.objects.filter(pk=pk).first()
+        if art is None:
+            return
+        if path and not text:
+            from apps.services import extract_plain_text_from_file
+
+            text = extract_plain_text_from_file(path)
+        if text:
+            index_private_check(art, text)
+
+    try:
+        schedule(_run, article.pk, file_path, text_content)
+    except Exception as exc:
+        logger.warning('private check index schedule failed %s: %s', article.pk, exc)
+
+
 def run_plagiarism_check(
     article,
     user,
@@ -117,7 +181,7 @@ def run_plagiarism_check(
 ) -> dict:
     """
     Maqola uchun to'liq chuqur antiplagiat tekshiruvi.
-    Har bir modul alohida skanerlanadi; jarayon kamida ~10 daqiqa davom etadi.
+    Faqat haqiqiy mosliklar qidiriladi (ichki korpus, ochiq API'lar); sun'iy kutish yo'q.
     """
     from apps.articles.models import ActivityLog, Article
     from apps.articles.antiplagiat_engine import get_antiplagiat_engine
@@ -254,7 +318,7 @@ def run_plagiarism_check(
             if existing.get(key) and not result_report.get(key):
                 result_report[key] = existing[key]
         if not result_report.get('certificate_number'):
-            result_report['certificate_number'] = timezone.now().strftime('%y%m%d%H%M%S')[-10:]
+            result_report['certificate_number'] = _new_certificate_number()
         result_report['archive_ready'] = True
         result_report['check_status'] = 'completed'
         result_report['progress_percent'] = 100
@@ -288,6 +352,9 @@ def run_plagiarism_check(
                 f'Originality: {originality}% (deep module scan, {result_report.get("sources_count", 0)} sources)'
             ),
         )
+
+        if getattr(settings, 'ANTIPLAG_INDEX_PRIVATE_CHECKS', False):
+            _index_private_check_later(article, file_path, None if file_path else text_content)
 
         return {
             'plagiarism': plagiarism_percentage,

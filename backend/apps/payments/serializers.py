@@ -8,7 +8,9 @@ class TransactionSerializer(serializers.ModelSerializer):
     journal_name = serializers.SerializerMethodField()
     article_title = serializers.SerializerMethodField()
     context_label = serializers.SerializerMethodField()
-    
+    service_label = serializers.SerializerMethodField()
+    receipt_number = serializers.SerializerMethodField()
+
     class Meta:
         model = Transaction
         fields = '__all__'
@@ -20,7 +22,15 @@ class TransactionSerializer(serializers.ModelSerializer):
     
     def get_user_name(self, obj):
         return obj.user.get_full_name()
-    
+
+    def get_service_label(self, obj):
+        from .labels import service_label
+        return service_label(obj.service_type)
+
+    def get_receipt_number(self, obj):
+        from .labels import receipt_number
+        return receipt_number(obj) if obj.status == 'completed' else ''
+
     def _extra_data(self, obj):
         raw = getattr(obj, 'extra_data', None)
         return raw if isinstance(raw, dict) else {}
@@ -102,15 +112,33 @@ class CreateTransactionSerializer(serializers.ModelSerializer):
             'article': {'required': False, 'allow_null': True},
             'translation_request': {'required': False, 'allow_null': True},
             'currency': {'required': False},
-            'amount': {'required': True},
+            'amount': {'required': False},
             'service_type': {'required': True},
             'extra_data': {'required': False, 'allow_null': True},
         }
 
     def validate(self, attrs):
-        """Set default currency if not provided"""
-        if 'currency' not in attrs or not attrs['currency']:
-            attrs['currency'] = 'UZS'
-        if 'extra_data' not in attrs:
-            attrs['extra_data'] = {}
+        """Summa va extra_data server tomonidan hisoblanadi — mijoz yuborgan amount ga ishonilmaydi."""
+        import logging
+
+        from .pricing import resolve_transaction_price
+
+        request = self.context.get('request')
+        amount, extra = resolve_transaction_price(
+            user=request.user,
+            service_type=attrs.get('service_type'),
+            article=attrs.get('article'),
+            translation_request=attrs.get('translation_request'),
+            client_amount=attrs.get('amount'),
+            extra_data=attrs.get('extra_data'),
+        )
+        client_amount = attrs.get('amount')
+        if client_amount is not None and abs(float(client_amount) - float(amount)) > 0.01:
+            logging.getLogger(__name__).warning(
+                'Transaction amount overridden: user=%s service=%s client=%s server=%s',
+                request.user.id, attrs.get('service_type'), client_amount, amount,
+            )
+        attrs['amount'] = amount
+        attrs['extra_data'] = extra
+        attrs['currency'] = 'UZS'
         return attrs

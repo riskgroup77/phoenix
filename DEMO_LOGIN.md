@@ -1,48 +1,39 @@
-# Demo kirish va Django admin
+# Demo kirish (sinov hisoblari)
 
-## Tizimga kirish (brauzer)
+Telefon raqamni 998 siz kiritish mumkin. Parol — rol nomi.
 
-Quyidagi telefon va parol bilan kirishingiz mumkin:
+| Rol | Telefon | Parol | Serverda |
+|---|---|---|---|
+| Muallif | 911111111 | muallif | ha |
+| Taqrizchi | 922222222 | taqrizchi | ha |
+| Jurnal admini | 933333333 | muharrir | ha |
+| Operator | 955555555 | operator | ha |
+| Buxgalter | 944444444 | buxgalter | yo'q, faqat lokal |
+| Bosh admin | 966666666 | admin | yo'q, faqat lokal |
 
-| Rol | Telefon | Parol | Email |
-|-----|---------|-------|--------|
-| Super Admin | 998901001001 | Demo@admin1 | admin@phoenix.uz |
-| Journal Admin (Tahrirchi) | 998901001002 | Demo@editor1 | editor@phoenix.uz |
-| Reviewer (Taqrizchi) | 998901001003 | Demo@review1 | reviewer@phoenix.uz |
-| Author (Muallif) | 998901001004 | Demo@author1 | author@phoenix.uz |
-| Accountant (Buxgalter) | 998901001005 | Demo@account1 | accountant@phoenix.uz |
-
-**Kirish:** Login sahifada telefon raqamni 9 ta raqam sifatida kiriting (masalan: `901001001`), parol: `Demo@admin1`.
-
----
-
-## Django admin panel (/admin/)
-
-Alohida hisob — boshqaruv va ma’lumotlar bazasini boshqarish uchun:
-
-- **Telefon:** 998907863888  
-- **Parol:** Admin123  
-
-URL: `https://your-domain.com/admin/` (yoki `http://localhost:8000/admin/`)
-
----
-
-## Parollarni yangilash / demo hisoblarni qayta o‘rnatish
-
-Agar demo parollar ishlamasa yoki yangi serverda sozlash kerak bo‘lsa:
+Yaratish yoki parollarni tiklash (hech kim o'chirilmaydi):
 
 ```bash
 cd backend
 python manage.py setup_demo_and_admin
 ```
 
-Bu buyruq:
-- 5 ta demo userni yaratadi yoki ularning parollarini yuqoridagi jadvalga mos yangilaydi;
-- Django admin (998907863888 / Admin123) ni yaratadi yoki yangilaydi;
-- **Hech qanday boshqa foydalanuvchini o‘chirmaydi.**
+Deploy skripti (`deploy_phonix.sh`) bu buyruqni har deployda o'zi ishga tushiradi.
 
-Alternativa (backend papkada):
+## Xavfsizlik
+
+- Serverda (`DEBUG=False`) bosh admin, buxgalter va Django admin demo hisoblari **yaratilmaydi**.
+  Oddiy parolli admin hisobi platformadagi to'lovlar va foydalanuvchilarni ochib qo'yadi.
+  Serverda o'zingizning haqiqiy admin hisobingiz bilan kiring.
+- Demo hisoblar `@demo.ilmiyfaoliyat.uz` emaili bilan belgilanadi. Shu telefon raqami bilan haqiqiy
+  foydalanuvchi ro'yxatdan o'tgan bo'lsa, uning hisobiga tegilmaydi.
+- Demo hisoblar kerak bo'lmay qolganda ularni va eski demo hisoblarni (998901001001… parollari avval
+  repoda ochiq bo'lgan) yopish:
 
 ```bash
-python create_admin_editor_users.py
+python manage.py rotate_demo_passwords          # ro'yxatni ko'rish
+python manage.py rotate_demo_passwords --apply  # tasodifiy parollarga almashtirish
 ```
+
+Eslatma: deploy skripti har safar demo parollarni yana oddiy holatga qaytaradi. Demo hisoblarni butunlay
+o'chirish uchun deploy skriptidagi `setup_demo_and_admin` qatorini olib tashlang.

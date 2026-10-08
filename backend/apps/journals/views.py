@@ -1,8 +1,10 @@
 from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
+from config.permissions import SuperAdminWriteAuthenticatedRead, SuperAdminWritePublicRead
 from django_filters.rest_framework import DjangoFilterBackend
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError
 from django.db.models import Prefetch, Q, Count
 from .models import Journal, JournalCategory, Issue, ScientificField, Conference, AuthorPublication
@@ -13,7 +15,8 @@ from apps.articles.models import Article
 class JournalCategoryViewSet(viewsets.ModelViewSet):
     queryset = JournalCategory.objects.all()
     serializer_class = JournalCategorySerializer
-    permission_classes = [AllowAny]
+    # O'qish ochiq; yaratish/o'chirish faqat bosh admin (o'chirish CASCADE: jurnallar → maqolalar)
+    permission_classes = [SuperAdminWritePublicRead]
     
     def get_queryset(self):
         # Optimize query
@@ -23,7 +26,8 @@ class JournalCategoryViewSet(viewsets.ModelViewSet):
 class JournalViewSet(viewsets.ModelViewSet):
     queryset = Journal.objects.all()
     serializer_class = JournalSerializer
-    permission_classes = [AllowAny]
+    # O'qish ochiq; yozish uchun login shart (rol tekshiruvi create/update/destroy ichida)
+    permission_classes = [IsAuthenticatedOrReadOnly]
     
     def get_queryset(self):
         # Optimize queries with select_related. Journal admin sees only their assigned journals.
@@ -153,6 +157,16 @@ class IssueViewSet(viewsets.ModelViewSet):
         serializer_data, article_ids = self._issue_serializer_data(source)
         journal_id = serializer_data.get('journal')
         issue_number = serializer_data.get('issue_number')
+        if request.user.role == 'journal_admin' and journal_id:
+            try:
+                owns_journal = Journal.objects.filter(pk=journal_id, journal_admin=request.user).exists()
+            except (ValueError, DjangoValidationError):
+                owns_journal = False
+            if not owns_journal:
+                return Response(
+                    {'error': 'Siz faqat o\'z jurnalingiz uchun son yarata olasiz'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
         # Upsert: check BEFORE validation so we don't get unique_together 400
         if journal_id and issue_number:
             existing = Issue.objects.filter(journal_id=journal_id, issue_number=str(issue_number)).first()
@@ -287,7 +301,7 @@ class ScientificFieldViewSet(viewsets.ModelViewSet):
     """Scientific fields CRUD operations"""
     queryset = ScientificField.objects.filter(is_active=True)
     serializer_class = ScientificFieldSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [SuperAdminWriteAuthenticatedRead]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['is_active']
     search_fields = ['name', 'description']
@@ -298,7 +312,7 @@ class ConferenceViewSet(viewsets.ModelViewSet):
     """Conferences CRUD operations"""
     queryset = Conference.objects.filter(is_active=True)
     serializer_class = ConferenceSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [SuperAdminWriteAuthenticatedRead]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['category', 'scientific_field', 'is_active']
     search_fields = ['title', 'description', 'location']

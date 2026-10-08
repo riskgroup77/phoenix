@@ -9,18 +9,40 @@ class UserSerializer(serializers.ModelSerializer):
     gamification_profile = serializers.SerializerMethodField()
     avatar_url = serializers.SerializerMethodField()
     password = serializers.CharField(write_only=True, required=False)
-    
+    telegram_connected = serializers.SerializerMethodField()
+    telegram_bot_username = serializers.SerializerMethodField()
+    orcid_url = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = (
             'id', 'phone', 'email', 'first_name', 'last_name', 'patronymic',
-            'role', 'orcid_id', 'affiliation', 'avatar_url', 'telegram_username',
+            'role', 'orcid_id', 'orcid_url', 'affiliation', 'avatar_url', 'telegram_username',
+            'telegram_notifications', 'telegram_connected', 'telegram_bot_username',
             'gamification_profile', 'specializations', 'reviews_completed',
             'average_review_time', 'acceptance_rate', 'password', 'is_active',
             'date_joined'
         )
         read_only_fields = ('id', 'date_joined', 'gamification_profile', 'avatar_url', 'is_active')
-    
+
+    def validate_orcid_id(self, value):
+        from .orcid import normalize_orcid
+        try:
+            return normalize_orcid(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
+
+    def get_orcid_url(self, obj):
+        from .orcid import orcid_url
+        return orcid_url(obj.orcid_id)
+
+    def get_telegram_connected(self, obj):
+        return obj.telegram_sessions.exists() if obj.pk else False
+
+    def get_telegram_bot_username(self, obj):
+        from django.conf import settings
+        return getattr(settings, 'TELEGRAM_BOT_USERNAME', '') or ''
+
     def get_gamification_profile(self, obj):
         return {
             'level': obj.gamification_level,
@@ -86,7 +108,14 @@ class RegisterSerializer(serializers.ModelSerializer):
             'phone', 'email', 'password', 'password_confirm',
             'first_name', 'last_name', 'patronymic', 'affiliation', 'orcid_id'
         )
-    
+
+    def validate_orcid_id(self, value):
+        from .orcid import normalize_orcid
+        try:
+            return normalize_orcid(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc))
+
     def validate_phone(self, value):
         """Normalize and validate phone number"""
         if not value:
@@ -306,13 +335,17 @@ class UserProfileSerializer(serializers.ModelSerializer):
     gamification_profile = serializers.SerializerMethodField()
     full_name = serializers.SerializerMethodField()
     avatar_url = serializers.SerializerMethodField()
-    
+    telegram_connected = serializers.SerializerMethodField()
+    telegram_bot_username = serializers.SerializerMethodField()
+    orcid_url = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = (
             'id', 'phone', 'email', 'first_name', 'last_name', 'patronymic',
-            'full_name', 'role', 'orcid_id', 'affiliation', 'avatar_url',
-            'telegram_username', 'gamification_profile', 'specializations',
+            'full_name', 'role', 'orcid_id', 'orcid_url', 'affiliation', 'avatar_url',
+            'telegram_username', 'telegram_notifications', 'telegram_connected', 'telegram_bot_username',
+            'gamification_profile', 'specializations',
             'reviews_completed', 'average_review_time', 'acceptance_rate',
             'is_active', 'date_joined', 'last_login'
         )
@@ -327,6 +360,17 @@ class UserProfileSerializer(serializers.ModelSerializer):
     
     def get_full_name(self, obj):
         return obj.get_full_name()
+
+    def get_orcid_url(self, obj):
+        from .orcid import orcid_url
+        return orcid_url(obj.orcid_id)
+
+    def get_telegram_connected(self, obj):
+        return obj.telegram_sessions.exists() if obj.pk else False
+
+    def get_telegram_bot_username(self, obj):
+        from django.conf import settings
+        return getattr(settings, 'TELEGRAM_BOT_USERNAME', '') or ''
     
     def get_avatar_url(self, obj):
         if obj.avatar_url and hasattr(obj.avatar_url, 'url'):

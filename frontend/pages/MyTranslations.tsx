@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/ui/Skeleton';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import { useAuth } from '../contexts/AuthContext';
@@ -126,11 +128,7 @@ const MyTranslations: React.FC = () => {
     }
     
     if (loading) {
-        return (
-            <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            </div>
-        );
+        return <ListSkeleton rows={6} />;
     }
     
     if (error) {
@@ -225,11 +223,12 @@ const MyTranslations: React.FC = () => {
                         );
                     })
                 ) : (
-                    <div className="editorial-empty">
-                        <Languages className="mx-auto h-12 w-12 text-[var(--editorial-muted)] mb-3" />
-                        <h3 className="font-serif text-lg font-semibold text-[var(--editorial-text)]">Sizda Hozircha Tarjima Buyurtmalari Yo'q</h3>
-                        <p className="mt-2 text-sm">"Xizmatlar" bo'limi orqali yangi tarjima buyurtma qilishingiz mumkin.</p>
-                    </div>
+                    <EmptyState
+                        illustration="documents"
+                        title="Hozircha tarjima buyurtmalari yo'q"
+                        description="Ilmiy maqolangizni o'zbek, rus yoki ingliz tiliga tarjima qildiring — narx so'zlar soniga qarab hisoblanadi."
+                        action={{ label: 'Tarjimaga buyurtma berish', to: '/translation-service' }}
+                    />
                 )}
             </div>
         </div>

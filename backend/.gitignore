@@ -74,3 +74,7 @@ test-stats-endpoint.py
 # Keep migrations
 !*/migrations/
 !*/migrations/__init__.py
+
+# Test artefaktlari (config/settings_test.py)
+test_db.sqlite3
+test_media/

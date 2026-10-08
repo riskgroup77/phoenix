@@ -231,10 +231,51 @@ class ArticleSerializer(serializers.ModelSerializer):
     workflow_steps = serializers.SerializerMethodField()
     status_timeline = serializers.SerializerMethodField()
 
+    # Muallif PATCH orqali faqat antiplagiat sozlamalarini yuborishi mumkin (savePlagiarismConfig).
+    PLAGIARISM_CONFIG_KEYS = (
+        'pending_enabled_modules',
+        'document_type',
+        'document_name',
+        'author_first_name',
+        'author_last_name',
+    )
+
     class Meta:
         model = Article
         fields = '__all__'
-        read_only_fields = ('id', 'submission_date', 'views_count', 'downloads_count', 'citations_count')
+        # Holat, natijalar, sertifikatlar va to'lovga ta'sir qiluvchi maydonlar faqat server
+        # amallari (update_status, complete_publication, antiplagiat tekshiruvi) orqali o'zgaradi.
+        read_only_fields = (
+            'id', 'submission_date', 'views_count', 'downloads_count', 'citations_count',
+            'status', 'author', 'co_authors', 'journal', 'issue', 'doi', 'published_by',
+            'plagiarism_percentage', 'ai_content_percentage', 'originality_percentage',
+            'plagiarism_checked_at',
+            'udk_code', 'udk_description', 'udk_certificate_path',
+            'certificate_url', 'publication_url', 'publication_certificate_url',
+            'publication_certificate_path', 'thesis_url', 'review_content',
+            'page_count', 'fast_track',
+        )
+
+    def validate_plagiarism_report(self, value):
+        """Faqat sozlama kalitlari qabul qilinadi va mavjud hisobotga qo'shiladi (natijalar o'zgarmaydi)."""
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('plagiarism_report obyekt bo\'lishi kerak.')
+        instance = getattr(self, 'instance', None)
+        existing = instance.plagiarism_report if instance is not None and isinstance(instance.plagiarism_report, dict) else {}
+        if instance is not None and (
+            instance.plagiarism_checked_at or existing.get('check_status') in ('processing', 'completed')
+        ):
+            raise serializers.ValidationError('Tekshiruv boshlangan — sozlamalarni o\'zgartirib bo\'lmaydi.')
+        merged = dict(existing)
+        for key in self.PLAGIARISM_CONFIG_KEYS:
+            if key not in value:
+                continue
+            raw = value[key]
+            if key == 'pending_enabled_modules':
+                merged[key] = [str(m)[:80] for m in raw][:300] if isinstance(raw, list) else []
+            else:
+                merged[key] = str(raw or '')[:300]
+        return merged
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -384,44 +425,127 @@ class ArticleSerializer(serializers.ModelSerializer):
             })
         return items
 
+    # Muallifga har bir holatda "hozir nima bo'lyapti" degan qisqa tushuntirish
+    STATUS_HINTS = {
+        'Draft': "To'lov kutilmoqda. To'lovdan so'ng maqola tahririyatga yuboriladi.",
+        'Yangi': 'Maqola qabul qilindi va tahririyat navbatiga qo\'yildi.',
+        'WithEditor': 'Muharrir maqolani dastlabki tekshiruvdan o\'tkazmoqda.',
+        'QabulQilingan': 'Maqola taqrizchiga yuborildi va ko\'rib chiqilmoqda.',
+        'WritingInProgress': 'Maqolaga tuzatishlar kiritilmoqda.',
+        'Revision': 'Tahrirga qaytarildi. Izohni o\'qib, tuzatilgan faylni qayta yuboring.',
+        'Accepted': 'Maqola qabul qilindi va nashrga tayyorlanmoqda.',
+        'NashrgaYuborilgan': 'Maqola jurnalga nashr uchun yuborildi.',
+        'PlagiarismReview': 'Antiplagiat natijasi bo\'yicha bosh administrator qarori kutilmoqda.',
+        'Published': 'Maqola nashr etildi. Sertifikat va havola maqola sahifasida.',
+        'Rejected': 'Maqola rad etildi. Sababini izohda ko\'ring.',
+        'ProcessPaused': 'Jarayon vaqtincha to\'xtatildi.',
+    }
+    STATUS_TONES = {
+        'Published': 'success', 'Accepted': 'success', 'Delivered': 'success', 'Ready': 'success',
+        'Revision': 'warning', 'PlagiarismReview': 'warning', 'Draft': 'warning',
+        'Rejected': 'danger', 'ProcessPaused': 'danger',
+    }
+    ROLE_LABELS = {
+        'author': 'Muallif',
+        'reviewer': 'Taqrizchi',
+        'journal_admin': 'Jurnal muharriri',
+        'super_admin': 'Bosh muharrir',
+        'accountant': 'Buxgalteriya',
+        'operator': 'Operator',
+    }
+
+    def _viewer_is_staff(self):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None) if request else None
+        if not user or not getattr(user, 'is_authenticated', False):
+            return False
+        role = (getattr(user, 'role', '') or '').lower()
+        return role in ('super_admin', 'journal_admin', 'reviewer', 'operator', 'accountant') or user.is_superuser
+
+    def _responsible_label(self, actor, actor_role, obj, staff_view):
+        if actor is None:
+            return 'Tizim'
+        if actor.pk == obj.author_id:
+            return 'Muallif'
+        role_label = self.ROLE_LABELS.get((actor_role or getattr(actor, 'role', '') or '').lower(), 'Tahririyat')
+        if not staff_view:
+            # Muallifga xodimning ismi emas, vazifasi ko'rsatiladi (taqriz anonimligi).
+            return role_label
+        name = getattr(actor, 'get_full_name', lambda: '')() or ''
+        return f'{name} ({role_label})' if name else role_label
+
     def get_status_timeline(self, obj):
-        author_name = ''
-        if obj.author:
-            author_name = getattr(obj.author, 'get_full_name', lambda: str(obj.author))()
-        timeline = [{
-            'status': 'Yangi topshirildi',
-            'date': obj.submission_date,
-            'comment': 'Maqola muallif tomonidan tizimga yuklandi.',
-            'responsible': author_name or 'Muallif',
-        }]
-
+        """
+        Vaqt chizig'i (eskidan yangiga): holat o'zgarishlari + muhim hodisalar (to'lov, antiplagiat).
+        Har bir yozuv: status (nom), to_status, date, comment, responsible, hint, tone, kind.
+        """
         status_labels = self._status_labels()
-        logs = obj.activity_logs.all().order_by('-timestamp')[:50]
-        for log in logs:
-            if not log.action:
-                continue
-            responsible = 'Tizim'
-            if log.user:
-                responsible = getattr(log.user, 'get_full_name', lambda: str(log.user))() or 'Tizim'
+        staff_view = self._viewer_is_staff()
+        items = []
 
-            if 'Status changed from' in log.action:
-                parts = log.action.split(' to ')
-                new_status = parts[-1].strip() if parts else ''
-                timeline.append({
-                    'status': status_labels.get(new_status, new_status or 'Status yangilandi'),
-                    'date': log.timestamp,
-                    'comment': log.details or 'Status o‘zgartirildi',
-                    'responsible': responsible,
-                })
-            elif self._is_book_submission(obj) and log.action in status_labels:
-                timeline.append({
-                    'status': status_labels.get(log.action, log.action),
-                    'date': log.timestamp,
-                    'comment': log.details or '',
-                    'responsible': responsible,
-                })
+        events = list(obj.status_events.select_related('actor').all())
+        for ev in events:
+            items.append({
+                'kind': 'status',
+                'status': status_labels.get(ev.to_status, ev.to_status),
+                'to_status': ev.to_status,
+                'from_status': ev.from_status,
+                'date': ev.created_at,
+                'comment': ev.note or '',
+                'responsible': self._responsible_label(ev.actor, ev.actor_role, obj, staff_view),
+                'hint': self.STATUS_HINTS.get(ev.to_status, ''),
+                'tone': self.STATUS_TONES.get(ev.to_status, 'info'),
+            })
 
-        return timeline
+        if not events:
+            # Migratsiyadan oldingi yoki tarixsiz maqola: kamida yuborilgan sana ko'rinsin
+            items.append({
+                'kind': 'status',
+                'status': status_labels.get(obj.status, obj.status),
+                'to_status': obj.status,
+                'from_status': '',
+                'date': obj.submission_date,
+                'comment': '',
+                'responsible': 'Muallif',
+                'hint': self.STATUS_HINTS.get(obj.status, ''),
+                'tone': self.STATUS_TONES.get(obj.status, 'info'),
+            })
+
+        try:
+            from apps.payments.models import Transaction
+
+            for tx in Transaction.objects.filter(article_id=obj.pk, status='completed').only(
+                'id', 'amount', 'service_type', 'completed_at', 'created_at'
+            ):
+                items.append({
+                    'kind': 'payment',
+                    'status': "To'lov qabul qilindi",
+                    'to_status': '',
+                    'from_status': '',
+                    'date': tx.completed_at or tx.created_at,
+                    'comment': f"{int(tx.amount):,} so'm".replace(',', ' '),
+                    'responsible': 'Tizim',
+                    'hint': '',
+                    'tone': 'success',
+                })
+        except Exception:
+            pass
+
+        for log in obj.activity_logs.filter(action='Plagiarism check completed').order_by('timestamp')[:5]:
+            items.append({
+                'kind': 'plagiarism',
+                'status': 'Antiplagiat tekshiruvi yakunlandi',
+                'to_status': '',
+                'from_status': '',
+                'date': log.timestamp,
+                'comment': '',
+                'responsible': 'Tizim',
+                'hint': '',
+                'tone': 'info',
+            })
+
+        items.sort(key=lambda x: x['date'] or obj.submission_date)
+        return items
 
 
 class CreateArticleSerializer(serializers.ModelSerializer):

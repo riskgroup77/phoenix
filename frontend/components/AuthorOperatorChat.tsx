@@ -124,7 +124,7 @@ const AuthorOperatorChat: React.FC<AuthorOperatorChatProps> = ({
               <div
                 className={`${isDock ? 'max-w-[92%] px-3 py-2' : 'max-w-[85%] sm:max-w-[70%] px-4 py-2.5'} rounded-2xl ${
                   own
-                    ? 'bg-blue-600/90 text-white rounded-br-md'
+                    ? 'bg-[#1f3f8f] text-white rounded-br-md'
                     : 'bg-white/90 text-slate-800 rounded-bl-md border border-slate-200/80 shadow-sm'
                 }`}
               >

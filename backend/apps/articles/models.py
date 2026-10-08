@@ -1,4 +1,5 @@
 from django.db import models
+from config.uploads import RandomizedUploadPath
 from django.conf import settings
 import uuid
 
@@ -60,8 +61,8 @@ class Article(models.Model):
     publication_certificate_url = models.CharField(max_length=500, blank=True)
     publication_certificate_path = models.FileField(upload_to='articles/publication_certificates/', blank=True, null=True)
     thesis_url = models.CharField(max_length=500, blank=True)
-    final_pdf_path = models.FileField(upload_to='articles/pdfs/', blank=True, null=True)
-    additional_document_path = models.FileField(upload_to='articles/additional/', blank=True, null=True)
+    final_pdf_path = models.FileField(upload_to=RandomizedUploadPath('articles/pdfs'), blank=True, null=True)
+    additional_document_path = models.FileField(upload_to=RandomizedUploadPath('articles/additional'), blank=True, null=True)
     
     # UDK (Universal Decimal Classification) — ilmiy ish uchun klassifikator kodi (teacode.com/online/udc)
     udk_code = models.CharField(max_length=100, blank=True)
@@ -105,7 +106,7 @@ class ArticleVersion(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='versions')
     version_number = models.IntegerField()
-    file_path = models.FileField(upload_to='articles/versions/')
+    file_path = models.FileField(upload_to=RandomizedUploadPath('articles/versions'))
     submission_date = models.DateTimeField(auto_now_add=True)
     digital_hash = models.CharField(max_length=256, blank=True)
     signed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
@@ -134,6 +135,38 @@ class ActivityLog(models.Model):
     
     def __str__(self):
         return f"{self.article.title} - {self.action}"
+
+
+class ArticleStatusEvent(models.Model):
+    """
+    Maqola holati tarixi: har bir o'zgarish (kim, qachon, qaysi holatdan qaysiga, izoh).
+    Signal orqali avtomatik yoziladi — to'lov callback'lari, admin amallari va API'dagi
+    barcha yo'llar qamrab olinadi. Muallif "maqolam qayerda?" savoliga shu yerdan javob oladi.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='status_events')
+    from_status = models.CharField(max_length=50, blank=True)
+    to_status = models.CharField(max_length=50)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='article_status_events',
+    )
+    actor_role = models.CharField(max_length=20, blank=True)
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['created_at']
+        indexes = [models.Index(fields=['article', 'created_at'])]
+        verbose_name = 'Maqola holati tarixi'
+        verbose_name_plural = 'Maqola holati tarixi'
+
+    def __str__(self):
+        return f'{self.article_id}: {self.from_status or "—"} → {self.to_status}'
 
 
 # Narx 1 bet uchun (so'm)
@@ -201,7 +234,7 @@ class DoiRequest(models.Model):
     )
     author_first_name = models.CharField(max_length=150)
     author_last_name = models.CharField(max_length=150)
-    file = models.FileField(upload_to='doi_requests/%Y/%m/', blank=False)
+    file = models.FileField(upload_to=RandomizedUploadPath('doi_requests'), blank=False)
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending_payment')
     doi_link = models.URLField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -248,6 +281,53 @@ class ArticleOperatorMessage(models.Model):
         return f"{self.article_id} — {self.created_at}"
 
 
+class AntiplagIndexedDocument(models.Model):
+    """
+    Antiplagiat barmoq izlari indeksidagi hujjat (apps/articles/antiplagiat_index.py).
+    doc_key: 'article:<uuid>' (platforma maqolasi), 'corpus:<external_key>' (import/OAI arxiv),
+    'check:<uuid>' (mustaqil tekshiruv — faqat ANTIPLAG_INDEX_PRIVATE_CHECKS yoqilganda, matnsiz).
+    """
+
+    KIND_CHOICES = (
+        ('article', 'Platforma maqolasi'),
+        ('corpus', 'Arxiv / import'),
+        ('check', 'Mustaqil tekshiruv (maxfiy)'),
+        ('meta', 'Xizmat yozuvi'),
+    )
+
+    doc_key = models.CharField(max_length=200, unique=True)
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+    title = models.CharField(max_length=500, blank=True)
+    url = models.CharField(max_length=500, blank=True)
+    source_type = models.CharField(max_length=40, blank=True)
+    is_public = models.BooleanField(default=False)
+    author_id = models.CharField(max_length=64, blank=True, db_index=True)
+    token_count = models.PositiveIntegerField(default=0)
+    content_hash = models.CharField(max_length=64, blank=True)
+    # Manba matni (hisobotda mos qismni ko'rsatish uchun). Maxfiy tekshiruvlar uchun bo'sh.
+    text = models.TextField(blank=True)
+    indexed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Antiplagiat indeksidagi hujjat'
+        verbose_name_plural = 'Antiplagiat indeksidagi hujjatlar'
+
+    def __str__(self):
+        return f'{self.doc_key} ({self.token_count} token)'
+
+
+class AntiplagFingerprint(models.Model):
+    """Hujjatning bitta barmoq izi: 4 ta mazmunli so'z o'zagidan iborat bo'lak xeshi va uning o'rni."""
+
+    hash = models.BigIntegerField(db_index=True)
+    document = models.ForeignKey(AntiplagIndexedDocument, on_delete=models.CASCADE, related_name='fingerprints')
+    position = models.PositiveIntegerField()
+
+    class Meta:
+        verbose_name = 'Antiplagiat barmoq izi'
+        verbose_name_plural = 'Antiplagiat barmoq izlari'
+
+
 class AntiplagCorpusDocument(models.Model):
     """Antiplagiat ichki indeks — import qilingan milliy arxiv / OTM hujjatlari."""
 
@@ -277,6 +357,8 @@ class AntiplagCorpusDocument(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    # OAI yozuvi uchun PDF to'liq matni olishga urinilgan vaqt (muvaffaqiyatsiz bo'lsa ham — qayta-qayta urinmaslik uchun)
+    fulltext_checked_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-updated_at']
@@ -285,3 +367,23 @@ class AntiplagCorpusDocument(models.Model):
 
     def __str__(self):
         return self.title[:80]
+
+
+class AntiplagHarvestState(models.Model):
+    """OAI-PMH yig'ish holati: har manba/set uchun oxirgi yozuv sanasi (keyingi safar faqat yangilari olinadi)."""
+
+    endpoint = models.CharField(max_length=300)
+    set_spec = models.CharField(max_length=200, blank=True, default='')
+    last_datestamp = models.CharField(max_length=40, blank=True, default='')
+    completed = models.BooleanField(default=False)  # birinchi to'liq o'tish tugaganmi
+    records_seen = models.PositiveIntegerField(default=0)
+    last_run_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True, default='')
+
+    class Meta:
+        unique_together = [('endpoint', 'set_spec')]
+        verbose_name = 'OAI yig\'ish holati'
+        verbose_name_plural = 'OAI yig\'ish holatlari'
+
+    def __str__(self):
+        return f'{self.endpoint} [{self.set_spec or "*"}] → {self.last_datestamp}'

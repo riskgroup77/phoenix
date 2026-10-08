@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Role } from '../types';
+import { PageSkeleton } from './ui/Skeleton';
 
 type AllowedRoles = Role[];
 
@@ -17,14 +18,7 @@ const RoleRoute: React.FC<RoleRouteProps> = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50/90 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" aria-hidden="true" />
-          <p className="text-slate-500" role="status">Yuklanmoqda...</p>
-        </div>
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   if (!user) {

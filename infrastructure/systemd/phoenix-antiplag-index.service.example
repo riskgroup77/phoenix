@@ -1,0 +1,27 @@
+# Phoenix — antiplagiat indeksini yangilash va OAI arxivlarini yig'ish (phoenix-antiplag-index.timer chaqiradi).
+#
+# O'rnatish:
+#   sudo cp phoenix-antiplag-index.service.example /etc/systemd/system/phoenix-antiplag-index.service
+#   sudo cp phoenix-antiplag-index.timer.example   /etc/systemd/system/phoenix-antiplag-index.timer
+#   sudo systemctl daemon-reload && sudo systemctl enable --now phoenix-antiplag-index.timer
+# Birinchi marta qo'lda:  sudo systemctl start phoenix-antiplag-index  (katta bazada uzoq davom etadi)
+# Tekshirish:  journalctl -u phoenix-antiplag-index
+# User/Group va yo'llarni phoenix-backend.service bilan bir xil qiling.
+# ANTIPLAG_OAI_SOURCES bo'sh bo'lsa — standart bepul O'zbekiston manbalari (antiplagiat_oai.DEFAULT_OAI_SOURCES).
+# Birinchi yig'ish bir necha soat davom etadi; keyingi kechalarda faqat yangi yozuvlar olinadi.
+
+[Unit]
+Description=Phoenix — antiplagiat indeksi va OAI yig'ish
+After=network.target
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+WorkingDirectory=/phonix/backend
+Environment=PATH=/phonix/backend/venv/bin
+Environment=DJANGO_SETTINGS_MODULE=config.settings
+Nice=10
+ExecStart=/phonix/backend/venv/bin/python manage.py build_antiplag_index --prune
+ExecStart=/phonix/backend/venv/bin/python manage.py harvest_oai --all --fill-full-text 500
+TimeoutStartSec=8h

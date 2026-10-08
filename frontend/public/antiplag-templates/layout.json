@@ -1,0 +1,183 @@
+{
+  "certificate": {
+    "image": "sertifikat.jpg",
+    "size": [
+      3509,
+      2481
+    ],
+    "orientation": "landscape",
+    "fields": {
+      "check_date": {
+        "x": 0.0519,
+        "y": 0.1354,
+        "size": 54,
+        "color": "#1f2f4a",
+        "max_width": 0.2166,
+        "baseline": true,
+        "bold": true
+      },
+      "document_number": {
+        "x": 0.2867,
+        "y": 0.1354,
+        "size": 54,
+        "color": "#1f2f4a",
+        "max_width": 0.2508,
+        "baseline": true,
+        "bold": true
+      },
+      "author": {
+        "x": 0.2665,
+        "y": 0.3841,
+        "size": 50,
+        "color": "#1f2f4a",
+        "max_width": 0.2793,
+        "baseline": true,
+        "bold": true
+      },
+      "work_type": {
+        "x": 0.2665,
+        "y": 0.4091,
+        "size": 48,
+        "color": "#1f2f4a",
+        "max_width": 0.2793,
+        "baseline": true
+      },
+      "file_name": {
+        "x": 0.2665,
+        "y": 0.4345,
+        "size": 44,
+        "color": "#1f2f4a",
+        "max_width": 0.2793,
+        "baseline": true
+      },
+      "citations": {
+        "x": 0.2665,
+        "y": 0.4595,
+        "size": 48,
+        "color": "#1f2f4a",
+        "max_width": 0.2793,
+        "baseline": true
+      },
+      "self_citation": {
+        "x": 0.2665,
+        "y": 0.4845,
+        "size": 48,
+        "color": "#1f2f4a",
+        "max_width": 0.2793,
+        "baseline": true
+      },
+      "plagiarism": {
+        "x": 0.2665,
+        "y": 0.5099,
+        "size": 52,
+        "color": "#b91c1c",
+        "max_width": 0.2793,
+        "baseline": true,
+        "bold": true
+      },
+      "originality": {
+        "x": 0.2665,
+        "y": 0.5349,
+        "size": 52,
+        "color": "#15803d",
+        "max_width": 0.2793,
+        "baseline": true,
+        "bold": true
+      },
+      "search_modules": {
+        "x": 0.2665,
+        "y": 0.5857,
+        "size": 38,
+        "color": "#1f2f4a",
+        "max_width": 0.2793,
+        "baseline": true,
+        "multiline": true,
+        "line_height": 52,
+        "max_lines": 5
+      }
+    },
+    "qr": {
+      "center_x": 0.1471,
+      "center_y": 0.8444,
+      "size": 0.0769
+    }
+  },
+  "report_cover": {
+    "image": "hisobot1.jpg",
+    "size": [
+      2481,
+      3509
+    ],
+    "orientation": "portrait",
+    "fields": {
+      "upload_date": {
+        "x": 0.1205,
+        "y": 0.1385,
+        "size": 60,
+        "color": "#1f2f4a",
+        "max_width": 0.4031,
+        "bold": true,
+        "baseline": true
+      },
+      "document_number": {
+        "x": 0.6082,
+        "y": 0.1385,
+        "size": 60,
+        "color": "#1f2f4a",
+        "max_width": 0.3547,
+        "bold": true,
+        "baseline": true
+      },
+      "author": {
+        "x": 0.5038,
+        "y": 0.4141,
+        "size": 56,
+        "color": "#1f2f4a",
+        "max_width": 0.4555,
+        "bold": true,
+        "baseline": true
+      },
+      "workplace": {
+        "x": 0.5038,
+        "y": 0.44,
+        "size": 52,
+        "color": "#1f2f4a",
+        "max_width": 0.4555,
+        "baseline": true
+      },
+      "position": {
+        "x": 0.5038,
+        "y": 0.4657,
+        "size": 52,
+        "color": "#1f2f4a",
+        "max_width": 0.4555,
+        "baseline": true
+      }
+    },
+    "qr": {
+      "center_x": 0.2717,
+      "center_y": 0.7538,
+      "size": 0.1169
+    }
+  },
+  "report_inner": {
+    "image": "hisobot2.jpg",
+    "size": [
+      2481,
+      3509
+    ],
+    "orientation": "portrait",
+    "content_box": {
+      "x": 0.085,
+      "y": 0.135,
+      "w": 0.83,
+      "h": 0.735
+    },
+    "typography": {
+      "title": 66,
+      "body": 42,
+      "link": 38,
+      "line_height": 60
+    }
+  }
+}

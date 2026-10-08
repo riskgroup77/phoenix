@@ -274,7 +274,7 @@ const ArticleChatDock: React.FC = () => {
       <button
         type="button"
         onClick={() => toggleOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg px-4 py-3 text-sm font-semibold transition-colors"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-[#1f3f8f] hover:bg-[#17306f] text-white shadow-lg px-4 py-3 text-sm font-semibold transition-colors"
         aria-label={chatTitle}
       >
         <MessageSquare className="h-5 w-5 shrink-0" aria-hidden />

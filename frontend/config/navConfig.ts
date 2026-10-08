@@ -20,11 +20,12 @@ import {
   FilePlus,
   UserCircle,
   BookOpen,
-  CreditCard,
   Bell,
   Settings,
   HelpCircle,
   TrendingUp,
+  BarChart3,
+  Receipt,
   type LucideIcon,
 } from 'lucide-react';
 import { Role } from '../types';
@@ -71,7 +72,7 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
       { to: '/author-publications', icon: BookOpen, label: 'Muallif nashrlari' },
     ],
     account: [
-      { to: '/profile?tab=payments', icon: CreditCard, label: "To'lovlar" },
+      { to: '/payments', icon: Receipt, label: "To'lovlarim" },
       { to: '/profile?tab=notifications', icon: Bell, label: 'Bildirishnomalar' },
       { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
       { to: '/profile?tab=settings', icon: Settings, label: 'Sozlamalar' },
@@ -99,6 +100,7 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
       { to: '/published-articles', icon: CheckCircle, label: 'Nashr etilganlar' },
     ],
     tools: [
+      { to: '/analytics', icon: BarChart3, label: 'Analitika' },
       { to: '/author-publications', icon: BookOpen, label: 'Muallif nashrlari' },
     ],
     account: [
@@ -114,6 +116,7 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
       { to: '/prices', icon: DollarSign, label: 'Narxlar' },
     ],
     tools: [
+      { to: '/analytics', icon: BarChart3, label: 'Analitika' },
       { to: '/financials', icon: TrendingUp, label: 'Moliya' },
       { to: '/author-publications', icon: BookOpen, label: 'Muallif nashrlari' },
       { to: '/article-sample-requests', icon: FileText, label: 'Maqola namuna' },
@@ -141,6 +144,7 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
     primary: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Boshqaruv paneli' },
       { to: '/financials', icon: DollarSign, label: 'Moliya' },
+      { to: '/analytics', icon: BarChart3, label: 'Analitika' },
     ],
     account: [
       { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },

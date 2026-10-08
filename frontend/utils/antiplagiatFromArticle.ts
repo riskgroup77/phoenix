@@ -96,6 +96,12 @@ function mapAnnotatedDocument(report: Record<string, unknown>): AnnotatedParagra
     sourceRefs: Array.isArray(p.source_refs)
       ? p.source_refs.map((r) => Number(r)).filter((n) => !Number.isNaN(n))
       : [],
+    segments: Array.isArray(p.segments)
+      ? (p.segments as Record<string, unknown>[]).map((s) => ({
+          text: String(s.text || ''),
+          source: s.source == null || Number.isNaN(Number(s.source)) ? null : Number(s.source),
+        }))
+      : undefined,
   }));
 }
 
@@ -112,7 +118,11 @@ function toReportSource(
   },
   idx: number,
 ): PlagiarismSource {
-  const rawUrl = s.source.startsWith('http') ? s.source : '';
+  const src = (s.source || '').trim();
+  let rawUrl = src.startsWith('http') ? src : '';
+  if (!rawUrl && src.includes('doi.org')) {
+    rawUrl = src.startsWith('http') ? src : `https://${src.replace(/^\/\//, '')}`;
+  }
   const title = s.title || s.snippet || (rawUrl ? s.source.replace(/^https?:\/\//, '').slice(0, 120) : s.source);
   const mod = s.search_module || 'Search module INTERNET PLUS';
   const modLabel = mod.includes('qidiruv moduli') ? mod : `${mod} qidiruv moduli`;
@@ -125,6 +135,14 @@ function toReportSource(
     documentFragment: s.document_fragment || s.snippet,
     sourceFragment: s.source_fragment,
   };
+}
+
+/** 08.10.2026 — sertifikat va hisobotdagi sana formati */
+export function formatDotDate(d: Date): string {
+  if (Number.isNaN(d.getTime())) return '';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}.${d.getFullYear()}`;
 }
 
 export function buildAntiplagiatViewFromArticle(article: AntiplagiatArticlePayload): AntiplagiatViewState | null {
@@ -157,9 +175,8 @@ export function buildAntiplagiatViewFromArticle(article: AntiplagiatArticlePaylo
   const documentName = String(report.document_name || article.title || '').trim() || 'Hujjat';
   const documentType = String(report.document_type || 'Ilmiy ish');
   const certNumber = String(report.certificate_number || article.id?.slice(-8) || Date.now().toString().slice(-6));
-  const checkDate = article.plagiarism_checked_at
-    ? new Date(article.plagiarism_checked_at).toLocaleDateString('uz-UZ')
-    : new Date().toLocaleDateString('uz-UZ');
+  // Sertifikatda: 08.10.2026 (toLocaleDateString('uz-UZ') ko'p brauzerda 2026-10-08 beradi)
+  const checkDate = formatDotDate(article.plagiarism_checked_at ? new Date(article.plagiarism_checked_at) : new Date());
 
   const result = {
     plagiarism: plagiarismPercentage,
@@ -180,19 +197,23 @@ export function buildAntiplagiatViewFromArticle(article: AntiplagiatArticlePaylo
     plagiarism: `${plagiarismPercentage.toFixed(2)}%`,
     originality: `${originality.toFixed(2)}%`,
     searchModules: (() => {
-      const verified = Number(report.verified_hit_count ?? report.real_scan_hits ?? 0);
-      const mode = String(report.analysis_mode || '');
-      const verifiedLabel =
-        verified > 0 ? ` · haqiqiy overlap: ${verified} ta manba` : '';
-      const hybrid = mode.includes('hybrid') ? ' (korpus + OpenAlex/Crossref)' : '';
-      return `${enabledCount} ta modul${hybrid}${verifiedLabel}`;
+      // «Qidiruv tizimlari» qatori: haqiqatda tekshirilgan bazalar nomi (yangi hisobotlar);
+      // nomlar bo'lmasa — bazalar soni (eski hisobotlar)
+      const names = Array.isArray(report.search_modules)
+        ? (report.search_modules as unknown[]).map((m) => String(m).trim()).filter(Boolean)
+        : [];
+      if (names.length) return names.join(', ');
+      const executed = Array.isArray(report.executed_module_ids) ? (report.executed_module_ids as string[]) : null;
+      if (executed) return `${executed.length} ta bazada tekshirilgan`;
+      return `${enabledCount} ta modul`;
     })(),
   };
 
   const fullReportData: PlagiarismFullReportData = {
     checkerName: author,
     checkerId: String(article.id || '').slice(-5) || '00000',
-    checkerOrganization: '',
+    checkerOrganization: String(report.author_workplace || '').trim(),
+    authorPosition: String(report.author_position || '').trim(),
     documentNumber: certNumber,
     uploadDate: checkDate,
     originalFileName: documentName,

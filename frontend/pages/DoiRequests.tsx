@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import EmptyState from '../components/EmptyState';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
@@ -81,7 +82,7 @@ const DoiRequests: React.FC = () => {
         {loading ? (
           <p className="text-[var(--editorial-muted)]">Yuklanmoqda…</p>
         ) : list.length === 0 ? (
-          <div className="editorial-empty py-8">So'rovlar yo'q.</div>
+          <EmptyState compact illustration="inbox" title="DOI so'rovlari yo'q" description="Yangi so'rovlar kelganda shu yerda ko'rinadi." />
         ) : (
           <div className="space-y-4">
             {list.map((req) => (

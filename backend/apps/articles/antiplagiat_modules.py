@@ -1,12 +1,15 @@
 """
 Antiplagiat tekshirish modullari — antiplagiat.uz / Antiplagiat.ru uslubida keng katalog.
-Frontend: frontend/constants/antiplagiatModules.ts bilan sinxron saqlang.
+Eslatma: bu katalog eski hisobotlardagi nomlar va bot presetlari uchun saqlanadi.
+Haqiqatda tekshiriladigan modullar ro'yxati: antiplagiat_available.available_modules()
+(frontend uni /api/v1/articles/antiplagiat-modules/ orqali oladi).
 """
 
 MODULE_CATALOG: list[dict[str, str]] = [
     # --- Asosiy (mavjud) ---
     {'id': 'elibrary_translations', 'label': 'Публикации eLIBRARY (переводы и перефразирования)'},
     {'id': 'shablon_iboralar', 'label': 'Shablon iboralar'},
+    {'id': 'semantic_paraphrase', 'label': "Parafraz (ma'no bo'yicha o'xshashlik)"},
     {'id': 'elibrary_ru', 'label': 'eLIBRARY.RU'},
     {'id': 'bmk_dissertatsiyalari', 'label': 'BMK dissertatsiyalari'},
     {'id': 'ips_adilet', 'label': 'ИПС Адилет'},
@@ -43,6 +46,7 @@ MODULE_CATALOG: list[dict[str, str]] = [
     {'id': 'pubmed', 'label': 'PubMed / PubMed Central'},
     {'id': 'arxiv', 'label': 'arXiv preprintlar'},
     {'id': 'doaj', 'label': 'DOAJ (Directory of Open Access Journals)'},
+    {'id': 'wikipedia', 'label': "Vikipediya (o'zbek, rus, ingliz)"},
     {'id': 'semantic_scholar', 'label': 'Semantic Scholar'},
     {'id': 'datacite', 'label': 'DataCite repozitoriyalari'},
     {'id': 'hal_archives', 'label': 'HAL (Fransiya ochiq arxiv)'},
@@ -68,7 +72,7 @@ MODULE_CATALOG: list[dict[str, str]] = [
     {'id': 'ziyouz_uz', 'label': 'Ziyouz.uz'},
     {'id': 'lex_uz', 'label': 'Lex.uz (qonunchilik bazasi)'},
     {'id': 'normativ_uz', 'label': 'Normativ.uz'},
-    {'id': 'oak_journals_uz', 'label': "OAK ro'yxatidagi mahalliy jurnallar"},
+    {'id': 'oak_journals_uz', 'label': "O'zbekiston ilmiy jurnallari arxivi (OAI)"},
     {'id': 'olis_uz', 'label': "OLIS O'zbekiston"},
     {'id': 'dissertation_uz', 'label': "O'zbekiston dissertatsiyalari (OTM)"},
     {'id': 'internet_uz', 'label': "Internet (o'zbek segmenti)"},
@@ -207,7 +211,7 @@ INTERNET_MODULE_IDS = {
 ELIBRARY_MODULE_IDS = {'elibrary_ru', 'elibrary_translations'}
 
 SCHOLAR_MODULE_IDS = {
-    'bmk_dissertatsiyalari', 'springer', 'ieee', 'ieee_search', 'ieee_crosslang',
+    'wikipedia', 'bmk_dissertatsiyalari', 'springer', 'ieee', 'ieee_search', 'ieee_crosslang',
     'crossref', 'openalex', 'core_ac', 'pubmed', 'arxiv', 'doaj',
     'semantic_scholar', 'datacite', 'hal_archives', 'ssrn',
     'scopus', 'wos', 'elsevier', 'wiley', 'taylor_francis', 'nature', 'mdpi', 'acm_digital',

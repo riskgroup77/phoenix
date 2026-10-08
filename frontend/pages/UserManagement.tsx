@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { ListSkeleton } from '../components/ui/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -268,7 +269,7 @@ const UserManagement: React.FC = () => {
     };
 
     const roleColors: Record<string, string> = {
-        'author': 'bg-[rgba(139,21,56,0.08)] text-[var(--editorial-primary)]',
+        'author': 'bg-[rgba(31,63,143,0.08)] text-[var(--editorial-primary)]',
         'reviewer': 'bg-amber-500/15 text-amber-900',
         'journal_admin': 'bg-[rgba(10,122,140,0.12)] text-[var(--editorial-teal)]',
         'super_admin': 'bg-red-500/15 text-red-800',
@@ -298,11 +299,7 @@ const UserManagement: React.FC = () => {
     };
 
     if (loading) {
-        return (
-            <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--editorial-primary)]"></div>
-            </div>
-        );
+        return <ListSkeleton rows={6} />;
     }
 
     if (error) {
@@ -388,7 +385,7 @@ const UserManagement: React.FC = () => {
 
                 <div className="overflow-x-auto rounded-lg border border-[var(--editorial-border)]">
                     <table className="w-full text-left">
-                        <thead className="bg-[rgba(139,21,56,0.04)]">
+                        <thead className="bg-[rgba(31,63,143,0.04)]">
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Foydalanuvchi</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Rol</th>
@@ -400,14 +397,14 @@ const UserManagement: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-200/80">
                             {filteredUsers.map(user => (
-                                <tr key={user.id} className="hover:bg-[rgba(139,21,56,0.03)] transition-colors">
+                                <tr key={user.id} className="hover:bg-[rgba(31,63,143,0.03)] transition-colors">
                                     <td className="px-4 py-4">
                                         <div className="flex items-center">
                                             <div className="flex-shrink-0 h-10 w-10">
                                                 {user.avatar_url ? (
                                                     <img className="h-10 w-10 rounded-full object-cover" src={user.avatar_url} alt={user.first_name} />
                                                 ) : (
-                                                    <div className="h-10 w-10 rounded-full bg-[rgba(139,21,56,0.12)] flex items-center justify-center">
+                                                    <div className="h-10 w-10 rounded-full bg-[rgba(31,63,143,0.12)] flex items-center justify-center">
                                                         <User className="h-5 w-5 text-[var(--editorial-primary)]" />
                                                     </div>
                                                 )}

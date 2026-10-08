@@ -1,179 +1,135 @@
 """
-Demo foydalanuvchilar va Django admin hisobini yaratish/yangilash.
-Ishlatish: python manage.py setup_demo_and_admin
+Demo (sinov) foydalanuvchilarni yaratish/yangilash — oddiy, eslab qolish oson login va parollar.
 
-- 5 ta demo user (Super Admin, Journal Admin, Reviewer, Author, Accountant) — parollarni Demo@admin1 va h.k. qilib yangilaydi.
-- 1 ta Django admin user (998907863888, parol Admin123) — /admin/ uchun.
-Hech qanday foydalanuvchini o'chirmaydi.
+    python manage.py setup_demo_and_admin
+
+Login: telefon (9 xonali, 998 siz ham bo'ladi) / parol — rol nomi:
+    Muallif        911111111 / muallif
+    Taqrizchi      922222222 / taqrizchi
+    Jurnal admini  933333333 / muharrir
+    Operator       955555555 / operator
+    Buxgalter      944444444 / buxgalter   (faqat lokal, DEBUG=True)
+    Bosh admin     966666666 / admin       (faqat lokal, DEBUG=True)
+
+Xavfsizlik:
+- Serverda (DEBUG=False) bosh admin va buxgalter demo hisoblari HECH QACHON yaratilmaydi — oddiy parolli
+  admin butun platformani (to'lovlar, foydalanuvchilar) ochib qo'yadi. Django admin hisobi ham faqat lokalda.
+- Demo hisoblar maxsus email (@demo.ilmiyfaoliyat.uz) bilan belgilanadi. Shu telefon raqami bilan HAQIQIY
+  foydalanuvchi ro'yxatdan o'tgan bo'lsa — uning hisobiga tegilmaydi (paroli almashtirilmaydi).
+- Hech kim o'chirilmaydi.
 """
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
+
 from apps.users.models import User
 
+DEMO_EMAIL_DOMAIN = 'demo.ilmiyfaoliyat.uz'
 
 DEMO_USERS = [
     {
-        'phone': '998901001001',
-        'email': 'admin@phoenix.uz',
-        'first_name': 'Admin',
-        'last_name': 'Boshqaruvchi',
-        'patronymic': 'Super',
-        'password': 'Demo@admin1',
-        'role': 'super_admin',
+        'phone': '998911111111', 'password': 'muallif', 'role': 'author', 'production': True,
+        'first_name': 'Muallif', 'last_name': 'Demo', 'patronymic': '',
+        'affiliation': 'Demo universitet',
+    },
+    {
+        'phone': '998922222222', 'password': 'taqrizchi', 'role': 'reviewer', 'production': True,
+        'first_name': 'Taqrizchi', 'last_name': 'Demo', 'patronymic': '',
+        'affiliation': 'Demo universitet',
+    },
+    {
+        'phone': '998933333333', 'password': 'muharrir', 'role': 'journal_admin', 'production': True,
+        'first_name': 'Muharrir', 'last_name': 'Demo', 'patronymic': '',
         'affiliation': 'Phoenix Ilmiy Nashrlar Markazi',
-        'is_staff': True,
-        'is_superuser': True,
     },
     {
-        'phone': '998901001002',
-        'email': 'editor@phoenix.uz',
-        'first_name': 'Tahrirchi',
-        'last_name': 'Bosh',
-        'patronymic': 'Admin',
-        'password': 'Demo@editor1',
-        'role': 'journal_admin',
+        'phone': '998955555555', 'password': 'operator', 'role': 'operator', 'production': True,
+        'first_name': 'Operator', 'last_name': 'Demo', 'patronymic': '',
         'affiliation': 'Phoenix Ilmiy Nashrlar Markazi',
-        'is_staff': True,
-        'is_superuser': False,
     },
     {
-        'phone': '998901001003',
-        'email': 'reviewer@phoenix.uz',
-        'first_name': 'Taqrizchi',
-        'last_name': 'Ilmiy',
-        'patronymic': 'Reviewer',
-        'password': 'Demo@review1',
-        'role': 'reviewer',
-        'affiliation': 'Toshkent Davlat Universiteti',
-        'is_staff': False,
-        'is_superuser': False,
-    },
-    {
-        'phone': '998901001004',
-        'email': 'author@phoenix.uz',
-        'first_name': 'Muallif',
-        'last_name': 'Demo',
-        'patronymic': 'Author',
-        'password': 'Demo@author1',
-        'role': 'author',
-        'affiliation': 'Toshkent Axborot Texnologiyalari Universiteti',
-        'is_staff': False,
-        'is_superuser': False,
-    },
-    {
-        'phone': '998901001005',
-        'email': 'accountant@phoenix.uz',
-        'first_name': 'Buxgalter',
-        'last_name': 'Moliyaviy',
-        'patronymic': 'Hisob',
-        'password': 'Demo@account1',
-        'role': 'accountant',
+        'phone': '998944444444', 'password': 'buxgalter', 'role': 'accountant', 'production': False,
+        'first_name': 'Buxgalter', 'last_name': 'Demo', 'patronymic': '',
         'affiliation': 'Phoenix Ilmiy Nashrlar Markazi',
-        'is_staff': True,
-        'is_superuser': False,
     },
     {
-        'phone': '998901001007',
-        'email': 'operator@ilmiyfaoliyat.uz',
-        'first_name': 'Operator',
-        'last_name': 'User',
-        'patronymic': '',
-        'password': 'Operator@1234567890',
-        'role': 'operator',
-        'affiliation': 'Phoenix Platform',
-        'is_staff': False,
-        'is_superuser': False,
+        'phone': '998966666666', 'password': 'admin', 'role': 'super_admin', 'production': False,
+        'first_name': 'Admin', 'last_name': 'Demo', 'patronymic': '',
+        'affiliation': 'Phoenix Ilmiy Nashrlar Markazi', 'is_superuser': True, 'is_staff': True,
     },
 ]
 
+# Eski demo hisoblar (parollari avval repoda ochiq yozilgan) — rotate_demo_passwords ularni ham qamraydi
+LEGACY_DEMO_PHONES = [
+    '998901001001', '998901001002', '998901001003', '998901001004', '998901001005', '998901001007',
+]
 DJANGO_ADMIN_PHONE = '998907863888'
-DJANGO_ADMIN_PASSWORD = 'Admin123'
-DJANGO_ADMIN_EMAIL = 'django_admin@phoenix.uz'
+
+
+def demo_email(role: str) -> str:
+    return f'{role}@{DEMO_EMAIL_DOMAIN}'
+
+
+def is_demo_account(user: User) -> bool:
+    return (user.email or '').lower().endswith('@' + DEMO_EMAIL_DOMAIN)
 
 
 class Command(BaseCommand):
-    help = "Demo foydalanuvchilar va Django admin (998907863888 / Admin123) yaratadi yoki parollarni yangilaydi. Hech kimni o'chirmaydi."
+    help = "Demo foydalanuvchilar (911111111/muallif va h.k.) yaratadi yoki parollarini tiklaydi. Hech kimni o'chirmaydi."
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            '--no-admin',
-            action='store_true',
-            help="Faqat 5 ta demo userni yangilash, Django admin userni yaratmaslik",
-        )
+        parser.add_argument('--no-admin', action='store_true', help='Eski nom bilan moslik uchun (endi ta\'sirsiz)')
 
     def handle(self, *args, **options):
-        created = 0
-        updated = 0
-        errors = []
-
+        local = bool(settings.DEBUG)
+        rows = []
         with transaction.atomic():
-            for data in DEMO_USERS:
-                password = data.pop('password')
-                phone = data['phone']
-                try:
-                    user, was_created = User.objects.get_or_create(
-                        phone=phone,
-                        defaults={k: v for k, v in data.items()}
-                    )
-                    if was_created:
-                        user.set_password(password)
-                        user.save()
-                        created += 1
-                        self.stdout.write(self.style.SUCCESS(f"[OK] Yaratildi: {phone} | {data['role']} | Parol: {password}"))
-                    else:
-                        for k, v in data.items():
-                            setattr(user, k, v)
-                        user.set_password(password)
-                        user.save()
-                        updated += 1
-                        self.stdout.write(self.style.WARNING(f"[UPDATE] Yangilandi: {phone} | Parol: {password}"))
-                    data['password'] = password
-                except Exception as e:
-                    errors.append(f"{phone}: {e}")
-                    self.stdout.write(self.style.ERROR(f"[ERR] {phone}: {e}"))
-                    data['password'] = password
-
-            if not options.get('no_admin'):
-                try:
-                    admin_user, was_created = User.objects.get_or_create(
-                        phone=DJANGO_ADMIN_PHONE,
-                        defaults={
-                            'email': DJANGO_ADMIN_EMAIL,
-                            'first_name': 'Django',
-                            'last_name': 'Admin',
-                            'patronymic': 'Platform',
-                            'affiliation': 'Phoenix',
-                            'role': 'super_admin',
-                            'is_staff': True,
-                            'is_superuser': True,
-                        }
-                    )
-                    admin_user.set_password(DJANGO_ADMIN_PASSWORD)
-                    admin_user.is_staff = True
-                    admin_user.is_superuser = True
-                    admin_user.email = DJANGO_ADMIN_EMAIL
-                    admin_user.save()
-                    if was_created:
-                        created += 1
-                        self.stdout.write(self.style.SUCCESS(f"[OK] Django admin yaratildi: {DJANGO_ADMIN_PHONE} | Parol: {DJANGO_ADMIN_PASSWORD}"))
-                    else:
-                        updated += 1
-                        self.stdout.write(self.style.WARNING(f"[UPDATE] Django admin yangilandi: {DJANGO_ADMIN_PHONE} | Parol: {DJANGO_ADMIN_PASSWORD}"))
-                except Exception as e:
-                    errors.append(f"Django admin {DJANGO_ADMIN_PHONE}: {e}")
-                    self.stdout.write(self.style.ERROR(f"[ERR] Django admin: {e}"))
+            for spec in DEMO_USERS:
+                if not local and not spec['production']:
+                    rows.append((spec, "o'tkazildi (faqat lokal)"))
+                    continue
+                rows.append((spec, self._upsert(spec)))
 
         self.stdout.write('')
-        self.stdout.write('=' * 70)
-        self.stdout.write(self.style.SUCCESS(f"Yaratilgan: {created} | Yangilangan: {updated} | Xatolik: {len(errors)}"))
-        self.stdout.write('=' * 70)
+        self.stdout.write('DEMO LOGIN (telefon 998 siz ham kiritiladi):')
+        self.stdout.write('   Telefon     | Parol      | Rol            | Holat')
+        self.stdout.write('   ' + '-' * 62)
+        for spec, status in rows:
+            self.stdout.write(f"   {spec['phone'][3:]:<11} | {spec['password']:<10} | {spec['role']:<14} | {status}")
         self.stdout.write('')
-        self.stdout.write('DEMO LOGIN (tizimga kirish):')
-        self.stdout.write('   Telefon        | Parol        | Rol')
-        self.stdout.write('   ' + '-' * 50)
-        for u in DEMO_USERS:
-            self.stdout.write(f"   {u['phone']} | {u['password']} | {u['role']}")
-        self.stdout.write('')
-        self.stdout.write('DJANGO ADMIN (/admin/ panel):')
-        self.stdout.write(f"   Telefon: {DJANGO_ADMIN_PHONE}  Parol: {DJANGO_ADMIN_PASSWORD}")
-        self.stdout.write('')
+
+        legacy = User.objects.filter(phone__in=LEGACY_DEMO_PHONES + [DJANGO_ADMIN_PHONE], is_active=True).count()
+        if legacy:
+            self.stdout.write(self.style.WARNING(
+                f'Eski demo hisoblar ({legacy} ta, parollari avval repoda ochiq bo\'lgan) hali faol. '
+                'Ularni xavfsiz qilish: python manage.py rotate_demo_passwords --apply'
+            ))
+
+    def _upsert(self, spec: dict) -> str:
+        phone = spec['phone']
+        fields = {
+            'email': demo_email(spec['role']),
+            'first_name': spec['first_name'],
+            'last_name': spec['last_name'],
+            'patronymic': spec['patronymic'],
+            'affiliation': spec['affiliation'],
+            'role': spec['role'],
+            'is_staff': bool(spec.get('is_staff')),
+            'is_superuser': bool(spec.get('is_superuser')),
+            'is_active': True,
+        }
+        user = User.objects.filter(phone=phone).first()
+        if user is not None and not is_demo_account(user):
+            # Shu raqam bilan haqiqiy foydalanuvchi ro'yxatdan o'tgan — uning hisobiga tegilmaydi
+            self.stdout.write(self.style.ERROR(
+                f'[!] {phone}: bu raqam haqiqiy foydalanuvchiga tegishli — demo hisob yaratilmadi.'
+            ))
+            return 'O\'TKAZILDI: raqam band'
+        created = user is None
+        if created:
+            user = User(phone=phone)
+        for k, v in fields.items():
+            setattr(user, k, v)
+        user.set_password(spec['password'])
+        user.save()
+        return 'yaratildi' if created else 'yangilandi'

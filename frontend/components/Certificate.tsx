@@ -1,4 +1,6 @@
 import React from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import { verifyUrl } from '../utils/verifyLink';
 import { CertificateData } from '../types';
 import { PhoenixLogo, Seal, CertificateBorderAndBackground } from './CertificateElements';
 
@@ -49,7 +51,9 @@ const Certificate: React.FC<{ data: CertificateData }> = ({ data }) => {
 
                 <footer className="flex justify-between items-end w-full pt-3 border-t-2 border-[#C09D58]">
                      <div className="text-center">
-                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=https://ilmiyfaoliyat.uz/verify/${data.certificateNumber}&bgcolor=ffffff`} alt="QR Code" className="p-1 bg-white border border-slate-400"/>
+                        <div role="img" aria-label="QR" className="p-1 bg-white border border-slate-400 w-20 h-20 [&>svg]:block [&>svg]:w-full [&>svg]:h-full">
+                            <QRCodeSVG value={verifyUrl(data.certificateNumber)} size={128} level="M" fgColor="#0D2A4F" bgColor="#ffffff" marginSize={1} />
+                        </div>
                         <p className="text-[9px] text-slate-600 max-w-[80px] mt-1">Hujjatni tasdiqlang</p>
                     </div>
                     

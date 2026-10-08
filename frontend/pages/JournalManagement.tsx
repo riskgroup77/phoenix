@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ListSkeleton } from '../components/ui/Skeleton';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import { useAuth } from '../contexts/AuthContext';
@@ -114,11 +115,7 @@ const JournalManagement: React.FC = () => {
     }
     
     if (loading) {
-        return (
-            <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--editorial-primary)]"></div>
-            </div>
-        );
+        return <ListSkeleton rows={6} />;
     }
     
     if (error) {

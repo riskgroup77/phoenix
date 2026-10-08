@@ -243,6 +243,43 @@ export const apiFetch = async (
   }
 };
 
+/**
+ * Autentifikatsiyali fayl yuklab olish (PDF chek, Crossref XML va h.k.).
+ * 401 bo'lsa tokenni bir marta yangilab qayta urinadi.
+ */
+export const downloadAuthed = async (endpoint: string, filename: string): Promise<void> => {
+  const run = () => {
+    const token = getToken();
+    return fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
+    });
+  };
+  let res = await run();
+  if (res.status === 401 && (await refreshAccessTokenFromApi())) {
+    res = await run();
+  }
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const data = await res.json();
+      detail = data?.detail || data?.error || '';
+    } catch {
+      /* fayl emas */
+    }
+    throw new Error(detail || "Faylni yuklab bo'lmadi");
+  }
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+};
+
 // API Service
 export const apiService = {
   // Authentication
@@ -373,6 +410,10 @@ export const apiService = {
 
   // Articles
   articles: {
+    /** Crossref: sozlama holati va DOI (faqat nashr etilgan maqola, admin) */
+    crossrefInfo: (id: string) => apiFetch(`/articles/${id}/crossref/?info=1`),
+    crossrefXml: (id: string) => downloadAuthed(`/articles/${id}/crossref/`, `crossref-${id.slice(0, 8)}.xml`),
+    crossrefDeposit: (id: string) => apiFetch(`/articles/${id}/crossref/`, { method: 'POST' }),
     /** Maqola namuna: 1 bet narxlari (quyi/orta/yuqori). */
     getArticleSamplePrice: () => apiFetch('/articles/article-sample/price/'),
     /** Maqola namuna so'rovi yaratadi, tranzaksiya qaytaradi (to'lov sahifasiga yo'naltirish uchun). */
@@ -463,6 +504,8 @@ export const apiService = {
     get: (id: string) => apiFetch(`/articles/${id}/`),
 
     getPublic: (id: string) => apiFetch(`/articles/public/${id}/`),
+    /** Joriy sozlamalarda haqiqatan tekshiriladigan antiplagiat modullari */
+    antiplagiatModules: () => apiFetch('/articles/antiplagiat-modules/'),
 
     /** Muallif maqolalar ro'yxati PDF — QR uchun imzoli to'g'ridan-to'g'ri PDF havolasi */
     getAuthorMalumotnomaSignedUrl: () =>
@@ -1157,7 +1200,29 @@ export const apiService = {
       apiFetch(`/payments/transactions/${id}/check_status/`, {
         method: 'POST',
       }),
+
+    /** Foydalanuvchining to'lovlari bo'yicha jami (xizmatlar kesimida) */
+    summary: () => apiFetch('/payments/transactions/summary/'),
+
+    /** To'lov cheki (PDF) — faqat yakunlangan to'lov */
+    downloadReceipt: (id: string, receiptNumber?: string) =>
+      downloadAuthed(`/payments/transactions/${id}/receipt/`, `${receiptNumber || 'chek'}.pdf`),
   },
+
+  // Analitika, taqrizchi navbati va ochiq bosh sahifa
+  analytics: {
+    overview: (months = 12) => apiFetch(`/analytics/overview/?months=${months}`),
+    workload: () => apiFetch('/analytics/workload/'),
+    /** Kirishsiz bosh sahifa: token yuborilmaydi (eskirgan token 401 bermasin) */
+    publicOverview: async () => {
+      const res = await fetch(`${API_BASE_URL}/analytics/public/`, { credentials: 'omit' });
+      if (!res.ok) throw new Error("Ma'lumotlarni yuklab bo'lmadi");
+      return res.json();
+    },
+  },
+
+  /** Ctrl+K global qidiruv */
+  search: (q: string) => apiFetch(`/search/?q=${encodeURIComponent(q)}`),
 
   // UDC (UDK) — Universal Decimal Classification, teacode.com + O'zbekiston
   udc: {

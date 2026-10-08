@@ -315,3 +315,24 @@ def generate_udk_certificate_pdf(
             pass
     buffer.seek(0)
     return buffer
+
+
+def save_certificate_pdf(cert) -> None:
+    """UDKCertificate uchun PDF yaratib, certificate_path ga saqlaydi."""
+    from datetime import date
+
+    from django.conf import settings
+    from django.core.files.base import ContentFile
+
+    frontend_base = getattr(settings, 'FRONTEND_BASE_URL', 'https://ilmiyfaoliyat.uz').rstrip('/')
+    doc_date = cert.created_at.strftime('%d.%m.%Y') if getattr(cert, 'created_at', None) else date.today().strftime('%d.%m.%Y')
+    buf = generate_udk_certificate_pdf(
+        article_title=cert.title,
+        author_name=cert.author_name or (cert.user.get_full_name() if cert.user_id else ''),
+        udk_code=cert.udk_code,
+        udk_description=cert.udk_description or '',
+        document_number=str(cert.id),
+        document_date=doc_date,
+        verification_url=f"{frontend_base}/#/udk-verify?id={cert.id}",
+    )
+    cert.certificate_path.save(f"udk_certificate_{cert.id}.pdf", ContentFile(buf.read()), save=True)

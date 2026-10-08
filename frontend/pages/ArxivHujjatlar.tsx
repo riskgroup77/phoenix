@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import EmptyState from '../components/EmptyState';
+import { ListSkeleton } from '../components/ui/Skeleton';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Card from '../components/ui/Card';
@@ -175,18 +177,14 @@ const ArxivHujjatlar: React.FC = () => {
 
             <Card title="">
                 {loading ? (
-                    <div className="flex justify-center py-12">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
-                    </div>
+                    <ListSkeleton rows={4} />
                 ) : archiveItems.length === 0 ? (
-                    <div className="editorial-empty">
-                        <FileText className="h-12 w-12 mx-auto mb-3 text-[var(--editorial-muted)]" />
-                        <p className="font-serif text-lg font-semibold text-[var(--editorial-text)]">Hozircha arxiv hujjatlari yo&apos;q.</p>
-                        <p className="text-sm mt-2 max-w-md mx-auto">
-                            Nashr sertifikatlari, UDK, taqriz natijalari, DOI va antiplagiat tekshiruvlari shu yerda paydo bo&apos;ladi.
-                            Maqolalar «Muallif nashrlari» bo&apos;limida.
-                        </p>
-                    </div>
+                    <EmptyState
+                        illustration="documents"
+                        title="Hozircha arxiv hujjatlari yo'q"
+                        description="Nashr sertifikatlari, UDK, taqriz natijalari, DOI va antiplagiat tekshiruvlari shu yerda paydo bo'ladi."
+                        action={{ label: 'Antiplagiat tekshiruvi', to: '/plagiarism-check' }}
+                    />
                 ) : (
                     <>
                         <div className="flex flex-wrap items-center gap-2 mb-4">

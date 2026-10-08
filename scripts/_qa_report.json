@@ -1,0 +1,14 @@
+[
+  {
+    "severity": "CRITICAL",
+    "role": "Operator",
+    "area": "login",
+    "msg": "Login ishlamadi: {'non_field_errors': [\"Telefon raqam yoki parol noto'g'ri\"]}"
+  },
+  {
+    "severity": "CRITICAL",
+    "role": "Author",
+    "area": "xavfsizlik",
+    "msg": "Muallif o'zini super_admin qila oladi!"
+  }
+]

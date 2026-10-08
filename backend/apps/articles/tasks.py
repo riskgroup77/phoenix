@@ -41,6 +41,18 @@ def run_plagiarism_check_task(
         raise self.retry(exc=exc) from exc
 
 
+def celery_workers_available(timeout: float = 1.0) -> bool:
+    """Kamida bitta Celery worker javob beradimi (ping)."""
+    try:
+        from config.celery import app
+
+        replies = app.control.ping(timeout=timeout)
+        return bool(replies)
+    except Exception as exc:
+        logger.warning('Celery ping xato: %s', exc)
+        return False
+
+
 def enqueue_plagiarism_check(
     article_id: str,
     user_id: str,
@@ -55,6 +67,11 @@ def enqueue_plagiarism_check(
 
     if not getattr(settings, 'ANTIPLAG_USE_CELERY', True):
         return False
+    # Redis ishlayotgan, lekin worker yo'q bo'lsa .delay() muvaffaqiyatli o'tadi-yu vazifa hech qachon
+    # bajarilmaydi (tekshiruv "processing" da qotadi). Shuning uchun avval worker borligini tekshiramiz.
+    if not celery_workers_available():
+        logger.warning('Celery worker javob bermadi — antiplagiat thread rejimida ishga tushiriladi')
+        return False
     try:
         run_plagiarism_check_task.delay(
             str(article_id),
@@ -66,3 +83,21 @@ def enqueue_plagiarism_check(
     except Exception as exc:
         logger.warning('Celery plagiat navbatiga qo\'yib bo\'lmadi (thread fallback): %s', exc)
         return False
+
+
+@shared_task(bind=True, max_retries=1)
+def reindex_antiplag_opensearch_task(self, with_embeddings: bool = False) -> dict:
+    """Korpus fragmentlarini OpenSearch ga yuklash (Celery)."""
+    from apps.articles.antiplagiat_index_builder import build_fragment_documents
+    from apps.articles.antiplagiat_opensearch import bulk_index_fragments, opensearch_enabled
+
+    if not opensearch_enabled():
+        return {'status': 'skipped', 'reason': 'opensearch_disabled'}
+
+    try:
+        docs = build_fragment_documents()
+        count = bulk_index_fragments(docs, with_embeddings=with_embeddings)
+        return {'status': 'ok', 'indexed': count, 'fragments': len(docs)}
+    except Exception as exc:
+        logger.error('OpenSearch reindex xato: %s', exc, exc_info=True)
+        raise self.retry(exc=exc) from exc

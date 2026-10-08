@@ -6,6 +6,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { LogIn, Eye, EyeOff } from 'lucide-react';
 import { getUserFriendlyError } from '../utils/errorHandler';
+import { useT } from '../i18n/LanguageContext';
 
 const LoginSimple: React.FC = () => {
     const [phone, setPhone] = useState('');
@@ -14,6 +15,7 @@ const LoginSimple: React.FC = () => {
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const { login, user } = useAuth();
+    const { t } = useT();
     const navigate = useNavigate();
 
     // Redirect if user is already logged in
@@ -49,21 +51,21 @@ const LoginSimple: React.FC = () => {
         
         try {
             if (!phone || phone.length !== 9) {
-                setError('Iltimos, telefon raqamni to\'liq kiriting (9 ta raqam, masalan: 901234567)');
+                setError(t("Iltimos, telefon raqamni to'liq kiriting (9 ta raqam, masalan: 901234567)"));
                 return;
             }
             
             const fullPhone = `998${phone}`;
             
             if (!password || password.trim().length === 0) {
-                setError('Iltimos, parolni kiriting.');
+                setError(t('Iltimos, parolni kiriting.'));
                 return;
             }
             
             const result = await login(fullPhone, password);
             
             if (!result.ok) {
-                setError(result.message || 'Kirish amalga oshmadi. Ma\'lumotlarni tekshiring.');
+                setError(result.message || t("Kirish amalga oshmadi. Ma'lumotlarni tekshiring."));
             }
         } catch (err: unknown) {
             setError(getUserFriendlyError(err));
@@ -73,12 +75,12 @@ const LoginSimple: React.FC = () => {
     };
 
     return (
-        <AuthLayout title="Tizimga kirish">
+        <AuthLayout title={t('Tizimga kirish')}>
             <Card>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="text-center mb-6">
-                        <h2 className="text-2xl font-bold text-slate-900 mb-2">Tizimga kirish</h2>
-                        <p className="text-sm text-slate-500">Telefon raqam va parol bilan kirish</p>
+                        <h2 className="text-2xl font-bold text-slate-900 mb-2">{t('Tizimga kirish')}</h2>
+                        <p className="text-sm text-slate-500">{t('Telefon raqam va parol bilan kirish')}</p>
                     </div>
                     
                     {error && (
@@ -89,7 +91,7 @@ const LoginSimple: React.FC = () => {
                     
                     <div>
                         <label htmlFor="phone" className="block text-sm font-medium text-slate-600 mb-2">
-                            Telefon raqam
+                            {t('Telefon raqam')}
                         </label>
                         <div className="flex items-center gap-2">
                             <span className="px-3 py-3 bg-slate-100/90 border border-slate-200 rounded-lg text-slate-600 font-medium whitespace-nowrap">+998</span>
@@ -109,12 +111,12 @@ const LoginSimple: React.FC = () => {
                                 aria-describedby="phone-hint"
                             />
                         </div>
-                        <p id="phone-hint" className="text-xs text-slate-500 mt-1">9 ta raqam (masalan 901234567)</p>
+                        <p id="phone-hint" className="text-xs text-slate-500 mt-1">{t('9 ta raqam (masalan 901234567)')}</p>
                     </div>
 
                     <div>
                         <label htmlFor="password" className="block text-sm font-medium text-slate-600 mb-2">
-                            Parol
+                            {t('Parol')}
                         </label>
                         <div className="relative">
                             <input
@@ -126,10 +128,11 @@ const LoginSimple: React.FC = () => {
                                 autoComplete="current-password"
                                 required
                                 className="w-full p-3 pr-10 bg-white/50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-blue-500"
-                                placeholder="Parolingizni kiriting"
+                                placeholder={t('Parolingizni kiriting')}
                             />
                             <button
                                 type="button"
+                                aria-label={showPassword ? t('Parolni yashirish') : t("Parolni ko'rsatish")}
                                 onClick={() => setShowPassword(!showPassword)}
                                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-900"
                             >
@@ -143,7 +146,7 @@ const LoginSimple: React.FC = () => {
                             to="/forgot-password" 
                             className="text-sm text-blue-800 hover:text-blue-700"
                         >
-                            Parolni unutdingizmi?
+                            {t('Parolni unutdingizmi?')}
                         </Link>
                     </div>
 
@@ -155,12 +158,12 @@ const LoginSimple: React.FC = () => {
                         {isLoading ? (
                             <>
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                Kirish amalga oshirilmoqda...
+                                {t('Kirish amalga oshirilmoqda...')}
                             </>
                         ) : (
                             <>
                                 <LogIn size={18} />
-                                Tizimga kirish
+                                {t('Tizimga kirish')}
                             </>
                         )}
                     </Button>
@@ -168,9 +171,9 @@ const LoginSimple: React.FC = () => {
 
                 <div className="mt-6 text-center text-sm">
                     <p className="text-slate-500">
-                        Hisobingiz yo'qmi?{' '}
+                        {t("Hisobingiz yo'qmi?")}{' '}
                         <Link to="/register" className="font-semibold text-blue-800 hover:text-blue-700">
-                            Ro'yxatdan o'tish
+                            {t("Ro'yxatdan o'tish")}
                         </Link>
                     </p>
                 </div>

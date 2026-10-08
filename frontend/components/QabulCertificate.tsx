@@ -1,4 +1,5 @@
 import React from 'react';
+import { publicArticleUrl } from '../utils/verifyLink';
 import { CertificateBackground, CertificateQRBlock, CertificateBrandBlock, CERT_COLOR_DARK, CERT_COLOR_TEAL, CERT_COLOR_TEXT } from './CertificateLayout';
 
 export interface QabulCertificateData {
@@ -82,7 +83,7 @@ const QabulCertificate: React.FC<{ data: QabulCertificateData }> = ({ data }) =>
                 <div className="mt-auto pt-8 flex items-end justify-between gap-8 flex-wrap">
                     <CertificateBrandBlock />
                     <CertificateQRBlock
-                        qrUrl={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=https://ilmiyfaoliyat.uz/public/article/${data.articleId}&bgcolor=ffffff`}
+                        qrValue={publicArticleUrl(data.articleId)}
                     />
                 </div>
             </div>

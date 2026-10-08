@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 import os
-from functools import lru_cache
+import time
 from typing import Any
 
 from django.conf import settings
@@ -69,76 +69,76 @@ def _load_imported_corpus() -> list[dict[str, Any]]:
             'author_id': str(doc.author_user_id) if doc.author_user_id else '',
             'author_names': doc.author_names or '',
             'source_type': 'import',
+            'is_public': True,
         })
     return out
 
 
+CORPUS_CACHE_TTL_SEC = int(os.environ.get('PHONIX_CORPUS_CACHE_TTL', '1800'))
+_platform_cache: dict[str, Any] = {'at': 0.0, 'data': None}
+_imported_cache: dict[str, Any] = {'at': 0.0, 'data': None}
+
+
+def _cached(store: dict[str, Any], loader):
+    """Jarayon ichida bitta nusxa, TTL bilan (eski lru_cache har tekshiruv uchun alohida nusxa saqlardi)."""
+    now = time.monotonic()
+    if store['data'] is None or now - store['at'] > CORPUS_CACHE_TTL_SEC:
+        store['data'] = loader()
+        store['at'] = now
+    return store['data']
+
+
 def load_platform_corpus(exclude_article_id=None) -> list[dict[str, Any]]:
-    key = str(exclude_article_id) if exclude_article_id else ''
-    platform = _load_platform_corpus_cached(key)
-    imported = _load_imported_corpus_cached()
-    if not imported:
-        return platform
-    seen_ids = {c['id'] for c in platform}
-    merged = list(platform)
+    exclude = str(exclude_article_id) if exclude_article_id else ''
+    platform = _cached(_platform_cache, _load_platform_corpus)
+    imported = _cached(_imported_cache, _load_imported_corpus)
+    merged = [c for c in platform if c['id'] != exclude]
+    seen_ids = {c['id'] for c in merged}
     for entry in imported:
         if entry['id'] not in seen_ids:
             merged.append(entry)
     return merged
 
 
-@lru_cache(maxsize=4)
-def _load_imported_corpus_cached() -> tuple[dict[str, Any], ...]:
-    return tuple(_load_imported_corpus())
+def _looks_like_standalone_check(art) -> bool:
+    """
+    Mustaqil antiplagiat tekshiruvi uchun yuklangan hujjat (nashr emas) — korpusga kiritilmaydi.
+    is_standalone_antiplagiat() dan farqli: DB so'rovsiz (8000 ta maqola uchun tez).
+    """
+    title = (art.title or '').strip().lower()
+    if title.startswith('plagiarism check'):
+        return True
+    kw = art.keywords if isinstance(art.keywords, list) else []
+    if any(str(k).strip().lower() == 'plagiarism' for k in kw):
+        return True
+    report = art.plagiarism_report if isinstance(art.plagiarism_report, dict) else {}
+    return bool(report.get('is_standalone'))
 
 
-@lru_cache(maxsize=8)
-def _load_platform_corpus_cached(exclude_key: str) -> list[dict[str, Any]]:
-    exclude_article_id = exclude_key or None
+def _load_platform_corpus() -> list[dict[str, Any]]:
     from apps.articles.models import Article
 
+    # Faqat jurnalga yuborilgan maqolalar. Qoralama, rad etilgan va mustaqil antiplagiat
+    # tekshiruvlari (boshqa foydalanuvchilarning shaxsiy hujjatlari) korpusga kirmaydi.
     qs = (
         Article.objects.exclude(status__in=('Draft', 'Rejected'))
-        .select_related('journal', 'author')
         .only(
-            'id', 'title', 'abstract', 'bibliography', 'keywords', 'review_content',
-            'submitted_author_name', 'status', 'doi', 'journal_id', 'author_id', 'final_pdf_path',
+            'id', 'title', 'abstract', 'keywords', 'status', 'doi', 'author_id',
+            'final_pdf_path', 'plagiarism_report',
         )
         .order_by('-submission_date')
     )
-    if exclude_article_id:
-        qs = qs.exclude(pk=exclude_article_id)
 
     corpus: list[dict[str, Any]] = []
     pdf_extracted = 0
 
     for art in qs[:CORPUS_ARTICLE_LIMIT]:
-        parts = [
-            art.title or '',
-            art.abstract or '',
-            art.bibliography or '',
-            _keywords_text(art.keywords),
-            art.review_content or '',
-            art.submitted_author_name or '',
-        ]
-        journal = getattr(art, 'journal', None)
-        if journal:
-            parts.append(getattr(journal, 'name', '') or '')
-        author = getattr(art, 'author', None)
-        author_id = str(author.id) if author else ''
-        if author:
-            parts.append(
-                ' '.join(
-                    filter(
-                        None,
-                        [
-                            getattr(author, 'first_name', '') or '',
-                            getattr(author, 'last_name', '') or '',
-                            getattr(author, 'affiliation', '') or '',
-                        ],
-                    )
-                )
-            )
+        if _looks_like_standalone_check(art):
+            continue
+        # Faqat asar matni: sarlavha, annotatsiya, kalit so'zlar, fayl matni.
+        # Adabiyotlar ro'yxati (umumiy manbalar → soxta plagiat), taqrizchi izohi (maxfiy),
+        # muallif/jurnal nomlari kiritilmaydi.
+        parts = [art.title or '', art.abstract or '', _keywords_text(art.keywords)]
         body = ' '.join(p.strip() for p in parts if p and str(p).strip())
 
         pdf_path = _resolve_pdf_path(art)
@@ -152,15 +152,6 @@ def _load_platform_corpus_cached(exclude_key: str) -> list[dict[str, Any]]:
                     pdf_extracted += 1
             except Exception:
                 pass
-        elif pdf_path and len(body) < 200:
-            try:
-                from apps.services import extract_plain_text_from_file
-
-                extra = extract_plain_text_from_file(pdf_path)
-                if extra and len(extra.strip()) >= 80:
-                    body = f'{body} {extra.strip()[:CORPUS_TEXT_MAX]}'
-            except Exception:
-                pass
 
         if len(body) < 40:
             continue
@@ -169,10 +160,11 @@ def _load_platform_corpus_cached(exclude_key: str) -> list[dict[str, Any]]:
             'title': (art.title or '')[:500],
             'text': body[:CORPUS_TEXT_MAX],
             'status': art.status,
+            'is_public': art.status == 'Published',
             'doi': (art.doi or '')[:120],
-            'journal': (getattr(journal, 'name', '') if journal else '')[:200],
-            'author_id': author_id,
-            'author_names': art.submitted_author_name or '',
+            'journal': '',
+            'author_id': str(art.author_id) if art.author_id else '',
+            'author_names': '',
             'source_type': 'platform',
         })
 
@@ -181,5 +173,5 @@ def _load_platform_corpus_cached(exclude_key: str) -> list[dict[str, Any]]:
 
 
 def invalidate_corpus_cache() -> None:
-    _load_platform_corpus_cached.cache_clear()
-    _load_imported_corpus_cached.cache_clear()
+    _platform_cache['data'] = None
+    _imported_cache['data'] = None

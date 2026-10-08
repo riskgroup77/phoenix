@@ -1,49 +1,68 @@
-# Phoenix Ilmiy Nashrlar Markazi — Ilmiy faoliyat platformasi
+# Phoenix Ilmiy Nashrlar Markazi — ilmiyfaoliyat.uz
 
-Platforma: maqolalar, jurnallar, UDK ma'lumotnomalar, antiplagiat, nashr hisobotlari, to'lovlar.
+Ilmiy faoliyat platformasi: maqola va kitob topshirish, jurnallar, taqriz, antiplagiat tekshiruvi,
+UDK / DOI xizmatlari, tarjima, Click / Payme to'lovlari va muallif Telegram boti.
+
+| Qism | Texnologiya | Papka |
+|---|---|---|
+| Backend API | Django 5 + DRF, JWT, PostgreSQL, Redis, Celery | `backend/` |
+| Frontend | React 19 + Vite + Tailwind (HashRouter) | `frontend/` |
+| Telegram bot | python-telegram-bot (backend API orqali) | `backend/bot/` |
+| Infratuzilma | nginx, systemd, Docker Compose, GitHub Actions | `infrastructure/`, `deploy/`, `.github/` |
+
+Rollar: muallif, taqrizchi, jurnal admini, bosh admin, buxgalter, operator.
 
 ---
 
-## Tez ishga tushirish
+## Lokal ishga tushirish
 
-### 1. Backend
+### Backend
 
 ```bash
 cd backend
-cp .env.example .env   # Sozlash kerak bo'lsa
-pip install -r requirements.txt
+python -m venv venv
+venv/Scripts/activate          # Linux/macOS: source venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env           # USE_SQLITE=True, DEBUG=True
 python manage.py migrate
-python manage.py setup_demo_and_admin   # Demo va Django admin hisoblar
+python manage.py setup_demo_and_admin   # demo hisoblar: 911111111 / muallif va h.k.
 python manage.py runserver
 ```
 
-### 2. Frontend
+Demo hisoblar ro'yxati: [DEMO_LOGIN.md](DEMO_LOGIN.md). Serverda faqat muallif, taqrizchi, jurnal admini va operator demo hisoblari yaratiladi (bosh admin va buxgalter — faqat lokal).
+
+### Frontend
 
 ```bash
 cd frontend
-cp .env.example .env   # Sozlash kerak bo'lsa
 npm install
-npm run dev
+npm run dev        # http://localhost:3000
 ```
 
-### 3. Kirish ma'lumotlari
+### Docker (ixtiyoriy)
 
-- **Demo (tizim):** [DEMO_LOGIN.md](DEMO_LOGIN.md) — 5 ta rol, telefon va parol.
-- **Django admin:** telefon `998907863888`, parol `Admin123` — `/admin/`
-
----
-
-## Loyiha tuzilishi
-
-- `backend/` — Django (REST API, auth, maqolalar, jurnallar, UDK, to'lovlar)
-- `frontend/` — React + Vite (login, dashboard, maqolalar, sertifikatlar, narxlar)
-- `DEMO_LOGIN.md` — demo foydalanuvchilar va Django admin
-- `backend/.env.example`, `frontend/.env.example` — muhit o'zgaruvchilari namuna
+`docker-compose.yml` — PostgreSQL, Redis, OpenSearch, Django (gunicorn) va Celery worker.
 
 ---
 
-## Mijozga topshirish
+## Testlar
 
-1. Demo kirish va Django admin: **DEMO_LOGIN.md**
-2. Parollarni qayta o'rnatish: `python manage.py setup_demo_and_admin`
-3. Production: `DEBUG=False`, `SECRET_KEY` almashtirish, PostgreSQL (ixtiyoriy)
+```bash
+cd backend && pytest          # config/settings_test.py: Redis/Celery/OpenSearch/to'lov kalitlarisiz
+cd frontend && npx tsc --noEmit && npx vitest run
+```
+
+CI (`.github/workflows/ci.yml`) har push'da shularni ishga tushiradi.
+
+---
+
+## Muhim tamoyillar
+
+- **To'lov summasi har doim serverda hisoblanadi** (`backend/apps/payments/pricing.py`); Click / Payme
+  callback'lari imzo va summa tekshiruvisiz qabul qilinmaydi.
+- **Antiplagiat natijasi faqat haqiqatan topilgan mosliklarga asoslanadi** — qarang
+  [docs/OPERATIONS.md](docs/OPERATIONS.md#antiplagiat).
+- Maxfiy kalitlar faqat serverdagi `backend/.env` da; repoga yozilmaydi.
+
+Server, deploy va ekspluatatsiya: **[docs/OPERATIONS.md](docs/OPERATIONS.md)**.
+Eski hujjatlar va bir martalik skriptlar: `archive/` (ishga tushirmang).

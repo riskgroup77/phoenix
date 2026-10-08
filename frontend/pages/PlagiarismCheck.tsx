@@ -261,20 +261,21 @@ const PlagiarismCheck: React.FC = () => {
     report?: Record<string, unknown> | null,
     originalityOverride?: number,
   ) => {
-    const citationPctRaw = report?.citation_percent ?? report?.plagiarism_breakdown?.self_citation ?? 0;
+    const breakdown = report?.plagiarism_breakdown as Record<string, unknown> | undefined;
+    const citationPctRaw = report?.citation_percent ?? breakdown?.self_citation ?? 0;
     const citationPct = Number(citationPctRaw || 0);
     const originality =
       typeof originalityOverride === 'number'
         ? originalityOverride
-        : Math.max(0, 100 - plagiarismPercentage - citationPct * 0.12);
+        : Math.max(0, 100 - plagiarismPercentage - Number(citationPct || 0) - Number(report?.self_citation_percent ?? 0));
     const selfCitationPct = report?.self_citation_percent ?? 0;
     const charCount = report?.character_count;
     const sentCount = report?.sentence_count;
-    const enabledIds = Array.isArray(report?.enabled_module_ids)
-      ? (report.enabled_module_ids as string[])
-      : form.enabledModuleIds;
-    const enabledCount = enabledIds.length || form.enabledModuleIds.length || DEFAULT_ENABLED_MODULE_IDS.length;
-    const searchModules = `${enabledCount} ta moduldan / ${enabledCount} tasida tekshirilgan`;
+    // Faqat haqiqatda tekshirilgan bazalar (backend: executed_module_ids / search_modules)
+    const executedLabels: string[] = Array.isArray(report?.search_modules) ? (report.search_modules as string[]) : [];
+    const searchModules = executedLabels.length
+      ? `${executedLabels.length} ta bazada tekshirilgan`
+      : "Tekshirilgan bazalar ma'lum emas";
     const finalResult = {
       plagiarism: plagiarismPercentage,
       aiContent: aiContentPercentage,
@@ -284,7 +285,7 @@ const PlagiarismCheck: React.FC = () => {
     };
     setResult(finalResult);
 
-    const certNumber = Date.now().toString().slice(-6);
+    const certNumber = String(report?.certificate_number || '').trim() || '—';
     const newCertificateData: AntiplagiatCertificateData = {
       certificateNumber: certNumber,
       checkDate: new Date().toLocaleDateString('uz-UZ'),
@@ -316,11 +317,7 @@ const PlagiarismCheck: React.FC = () => {
       selfCitationPercent: Number(selfCitationPct || 0),
       citationPercent: Number(citationPct || 0),
       originalityPercent: originality,
-      searchModules: Array.isArray(report?.search_modules)
-        ? (report.search_modules as string[])
-        : form.enabledModuleIds
-            .map((id) => ANTIPLAGIAT_MODULES.find((m) => m.id === id)?.label)
-            .filter(Boolean) as string[],
+      searchModules: executedLabels,
       sources: foundSources.map((s, idx) => toReportSource(s as PlagiarismSource & { search_module?: string; title?: string }, idx)),
     };
     setFullReportData(fullReport);
@@ -384,7 +381,7 @@ const PlagiarismCheck: React.FC = () => {
     );
   };
 
-  /** Chuqur tekshiruv 10–15 daqiqa davom etishi mumkin (antiplagiat.uz uslubi) */
+  /** Tekshiruv hujjat hajmi va ochiq API javoblariga qarab bir necha daqiqa davom etadi */
   const pollUntilPlagiarismReady = async (targetArticleId: string, maxAttempts = 240): Promise<boolean> => {
     for (let i = 0; i < maxAttempts; i++) {
       try {
@@ -678,7 +675,7 @@ const PlagiarismCheck: React.FC = () => {
             return;
           }
 
-          setCheckStatusLabel(`${ANTIPLAGIAT_MODULES.length}+ modul bo'yicha skanerlash boshlandi (10–15 daqiqa)...`);
+          setCheckStatusLabel("Tekshiruv boshlandi — ichki baza va ochiq ilmiy manbalar bo'yicha skanerlanmoqda...");
           const ready = await pollUntilPlagiarismReady(targetArticleId);
           if (!ready) {
             throw new Error('Tekshiruv vaqti tugadi. Keyinroq natijani «Arxiv hujjatlar»dan ko\'ring.');
@@ -725,16 +722,16 @@ const PlagiarismCheck: React.FC = () => {
                     Chuqur antiplagiat tekshiruvi
                   </p>
                   <p className="mb-3 text-center text-xs text-[var(--editorial-muted,#64748b)]">
-                    Antiplag.uz uslubida — har bir modul alohida skanerlanadi (10–15 daqiqa)
+                    Ichki baza va ochiq ilmiy manbalar bo'yicha haqiqiy moslik qidiriladi (bir necha daqiqa)
                   </p>
                   {checkStatusLabel && (
-                    <p className="mb-2 text-center text-sm text-[var(--editorial-primary,#8b1538)]">
+                    <p className="mb-2 text-center text-sm text-[var(--editorial-primary,#1f3f8f)]">
                       {checkStatusLabel}
                     </p>
                   )}
                   <div className="h-2.5 w-full rounded-full bg-slate-200">
                       <div
-                        className="h-2.5 rounded-full bg-[var(--editorial-primary,#8b1538)] transition-[width] duration-500 ease-in-out"
+                        className="h-2.5 rounded-full bg-[var(--editorial-primary,#1f3f8f)] transition-[width] duration-500 ease-in-out"
                         style={{ width: `${progress}%` }}
                       />
                   </div>

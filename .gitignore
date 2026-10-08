@@ -35,3 +35,10 @@ db.sqlite3
 
 # Masofadan deploy (hech qachon gitga qo‘ymang)
 .phonix_deploy.env
+
+# Lokal ma'lumot / log fayllari (repoga tushmasin)
+*_log.txt
+/Antiplag.uz*.pdf
+/hisobot*.jpg
+/sertifikat.jpg
+/task1.ogg

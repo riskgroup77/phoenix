@@ -1,4 +1,5 @@
 import React, { useId } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 
 /**
  * Unified design for all certificates and ma'lumotnomas.
@@ -7,11 +8,11 @@ import React, { useId } from 'react';
  * — Content area has safe margins so nothing overlaps
  */
 
-export const CERT_COLOR_DARK = '#1a365d';
-export const CERT_COLOR_TEAL = '#0d9488';
+export const CERT_COLOR_DARK = '#17306f'; // Milliy zamonaviy: to'q lojuvard
+export const CERT_COLOR_TEAL = '#0b6f74'; // firuza
 export const CERT_COLOR_BG = '#f8fafc';
-export const CERT_COLOR_TEXT = '#1e293b';
-export const CERT_COLOR_MUTED = '#64748b';
+export const CERT_COLOR_TEXT = '#172033';
+export const CERT_COLOR_MUTED = '#55607a';
 
 /** Rich certificate background: naqshinkor, gradient, patterns, border, corners — soxtalashtirish qiyin */
 export const CertificateBackground: React.FC = () => {
@@ -159,17 +160,14 @@ export const CertificateBrandBlock: React.FC = () => (
 
 /** QR block: QR image + text. Ramka yo'q. */
 export const CertificateQRBlock: React.FC<{
-    qrUrl: string;
+    /** QR ichidagi matn (havola) — kod brauzerda yaratiladi */
+    qrValue: string;
     label?: string;
-}> = ({ qrUrl, label = 'TEKSHIRISH UCHUN QR KODDAN FOYDALANING' }) => (
+}> = ({ qrValue, label = 'TEKSHIRISH UCHUN QR KODDAN FOYDALANING' }) => (
     <div className="flex flex-col items-center gap-2 relative z-10">
-        <img
-            src={qrUrl}
-            alt="QR"
-            className="w-14 h-14 sm:w-16 sm:h-16 block"
-            width={64}
-            height={64}
-        />
+        <div role="img" aria-label="QR" className="w-14 h-14 sm:w-16 sm:h-16 bg-white [&>svg]:block [&>svg]:w-full [&>svg]:h-full">
+            <QRCodeSVG value={qrValue} size={128} level="M" fgColor={CERT_COLOR_DARK} bgColor="#ffffff" marginSize={1} />
+        </div>
         <p
             className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider leading-tight text-center max-w-[120px]"
             style={{ color: CERT_COLOR_TEAL }}

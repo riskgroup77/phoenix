@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { PageSkeleton } from '../components/ui/Skeleton';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
@@ -14,6 +15,11 @@ import { getAuthorWorkflowStepsFromStatus, getAuthorWorkflowProgressPercent } fr
 import AuthorOperatorChat from '../components/AuthorOperatorChat';
 import { ARTICLE_CHAT_DOCK_BREAKPOINT_PX } from '../components/ArticleChatDock';
 import { useMediaMinWidth } from '../hooks/useMediaMinWidth';
+import ArticleTimeline, { type TimelineEntry } from '../components/ArticleTimeline';
+import PublicationIndexingPanel from '../components/PublicationIndexingPanel';
+import AntiplagiatHighlightView from '../components/AntiplagiatHighlightView';
+import { buildAntiplagiatViewFromArticle } from '../utils/antiplagiatFromArticle';
+import { useT } from '../i18n/LanguageContext';
 
 // Type for the API response which has different field names
 interface ArticleApiResponse {
@@ -25,7 +31,8 @@ interface ArticleApiResponse {
     status_label?: string;
     workflow_stage?: string;
     workflow_steps?: { name: string; done: boolean; current: boolean }[];
-    status_timeline?: { status: string; date: string; comment?: string; responsible?: string }[];
+    status_timeline?: TimelineEntry[];
+    doi?: string;
     author: string;
     author_name?: string;
     journal: string;
@@ -48,6 +55,7 @@ interface ArticleApiResponse {
 const ArticleDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const { user } = useAuth();
+    const { t } = useT();
     const navigate = useNavigate();
     const isLargeScreen = useMediaMinWidth(ARTICLE_CHAT_DOCK_BREAKPOINT_PX);
     const [article, setArticle] = useState<ArticleApiResponse | null>(null);
@@ -254,11 +262,7 @@ const ArticleDetail: React.FC = () => {
     };
 
     if (loading) {
-        return (
-            <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            </div>
-        );
+        return <PageSkeleton />;
     }
 
     if (error) {
@@ -283,7 +287,7 @@ const ArticleDetail: React.FC = () => {
         const map: Record<string, { text: string; color: string; icon: React.ElementType }> = {
             'Draft': { text: 'Yangi topshirildi', color: 'bg-gray-500/20 text-slate-600', icon: FileText },
             'Yangi': { text: 'Yangi topshirildi', color: 'bg-blue-500/20 text-blue-900', icon: Inbox },
-            'WithEditor': { text: 'Tekshiruvda', color: 'bg-indigo-500/20 text-indigo-300', icon: Edit },
+            'WithEditor': { text: 'Tekshiruvda', color: 'bg-[#e5ecff] text-[#233f8c] dark:bg-[rgba(138,166,240,0.16)] dark:text-[#b9cbf7]', icon: Edit },
             'QabulQilingan': { text: 'Ko\'rib chiqilmoqda', color: 'bg-yellow-500/20 text-yellow-900', icon: CheckCircle },
             'WritingInProgress': { text: 'Tuzatish kiritilmoqda', color: 'bg-cyan-500/20 text-cyan-900', icon: Edit },
             'NashrgaYuborilgan': { text: 'Nashrga tayyorlanmoqda', color: 'bg-purple-500/20 text-purple-900', icon: Send },
@@ -341,7 +345,7 @@ const ArticleDetail: React.FC = () => {
                 {/* Left column - 2/3 width */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* Workflow status */}
-                    <Card title="Jarayon holati">
+                    <Card title={t('Jarayon holati')}>
                         <div className="space-y-4">
                             <div>
                                 <div className="flex justify-between text-sm mb-2">
@@ -351,10 +355,10 @@ const ArticleDetail: React.FC = () => {
                                             fallbackSteps.find((s) => s.current)?.name ||
                                             statusData.text}
                                     </span>
-                                    <span className="text-blue-900 font-semibold">{workflowProgress}%</span>
+                                    <span className="text-[var(--editorial-primary)] font-semibold">{workflowProgress}%</span>
                                 </div>
-                                <div className="w-full bg-white/10 rounded-full h-2.5">
-                                    <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${workflowProgress}%` }} />
+                                <div className="w-full bg-[var(--editorial-bg-alt)] rounded-full h-2.5">
+                                    <div className="bg-[var(--milliy-firuza)] h-2.5 rounded-full transition-all duration-300" style={{ width: `${workflowProgress}%` }} />
                                 </div>
                             </div>
 
@@ -363,7 +367,7 @@ const ArticleDetail: React.FC = () => {
                                     {workflowSteps.map((step) => (
                                         <div
                                             key={step.name}
-                                            className={`p-2 rounded text-center border ${step.current ? 'border-blue-400 text-blue-900 bg-blue-500/10' : step.done ? 'border-green-500/30 text-emerald-900 bg-green-500/10' : 'border-slate-200/90 text-slate-500 bg-slate-100/70'}`}
+                                            className={`milliy-step !min-w-0 justify-center text-xs ${step.current ? 'milliy-step--active' : step.done ? 'milliy-step--done' : ''}`}
                                         >
                                             {step.name}
                                         </div>
@@ -371,22 +375,9 @@ const ArticleDetail: React.FC = () => {
                                 </div>
                             )}
 
-                            <div className="space-y-2">
-                                <h4 className="text-sm font-semibold text-slate-900">Status tarixi</h4>
-                                {statusTimeline.length > 0 ? (
-                                    statusTimeline.map((item, index) => (
-                                        <div key={`${item.status}-${item.date}-${index}`} className="p-3 bg-slate-100/70 rounded-lg border border-slate-200/90">
-                                            <p className="text-slate-900 font-medium">{item.status}</p>
-                                            <p className="text-xs text-slate-500 mt-1">{item.date ? new Date(item.date).toLocaleString() : 'Sana yo\'q'}</p>
-                                            {item.comment ? <p className="text-sm text-slate-600 mt-1">Izoh: {item.comment}</p> : null}
-                                            {item.responsible ? <p className="text-xs text-slate-500 mt-1">Mas'ul: {item.responsible}</p> : null}
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="p-3 bg-slate-100/70 rounded-lg border border-slate-200/90 text-sm text-slate-500">
-                                        Status tarixi hali mavjud emas.
-                                    </div>
-                                )}
+                            <div className="pt-2 border-t border-[var(--editorial-border)]">
+                                <h4 className="m-0 mb-3 text-sm font-bold text-[var(--editorial-text)]">{t('Maqola tarixi')}</h4>
+                                <ArticleTimeline entries={statusTimeline} />
                             </div>
                         </div>
                     </Card>
@@ -402,6 +393,22 @@ const ArticleDetail: React.FC = () => {
                             />
                         </Card>
                     )}
+                    {showPlagiarismForAdmin && article.plagiarism_checked_at && (() => {
+                        const view = buildAntiplagiatViewFromArticle(article as any);
+                        const paragraphs = view?.fullReportData.annotatedDocument || [];
+                        if (!view || paragraphs.length === 0) return null;
+                        return (
+                            <AntiplagiatHighlightView
+                                paragraphs={paragraphs}
+                                sources={view.fullReportData.sources.map((s) => ({
+                                    id: Number(s.id),
+                                    sourceName: s.sourceName,
+                                    sourceUrl: s.sourceUrl,
+                                    percentage: s.percentage,
+                                }))}
+                            />
+                        );
+                    })()}
 
                     {/* Basic info */}
                     <Card title="Asosiy ma'lumotlar">
@@ -495,6 +502,16 @@ const ArticleDetail: React.FC = () => {
                                     </div>
                                 )}
                             </div>
+                        </Card>
+                    )}
+
+                    {article.status === ArticleStatus.Published && (
+                        <Card title={t('Indekslash va DOI')}>
+                            <PublicationIndexingPanel
+                                articleId={article.id}
+                                doi={article.doi}
+                                canManage={user?.role === Role.SuperAdmin || user?.role === Role.JournalAdmin}
+                            />
                         </Card>
                     )}
 

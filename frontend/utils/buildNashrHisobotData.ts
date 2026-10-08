@@ -122,6 +122,7 @@ export function buildNashrHisobotRows(
 
 export function buildNashrHisobotData(params: {
   user: {
+    id?: string;
     firstName?: string;
     lastName?: string;
     email?: string;
@@ -134,7 +135,8 @@ export function buildNashrHisobotData(params: {
 }): NashrHisobotData {
   const { user, platformArticles, externalPublications } = params;
   return {
-    documentNumber: `HSB-${Date.now().toString(36).toUpperCase()}`,
+    // Tekshiriladigan (QR) raqam: muallif ID'si asosida — backend /articles/verify/HSB-xxxxxxxx/
+    documentNumber: user.id ? `HSB-${user.id.replace(/-/g, '').slice(0, 8).toUpperCase()}` : `HSB-${Date.now().toString(36).toUpperCase()}`,
     documentDate: new Date().toLocaleDateString('uz-UZ'),
     authorFullName: `${user.lastName || ''} ${user.firstName || ''}`.trim() || user.email || 'Muallif',
     authorWorkplace: user.affiliation || "Ko'rsatilmagan",

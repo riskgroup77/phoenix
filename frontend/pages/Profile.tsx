@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { ListSkeleton, PageSkeleton } from '../components/ui/Skeleton';
+import TelegramSettingsCard from '../components/TelegramSettingsCard';
+import { LANGUAGES, useT } from '../i18n/LanguageContext';
+import { normalizeOrcid, orcidUrl } from '../utils/orcid';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -45,7 +49,9 @@ const Profile: React.FC = () => {
     const { user, logout } = useAuth();
     const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
     const { theme, setTheme } = useTheme();
+    const { lang, setLang } = useT();
     const navigate = useNavigate();
+    const [orcidError, setOrcidError] = useState('');
     const [searchParams, setSearchParams] = useSearchParams();
     const activeTab = (searchParams.get('tab') as ProfileTab) || 'profile';
     const [profile, setProfile] = useState<any>(null);
@@ -147,16 +153,21 @@ const Profile: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        const orcid = normalizeOrcid(formData.orcid_id || '');
+        if (orcid === null) {
+            setOrcidError("ORCID iD noto'g'ri. Format: 0000-0000-0000-0000 (orcid.org profilingizdan nusxalang).");
+            return;
+        }
+        setOrcidError('');
         try {
-            const updatedProfile = await apiService.auth.updateProfile(formData);
+            const updatedProfile = await apiService.auth.updateProfile({ ...formData, orcid_id: orcid });
             const userData = updatedProfile.data || updatedProfile;
             setProfile(userData);
             setIsEditing(false);
             toast.success('Profil muvaffaqiyatli yangilandi');
         } catch (err: any) {
             console.error('Failed to update profile:', err);
-            setError('Profilni yangilashda xatolik yuz berdi.');
-            toast.error('Profilni yangilashda xatolik yuz berdi');
+            toast.error(err?.message || 'Profilni yangilashda xatolik yuz berdi');
         }
     };
 
@@ -262,11 +273,7 @@ const Profile: React.FC = () => {
     };
 
     if (loading) {
-        return (
-            <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            </div>
-        );
+        return <PageSkeleton />;
     }
 
     if (error) {
@@ -296,10 +303,12 @@ const Profile: React.FC = () => {
 
             {activeTab === 'payments' && (
                 <Card title="To'lovlar tarixi">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4 p-3 rounded-[10px] bg-[var(--editorial-bg-alt)]">
+                        <p className="m-0 text-sm text-[var(--editorial-body)]">Cheklar (PDF) va to&apos;liq ro&apos;yxat alohida sahifada.</p>
+                        <Button type="button" variant="secondary" onClick={() => navigate('/payments')}>To&apos;lovlarim sahifasi</Button>
+                    </div>
                     {loadingPayments ? (
-                        <div className="flex justify-center py-10">
-                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
-                        </div>
+                        <ListSkeleton rows={4} />
                     ) : sortedTransactions.length === 0 ? (
                         <p className="text-slate-500 text-sm py-6 text-center">
                             Hozircha to&apos;lovlar tarixi yo&apos;q.
@@ -390,6 +399,29 @@ const Profile: React.FC = () => {
 
             {activeTab === 'settings' && (
                 <>
+                    <TelegramSettingsCard
+                        connected={!!profile.telegram_connected}
+                        enabled={profile.telegram_notifications !== false}
+                        botUsername={profile.telegram_bot_username}
+                        onChange={(enabled) => setProfile((p: any) => ({ ...p, telegram_notifications: enabled }))}
+                    />
+                    <Card title="Til / Язык / Language">
+                        <p className="text-sm text-slate-500 mb-3">Interfeys tilini tanlang.</p>
+                        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Til">
+                            {LANGUAGES.map((l) => (
+                                <Button
+                                    key={l.code}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={lang === l.code}
+                                    variant={lang === l.code ? 'primary' : 'secondary'}
+                                    onClick={() => setLang(l.code)}
+                                >
+                                    <span lang={l.htmlLang}>{l.label}</span>
+                                </Button>
+                            ))}
+                        </div>
+                    </Card>
                     {profile.role === 'author' && (
                         <Card title="Arxiv hujjatlar">
                             <p className="text-slate-500 text-sm mb-3">
@@ -555,14 +587,24 @@ const Profile: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-600 mb-2">ORCID ID</label>
+                                        <label htmlFor="profile-orcid" className="block text-sm font-medium text-slate-600 mb-2">ORCID iD</label>
                                         <input
+                                            id="profile-orcid"
                                             type="text"
                                             name="orcid_id"
                                             value={formData.orcid_id}
-                                            onChange={handleInputChange}
+                                            onChange={(e) => {
+                                                handleInputChange(e);
+                                                if (orcidError) setOrcidError('');
+                                            }}
+                                            placeholder="0000-0002-1825-0097"
+                                            aria-invalid={!!orcidError}
+                                            aria-describedby="profile-orcid-hint"
                                             className="w-full"
                                         />
+                                        <p id="profile-orcid-hint" className={`mt-1.5 text-xs ${orcidError ? 'text-red-700 dark:text-red-300' : 'text-[var(--editorial-muted)]'}`}>
+                                            {orcidError || "orcid.org dagi 16 belgili raqam. Crossref DOI yozuvida va maqola sahifasida ko'rsatiladi."}
+                                        </p>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-600 mb-2">Telegram</label>
@@ -631,8 +673,15 @@ const Profile: React.FC = () => {
                                         <div className="flex items-center p-3 bg-slate-100/70 rounded-lg">
                                             <Hash className="h-5 w-5 text-red-700 mr-3" />
                                             <div>
-                                                <p className="text-sm text-slate-500">ORCID ID</p>
-                                                <p className="text-slate-900">{profile.orcid_id}</p>
+                                                <p className="text-sm text-slate-500">ORCID iD</p>
+                                                <a
+                                                    href={orcidUrl(profile.orcid_id)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="editorial-link font-semibold"
+                                                >
+                                                    {profile.orcid_id}
+                                                </a>
                                             </div>
                                         </div>
                                     )}

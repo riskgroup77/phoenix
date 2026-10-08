@@ -30,6 +30,11 @@ jobs:
           USE_SQLITE: 'true'
           SECRET_KEY: ci-not-for-production
         run: python manage.py check
+      - name: Migrations up to date
+        env:
+          USE_SQLITE: 'true'
+          SECRET_KEY: ci-not-for-production
+        run: python manage.py makemigrations --check --dry-run
       - name: Pytest
         env:
           USE_SQLITE: 'true'

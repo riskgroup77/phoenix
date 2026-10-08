@@ -28,10 +28,19 @@ async def require_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return False
 
 
+async def _delete_password_message(update: Update) -> None:
+    """Parol yozilgan xabarni chat tarixidan o'chirish (telefon boshqa birovning qo'liga tushsa ham ko'rinmasin)."""
+    try:
+        await update.message.delete()
+    except Exception:
+        # Botga o'chirish huquqi bo'lmasligi mumkin — kirish jarayoni davom etadi
+        pass
+
+
 async def login_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message:
         await update.message.reply_text(
-            "📱 Telefon raqamingizni kiriting (masalan: 901001004 yoki 998901001004):"
+            "📱 Telefon raqamingizni kiriting (masalan: 911111111 yoki 998911111111):"
         )
     return LOGIN_PHONE
 
@@ -48,6 +57,7 @@ async def login_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
     phone = context.user_data.get('login_phone', '')
     password = update.message.text or ''
+    await _delete_password_message(update)
     tg_user = update.effective_user
     await update.message.reply_text('⏳ Tekshirilmoqda, biroz kuting...')
     client = PhonixApiClient()
@@ -118,6 +128,7 @@ async def register_password(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if not update.message or context.user_data is None:
         return ConversationHandler.END
     password = update.message.text or ''
+    await _delete_password_message(update)
     phone = context.user_data.get('reg_phone', '')
     first = context.user_data.get('reg_first', '')
     last = context.user_data.get('reg_last', '')

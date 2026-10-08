@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { PageSkeleton } from '../components/ui/Skeleton';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
 import Card from '../components/ui/Card';
@@ -81,11 +82,7 @@ const TranslationDetail: React.FC = () => {
     }
 
     if (loading) {
-        return (
-            <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--editorial-primary)]" />
-            </div>
-        );
+        return <PageSkeleton />;
     }
 
     if (error) {

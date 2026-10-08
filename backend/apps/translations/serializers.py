@@ -45,23 +45,35 @@ class TranslationRequestSerializer(serializers.ModelSerializer):
             'id',
             'submission_date',
             'author',
+            'word_count',
+            'cost',
             'payment_completed',
             'payment_pending',
             'payment_status_label',
         )
-    
+
     def validate(self, attrs):
-        """Muallif yuborgan cost ni e’tiborsiz qoldirib, so‘z soni va tariff bo‘yicha server hisoblaydi."""
+        """
+        So'zlar soni va narx FAYLDAN server tomonida hisoblanadi — mijoz yuborgan
+        word_count/cost e'tiborsiz qoldiriladi (aks holda word_count=1 bilan 100 so'mga tarjima mumkin edi).
+        """
         from apps.udc.services import get_service_amount
 
-        instance = getattr(self, 'instance', None)
-        wc = attrs.get('word_count')
-        if wc is None and instance is not None:
-            wc = instance.word_count
-        wc = max(0, int(wc or 0))
-        rate = float(get_service_amount('translation_per_word', 100))
-        if instance is None or 'word_count' in attrs:
-            attrs['cost'] = Decimal(str(int(wc * rate)))
+        from .word_count import count_words_in_upload
+
+        if getattr(self, 'instance', None) is None:
+            source = attrs.get('source_file_path')
+            if not source:
+                raise serializers.ValidationError({'source_file_path': 'Tarjima uchun fayl majburiy.'})
+            word_count, _text, _is_estimate = count_words_in_upload(source)
+            rate = float(get_service_amount('translation_per_word', 100))
+            attrs['word_count'] = word_count
+            attrs['cost'] = Decimal(str(int(word_count * rate)))
+            # Yangi so'rov har doim "Yangi" holatda, taqrizchisiz boshlanadi
+            attrs['status'] = 'Yangi'
+            attrs.pop('reviewer', None)
+            attrs.pop('translated_file_path', None)
+            attrs.pop('completion_date', None)
         return attrs
     
     def get_author_name(self, obj):

@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from config.uploads import RandomizedUploadPath
 import uuid
 
 
@@ -34,7 +35,7 @@ class UdkRequest(models.Model):
     # Ish ma'lumotlari
     title = models.CharField(max_length=500)
     abstract = models.TextField(blank=True)
-    file = models.FileField(upload_to='udk_requests/%Y/%m/', blank=True, null=True)
+    file = models.FileField(upload_to=RandomizedUploadPath('udk_requests'), blank=True, null=True)
     # Natija (taqrizchi tomonidan to'ldiriladi)
     udk_code = models.CharField(max_length=100, blank=True)
     udk_description = models.CharField(max_length=500, blank=True)

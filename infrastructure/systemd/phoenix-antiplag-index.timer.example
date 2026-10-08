@@ -1,0 +1,11 @@
+# Har kuni soat 03:30 da antiplagiat indeksini yangilash (o'zgarmagan hujjatlar tez o'tadi).
+
+[Unit]
+Description=Phoenix — tungi antiplagiat indeksi
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

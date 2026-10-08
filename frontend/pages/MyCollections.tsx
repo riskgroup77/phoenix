@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
+import EmptyState from '../components/EmptyState';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
@@ -158,11 +159,11 @@ const MyCollections: React.FC = () => {
                         )
                     })
                 ) : (
-                    <div className="editorial-empty">
-                        <Archive className="mx-auto h-12 w-12 text-[var(--editorial-muted)] mb-3" />
-                        <h3 className="font-serif text-lg font-semibold text-[var(--editorial-text)]">To'plamlar Hozircha Mavjud Emas</h3>
-                        <p className="mt-2 text-sm">Maqolangiz biror sonda nashr etilganda va admin to'plam havolasini yuborganda, u shu yerda paydo bo'ladi.</p>
-                    </div>
+                    <EmptyState
+                        illustration="inbox"
+                        title="To'plamlar hozircha yo'q"
+                        description="Maqolangiz biror sonda nashr etilganda va admin to'plam havolasini yuborganda, u shu yerda paydo bo'ladi."
+                    />
                 )}
             </div>
         </div>

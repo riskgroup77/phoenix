@@ -163,7 +163,7 @@ class GeminiService:
     
     def __init__(self):
         self.api_key = (getattr(settings, "GEMINI_API_KEY", "") or "").strip()
-        self.model_name = (getattr(settings, "GEMINI_MODEL", None) or "gemini-1.5-flash").strip() or "gemini-1.5-flash"
+        self.model_name = (getattr(settings, "GEMINI_MODEL", None) or "gemini-2.5-flash").strip() or "gemini-2.5-flash"
         self.max_output_tokens = int(getattr(settings, "GEMINI_MAX_OUTPUT_TOKENS", 8192) or 8192)
         self.plagiarism_input_chars = int(getattr(settings, "GEMINI_PLAGIARISM_INPUT_CHARS", 12000) or 12000)
         if not self.api_key:
