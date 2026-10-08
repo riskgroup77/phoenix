@@ -104,3 +104,12 @@ class DemoSeedTests(TestCase):
         self.assertEqual(c.post(f'/api/v1/payments/transactions/{other_tx.pk}/prepare_payment/').status_code, 404)
         doi = c.get('/api/v1/articles/doi/requests/').json()
         self.assertEqual(len(doi.get('results', doi)), 5)
+
+    def test_refuses_when_demo_phone_belongs_to_real_user(self):
+        from django.core.management.base import CommandError
+
+        User.objects.create_user(phone='998911111111', password='x', email='real-owner@mail.uz',
+                                 first_name='Haqiqiy', last_name='Odam', affiliation='X')
+        with self.assertRaises(CommandError):
+            seed()
+        self.assertEqual(Article.objects.count(), 0)

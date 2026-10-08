@@ -198,8 +198,19 @@ class Command(BaseCommand):
 
         from apps.users.models import User
 
+        from django.core.management.base import CommandError
+
+        from config.demo import is_demo_user
+
         self.stats = Counter()
-        login = {role: User.objects.get(phone=phone) for role, phone in LOGIN_PHONES.items()}
+        login = {role: User.objects.filter(phone=phone).first() for role, phone in LOGIN_PHONES.items()}
+        # Raqam haqiqiy foydalanuvchiga tegishli bo'lsa — demo ma'lumot unga bog'lanib qolmasin
+        bad = [phone for role, phone in LOGIN_PHONES.items() if not is_demo_user(login[role])]
+        if bad:
+            raise CommandError(
+                'Quyidagi demo raqamlar haqiqiy foydalanuvchilarga tegishli yoki demo hisob emas: '
+                + ', '.join(bad) + '. Namuna ma\'lumotlar yaratilmadi.'
+            )
         self.login = login
 
         # --- foydalanuvchilar
