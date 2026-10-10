@@ -8,9 +8,10 @@ import { Role } from '../types';
 import { Search, User, Shield, Eye, Edit, Trash2, Plus, X, Download, FileText, Languages, ClipboardCheck, CreditCard, Activity } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { toast } from 'react-toastify';
-import * as XLSX from 'xlsx';
+import { useT } from '../i18n/LanguageContext';
 
 const UserManagement: React.FC = () => {
+    const { t: tr } = useT();
     const { user } = useAuth();
     const [users, setUsers] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -70,7 +71,7 @@ const UserManagement: React.FC = () => {
                 setUsers(usersArray);
             } catch (err: any) {
                 console.error('Failed to fetch users:', err);
-                setError('Foydalanuvchilarni yuklashda xatolik yuz berdi.');
+                setError(tr('Foydalanuvchilarni yuklashda xatolik yuz berdi.'));
             } finally {
                 setLoading(false);
             }
@@ -135,7 +136,7 @@ const UserManagement: React.FC = () => {
         
         // Basic validation
         if (!newUser.first_name || !newUser.last_name || !newUser.email || !newUser.phone || !newUser.password) {
-            toast.error("Iltimos, barcha majburiy maydonlarni to'ldiring.");
+            toast.error(tr("Iltimos, barcha majburiy maydonlarni to'ldiring."));
             return;
         }
         
@@ -161,10 +162,10 @@ const UserManagement: React.FC = () => {
             // Close modal and reset form
             handleCloseModal();
             
-            toast.success("Foydalanuvchi muvaffaqiyatli qo'shildi!");
+            toast.success(tr("Foydalanuvchi muvaffaqiyatli qo'shildi!"));
         } catch (err: any) {
             console.error('Failed to create user:', err);
-            toast.error(err?.response?.detail || err?.message || 'Foydalanuvchi yaratishda xatolik yuz berdi.');
+            toast.error(err?.response?.detail || err?.message || tr('Foydalanuvchi yaratishda xatolik yuz berdi.'));
         } finally {
             setIsSubmitting(false);
         }
@@ -221,9 +222,9 @@ const UserManagement: React.FC = () => {
                 prev.map((u) => (u.id === editingUser.id ? { ...u, ...editForm } : u))
             );
             handleCloseEdit();
-            toast.success('Foydalanuvchi yangilandi.');
+            toast.success(tr('Foydalanuvchi yangilandi.'));
         } catch (err: any) {
-            toast.error(err?.message || 'Tahrirlashda xatolik.');
+            toast.error(err?.message || tr('Tahrirlashda xatolik.'));
         } finally {
             setIsEditSubmitting(false);
         }
@@ -252,7 +253,7 @@ const UserManagement: React.FC = () => {
             await apiService.users.delete(userToDelete.id);
             setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
             handleDeleteCancel();
-            toast.success('Foydalanuvchi o\'chirildi.');
+            toast.success(tr("Foydalanuvchi o'chirildi."));
         } catch (err: any) {
             setDeleteError(err?.message || 'O\'chirishda xatolik.');
         } finally {
@@ -277,7 +278,7 @@ const UserManagement: React.FC = () => {
     };
 
     /** Export all loaded users to an Excel (.xlsx) file. */
-    const handleExportExcel = () => {
+    const handleExportExcel = async () => {
         const headers = ['ID', 'Ism', 'Familiya', 'Email', 'Telefon', 'Rol', 'Tashkilot', "Ro'yxatdan o'tgan"];
         const rows = validUsers.map((u) => [
             u.id ?? '',
@@ -290,12 +291,20 @@ const UserManagement: React.FC = () => {
             u.date_joined ? new Date(u.date_joined).toLocaleDateString() : '',
         ]);
         const data = [headers, ...rows];
+        // xlsx (~300KB) faqat eksport bosilganda yuklanadi
+        let XLSX: typeof import('xlsx');
+        try {
+            XLSX = await import('xlsx');
+        } catch {
+            toast.error(tr("Excel modulini yuklab bo'lmadi. Sahifani yangilang."));
+            return;
+        }
         const ws = XLSX.utils.aoa_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Foydalanuvchilar');
         const fileName = `foydalanuvchilar_${new Date().toISOString().slice(0, 10)}.xlsx`;
         XLSX.writeFile(wb, fileName);
-        toast.success('Excel fayl yuklab olindi.');
+        toast.success(tr('Excel fayl yuklab olindi.'));
     };
 
     if (loading) {
@@ -304,9 +313,9 @@ const UserManagement: React.FC = () => {
 
     if (error) {
         return (
-            <Card title="Xatolik">
+            <Card title={tr('Xatolik')}>
                 <p className="text-red-700">{error}</p>
-                <Button onClick={() => window.location.reload()} className="mt-4">Qayta urinish</Button>
+                <Button onClick={() => window.location.reload()} className="mt-4">{tr('Qayta urinish')}</Button>
             </Card>
         );
     }
@@ -315,15 +324,15 @@ const UserManagement: React.FC = () => {
         <>
             <div className="space-y-6 max-w-6xl mx-auto">
             <EditorialPageHeader
-                title="Foydalanuvchilar boshqaruvi"
-                subtitle="Platforma foydalanuvchilarini qidirish, qo'shish va tahrirlash."
+                title={tr('Foydalanuvchilar boshqaruvi')}
+                subtitle={tr("Platforma foydalanuvchilarini qidirish, qo'shish va tahrirlash.")}
                 actions={
                     <>
                         <Button type="button" variant="secondary" onClick={handleExportExcel} disabled={validUsers.length === 0}>
-                            <Download className="mr-2 h-4 w-4" /> Excelda yuklab olish
+                            <Download className="mr-2 h-4 w-4" /> {tr('Excelda yuklab olish')}
                         </Button>
                         <Button onClick={handleOpenModal}>
-                            <Plus className="mr-2 h-4 w-4" /> Yangi foydalanuvchi
+                            <Plus className="mr-2 h-4 w-4" /> {tr('Yangi foydalanuvchi')}
                         </Button>
                     </>
                 }
@@ -336,36 +345,36 @@ const UserManagement: React.FC = () => {
                                 <Search className="text-[var(--editorial-muted)] mx-4 shrink-0" size={20} />
                                 <input
                                     type="text"
-                                    placeholder="Ism, familiya, email yoki telefon bo'yicha qidirish..."
-                                    className="w-full !bg-transparent !border-none !py-3 !pr-4 !pl-0 !shadow-none !ring-0"
+                                    placeholder={tr("Ism, familiya, email yoki telefon bo'yicha qidirish...")}
+                                    className="input-bare w-full !py-3 !pr-4 !pl-0"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
                         </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex items-center gap-2">
-                            <label className="editorial-field-label whitespace-nowrap">Rol:</label>
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 w-full sm:w-auto">
+                            <label className="editorial-field-label whitespace-nowrap">{tr('Rol:')}</label>
                             <select
                                 value={filterRole}
                                 onChange={(e) => setFilterRole(e.target.value)}
-                                className="editorial-select min-w-[180px]"
+                                className="editorial-select w-full sm:w-auto sm:min-w-[180px]"
                             >
-                                <option value="">Barcha rollar</option>
+                                <option value="">{tr('Barcha rollar')}</option>
                                 {Object.entries(roleNames).map(([value, label]) => (
                                     <option key={value} value={value}>{label}</option>
                                 ))}
                             </select>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <label className="editorial-field-label whitespace-nowrap">Tashkilot:</label>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 w-full sm:w-auto min-w-0">
+                            <label className="editorial-field-label whitespace-nowrap">{tr('Tashkilot:')}</label>
                             <select
                                 value={filterAffiliation}
                                 onChange={(e) => setFilterAffiliation(e.target.value)}
-                                className="editorial-select min-w-[220px]"
+                                className="editorial-select w-full sm:w-auto sm:min-w-[220px] sm:max-w-[320px]"
                             >
-                                <option value="">Barcha tashkilotlar</option>
+                                <option value="">{tr('Barcha tashkilotlar')}</option>
                                 {uniqueAffiliations.map((aff) => (
                                     <option key={aff} value={aff}>{aff}</option>
                                 ))}
@@ -377,22 +386,22 @@ const UserManagement: React.FC = () => {
                                 onClick={() => { setFilterRole(''); setFilterAffiliation(''); }}
                                 className="text-sm text-[var(--editorial-primary)] hover:opacity-80"
                             >
-                                Filterni tozalash
+                                {tr('Filterni tozalash')}
                             </button>
                         )}
                     </div>
                 </div>
 
-                <div className="overflow-x-auto rounded-lg border border-[var(--editorial-border)]">
-                    <table className="w-full text-left">
+                <div className="overflow-x-auto rounded-lg border border-[var(--editorial-border)] rtable-wrap">
+                    <table className="w-full text-left rtable">
                         <thead className="bg-[rgba(31,63,143,0.04)]">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Foydalanuvchi</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Rol</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Telefon</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tashkilot</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Ro'yxatdan o'tgan</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Amallar</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{tr('Foydalanuvchi')}</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{tr('Rol')}</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{tr('Telefon')}</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{tr('Tashkilot')}</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{tr("Ro'yxatdan o'tgan")}</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{tr('Amallar')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200/80">
@@ -427,13 +436,13 @@ const UserManagement: React.FC = () => {
                                     </td>
                                     <td className="px-4 py-4 text-sm">
                                         <div className="flex items-center space-x-2">
-                                            <Button type="button" variant="secondary" onClick={() => handleViewUser(user)} title="Ko'rish">
+                                            <Button type="button" variant="secondary" onClick={() => handleViewUser(user)} title={tr("Ko'rish")}>
                                                 <Eye className="h-4 w-4" />
                                             </Button>
-                                            <Button type="button" variant="secondary" onClick={() => handleOpenEdit(user)} title="Tahrirlash">
+                                            <Button type="button" variant="secondary" onClick={() => handleOpenEdit(user)} title={tr('Tahrirlash')}>
                                                 <Edit className="h-4 w-4" />
                                             </Button>
-                                            <Button type="button" variant="danger" onClick={() => handleDeleteClick(user)} title="O'chirish">
+                                            <Button type="button" variant="danger" onClick={() => handleDeleteClick(user)} title={tr("O'chirish")}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
@@ -447,8 +456,8 @@ const UserManagement: React.FC = () => {
                 {filteredUsers.length === 0 && (
                     <div className="editorial-empty py-12">
                         {searchQuery || filterRole || filterAffiliation
-                            ? 'Qidiruv yoki filtrlarga mos foydalanuvchi yo\'q. Filterni o\'zgartiring yoki tozalang.'
-                            : 'Hozircha foydalanuvchilar mavjud emas.'}
+                            ? tr("Qidiruv yoki filtrlarga mos foydalanuvchi yo'q. Filterni o'zgartiring yoki tozalang.")
+                            : tr('Hozircha foydalanuvchilar mavjud emas.')}
                     </div>
                 )}
             </Card>
@@ -457,7 +466,7 @@ const UserManagement: React.FC = () => {
             {/* New User Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <Card className="w-full max-w-2xl" title="Yangi foydalanuvchi qo'shish">
+                    <Card className="w-full max-w-2xl" title={tr("Yangi foydalanuvchi qo'shish")}>
                         <button 
                             onClick={handleCloseModal}
                             className="absolute top-4 right-4 text-slate-500 hover:text-slate-900"
@@ -468,26 +477,26 @@ const UserManagement: React.FC = () => {
                         <form onSubmit={handleCreateUser} className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Ism *</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{tr('Ism *')}</label>
                                     <input 
                                         type="text" 
                                         name="first_name"
                                         value={newUser.first_name}
                                         onChange={handleInputChange}
                                         className="w-full"
-                                        placeholder="Ism"
+                                        placeholder={tr('Ism')}
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Familiya *</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{tr('Familiya *')}</label>
                                     <input 
                                         type="text" 
                                         name="last_name"
                                         value={newUser.last_name}
                                         onChange={handleInputChange}
                                         className="w-full"
-                                        placeholder="Familiya"
+                                        placeholder={tr('Familiya')}
                                         required
                                     />
                                 </div>
@@ -495,7 +504,7 @@ const UserManagement: React.FC = () => {
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Email *</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{tr('Email *')}</label>
                                     <input 
                                         type="email" 
                                         name="email"
@@ -507,7 +516,7 @@ const UserManagement: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Telefon *</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{tr('Telefon *')}</label>
                                     <input 
                                         type="tel" 
                                         name="phone"
@@ -521,19 +530,19 @@ const UserManagement: React.FC = () => {
                             </div>
                             
                             <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">Tashkilot</label>
+                                <label className="block text-sm font-medium text-slate-600 mb-2">{tr('Tashkilot')}</label>
                                 <input 
                                     type="text" 
                                     name="affiliation"
                                     value={newUser.affiliation}
                                     onChange={handleInputChange}
                                     className="w-full"
-                                    placeholder="Tashkilot nomi"
+                                    placeholder={tr('Tashkilot nomi')}
                                 />
                             </div>
                             
                             <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">Rol *</label>
+                                <label className="block text-sm font-medium text-slate-600 mb-2">{tr('Rol *')}</label>
                                 <select 
                                     name="role"
                                     value={newUser.role}
@@ -541,23 +550,23 @@ const UserManagement: React.FC = () => {
                                     className="w-full"
                                     required
                                 >
-                                    <option value={Role.Author}>Muallif</option>
-                                    <option value={Role.Reviewer}>Taqrizchi</option>
-                                    <option value={Role.JournalAdmin}>Jurnal administratori</option>
-                                    <option value={Role.Accountant}>Moliyachi</option>
-                                    <option value={Role.SuperAdmin}>Bosh administrator</option>
+                                    <option value={Role.Author}>{tr('Muallif')}</option>
+                                    <option value={Role.Reviewer}>{tr('Taqrizchi')}</option>
+                                    <option value={Role.JournalAdmin}>{tr('Jurnal administratori')}</option>
+                                    <option value={Role.Accountant}>{tr('Moliyachi')}</option>
+                                    <option value={Role.SuperAdmin}>{tr('Bosh administrator')}</option>
                                 </select>
                             </div>
                             
                             <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">Parol *</label>
+                                <label className="block text-sm font-medium text-slate-600 mb-2">{tr('Parol *')}</label>
                                 <input 
                                     type="password" 
                                     name="password"
                                     value={newUser.password}
                                     onChange={handleInputChange}
                                     className="w-full"
-                                    placeholder="Parol"
+                                    placeholder={tr('Parol')}
                                     required
                                 />
                             </div>
@@ -569,13 +578,13 @@ const UserManagement: React.FC = () => {
                                     onClick={handleCloseModal}
                                     disabled={isSubmitting}
                                 >
-                                    Bekor qilish
+                                    {tr('Bekor qilish')}
                                 </Button>
                                 <Button 
                                     type="submit" 
                                     disabled={isSubmitting}
                                 >
-                                    {isSubmitting ? 'Yaratilmoqda...' : "Foydalanuvchi qo'shish"}
+                                    {isSubmitting ? tr('Yaratilmoqda...') : tr("Foydalanuvchi qo'shish")}
                                 </Button>
                             </div>
                         </form>
@@ -592,13 +601,13 @@ const UserManagement: React.FC = () => {
                         </button>
                         <div className="overflow-y-auto pr-2 space-y-6 pb-6">
                             <section>
-                                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Asosiy ma'lumotlar</h3>
+                                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">{tr("Asosiy ma'lumotlar")}</h3>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                                    <div><span className="text-slate-500">Email:</span> <span className="text-slate-900">{viewUser.email}</span></div>
-                                    <div><span className="text-slate-500">Telefon:</span> <span className="text-slate-900">{viewUser.phone}</span></div>
-                                    <div><span className="text-slate-500">Rol:</span> <span className="text-slate-900">{roleNames[viewUser.role] ?? viewUser.role}</span></div>
-                                    <div><span className="text-slate-500">Tashkilot:</span> <span className="text-slate-900">{viewUser.affiliation || '—'}</span></div>
-                                    <div><span className="text-slate-500">Ro'yxatdan o'tgan:</span> <span className="text-slate-900">{viewUser.date_joined ? new Date(viewUser.date_joined).toLocaleDateString() : '—'}</span></div>
+                                    <div><span className="text-slate-500">{tr('Email:')}</span> <span className="text-slate-900">{viewUser.email}</span></div>
+                                    <div><span className="text-slate-500">{tr('Telefon:')}</span> <span className="text-slate-900">{viewUser.phone}</span></div>
+                                    <div><span className="text-slate-500">{tr('Rol:')}</span> <span className="text-slate-900">{roleNames[viewUser.role] ?? viewUser.role}</span></div>
+                                    <div><span className="text-slate-500">{tr('Tashkilot:')}</span> <span className="text-slate-900">{viewUser.affiliation || '—'}</span></div>
+                                    <div><span className="text-slate-500">{tr("Ro'yxatdan o'tgan:")}</span> <span className="text-slate-900">{viewUser.date_joined ? new Date(viewUser.date_joined).toLocaleDateString() : '—'}</span></div>
                                 </div>
                             </section>
 
@@ -611,10 +620,10 @@ const UserManagement: React.FC = () => {
                             {!activityLoading && activityData && (
                                 <>
                                     <section>
-                                        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Statistika (roliga qarab)</h3>
+                                        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">{tr('Statistika (roliga qarab)')}</h3>
                                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                             <div className="bg-slate-100/70 rounded-lg p-3 border border-slate-200/90">
-                                                <div className="flex items-center gap-2 text-slate-500 mb-1"><FileText className="h-4 w-4" /> Maqolalar</div>
+                                                <div className="flex items-center gap-2 text-slate-500 mb-1"><FileText className="h-4 w-4" /> {tr('Maqolalar')}</div>
                                                 <div className="text-xl font-semibold text-slate-900">{(activityData.stats?.articles_total ?? 0)}</div>
                                                 {activityData.stats?.articles_by_status && Object.keys(activityData.stats.articles_by_status).length > 0 && (
                                                     <div className="text-xs text-slate-500 mt-1">
@@ -623,15 +632,15 @@ const UserManagement: React.FC = () => {
                                                 )}
                                             </div>
                                             <div className="bg-slate-100/70 rounded-lg p-3 border border-slate-200/90">
-                                                <div className="flex items-center gap-2 text-slate-500 mb-1"><Languages className="h-4 w-4" /> Tarjimalar</div>
+                                                <div className="flex items-center gap-2 text-slate-500 mb-1"><Languages className="h-4 w-4" /> {tr('Tarjimalar')}</div>
                                                 <div className="text-xl font-semibold text-slate-900">{(activityData.stats?.translations_total ?? 0)}</div>
                                             </div>
                                             <div className="bg-slate-100/70 rounded-lg p-3 border border-slate-200/90">
-                                                <div className="flex items-center gap-2 text-slate-500 mb-1"><ClipboardCheck className="h-4 w-4" /> Taqrizlar</div>
+                                                <div className="flex items-center gap-2 text-slate-500 mb-1"><ClipboardCheck className="h-4 w-4" /> {tr('Taqrizlar')}</div>
                                                 <div className="text-xl font-semibold text-slate-900">{(activityData.stats?.reviews_total ?? 0)}</div>
                                             </div>
                                             <div className="bg-slate-100/70 rounded-lg p-3 border border-slate-200/90">
-                                                <div className="flex items-center gap-2 text-slate-500 mb-1"><CreditCard className="h-4 w-4" /> To'lovlar</div>
+                                                <div className="flex items-center gap-2 text-slate-500 mb-1"><CreditCard className="h-4 w-4" /> {tr("To'lovlar")}</div>
                                                 <div className="text-xl font-semibold text-slate-900">{(activityData.stats?.transactions_total ?? 0)}</div>
                                                 {activityData.stats?.transactions_by_service && Object.keys(activityData.stats.transactions_by_service).length > 0 && (
                                                     <div className="text-xs text-slate-500 mt-1">
@@ -644,11 +653,11 @@ const UserManagement: React.FC = () => {
 
                                     {((activityData.recent_articles?.length ?? 0) + (activityData.recent_translations?.length ?? 0) + (activityData.recent_reviews?.length ?? 0) + (activityData.recent_transactions?.length ?? 0)) > 0 && (
                                         <section>
-                                            <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">So'ngi amallar</h3>
+                                            <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">{tr("So'ngi amallar")}</h3>
                                             <div className="space-y-4">
                                                 {activityData.recent_articles?.length > 0 && (
                                                     <div>
-                                                        <div className="text-xs font-medium text-slate-500 mb-2">Maqolalar</div>
+                                                        <div className="text-xs font-medium text-slate-500 mb-2">{tr('Maqolalar')}</div>
                                                         <ul className="space-y-1.5 max-h-32 overflow-y-auto text-sm">
                                                             {activityData.recent_articles.slice(0, 10).map((a: any) => (
                                                                 <li key={a.id} className="flex justify-between items-center py-1 border-b border-white/5">
@@ -661,7 +670,7 @@ const UserManagement: React.FC = () => {
                                                 )}
                                                 {activityData.recent_translations?.length > 0 && (
                                                     <div>
-                                                        <div className="text-xs font-medium text-slate-500 mb-2">Tarjima so'rovlari</div>
+                                                        <div className="text-xs font-medium text-slate-500 mb-2">{tr("Tarjima so'rovlari")}</div>
                                                         <ul className="space-y-1.5 max-h-32 overflow-y-auto text-sm">
                                                             {activityData.recent_translations.slice(0, 10).map((t: any) => (
                                                                 <li key={t.id} className="flex justify-between items-center py-1 border-b border-white/5">
@@ -674,7 +683,7 @@ const UserManagement: React.FC = () => {
                                                 )}
                                                 {activityData.recent_reviews?.length > 0 && (
                                                     <div>
-                                                        <div className="text-xs font-medium text-slate-500 mb-2">Taqrizlar</div>
+                                                        <div className="text-xs font-medium text-slate-500 mb-2">{tr('Taqrizlar')}</div>
                                                         <ul className="space-y-1.5 max-h-32 overflow-y-auto text-sm">
                                                             {activityData.recent_reviews.slice(0, 10).map((r: any) => (
                                                                 <li key={r.id} className="flex justify-between items-center py-1 border-b border-white/5">
@@ -687,7 +696,7 @@ const UserManagement: React.FC = () => {
                                                 )}
                                                 {activityData.recent_transactions?.length > 0 && (
                                                     <div>
-                                                        <div className="text-xs font-medium text-slate-500 mb-2">To'lovlar</div>
+                                                        <div className="text-xs font-medium text-slate-500 mb-2">{tr("To'lovlar")}</div>
                                                         <ul className="space-y-1.5 max-h-32 overflow-y-auto text-sm">
                                                             {activityData.recent_transactions.slice(0, 10).map((tx: any) => (
                                                                 <li key={tx.id} className="flex justify-between items-center py-1 border-b border-white/5">
@@ -705,14 +714,14 @@ const UserManagement: React.FC = () => {
                                     {activityData.activity_timeline?.length > 0 && (
                                         <section>
                                             <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                <Activity className="h-4 w-4" /> Amallar tarixi
+                                                <Activity className="h-4 w-4" /> {tr('Amallar tarixi')}
                                             </h3>
                                             <ul className="space-y-2 max-h-48 overflow-y-auto text-sm">
                                                 {activityData.activity_timeline.map((log: any) => (
                                                     <li key={log.id} className="py-2 px-3 bg-slate-100/70 rounded-lg border border-white/5 flex flex-col gap-0.5">
                                                         <span className="text-slate-900 font-medium">{log.action}</span>
                                                         {log.details && <span className="text-slate-500 text-xs">{log.details}</span>}
-                                                        {log.article_title && <span className="text-slate-500 text-xs">Maqola: {log.article_title}</span>}
+                                                        {log.article_title && <span className="text-slate-500 text-xs">{tr('Maqola: {article_title}', { article_title: log.article_title })}</span>}
                                                         <span className="text-slate-500 text-xs">{log.timestamp ? new Date(log.timestamp).toLocaleString() : ''}</span>
                                                     </li>
                                                 ))}
@@ -723,11 +732,11 @@ const UserManagement: React.FC = () => {
                             )}
 
                             {!activityLoading && activityData && !activityData.stats && Object.keys(activityData).length === 0 && (
-                                <p className="text-slate-500 text-sm">Faoliyat ma'lumotlari yuklanmadi.</p>
+                                <p className="text-slate-500 text-sm">{tr("Faoliyat ma'lumotlari yuklanmadi.")}</p>
                             )}
                         </div>
                         <div className="mt-4 pt-4 border-t border-slate-200/90 flex justify-end shrink-0">
-                            <Button type="button" variant="secondary" onClick={handleCloseView}>Yopish</Button>
+                            <Button type="button" variant="secondary" onClick={handleCloseView}>{tr('Yopish')}</Button>
                         </div>
                     </Card>
                 </div>
@@ -736,37 +745,37 @@ const UserManagement: React.FC = () => {
             {/* Edit User Modal */}
             {editingUser && (
                 <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <Card className="w-full max-w-2xl" title="Foydalanuvchini tahrirlash">
+                    <Card className="w-full max-w-2xl" title={tr('Foydalanuvchini tahrirlash')}>
                         <button type="button" onClick={handleCloseEdit} className="absolute top-4 right-4 text-slate-500 hover:text-slate-900">
                             <X size={24} />
                         </button>
                         <form onSubmit={handleEditSubmit} className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Ism *</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{tr('Ism *')}</label>
                                     <input type="text" name="first_name" value={editForm.first_name} onChange={handleEditInputChange} className="w-full" required />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Familiya *</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{tr('Familiya *')}</label>
                                     <input type="text" name="last_name" value={editForm.last_name} onChange={handleEditInputChange} className="w-full" required />
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Email *</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{tr('Email *')}</label>
                                     <input type="email" name="email" value={editForm.email} onChange={handleEditInputChange} className="w-full" required />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Telefon *</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{tr('Telefon *')}</label>
                                     <input type="tel" name="phone" value={editForm.phone} onChange={handleEditInputChange} className="w-full" required />
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">Tashkilot</label>
+                                <label className="block text-sm font-medium text-slate-600 mb-2">{tr('Tashkilot')}</label>
                                 <input type="text" name="affiliation" value={editForm.affiliation} onChange={handleEditInputChange} className="w-full" />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">Rol *</label>
+                                <label className="block text-sm font-medium text-slate-600 mb-2">{tr('Rol *')}</label>
                                 <select name="role" value={editForm.role} onChange={handleEditInputChange} className="w-full" required>
                                     {Object.entries(roleNames).map(([value, label]) => (
                                         <option key={value} value={value}>{label}</option>
@@ -774,8 +783,8 @@ const UserManagement: React.FC = () => {
                                 </select>
                             </div>
                             <div className="flex justify-end gap-4 pt-4 border-t border-slate-200/90 mt-6">
-                                <Button type="button" variant="secondary" onClick={handleCloseEdit} disabled={isEditSubmitting}>Bekor qilish</Button>
-                                <Button type="submit" disabled={isEditSubmitting}>{isEditSubmitting ? 'Saqlanmoqda...' : 'Saqlash'}</Button>
+                                <Button type="button" variant="secondary" onClick={handleCloseEdit} disabled={isEditSubmitting}>{tr('Bekor qilish')}</Button>
+                                <Button type="submit" disabled={isEditSubmitting}>{isEditSubmitting ? tr('Saqlanmoqda...') : tr('Saqlash')}</Button>
                             </div>
                         </form>
                     </Card>
@@ -785,29 +794,29 @@ const UserManagement: React.FC = () => {
             {/* Delete confirmation modal – parol so'raladi */}
             {userToDelete && (
                 <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <Card className="w-full max-w-md" title="Foydalanuvchini o'chirish">
+                    <Card className="w-full max-w-md" title={tr("Foydalanuvchini o'chirish")}>
                         <button type="button" onClick={handleDeleteCancel} className="absolute top-4 right-4 text-slate-500 hover:text-slate-900">
                             <X size={24} />
                         </button>
                         <p className="text-slate-600 mb-4">
-                            <strong className="text-slate-900">{userToDelete.first_name} {userToDelete.last_name}</strong> foydalanuvchisini o'chirish uchun parolni kiriting.
+                            <strong className="text-slate-900">{userToDelete.first_name} {userToDelete.last_name}</strong> {tr("foydalanuvchisini o'chirish uchun parolni kiriting.")}
                         </p>
                         <form onSubmit={handleDeleteConfirm} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">Parol</label>
+                                <label className="block text-sm font-medium text-slate-600 mb-2">{tr('Parol')}</label>
                                 <input
                                     type="password"
                                     value={deletePassword}
                                     onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(''); }}
                                     className="w-full"
-                                    placeholder="Parolni kiriting"
+                                    placeholder={tr('Parolni kiriting')}
                                     autoFocus
                                 />
                                 {deleteError && <p className="mt-2 text-sm text-red-700">{deleteError}</p>}
                             </div>
                             <div className="flex justify-end gap-4 pt-4">
-                                <Button type="button" variant="secondary" onClick={handleDeleteCancel} disabled={isDeleting}>Bekor qilish</Button>
-                                <Button type="submit" variant="danger" disabled={isDeleting}>{isDeleting ? 'O\'chirilmoqda...' : 'O\'chirish'}</Button>
+                                <Button type="button" variant="secondary" onClick={handleDeleteCancel} disabled={isDeleting}>{tr('Bekor qilish')}</Button>
+                                <Button type="submit" variant="danger" disabled={isDeleting}>{isDeleting ? tr("O'chirilmoqda...") : tr("O'chirish")}</Button>
                             </div>
                         </form>
                     </Card>

@@ -7,8 +7,10 @@ import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import { Download, FileText, ExternalLink, Filter } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { getAccessToken, isCookieMode } from '../utils/authTokens';
 import { toast } from 'react-toastify';
 import { Role } from '../types';
+import { useT } from '../i18n/LanguageContext';
 
 /** Arxivda faqat hujjatlar — maqolalar «Muallif nashrlari»da */
 const ARCHIVE_TYPE_LABELS: Record<string, string> = {
@@ -62,6 +64,7 @@ function formatPercent(value: unknown): string {
 }
 
 const ArxivHujjatlar: React.FC = () => {
+    const { t } = useT();
     const { user } = useAuth();
     const navigate = useNavigate();
     const [archiveItems, setArchiveItems] = useState<ArchiveItem[]>([]);
@@ -127,11 +130,15 @@ const ArxivHujjatlar: React.FC = () => {
                 handleView(item);
                 return;
             }
-            const token = localStorage.getItem('access_token');
+            const token = getAccessToken();
             const isApiUrl = url.includes('/api/v1/') || url.includes('/reviews/');
-            if (isApiUrl && token) {
+            // Cookie rejimida token xotirada bo'lmasligi mumkin — HttpOnly cookie bilan yuboriladi
+            if (isApiUrl && (token || isCookieMode())) {
                 try {
-                    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+                    const response = await fetch(url, {
+                        credentials: 'include',
+                        headers: token ? { Authorization: `Bearer ${token}` } : {},
+                    });
                     if (!response.ok) throw new Error('Yuklab olish amalga oshmadi');
                     const blob = await response.blob();
                     const disposition = response.headers.get('Content-Disposition');
@@ -145,9 +152,9 @@ const ArxivHujjatlar: React.FC = () => {
                     a.download = filename;
                     a.click();
                     window.URL.revokeObjectURL(a.href);
-                    toast.success('Yuklab olindi');
+                    toast.success(t('Yuklab olindi'));
                 } catch {
-                    toast.error('Yuklab olishda xatolik');
+                    toast.error(t('Yuklab olishda xatolik'));
                 }
             } else {
                 window.open(url, '_blank', 'noopener');
@@ -160,8 +167,8 @@ const ArxivHujjatlar: React.FC = () => {
 
     if (user.role !== Role.Author) {
         return (
-            <Card title="Arxiv hujjatlar">
-                <p className="text-slate-500">Arxiv hujjatlar faqat mualliflar uchun.</p>
+            <Card title={t('Arxiv hujjatlar')}>
+                <p className="text-slate-500">{t('Arxiv hujjatlar faqat mualliflar uchun.')}</p>
             </Card>
         );
     }
@@ -171,8 +178,8 @@ const ArxivHujjatlar: React.FC = () => {
     return (
         <div className="space-y-6 max-w-6xl mx-auto">
             <EditorialPageHeader
-                title="Arxiv hujjatlar"
-                subtitle="Nashr sertifikatlari, UDK ma'lumotnomalar, taqriz natijalari, DOI va antiplagiat tekshiruvlari shu yerga avtomatik yig'iladi. Muallif yuborgan dastlabki fayl (docx) bu ro'yxatda ko'rinmaydi."
+                title={t('Arxiv hujjatlar')}
+                subtitle={t("Nashr sertifikatlari, UDK ma'lumotnomalar, taqriz natijalari, DOI va antiplagiat tekshiruvlari shu yerga avtomatik yig'iladi. Muallif yuborgan dastlabki fayl (docx) bu ro'yxatda ko'rinmaydi.")}
             />
 
             <Card title="">
@@ -181,8 +188,8 @@ const ArxivHujjatlar: React.FC = () => {
                 ) : archiveItems.length === 0 ? (
                     <EmptyState
                         illustration="documents"
-                        title="Hozircha arxiv hujjatlari yo'q"
-                        description="Nashr sertifikatlari, UDK, taqriz natijalari, DOI va antiplagiat tekshiruvlari shu yerda paydo bo'ladi."
+                        title={t("Hozircha arxiv hujjatlari yo'q")}
+                        description={t("Nashr sertifikatlari, UDK, taqriz natijalari, DOI va antiplagiat tekshiruvlari shu yerda paydo bo'ladi.")}
                         action={{ label: 'Antiplagiat tekshiruvi', to: '/plagiarism-check' }}
                     />
                 ) : (
@@ -194,21 +201,21 @@ const ArxivHujjatlar: React.FC = () => {
                                 onChange={(e) => setArchiveFilter(e.target.value)}
                                 className="editorial-select"
                             >
-                                <option value="">Barcha turi</option>
+                                <option value="">{t('Barcha turi')}</option>
                                 {Object.entries(ARCHIVE_TYPE_LABELS).map(([k, v]) => (
                                     <option key={k} value={k}>{v}</option>
                                 ))}
                             </select>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="editorial-table w-full text-left">
+                        <div className="overflow-x-auto rtable-wrap">
+                            <table className="editorial-table w-full text-left rtable">
                                 <thead>
                                     <tr className="border-b border-[var(--editorial-border)]">
-                                        <th className="pb-2 text-sm font-medium text-slate-500">Tur</th>
-                                        <th className="pb-2 text-sm font-medium text-slate-500">Nomi / ma&apos;lumot</th>
-                                        <th className="pb-2 text-sm font-medium text-slate-500 hidden md:table-cell">Natija</th>
-                                        <th className="pb-2 text-sm font-medium text-slate-500 hidden sm:table-cell">Sana</th>
-                                        <th className="pb-2 text-sm font-medium text-slate-500 w-32">Amallar</th>
+                                        <th className="pb-2 text-sm font-medium text-slate-500">{t('Tur')}</th>
+                                        <th className="pb-2 text-sm font-medium text-slate-500">{t("Nomi / ma'lumot")}</th>
+                                        <th className="pb-2 text-sm font-medium text-slate-500 hidden md:table-cell">{t('Natija')}</th>
+                                        <th className="pb-2 text-sm font-medium text-slate-500 hidden sm:table-cell">{t('Sana')}</th>
+                                        <th className="pb-2 text-sm font-medium text-slate-500 w-32">{t('Amallar')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -228,13 +235,13 @@ const ArxivHujjatlar: React.FC = () => {
                                                 {it.type === 'plagiarism_check' && it.extra && (
                                                     <div className="mt-1 text-xs text-slate-500 space-y-0.5">
                                                         {it.extra.certificate_number && (
-                                                            <p>Sertifikat № {String(it.extra.certificate_number)}</p>
+                                                            <p>{t('Sertifikat № {certificate_number}', { certificate_number: String(it.extra.certificate_number) })}</p>
                                                         )}
                                                         {it.extra.document_type && (
-                                                            <p>Turi: {String(it.extra.document_type)}</p>
+                                                            <p>{t('Turi: {document_type}', { document_type: String(it.extra.document_type) })}</p>
                                                         )}
                                                         {typeof it.extra.sources_count === 'number' && (
-                                                            <p>{it.extra.sources_count} ta manba tekshirildi</p>
+                                                            <p>{t('{sources_count} ta manba tekshirildi', { sources_count: it.extra.sources_count })}</p>
                                                         )}
                                                     </div>
                                                 )}
@@ -242,9 +249,9 @@ const ArxivHujjatlar: React.FC = () => {
                                             <td className="py-3 text-sm hidden md:table-cell">
                                                 {it.type === 'plagiarism_check' && it.extra ? (
                                                     <div className="text-xs space-y-1">
-                                                        <p><span className="text-slate-500">Originallik:</span>{' '}
+                                                        <p><span className="text-slate-500">{t('Originallik:')}</span>{' '}
                                                             <strong className="text-emerald-700">{formatPercent(it.extra.originality_percentage)}</strong></p>
-                                                        <p><span className="text-slate-500">O&apos;zlashtirish:</span>{' '}
+                                                        <p><span className="text-slate-500">{t("O'zlashtirish:")}</span>{' '}
                                                             <strong className="text-red-700">{formatPercent(it.extra.plagiarism_percentage)}</strong></p>
                                                     </div>
                                                 ) : (
@@ -261,7 +268,7 @@ const ArxivHujjatlar: React.FC = () => {
                                                         onClick={() => handleView(it)}
                                                         className="inline-flex items-center gap-1 text-sm text-blue-800 hover:text-blue-700 font-medium"
                                                     >
-                                                        <ExternalLink className="h-4 w-4" /> Ko&apos;rish
+                                                        <ExternalLink className="h-4 w-4" /> {t("Ko'rish")}
                                                     </button>
                                                 ) : it.download_url ? (
                                                     <button
@@ -269,7 +276,7 @@ const ArxivHujjatlar: React.FC = () => {
                                                         onClick={() => handleArchiveDownload(it)}
                                                         className="inline-flex items-center gap-1 text-sm text-blue-800 hover:text-blue-700"
                                                     >
-                                                        <Download className="h-4 w-4" /> Yuklab olish
+                                                        <Download className="h-4 w-4" /> {t('Yuklab olish')}
                                                     </button>
                                                 ) : it.view_url ? (
                                                     <button
@@ -277,7 +284,7 @@ const ArxivHujjatlar: React.FC = () => {
                                                         onClick={() => handleView(it)}
                                                         className="inline-flex items-center gap-1 text-sm text-blue-800 hover:text-blue-700"
                                                     >
-                                                        <ExternalLink className="h-4 w-4" /> Ko&apos;rish
+                                                        <ExternalLink className="h-4 w-4" /> {t("Ko'rish")}
                                                     </button>
                                                 ) : null}
                                             </td>
@@ -286,7 +293,7 @@ const ArxivHujjatlar: React.FC = () => {
                                 </tbody>
                             </table>
                         </div>
-                        <p className="text-xs text-slate-500 mt-3">Jami: {filtered.length} ta hujjat</p>
+                        <p className="text-xs text-slate-500 mt-3">{t('Jami: {length} ta hujjat', { length: filtered.length })}</p>
                     </>
                 )}
             </Card>

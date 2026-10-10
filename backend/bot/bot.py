@@ -99,6 +99,7 @@ from bot.handlers.auth import (  # noqa: E402
 from bot.handlers.dashboard import dashboard_callback  # noqa: E402
 from bot.handlers.list_views import list_view_callback  # noqa: E402
 from bot.handlers.router import help_command, menu_router, start  # noqa: E402
+from bot.handlers.verification import cancel_pending, contact_received, reset_start  # noqa: E402
 from bot.handlers.services import (  # noqa: E402
     book_abstract,
     book_cover,
@@ -285,6 +286,11 @@ def build_application() -> Application:
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CommandHandler('help', help_command))
     app.add_handler(CommandHandler('logout', logout))
+    # Telefonni tasdiqlash / parolni tiklash (kontakt ulashish)
+    app.add_handler(MessageHandler(filters.CONTACT, contact_received))
+    app.add_handler(MessageHandler(filters.Regex('^🔑 Parolni tiklash$'), reset_start))
+    app.add_handler(CommandHandler('reset', reset_start))
+    app.add_handler(MessageHandler(filters.Regex('^❌ Bekor qilish$'), cancel_pending))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_router))
 
     return app

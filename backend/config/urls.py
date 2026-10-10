@@ -2,10 +2,12 @@
 URL configuration for Phoenix Scientific Platform
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import include, path, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from .jwt_views import CookieTokenRefreshView
+from .alerts import client_error
+from .media_protection import protected_media
 from .health import health_live, health_ready, metrics_prometheus
 from .github_deploy_webhook import github_deploy_webhook
 from apps.analytics.views import global_search
@@ -31,7 +33,9 @@ urlpatterns = [
     path('api/v1/notifications/', include('apps.notifications.urls')),
     path('api/v1/udc/', include('apps.udc.urls')),
     path('api/v1/analytics/', include('apps.analytics.urls')),
+    path('api/v1/assistant/', include('apps.assistant.urls')),
     path('api/v1/search/', global_search, name='global_search'),
+    path('api/v1/client-errors/', client_error, name='client_error'),
 
     # Ochiq maqola sahifalari (Google Scholar meta-teglari) va sayt xaritasi
     path('p/article/<uuid:pk>/', scholar_article_page, name='scholar_article_page'),
@@ -43,9 +47,11 @@ urlpatterns = [
     path('api/v1/token/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),
 ]
 
-# Serve media files in development
+# Media: imzo/ruxsat tekshiruvi bilan (productionda nginx maxfiy papkalarni shu yerga yuboradi)
+urlpatterns += [re_path(r'^media/(?P<path>.+)$', protected_media, name='protected_media')]
+
+# Serve static files in development
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 # Admin site customization

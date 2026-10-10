@@ -11,6 +11,7 @@ import Button from '../components/ui/Button';
 import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
 import { toast } from 'react-toastify';
+import { useT } from '../i18n/LanguageContext';
 
 // Type for the API response which has different field names
 interface TranslationRequestApiResponse {
@@ -50,6 +51,7 @@ const getStatusDisplayData = (status: TranslationStatus) => {
 };
 
 const MyTranslations: React.FC = () => {
+    const { t } = useT();
     const { user } = useAuth();
     const [requests, setRequests] = useState<TranslationRequestApiResponse[]>([]);
     const [loading, setLoading] = useState(true);
@@ -78,7 +80,7 @@ const MyTranslations: React.FC = () => {
                 setRequests(requestsArray);
             } catch (err: any) {
                 console.error('Failed to fetch translation requests:', err);
-                setError('Tarjima so\'rovlari ma\'lumotlarini yuklashda xatolik yuz berdi.');
+                setError(t("Tarjima so'rovlari ma'lumotlarini yuklashda xatolik yuz berdi."));
             } finally {
                 setLoading(false);
             }
@@ -97,7 +99,7 @@ const MyTranslations: React.FC = () => {
     const handlePayTranslation = async (req: TranslationRequestApiResponse) => {
         const amount = Number(req.cost ?? 0);
         if (amount <= 0) {
-            toast.info("Ushbu tarjima uchun to'lov talab qilinmaydi.");
+            toast.info(t("Ushbu tarjima uchun to'lov talab qilinmaydi."));
             return;
         }
         setPayingRequestId(req.id);
@@ -111,20 +113,20 @@ const MyTranslations: React.FC = () => {
                 'click'
             );
             if (result?.transaction_id) {
-                toast.info("To'lov sahifasiga yo'naltirilmoqda...");
+                toast.info(t("To'lov sahifasiga yo'naltirilmoqda..."));
                 paymentService.redirectToPaymentPage(result.transaction_id);
                 return;
             }
-            toast.error(result?.error || result?.error_note || "To'lovni boshlashda xatolik");
+            toast.error(result?.error || result?.error_note || t("To'lovni boshlashda xatolik"));
         } catch (err: any) {
-            toast.error(err?.message || "To'lovni boshlashda xatolik");
+            toast.error(err?.message || t("To'lovni boshlashda xatolik"));
         } finally {
             setPayingRequestId(null);
         }
     };
 
     if (!user) {
-        return <Card title="Xatolik"><p>Foydalanuvchi topilmadi.</p></Card>;
+        return <Card title={t('Xatolik')}><p>{t('Foydalanuvchi topilmadi.')}</p></Card>;
     }
     
     if (loading) {
@@ -133,9 +135,9 @@ const MyTranslations: React.FC = () => {
     
     if (error) {
         return (
-            <Card title="Xatolik">
+            <Card title={t('Xatolik')}>
                 <p className="text-red-700">{error}</p>
-                <Button onClick={() => window.location.reload()} className="mt-4">Qayta urinish</Button>
+                <Button onClick={() => window.location.reload()} className="mt-4">{t('Qayta urinish')}</Button>
             </Card>
         );
     }
@@ -143,8 +145,8 @@ const MyTranslations: React.FC = () => {
     return (
         <div className="max-w-5xl mx-auto">
             <EditorialPageHeader
-                title="Mening Tarjimalarim"
-                subtitle="Bu yerda siz buyurtma qilgan tarjimalaringiz holatini kuzatib borishingiz mumkin."
+                title={t('Mening Tarjimalarim')}
+                subtitle={t('Bu yerda siz buyurtma qilgan tarjimalaringiz holatini kuzatib borishingiz mumkin.')}
             />
             <div className="space-y-4">
                 {myRequests.length > 0 ? (
@@ -164,11 +166,9 @@ const MyTranslations: React.FC = () => {
                                             {req.source_language.toUpperCase()} → {req.target_language.toUpperCase()}
                                         </p>
                                         <div className="text-xs text-slate-500 mt-2">
-                                            <span>Yuborilgan sana: {new Date(req.submission_date).toLocaleDateString()}</span>
+                                            <span>{t('Yuborilgan sana: {value}', { value: new Date(req.submission_date).toLocaleDateString() })}</span>
                                             {req.status === TranslationStatus.Jarayonda && req.reviewer_name && (
-                                                <span className="ml-2 pl-2 border-l border-slate-200">
-                                                    Tarjimon: {req.reviewer_name}
-                                                </span>
+                                                <span className="ml-2 pl-2 border-l border-slate-200">{t('Tarjimon: {reviewer_name}', { reviewer_name: req.reviewer_name })}</span>
                                             )}
                                         </div>
                                         {(req.payment_status_label || Number(req.cost ?? 0) > 0) && (
@@ -179,13 +179,13 @@ const MyTranslations: React.FC = () => {
                                                         : 'bg-amber-400/20 text-amber-950'
                                                 }`}
                                             >
-                                                To&apos;lov:{' '}
+                                                {t("To'lov:")}{' '}
                                                 {req.payment_status_label ||
                                                     (Number(req.cost ?? 0) <= 0
-                                                        ? 'talab qilinmaydi'
+                                                        ? t('talab qilinmaydi')
                                                         : req.payment_completed
-                                                          ? 'tasdiqlangan'
-                                                          : 'kutilmoqda — «Xizmatlar»dan to‘lovni yakunlang')}
+                                                          ? t('tasdiqlangan')
+                                                          : t('kutilmoqda — «Xizmatlar»dan to‘lovni yakunlang'))}
                                             </p>
                                         )}
                                     </div>
@@ -203,17 +203,17 @@ const MyTranslations: React.FC = () => {
                                                 {payingRequestId === req.id ? (
                                                     <>
                                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                        Yo&apos;naltirilmoqda...
+                                                        {t("Yo'naltirilmoqda...")}
                                                     </>
                                                 ) : (
-                                                    "To'lov qilish"
+                                                    t("To'lov qilish")
                                                 )}
                                             </Button>
                                         )}
                                         {req.status === TranslationStatus.Bajarildi && req.translated_file_path && (
                                             <a href={apiService.getMediaUrl(req.translated_file_path)} download>
                                                 <Button variant="secondary" className="w-full">
-                                                    <Download className="mr-2 h-4 w-4"/> Tarjimani Yuklash
+                                                    <Download className="mr-2 h-4 w-4"/> {t('Tarjimani Yuklash')}
                                                 </Button>
                                             </a>
                                         )}
@@ -225,8 +225,8 @@ const MyTranslations: React.FC = () => {
                 ) : (
                     <EmptyState
                         illustration="documents"
-                        title="Hozircha tarjima buyurtmalari yo'q"
-                        description="Ilmiy maqolangizni o'zbek, rus yoki ingliz tiliga tarjima qildiring — narx so'zlar soniga qarab hisoblanadi."
+                        title={t("Hozircha tarjima buyurtmalari yo'q")}
+                        description={t("Ilmiy maqolangizni o'zbek, rus yoki ingliz tiliga tarjima qildiring — narx so'zlar soniga qarab hisoblanadi.")}
                         action={{ label: 'Tarjimaga buyurtma berish', to: '/translation-service' }}
                     />
                 )}

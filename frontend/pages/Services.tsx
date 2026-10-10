@@ -19,6 +19,7 @@ import {
   BookUp,
   FilePlus,
 } from 'lucide-react';
+import { useT } from '../i18n/LanguageContext';
 
 const services = [
   {
@@ -115,12 +116,13 @@ const services = [
 ];
 
 const ServiceCard: React.FC<{ service: (typeof services)[number] }> = ({ service }) => {
+  const { t } = useT();
   const badge = service.isAvailable ? (
-    <span className="pinm-badge pinm-badge--success absolute top-3 right-3">Mavjud</span>
+    <span className="pinm-badge pinm-badge--success absolute top-3 right-3">{t('Mavjud')}</span>
   ) : (
     <span className="pinm-badge pinm-badge--warning absolute top-3 right-3 inline-flex items-center gap-1">
       <Lock size={12} aria-hidden />
-      Tez Kunda
+      {t('Tez Kunda')}
     </span>
   );
 
@@ -136,7 +138,7 @@ const ServiceCard: React.FC<{ service: (typeof services)[number] }> = ({ service
       <p className="text-sm text-[var(--editorial-muted)] leading-relaxed flex-1">{service.description}</p>
       {service.isAvailable && service.link && (
         <p className="mt-5 text-sm font-semibold text-[var(--editorial-primary)] inline-flex items-center justify-center gap-1 group-hover:gap-2 transition-all">
-          Boshlash <ArrowRight className="w-4 h-4" aria-hidden />
+          {t('Boshlash')} <ArrowRight className="w-4 h-4" aria-hidden />
         </p>
       )}
     </>
@@ -157,11 +159,13 @@ const ServiceCard: React.FC<{ service: (typeof services)[number] }> = ({ service
   );
 };
 
-const Services = () => (
+const Services = () => {
+  const { t } = useT();
+  return (
   <div className="max-w-7xl mx-auto">
     <EditorialPageHeader
-      title="Xizmatlar Markazi"
-      subtitle="Tadqiqot va nashr jarayonlaringizni osonlashtirish uchun mo'ljallangan keng qamrovli xizmatlarimizdan foydalaning."
+      title={t('Xizmatlar Markazi')}
+      subtitle={t("Tadqiqot va nashr jarayonlaringizni osonlashtirish uchun mo'ljallangan keng qamrovli xizmatlarimizdan foydalaning.")}
     />
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
       {services.map((service) => (
@@ -170,5 +174,6 @@ const Services = () => (
     </div>
   </div>
 );
+};
 
 export default Services;

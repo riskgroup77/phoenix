@@ -81,6 +81,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         local = bool(settings.DEBUG)
+        if not local and not getattr(settings, 'PHONIX_DEMO_ENABLED', True):
+            self.stdout.write('Demo hisoblar o\'chirilgan (PHONIX_DEMO_ENABLED=false) — hech narsa yaratilmadi.')
+            return
         rows = []
         with transaction.atomic():
             for spec in DEMO_USERS:

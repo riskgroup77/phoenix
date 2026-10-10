@@ -7,6 +7,7 @@ import { useMediaMinWidth } from '../hooks/useMediaMinWidth';
 import { getAppPathname } from '../utils/routerPath';
 import { Role } from '../types';
 import { FileText, MessageSquare, X } from 'lucide-react';
+import { useT } from '../i18n/LanguageContext';
 
 const LS_ACTIVE_ARTICLE_KEY = 'phoenix_global_chat_article_v1';
 const LS_CHAT_OPEN_KEY = 'phoenix_global_chat_open_v1';
@@ -122,6 +123,7 @@ async function fetchArticleAccessMeta(
  * Admin/tahrirchi uchun ko‘rsatilmaydi — asosiy kontentni egallamaydi.
  */
 const ArticleChatDock: React.FC = () => {
+  const { t } = useT();
   const { user } = useAuth();
   const location = useLocation();
   const setMainRightInset = useContext(MainRightInsetContext);
@@ -278,7 +280,7 @@ const ArticleChatDock: React.FC = () => {
         aria-label={chatTitle}
       >
         <MessageSquare className="h-5 w-5 shrink-0" aria-hidden />
-        <span className="hidden sm:inline">{isAuthor ? 'Operator chat' : 'Muallif chat'}</span>
+        <span className="hidden sm:inline">{isAuthor ? t('Operator chat') : t('Muallif chat')}</span>
       </button>
     );
   }
@@ -295,14 +297,14 @@ const ArticleChatDock: React.FC = () => {
             <span className="text-sm font-semibold truncate">{chatTitle}</span>
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
-            Maqola bo‘yicha suhbat. Boshqa sahifaga o‘tsangiz ham saqlanadi.
+            {t('Maqola bo‘yicha suhbat. Boshqa sahifaga o‘tsangiz ham saqlanadi.')}
           </p>
         </div>
         <button
           type="button"
           onClick={() => toggleOpen(false)}
           className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-200/80 dark:hover:bg-slate-700 shrink-0"
-          aria-label="Chatni yopish"
+          aria-label={t('Chatni yopish')}
         >
           <X className="h-4 w-4" />
         </button>
@@ -310,7 +312,7 @@ const ArticleChatDock: React.FC = () => {
 
       <div className="shrink-0 px-3 py-2 border-b border-slate-100 dark:border-slate-800 space-y-1.5">
         <label htmlFor="global-chat-article" className="sr-only">
-          Maqola tanlash
+          {t('Maqola tanlash')}
         </label>
         <select
           id="global-chat-article"
@@ -319,7 +321,7 @@ const ArticleChatDock: React.FC = () => {
           onChange={(e) => onSelectArticle(e.target.value)}
           className="pinm-field w-full rounded-lg text-xs py-2 px-2"
         >
-          <option value="">{listLoading ? 'Maqolalar yuklanmoqda…' : '— Maqola tanlang —'}</option>
+          <option value="">{listLoading ? t('Maqolalar yuklanmoqda…') : t('— Maqola tanlang —')}</option>
           {articleOptions.map((a) => (
             <option key={a.id} value={a.id}>
               {a.title.length > 60 ? `${a.title.slice(0, 57)}…` : a.title}
@@ -331,22 +333,22 @@ const ArticleChatDock: React.FC = () => {
           className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-medium"
         >
           <FileText className="h-3 w-3 shrink-0" aria-hidden />
-          Maqolalar ro‘yxati
+          {t('Maqolalar ro‘yxati')}
         </Link>
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col min-h-[200px]">
         {metaLoading && !selectedArticleId ? (
           <div className="flex-1 flex items-center justify-center px-3 py-6">
-            <p className="text-xs text-slate-500 dark:text-slate-400 text-center">Tekshirilmoqda…</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 text-center">{t('Tekshirilmoqda…')}</p>
           </div>
         ) : !selectedArticleId ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-2 px-3 py-6 text-center">
             <FileText className="h-7 w-7 text-slate-400" aria-hidden />
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
               {isAuthor
-                ? 'Yuqoridan maqolangizni tanlang yoki maqola sahifasini oching.'
-                : 'Maqola tanlang — muallif bilan suhbat shu yerda ochiladi.'}
+                ? t('Yuqoridan maqolangizni tanlang yoki maqola sahifasini oching.')
+                : t('Maqola tanlang — muallif bilan suhbat shu yerda ochiladi.')}
             </p>
           </div>
         ) : (

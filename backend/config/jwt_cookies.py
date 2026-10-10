@@ -27,6 +27,21 @@ def attach_jwt_cookies(response, access_token: str, refresh_token: str):
     return response
 
 
+def auth_body(user_data: dict, refresh) -> dict:
+    """
+    Login/ro'yxatdan o'tish javobi. Cookie rejimida (production) refresh token JSON'da qaytarilmaydi —
+    u faqat HttpOnly cookie'da (JavaScript o'qiy olmaydi); access — frontend xotirasida qisqa vaqt.
+    """
+    cookie_mode = bool(getattr(settings, 'JWT_USE_HTTPONLY_COOKIES', False))
+    body = {'user': user_data, 'cookie_auth': cookie_mode}
+    if not getattr(settings, 'JWT_RETURN_TOKENS_IN_JSON', True):
+        return body
+    body['access'] = str(refresh.access_token)
+    if not cookie_mode:
+        body['refresh'] = str(refresh)
+    return body
+
+
 def clear_jwt_cookies(response):
     name_access = getattr(settings, 'JWT_ACCESS_COOKIE_NAME', 'access')
     name_refresh = getattr(settings, 'JWT_REFRESH_COOKIE_NAME', 'refresh')

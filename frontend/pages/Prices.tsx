@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
 import { DollarSign, TrendingUp, Edit2, Save, X, Loader2 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useT } from '../i18n/LanguageContext';
 
 interface ServicePrice {
     id: number;
@@ -28,6 +29,7 @@ interface JournalPrice {
 }
 
 const Prices: React.FC = () => {
+    const { t } = useT();
     const { user } = useAuth();
     const [servicePrices, setServicePrices] = useState<ServicePrice[]>([]);
     const [journalPrices, setJournalPrices] = useState<JournalPrice[]>([]);
@@ -56,7 +58,7 @@ const Prices: React.FC = () => {
             setJournalPrices(journalsList);
         } catch (error) {
             console.error('Failed to load prices:', error);
-            toast.error('Narxlarni yuklashda xatolik');
+            toast.error(t('Narxlarni yuklashda xatolik'));
         } finally {
             setLoading(false);
         }
@@ -81,18 +83,18 @@ const Prices: React.FC = () => {
     const handleSaveService = async (id: number) => {
         const newAmount = editValues[id];
         if (!newAmount || newAmount < 0) {
-            toast.warning('Narx 0 dan katta bo\'lishi kerak');
+            toast.warning(t("Narx 0 dan katta bo'lishi kerak"));
             return;
         }
 
         setSaving(true);
         try {
             await apiService.udc.servicePrices.update(id, { amount: newAmount });
-            toast.success('Xizmat narxi muvaffaqiyatli yangilandi');
+            toast.success(t('Xizmat narxi muvaffaqiyatli yangilandi'));
             setEditingServiceId(null);
             loadAllPrices();
         } catch (error: any) {
-            toast.error(error?.message || 'Narxni saqlashda xatolik');
+            toast.error(error?.message || t('Narxni saqlashda xatolik'));
         } finally {
             setSaving(false);
         }
@@ -101,7 +103,7 @@ const Prices: React.FC = () => {
     const handleSaveJournal = async (id: string) => {
         const values = editValues[id];
         if (!values || values.publicationFee < 0 || values.pricePerPage < 0) {
-            toast.warning('Narxlar 0 dan katta bo\'lishi kerak');
+            toast.warning(t("Narxlar 0 dan katta bo'lishi kerak"));
             return;
         }
 
@@ -111,11 +113,11 @@ const Prices: React.FC = () => {
                 publicationFee: values.publicationFee,
                 pricePerPage: values.pricePerPage,
             });
-            toast.success('Jurnal narxlari muvaffaqiyatli yangilandi');
+            toast.success(t('Jurnal narxlari muvaffaqiyatli yangilandi'));
             setEditingJournalId(null);
             loadAllPrices();
         } catch (error: any) {
-            toast.error(error?.message || 'Narxlarni saqlashda xatolik');
+            toast.error(error?.message || t('Narxlarni saqlashda xatolik'));
         } finally {
             setSaving(false);
         }
@@ -151,7 +153,7 @@ const Prices: React.FC = () => {
     if (!user || user.role !== 'super_admin') {
         return (
             <div className="text-center py-12">
-                <p className="text-slate-500">Bu sahifaga faqat bosh administrator kirishi mumkin.</p>
+                <p className="text-slate-500">{t('Bu sahifaga faqat bosh administrator kirishi mumkin.')}</p>
             </div>
         );
     }
@@ -166,8 +168,8 @@ const Prices: React.FC = () => {
     return (
         <div className="space-y-6 max-w-6xl mx-auto">
             <EditorialPageHeader
-                title="Barcha narxlar"
-                subtitle="Xizmat va jurnal narxlarini boshqarish."
+                title={t('Barcha narxlar')}
+                subtitle={t('Xizmat va jurnal narxlarini boshqarish.')}
             />
             <Card>
                 <EditorialTabs
@@ -189,9 +191,7 @@ const Prices: React.FC = () => {
                                     <div key={category}>
                                         <h3 className="text-lg font-serif font-semibold text-[var(--editorial-text)] mb-3 flex items-center gap-2">
                                             {category}
-                                            <span className="text-xs px-2 py-1 rounded bg-[rgba(31,63,143,0.08)] text-[var(--editorial-muted)]">
-                                                {categoryPrices.length} ta xizmat
-                                            </span>
+                                            <span className="text-xs px-2 py-1 rounded bg-[rgba(31,63,143,0.08)] text-[var(--editorial-muted)]">{t('{length} ta xizmat', { length: categoryPrices.length })}</span>
                                         </h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                             {categoryPrices.map((price) => (
@@ -224,7 +224,7 @@ const Prices: React.FC = () => {
                                                                     className="flex-1 flex items-center justify-center gap-2"
                                                                 >
                                                                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                                                    Saqlash
+                                                                    {t('Saqlash')}
                                                                 </Button>
                                                                 <Button
                                                                     variant="secondary"
@@ -280,7 +280,7 @@ const Prices: React.FC = () => {
                                                 )}
                                             </div>
                                             {journal.category_name && (
-                                                <p className="text-sm text-slate-500 mt-1">Kategoriya: {journal.category_name}</p>
+                                                <p className="text-sm text-slate-500 mt-1">{t('Kategoriya: {category_name}', { category_name: journal.category_name })}</p>
                                             )}
                                         </div>
                                         
@@ -289,7 +289,7 @@ const Prices: React.FC = () => {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
                                                         <label className="block text-sm font-medium text-slate-500 mb-1">
-                                                            Nashr qilish to'lovi
+                                                            {t("Nashr qilish to'lovi")}
                                                         </label>
                                                         <input
                                                             type="number"
@@ -308,7 +308,7 @@ const Prices: React.FC = () => {
                                                     </div>
                                                     <div>
                                                         <label className="block text-sm font-medium text-slate-500 mb-1">
-                                                            Bet narxi
+                                                            {t('Bet narxi')}
                                                         </label>
                                                         <input
                                                             type="number"
@@ -333,7 +333,7 @@ const Prices: React.FC = () => {
                                                         className="flex items-center gap-2"
                                                     >
                                                         {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                                        Saqlash
+                                                        {t('Saqlash')}
                                                     </Button>
                                                     <Button
                                                         variant="secondary"
@@ -348,13 +348,13 @@ const Prices: React.FC = () => {
                                             <div className="flex items-center justify-between">
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
                                                     <div>
-                                                        <p className="text-xs text-slate-500 mb-1">Nashr qilish to'lovi</p>
+                                                        <p className="text-xs text-slate-500 mb-1">{t("Nashr qilish to'lovi")}</p>
                                                         <p className="text-lg font-bold text-[var(--editorial-primary)]">
                                                             {formatPrice(journal.publicationFee)}
                                                         </p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-xs text-slate-500 mb-1">Bet narxi</p>
+                                                        <p className="text-xs text-slate-500 mb-1">{t('Bet narxi')}</p>
                                                         <p className="text-lg font-bold text-[var(--editorial-teal)]">
                                                             {formatPrice(journal.pricePerPage)}
                                                         </p>

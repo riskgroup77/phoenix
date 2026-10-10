@@ -6,8 +6,10 @@ import EditorialPageHeader from '../components/EditorialPageHeader';
 import { Download, Search, Loader2 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { txAmount } from '../utils/amount';
+import { useT } from '../i18n/LanguageContext';
 
 const Financials: React.FC = () => {
+    const { t: tr } = useT();
     const { user } = useAuth();
     const [transactions, setTransactions] = useState<any[]>([]);
     const [filteredTransactions, setFilteredTransactions] = useState<any[]>([]);
@@ -72,7 +74,7 @@ const Financials: React.FC = () => {
             result = result.filter(t => {
                 // Check user name
                 const user = users.find(u => u.id === t.user);
-                const userName = user ? `${user.first_name} ${user.last_name}`.toLowerCase() : '';
+                const userName = (t.user_name || (user ? `${user.first_name} ${user.last_name}` : '')).toLowerCase();
                 
                 return userName.includes(query) ||
                     t.service_type?.toLowerCase().includes(query) ||
@@ -143,7 +145,7 @@ const Financials: React.FC = () => {
             headers.join(','),
             ...filteredTransactions.map(t => {
                 const user = users.find(u => u.id === t.user);
-                const userName = user ? `${user.first_name} ${user.last_name}` : 'Noma\'lum foydalanuvchi';
+                const userName = t.user_name || (user ? `${user.first_name} ${user.last_name}` : 'Noma\'lum foydalanuvchi');
                 const service = serviceTypeNames[t.service_type] || t.service_type || 'Noma\'lum';
                 const ctx = transactionContext(t);
                 const amount = `${txAmount(t.amount) >= 0 ? '+' : ''}${txAmount(t.amount)}`;
@@ -165,17 +167,17 @@ const Financials: React.FC = () => {
     };
 
     if (!user) {
-        return <Card title="Ruxsat kerak"><p>Ushbu sahifani ko'rish uchun tizimga kirishingiz kerak.</p></Card>;
+        return <Card title={tr('Ruxsat kerak')}><p>{tr("Ushbu sahifani ko'rish uchun tizimga kirishingiz kerak.")}</p></Card>;
     }
 
     if (loading) {
         return (
             <div className="max-w-6xl mx-auto">
-                <EditorialPageHeader title="Moliyaviy tranzaksiyalar" subtitle="Platforma tushum va chiqimlarini kuzatish." />
+                <EditorialPageHeader title={tr('Moliyaviy tranzaksiyalar')} subtitle={tr('Platforma tushum va chiqimlarini kuzatish.')} />
                 <Card>
                     <div className="flex justify-center items-center h-64">
                         <Loader2 className="h-8 w-8 animate-spin text-[var(--editorial-primary)]" />
-                        <span className="ml-3 text-[var(--editorial-muted)]">Ma'lumotlar yuklanmoqda...</span>
+                        <span className="ml-3 text-[var(--editorial-muted)]">{tr("Ma'lumotlar yuklanmoqda...")}</span>
                     </div>
                 </Card>
             </div>
@@ -184,14 +186,14 @@ const Financials: React.FC = () => {
 
     if (error) {
         return (
-            <Card title="Xatolik">
+            <Card title={tr('Xatolik')}>
                 <div className="text-red-700 p-4 bg-red-900/20 rounded-lg">
                     <p>{error}</p>
                     <button 
                         onClick={() => window.location.reload()} 
                         className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
                     >
-                        Qayta urinib ko'rish
+                        {tr("Qayta urinib ko'rish")}
                     </button>
                 </div>
             </Card>
@@ -227,16 +229,16 @@ const Financials: React.FC = () => {
     return (
         <div className="space-y-6 max-w-6xl mx-auto">
             <EditorialPageHeader
-                title="Moliyaviy tranzaksiyalar"
-                subtitle="Platforma tushum, chiqim va tranzaksiyalar tarixi."
+                title={tr('Moliyaviy tranzaksiyalar')}
+                subtitle={tr('Platforma tushum, chiqim va tranzaksiyalar tarixi.')}
             />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="editorial-card p-5">
                     <div className="flex items-center gap-3">
                         <div className="p-2.5 rounded-md bg-[rgba(10,122,140,0.12)] text-[var(--editorial-teal)] font-bold text-xl">+</div>
                         <div>
-                            <p className="text-sm text-[var(--editorial-muted)]">Jami tushum</p>
-                            <p className="text-2xl font-serif font-bold text-[var(--editorial-text)] tabular-nums">{totalIncome.toLocaleString()} so'm</p>
+                            <p className="text-sm text-[var(--editorial-muted)]">{tr('Jami tushum')}</p>
+                            <p className="text-2xl font-serif font-bold text-[var(--editorial-text)] tabular-nums">{tr("{value} so'm", { value: totalIncome.toLocaleString() })}</p>
                         </div>
                     </div>
                 </div>
@@ -244,8 +246,8 @@ const Financials: React.FC = () => {
                     <div className="flex items-center gap-3">
                         <div className="p-2.5 rounded-md bg-red-500/15 text-red-700 font-bold text-xl">−</div>
                         <div>
-                            <p className="text-sm text-[var(--editorial-muted)]">Jami chiqim</p>
-                            <p className="text-2xl font-serif font-bold text-[var(--editorial-text)] tabular-nums">{totalExpenses.toLocaleString()} so'm</p>
+                            <p className="text-sm text-[var(--editorial-muted)]">{tr('Jami chiqim')}</p>
+                            <p className="text-2xl font-serif font-bold text-[var(--editorial-text)] tabular-nums">{tr("{value} so'm", { value: totalExpenses.toLocaleString() })}</p>
                         </div>
                     </div>
                 </div>
@@ -253,15 +255,15 @@ const Financials: React.FC = () => {
                     <div className="flex items-center gap-3">
                         <div className="p-2.5 rounded-md bg-[rgba(31,63,143,0.08)] text-[var(--editorial-primary)] font-bold text-xl">=</div>
                         <div>
-                            <p className="text-sm text-[var(--editorial-muted)]">Balans</p>
-                            <p className="text-2xl font-serif font-bold text-[var(--editorial-text)] tabular-nums">{(totalIncome - totalExpenses).toLocaleString()} so'm</p>
+                            <p className="text-sm text-[var(--editorial-muted)]">{tr('Balans')}</p>
+                            <p className="text-2xl font-serif font-bold text-[var(--editorial-text)] tabular-nums">{tr("{value} so'm", { value: (totalIncome - totalExpenses).toLocaleString() })}</p>
                         </div>
                     </div>
                 </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card title="Tushumlar (Xizmat turlari bo'yicha)">
+                <Card title={tr("Tushumlar (Xizmat turlari bo'yicha)")}>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
                         {Object.entries(incomeByServiceType).length > 0 ? (
                             Object.entries(incomeByServiceType).map(([serviceType, amount]) => (
@@ -269,18 +271,16 @@ const Financials: React.FC = () => {
                                     <span className="text-[var(--editorial-muted)]">
                                         {serviceTypeNames[serviceType] || serviceType}
                                     </span>
-                                    <span className="font-medium text-[var(--editorial-teal)] tabular-nums">
-                                        {amount.toLocaleString()} so'm
-                                    </span>
+                                    <span className="font-medium text-[var(--editorial-teal)] tabular-nums">{tr("{value} so'm", { value: amount.toLocaleString() })}</span>
                                 </div>
                             ))
                         ) : (
-                            <div className="editorial-empty py-6">Ma'lumot mavjud emas</div>
+                            <div className="editorial-empty py-6">{tr("Ma'lumot mavjud emas")}</div>
                         )}
                     </div>
                 </Card>
 
-                <Card title="Chiqimlar (Xizmat turlari bo'yicha)">
+                <Card title={tr("Chiqimlar (Xizmat turlari bo'yicha)")}>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
                         {Object.entries(expensesByServiceType).length > 0 ? (
                             Object.entries(expensesByServiceType).map(([serviceType, amount]) => (
@@ -288,28 +288,26 @@ const Financials: React.FC = () => {
                                     <span className="text-[var(--editorial-muted)]">
                                         {serviceTypeNames[serviceType] || serviceType}
                                     </span>
-                                    <span className="font-medium text-red-700 tabular-nums">
-                                        {amount.toLocaleString()} so'm
-                                    </span>
+                                    <span className="font-medium text-red-700 tabular-nums">{tr("{value} so'm", { value: amount.toLocaleString() })}</span>
                                 </div>
                             ))
                         ) : (
-                            <div className="editorial-empty py-6">Ma'lumot mavjud emas</div>
+                            <div className="editorial-empty py-6">{tr("Ma'lumot mavjud emas")}</div>
                         )}
                     </div>
                 </Card>
             </div>
 
-            <Card title="Tranzaksiyalar ro'yxati">
+            <Card title={tr("Tranzaksiyalar ro'yxati")}>
                 <div className="mb-6 flex flex-col lg:flex-row gap-4">
                     <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <label className="editorial-field-label block mb-2">Qidirish</label>
+                            <label className="editorial-field-label block mb-2">{tr('Qidirish')}</label>
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--editorial-muted)] h-4 w-4" />
                                 <input
                                     type="text"
-                                    placeholder="Foydalanuvchi yoki xizmat bo'yicha qidirish..."
+                                    placeholder={tr("Foydalanuvchi yoki xizmat bo'yicha qidirish...")}
                                     className="w-full pl-10 editorial-select !py-2.5"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -318,7 +316,7 @@ const Financials: React.FC = () => {
                         </div>
                         
                         <div>
-                            <label className="editorial-field-label block mb-2">Sana oralig'i</label>
+                            <label className="editorial-field-label block mb-2">{tr("Sana oralig'i")}</label>
                             <div className="grid grid-cols-2 gap-2">
                                 <input
                                     type="date"
@@ -336,13 +334,13 @@ const Financials: React.FC = () => {
                         </div>
                         
                         <div>
-                            <label className="editorial-field-label block mb-2">Xizmat turi</label>
+                            <label className="editorial-field-label block mb-2">{tr('Xizmat turi')}</label>
                             <select
                                 className="editorial-select w-full"
                                 value={serviceType}
                                 onChange={(e) => setServiceType(e.target.value)}
                             >
-                                <option value="all">Barcha xizmatlar</option>
+                                <option value="all">{tr('Barcha xizmatlar')}</option>
                                 {Object.entries(serviceTypeNames).map(([key, value]) => (
                                     <option key={key} value={key}>{value}</option>
                                 ))}
@@ -352,29 +350,30 @@ const Financials: React.FC = () => {
                     
                     <div className="flex items-end">
                         <Button onClick={handleExport} variant="secondary" disabled={filteredTransactions.length === 0}>
-                            <Download className="mr-2 h-4 w-4" /> Eksport
+                            <Download className="mr-2 h-4 w-4" /> {tr('Eksport')}
                         </Button>
                     </div>
                 </div>
 
-                <div className="overflow-x-auto rounded-lg border border-[var(--editorial-border)]">
-                    <table className="w-full text-left">
+                <div className="overflow-x-auto rounded-lg border border-[var(--editorial-border)] rtable-wrap">
+                    <table className="w-full text-left rtable">
                         <thead className="bg-[rgba(31,63,143,0.04)]">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Foydalanuvchi</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Xizmat</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Jurnal</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider hidden lg:table-cell">Maqola / buyurtma</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Miqdor</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Sana</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Holat</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{tr('Foydalanuvchi')}</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{tr('Xizmat')}</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{tr('Jurnal')}</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider hidden lg:table-cell">{tr('Maqola / buyurtma')}</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{tr('Miqdor')}</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{tr('Sana')}</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">{tr('Holat')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200/80">
                             {filteredTransactions.length > 0 ? (
                                 filteredTransactions.map(transaction => {
                                     const user = users.find(u => u.id === transaction.user);
-                                    const userName = user ? `${user.first_name} ${user.last_name}` : 'Noma\'lum foydalanuvchi';
+                                    // API har to'lov bilan user_name beradi (foydalanuvchilar ro'yxati sahifalangan bo'lishi mumkin)
+                                    const userName = transaction.user_name || (user ? `${user.first_name} ${user.last_name}` : 'Noma\'lum foydalanuvchi');
                                     const isCompleted = transaction.status === 'completed';
                                     const isFailed = transaction.status === 'failed' || transaction.status === 'cancelled';
                                     const amountPrefix = isFailed ? '' : '+';
@@ -384,7 +383,7 @@ const Financials: React.FC = () => {
                                         <tr key={transaction.id} className="hover:bg-[rgba(31,63,143,0.03)] transition-colors">
                                             <td className="px-4 py-4 text-sm text-slate-600">{userName}</td>
                                             <td className="px-4 py-4 text-sm text-slate-600">
-                                                {serviceTypeNames[transaction.service_type] || transaction.service_type || 'Noma\'lum'}
+                                                {serviceTypeNames[transaction.service_type] || transaction.service_type || tr("Noma'lum")}
                                             </td>
                                             <td className="px-4 py-4 text-sm text-slate-900 font-medium max-w-[180px]">
                                                 <span className="line-clamp-2" title={ctx.journal}>{ctx.journal}</span>
@@ -409,10 +408,10 @@ const Financials: React.FC = () => {
                                             </td>
                                             <td className="px-4 py-4 text-sm">
                                                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[transaction.status] || 'bg-gray-500/20 text-slate-600'}`}>
-                                                    {transaction.status === 'completed' ? 'Tugallangan' : transaction.status === 'failed' ? 'Bekor qilindi' : transaction.status === 'cancelled' ? 'Bekor qilindi' : transaction.status === 'pending' ? 'Kutilmoqda' : transaction.status}
+                                                    {transaction.status === 'completed' ? tr('Tugallangan') : transaction.status === 'failed' ? tr('Bekor qilindi') : transaction.status === 'cancelled' ? tr('Bekor qilindi') : transaction.status === 'pending' ? tr('Kutilmoqda') : transaction.status}
                                                 </span>
                                                 {isFailed && (transaction.error_note || '') && (
-                                                    <p className="text-xs text-red-800/90 mt-1 max-w-xs truncate" title={transaction.error_note}>Sabab: {transaction.error_note}</p>
+                                                    <p className="text-xs text-red-800/90 mt-1 max-w-xs truncate" title={transaction.error_note}>{tr('Sabab: {error_note}', { error_note: transaction.error_note })}</p>
                                                 )}
                                             </td>
                                         </tr>
@@ -423,8 +422,8 @@ const Financials: React.FC = () => {
                                     <td colSpan={7} className="px-4 py-12">
                                         <div className="editorial-empty py-4">
                                             {searchQuery || dateRange.start || dateRange.end || serviceType !== 'all'
-                                                ? 'Tanlangan filtrlar bo\'yicha hech narsa topilmadi.'
-                                                : 'Hozircha tranzaksiyalar mavjud emas.'}
+                                                ? tr("Tanlangan filtrlar bo'yicha hech narsa topilmadi.")
+                                                : tr('Hozircha tranzaksiyalar mavjud emas.')}
                                         </div>
                                     </td>
                                 </tr>

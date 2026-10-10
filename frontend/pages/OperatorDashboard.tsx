@@ -13,6 +13,7 @@ import { apiService } from '../services/apiService';
 import { toast } from 'react-toastify';
 import Button from '../components/ui/Button';
 import { Link } from 'react-router-dom';
+import { useT } from '../i18n/LanguageContext';
 
 interface OperatorStats {
   totalRequests: number;
@@ -29,6 +30,7 @@ interface OperatorStats {
 }
 
 const OperatorDashboard: React.FC = () => {
+  const { t } = useT();
   const { user } = useAuth();
   const [stats, setStats] = useState<OperatorStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -121,7 +123,7 @@ const OperatorDashboard: React.FC = () => {
 
     } catch (error) {
       console.error('Error fetching operator data:', error);
-      toast.error('Ma\'lumotlarni yuklashda xatolik!');
+      toast.error(t("Ma'lumotlarni yuklashda xatolik!"));
     } finally {
       setLoading(false);
     }
@@ -146,7 +148,7 @@ const OperatorDashboard: React.FC = () => {
       <div className="flex min-h-[60vh] items-center justify-center rounded-3xl bg-gradient-to-br from-indigo-500/25 via-violet-400/20 to-cyan-300/30 p-8">
         <div className="text-center">
           <div className="mx-auto mb-4 h-14 w-14 animate-spin rounded-full border-4 border-violet-600 border-t-transparent" />
-          <p className="font-medium text-slate-900">Ma&apos;lumotlar yuklanmoqda...</p>
+          <p className="font-medium text-slate-900">{t("Ma'lumotlar yuklanmoqda...")}</p>
         </div>
       </div>
     );
@@ -162,21 +164,21 @@ const OperatorDashboard: React.FC = () => {
         <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="mb-2 text-3xl font-extrabold tracking-tight text-slate-950">
-              Operator boshqaruvi
+              {t('Operator boshqaruvi')}
             </h1>
             <p className="font-medium text-slate-800">
-              Barcha so&apos;rovlarni nazorat qilish va boshqarish markazi
+              {t("Barcha so'rovlarni nazorat qilish va boshqarish markazi")}
             </p>
           </div>
           <div className="flex items-center gap-4">
             <Button onClick={fetchOperatorData} variant="secondary">
               <RefreshCw className="h-4 w-4" />
-              Yangilash
+              {t('Yangilash')}
             </Button>
             <Link to="/profile">
               <Button variant="primary">
                 <Settings className="h-4 w-4" />
-                Sozlamalar
+                {t('Sozlamalar')}
               </Button>
             </Link>
           </div>
@@ -192,21 +194,21 @@ const OperatorDashboard: React.FC = () => {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-slate-950">
-                  {`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Operator'}
+                  {`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || t('Operator')}
                 </h2>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-medium text-slate-800">
                   <Shield className="h-4 w-4 text-violet-800" />
-                  <span>Operator</span>
+                  <span>{t('Operator')}</span>
                   <span className="text-slate-500">•</span>
                   <span>{user?.phone}</span>
                 </div>
               </div>
             </div>
             <div className="text-left md:text-right">
-              <div className="mb-1 text-sm font-medium text-slate-700">Platformadagi rol</div>
+              <div className="mb-1 text-sm font-medium text-slate-700">{t('Platformadagi rol')}</div>
               <div className="inline-flex items-center gap-2 rounded-full border border-violet-400/50 bg-white/60 px-4 py-2 shadow-inner backdrop-blur-sm">
                 <Award className="h-4 w-4 text-violet-900" />
-                <span className="font-semibold text-violet-950">Bosh operator</span>
+                <span className="font-semibold text-violet-950">{t('Bosh operator')}</span>
               </div>
             </div>
           </div>
@@ -217,32 +219,32 @@ const OperatorDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           icon={FileText}
-          title="Jami So'rovlar"
+          title={t("Jami So'rovlar")}
           value={stats?.totalRequests || 0}
           gradient="from-blue-600 to-cyan-600"
-          description="Barcha turdagi so'rovlar"
+          description={t("Barcha turdagi so'rovlar")}
         />
         <StatCard
           icon={Clock}
-          title="Kutilayotgan"
+          title={t('Kutilayotgan')}
           value={stats?.pendingRequests || 0}
           gradient="from-yellow-600 to-orange-600"
-          description="Ko'rib chiqishni kutayotgan"
+          description={t("Ko'rib chiqishni kutayotgan")}
           alert={true}
         />
         <StatCard
           icon={CheckCircle}
-          title="Bajarilgan"
+          title={t('Bajarilgan')}
           value={stats?.completedRequests || 0}
           gradient="from-green-600 to-emerald-600"
-          description="Muvaffaqiyatli yakunlangan"
+          description={t('Muvaffaqiyatli yakunlangan')}
         />
         <StatCard
           icon={DollarSign}
-          title="Jami Daromad"
+          title={t('Jami Daromad')}
           value={`${(stats?.totalRevenue || 0).toLocaleString()} so'm`}
           gradient="from-purple-600 to-pink-600"
-          description="Barcha to'lovlar"
+          description={t("Barcha to'lovlar")}
         />
       </div>
 
@@ -250,28 +252,28 @@ const OperatorDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <ServiceStatCard
           icon={BookOpen}
-          title="UDK So'rovlari"
+          title={t("UDK So'rovlari")}
           count={stats?.udkRequests || 0}
           color="blue"
           link="/udk-requests"
         />
         <ServiceStatCard
           icon={Library}
-          title="DOI So'rovlari"
+          title={t("DOI So'rovlari")}
           count={stats?.doiRequests || 0}
           color="purple"
           link="/doi-requests"
         />
         <ServiceStatCard
           icon={FileText}
-          title="Maqola Namuna"
+          title={t('Maqola Namuna')}
           count={stats?.articleSamples || 0}
           color="green"
           link="/article-samples"
         />
         <ServiceStatCard
           icon={MessageSquare}
-          title="Tarjimalar"
+          title={t('Tarjimalar')}
           count={stats?.translations || 0}
           color="orange"
           link="/translations"
@@ -282,20 +284,20 @@ const OperatorDashboard: React.FC = () => {
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="flex items-center gap-2 text-xl font-bold text-slate-950">
             <MessageSquare className="h-5 w-5 text-violet-800" />
-            Muallif chatlari (oxirgi xabarlar)
+            {t('Muallif chatlari (oxirgi xabarlar)')}
           </h3>
           <Link to="/articles">
             <Button variant="secondary" className="!px-4 !py-2 text-sm">
-              Barcha maqolalar
+              {t('Barcha maqolalar')}
             </Button>
           </Link>
         </div>
         <p className="mb-4 text-sm font-medium text-slate-800">
-          Har bir maqola alohida yozishma. Muallif yozganida barcha operatorlarga bildirishnoma boradi.
+          {t('Har bir maqola alohida yozishma. Muallif yozganida barcha operatorlarga bildirishnoma boradi.')}
         </p>
         {chatInbox.length === 0 ? (
           <p className="py-6 text-center text-sm font-medium text-slate-700">
-            Hozircha faol chatlar yo&apos;q. Maqolalar ro&apos;yxatidan oching.
+            {t("Hozircha faol chatlar yo'q. Maqolalar ro'yxatidan oching.")}
           </p>
         ) : (
           <ul className="space-y-2 max-h-64 overflow-y-auto">
@@ -329,10 +331,10 @@ const OperatorDashboard: React.FC = () => {
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="flex items-center gap-2 text-xl font-bold text-slate-950">
             <Activity className="h-5 w-5 text-violet-800" />
-            Oxirgi faollik
+            {t('Oxirgi faollik')}
           </h3>
           <Button variant="secondary" className="!px-4 !py-2 text-sm">
-            Barchasini ko'rish
+            {t("Barchasini ko'rish")}
             <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
         </div>
@@ -350,8 +352,8 @@ const OperatorDashboard: React.FC = () => {
                    <FileText className="h-5 w-5" />}
                 </div>
                 <div>
-                  <p className="font-medium text-slate-900">{activity.title || 'So\'rov'}</p>
-                  <p className="text-sm text-slate-500">{activity.author_name || 'Noma\'lum'}</p>
+                  <p className="font-medium text-slate-900">{activity.title || t("So'rov")}</p>
+                  <p className="text-sm text-slate-500">{activity.author_name || t("Noma'lum")}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
@@ -371,22 +373,22 @@ const OperatorDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <QuickActionCard
           icon={Users}
-          title="Foydalanuvchilar"
-          description="Barcha foydalanuvchilarni ko'rish va boshqarish"
+          title={t('Foydalanuvchilar')}
+          description={t("Barcha foydalanuvchilarni ko'rish va boshqarish")}
           link="/users"
           color="blue"
         />
         <QuickActionCard
           icon={CreditCard}
-          title="To'lovlar"
-          description="To'lov operatsiyalari monitoringi"
+          title={t("To'lovlar")}
+          description={t("To'lov operatsiyalari monitoringi")}
           link="/financials"
           color="green"
         />
         <QuickActionCard
           icon={BarChart3}
-          title="Hisobotlar"
-          description="Platforma statistikasi va tahlillar"
+          title={t('Hisobotlar')}
+          description={t('Platforma statistikasi va tahlillar')}
           link="/analytics"
           color="purple"
         />
@@ -404,7 +406,9 @@ const StatCard: React.FC<{
   gradient: string;
   description?: string;
   alert?: boolean;
-}> = ({ icon: Icon, title, value, gradient, description, alert }) => (
+}> = ({ icon: Icon, title, value, gradient, description, alert }) => {
+  const { t } = useT();
+  return (
   <Card className="relative overflow-hidden border-white/55 bg-white/45 shadow-xl backdrop-blur-2xl">
     <div className={`absolute -top-12 -right-12 h-32 w-32 rounded-full bg-gradient-to-br opacity-25 blur-3xl ${gradient}`} />
     <div className="relative">
@@ -421,12 +425,13 @@ const StatCard: React.FC<{
       {alert && (
         <div className="flex items-center gap-2 text-yellow-800 text-sm">
           <AlertCircle className="h-4 w-4" />
-          <span>Diqqat talab qilinadi</span>
+          <span>{t('Diqqat talab qilinadi')}</span>
         </div>
       )}
     </div>
   </Card>
 );
+};
 
 // Service Stat Card
 const ServiceStatCard: React.FC<{

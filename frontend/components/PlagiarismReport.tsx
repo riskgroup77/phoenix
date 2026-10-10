@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Shield, Bot, FileText, AlertTriangle, CheckCircle, XCircle, ChevronDown, ChevronUp, Eye, BookOpen, Zap, BarChart3, Brain, Fingerprint } from 'lucide-react';
+import { useT } from '../i18n/LanguageContext';
 
 // ── Types ──
 interface SectionAnalysis {
@@ -141,10 +142,11 @@ const HBar: React.FC<{ value: number; label: string; color: string; max?: number
 
 // ── Compact Badge (for article list) ──
 export const PlagiarismBadges: React.FC<{ plagiarism: number; ai: number; checkedAt: string | null }> = ({ plagiarism, ai, checkedAt }) => {
+  const { t } = useT();
   if (!checkedAt) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-500/15 text-slate-500 border border-gray-500/30 text-xs">
-        <Shield size={12} /> Tekshirilmagan
+        <Shield size={12} /> {t('Tekshirilmagan')}
       </span>
     );
   }
@@ -166,6 +168,7 @@ export const PlagiarismBadges: React.FC<{ plagiarism: number; ai: number; checke
 
 // ── Main Report Component ──
 const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPercentage, checkedAt, report, compact = false }) => {
+  const { t } = useT();
   const [expandedSections, setExpandedSections] = useState(false);
   const [expandedPatterns, setExpandedPatterns] = useState(false);
 
@@ -173,7 +176,7 @@ const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPerc
     return (
       <div className="p-6 rounded-xl bg-slate-100/70 border border-slate-200/90 text-center">
         <Shield className="mx-auto h-10 w-10 text-slate-500 mb-3" />
-        <p className="text-slate-500 text-sm">Antiplagiat tekshiruvi hali amalga oshirilmagan</p>
+        <p className="text-slate-500 text-sm">{t('Antiplagiat tekshiruvi hali amalga oshirilmagan')}</p>
       </div>
     );
   }
@@ -190,7 +193,7 @@ const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPerc
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <Shield size={16} className="text-red-700" />
-              <span className="text-sm text-slate-600">Plagiat: <strong className="text-slate-900">{plag.toFixed(1)}%</strong></span>
+              <span className="text-sm text-slate-600">{t('Plagiat:')} <strong className="text-slate-900">{plag.toFixed(1)}%</strong></span>
             </div>
             <div className="flex items-center gap-2">
               <Bot size={16} className="text-purple-400" />
@@ -198,7 +201,7 @@ const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPerc
             </div>
             <div className="flex items-center gap-2">
               <Fingerprint size={16} className="text-emerald-800" />
-              <span className="text-sm text-slate-600">Original: <strong className="text-slate-900">{orig.toFixed(1)}%</strong></span>
+              <span className="text-sm text-slate-600">{t('Original:')} <strong className="text-slate-900">{orig.toFixed(1)}%</strong></span>
             </div>
           </div>
           <span className={`text-xs font-bold px-2 py-1 rounded-full ${riskBg(overallRisk)} ${riskColor(overallRisk)}`}>
@@ -224,20 +227,18 @@ const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPerc
           {overallRisk === 'high' ? <XCircle className="text-red-700" size={24} /> : overallRisk === 'medium' ? <AlertTriangle className="text-yellow-800" size={24} /> : <CheckCircle className="text-emerald-800" size={24} />}
           <div>
             <p className={`font-bold text-lg ${riskColor(overallRisk)}`}>{riskLabel(overallRisk)}</p>
-            <p className="text-xs text-slate-500">
-              Tekshiruv vaqti: {new Date(checkedAt).toLocaleString()} · Ishonchlilik: {confidence}%
-            </p>
+            <p className="text-xs text-slate-500">{t('Tekshiruv vaqti: {value} · Ishonchlilik: {confidence}%', { value: new Date(checkedAt).toLocaleString(), confidence: confidence })}</p>
           </div>
         </div>
         <div className="text-right">
-          <p className="text-xs text-slate-500">{report?.word_count || 0} so'z · {report?.sentence_count || 0} gap</p>
+          <p className="text-xs text-slate-500">{t("{value} so'z · {value2} gap", { value: report?.word_count || 0, value2: report?.sentence_count || 0 })}</p>
         </div>
       </div>
 
       {report?.bypass_attempts?.detected && (
         <div role="alert" className="p-4 rounded-xl border border-red-300 bg-red-50 text-sm text-red-900">
           <p className="font-bold flex items-center gap-2 mb-2">
-            <AlertTriangle size={18} className="text-red-700" /> Antiplagiatni aldashga urinish aniqlandi
+            <AlertTriangle size={18} className="text-red-700" /> {t('Antiplagiatni aldashga urinish aniqlandi')}
           </p>
           <ul className="list-disc pl-5 space-y-1">
             {report.bypass_attempts.items.map((item, i) => (
@@ -245,51 +246,47 @@ const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPerc
             ))}
           </ul>
           {!!report.bypass_attempts.homoglyph_examples?.length && (
-            <p className="mt-2 text-xs text-red-800">
-              Misollar: {report.bypass_attempts.homoglyph_examples.join(', ')}
-            </p>
+            <p className="mt-2 text-xs text-red-800">{t('Misollar: {value}', { value: report.bypass_attempts.homoglyph_examples.join(', ') })}</p>
           )}
           <p className="mt-2 text-xs text-red-800">
-            Bu belgilar olib tashlanib, tekshiruv asl (ko'rinadigan) matn bo'yicha o'tkazildi.
+            {t("Bu belgilar olib tashlanib, tekshiruv asl (ko'rinadigan) matn bo'yicha o'tkazildi.")}
           </p>
         </div>
       )}
 
       {!!report?.excluded_bibliography_chars && (
-        <p className="text-xs text-slate-500">
-          Adabiyotlar ro'yxati ({report.excluded_bibliography_chars} belgi) tekshiruvdan va foiz hisobidan chiqarildi.
-        </p>
+        <p className="text-xs text-slate-500">{t("Adabiyotlar ro'yxati ({excluded_bibliography_chars} belgi) tekshiruvdan va foiz hisobidan chiqarildi.", { excluded_bibliography_chars: report.excluded_bibliography_chars })}</p>
       )}
 
       {(report?.disclaimer_uz || report?.analysis_mode) && (
         <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm text-amber-900 dark:text-amber-100/95">
           {report?.analysis_mode && (
             <p className="text-xs text-amber-950 mb-2 font-medium">
-              Tahlil rejimi:{' '}
+              {t('Tahlil rejimi:')}{' '}
               {report.analysis_mode === 'hybrid'
-                ? 'lokal heuristic + Gemini (LLM)'
+                ? t('lokal heuristic + Gemini (LLM)')
                 : report.analysis_mode === 'heuristic_only'
-                  ? 'faqat lokal heuristic (API kaliti yo‘q yoki LLM xato)'
+                  ? t('faqat lokal heuristic (API kaliti yo‘q yoki LLM xato)')
                   : report.analysis_mode === 'insufficient_text'
-                    ? 'matn yetarli emas'
+                    ? t('matn yetarli emas')
                     : report.analysis_mode}
               {report.llm_model ? ` · ${report.llm_model}` : ''}
             </p>
           )}
-          {report?.disclaimer_uz && <p className="text-amber-50/90 leading-relaxed">{report.disclaimer_uz}</p>}
+          {report?.disclaimer_uz && <p className="text-amber-950 dark:text-amber-50/90 leading-relaxed">{report.disclaimer_uz}</p>}
         </div>
       )}
 
       {/* ── Three Main Gauges ── */}
       <div className="grid grid-cols-3 gap-4">
         <div className="flex flex-col items-center p-5 rounded-xl bg-slate-100/70 border border-slate-200/90 relative">
-          <CircularGauge value={plag} label="Plagiat" color={plag > 50 ? '#ef4444' : plag > 25 ? '#eab308' : '#22c55e'} />
+          <CircularGauge value={plag} label={t('Plagiat')} color={plag > 50 ? '#ef4444' : plag > 25 ? '#eab308' : '#22c55e'} />
         </div>
         <div className="flex flex-col items-center p-5 rounded-xl bg-slate-100/70 border border-slate-200/90 relative">
-          <CircularGauge value={ai} label="AI kontent" color={ai > 50 ? '#a855f7' : ai > 25 ? '#06b6d4' : '#22c55e'} />
+          <CircularGauge value={ai} label={t('AI kontent')} color={ai > 50 ? '#a855f7' : ai > 25 ? '#06b6d4' : '#22c55e'} />
         </div>
         <div className="flex flex-col items-center p-5 rounded-xl bg-slate-100/70 border border-slate-200/90 relative">
-          <CircularGauge value={orig} label="Originallik" color={orig > 70 ? '#22c55e' : orig > 40 ? '#eab308' : '#ef4444'} />
+          <CircularGauge value={orig} label={t('Originallik')} color={orig > 70 ? '#22c55e' : orig > 40 ? '#eab308' : '#ef4444'} />
         </div>
       </div>
 
@@ -297,13 +294,13 @@ const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPerc
       {bd && (
         <div className="p-5 rounded-xl bg-slate-100/70 border border-slate-200/90">
           <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-4">
-            <BarChart3 size={16} className="text-red-700" /> Plagiat turlari bo'yicha taqsimot
+            <BarChart3 size={16} className="text-red-700" /> {t("Plagiat turlari bo'yicha taqsimot")}
           </h3>
           <div className="space-y-3">
-            <HBar value={bd.direct_copy} label="To'g'ridan-to'g'ri ko'chirish" color="#ef4444" />
-            <HBar value={bd.paraphrase} label="Parafraz (qayta ifodalash)" color="#f97316" />
-            <HBar value={bd.mosaic} label="Mozaik plagiat (patchwork)" color="#eab308" />
-            <HBar value={bd.self_citation} label="O'z-o'zini iqtibos qilish" color="#06b6d4" />
+            <HBar value={bd.direct_copy} label={t("To'g'ridan-to'g'ri ko'chirish")} color="#ef4444" />
+            <HBar value={bd.paraphrase} label={t('Parafraz (qayta ifodalash)')} color="#f97316" />
+            <HBar value={bd.mosaic} label={t('Mozaik plagiat (patchwork)')} color="#eab308" />
+            <HBar value={bd.self_citation} label={t("O'z-o'zini iqtibos qilish")} color="#06b6d4" />
           </div>
         </div>
       )}
@@ -312,25 +309,25 @@ const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPerc
       {aiDet && (
         <div className="p-5 rounded-xl bg-slate-100/70 border border-slate-200/90">
           <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-4">
-            <Brain size={16} className="text-purple-400" /> AI detektor tahlili
+            <Brain size={16} className="text-purple-400" /> {t('AI detektor tahlili')}
           </h3>
           <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 text-center">
               <p className="text-xl font-bold text-purple-900">{aiDet.overall_ai_probability.toFixed(1)}%</p>
-              <p className="text-xs text-slate-500 mt-1">AI ehtimoli</p>
+              <p className="text-xs text-slate-500 mt-1">{t('AI ehtimoli')}</p>
             </div>
             <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-center">
               <p className="text-xl font-bold text-emerald-900">{aiDet.human_probability.toFixed(1)}%</p>
-              <p className="text-xs text-slate-500 mt-1">Inson ehtimoli</p>
+              <p className="text-xs text-slate-500 mt-1">{t('Inson ehtimoli')}</p>
             </div>
             <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-center">
               <p className="text-xl font-bold text-cyan-900">{aiDet.mixed_probability.toFixed(1)}%</p>
-              <p className="text-xs text-slate-500 mt-1">Aralash</p>
+              <p className="text-xs text-slate-500 mt-1">{t('Aralash')}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
             <Zap size={12} />
-            Model ishonchliligi: <span className={`font-semibold ${aiDet.model_confidence === 'high' ? 'text-emerald-800' : aiDet.model_confidence === 'medium' ? 'text-yellow-800' : 'text-slate-500'}`}>
+            {t('Model ishonchliligi:')} <span className={`font-semibold ${aiDet.model_confidence === 'high' ? 'text-emerald-800' : aiDet.model_confidence === 'medium' ? 'text-yellow-800' : 'text-slate-500'}`}>
               {confidenceLabel(aiDet.model_confidence)}
             </span>
           </div>
@@ -342,7 +339,7 @@ const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPerc
                 className="flex items-center gap-2 text-xs text-blue-800 hover:text-blue-700 transition-colors"
               >
                 {expandedPatterns ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                Aniqlangan AI patternlar ({aiDet.patterns.length})
+                {t('Aniqlangan AI patternlar (')}{aiDet.patterns.length})
               </button>
               {expandedPatterns && (
                 <div className="mt-2 space-y-1.5">
@@ -363,7 +360,7 @@ const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPerc
       {stylo && (
         <div className="p-5 rounded-xl bg-slate-100/70 border border-slate-200/90">
           <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-4">
-            <Fingerprint size={16} className="text-cyan-800" /> Stilometrik tahlil
+            <Fingerprint size={16} className="text-cyan-800" /> {t('Stilometrik tahlil')}
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
@@ -394,7 +391,7 @@ const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPerc
             className="w-full flex items-center justify-between"
           >
             <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-              <FileText size={16} className="text-blue-800" /> Bo'limlar bo'yicha tahlil ({sections.length} bo'lim)
+              <FileText size={16} className="text-blue-800" /> {t("Bo'limlar bo'yicha tahlil (")}{sections.length} {t("bo'lim)")}
             </h3>
             {expandedSections ? <ChevronUp size={16} className="text-slate-500" /> : <ChevronDown size={16} className="text-slate-500" />}
           </button>
@@ -404,14 +401,14 @@ const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPerc
               {sections.map((sec) => (
                 <div key={sec.index} className={`p-3 rounded-lg border ${riskBg(sec.risk)}`}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-slate-600">Bo'lim {sec.index} · {sec.word_count} so'z</span>
+                    <span className="text-xs font-medium text-slate-600">{t("Bo'lim {index} · {word_count} so'z", { index: sec.index, word_count: sec.word_count })}</span>
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${riskBg(sec.risk)} ${riskColor(sec.risk)}`}>
                       {riskLabel(sec.risk)}
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 mb-2 italic line-clamp-2">"{sec.preview}"</p>
                   <div className="flex gap-4 text-xs">
-                    <span className="text-slate-500">Plagiat: <strong className="text-red-800">{sec.plagiarism_score.toFixed(1)}%</strong></span>
+                    <span className="text-slate-500">{t('Plagiat:')} <strong className="text-red-800">{sec.plagiarism_score.toFixed(1)}%</strong></span>
                     <span className="text-slate-500">AI: <strong className="text-purple-900">{sec.ai_score.toFixed(1)}%</strong></span>
                   </div>
                   {sec.note && <p className="text-xs text-slate-500 mt-1">{sec.note}</p>}
@@ -426,7 +423,7 @@ const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPerc
       {recommendations.length > 0 && (
         <div className="p-5 rounded-xl bg-blue-500/5 border border-blue-500/20">
           <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2 mb-3">
-            <CheckCircle size={16} className="text-blue-800" /> Tavsiyalar
+            <CheckCircle size={16} className="text-blue-800" /> {t('Tavsiyalar')}
           </h3>
           <div className="space-y-2">
             {recommendations.map((rec, i) => (

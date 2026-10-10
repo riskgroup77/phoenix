@@ -14,6 +14,13 @@
       })();
     </script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%231f3f8f'/><text x='32' y='44' font-family='Arial' font-weight='800' font-size='36' text-anchor='middle' fill='white'>P</text></svg>" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Phoenix" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- CSP: Google Fonts -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https: http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*;" />
@@ -72,14 +79,9 @@
     content: none;
   }
 
-  html.dark input[type="text"],
-  html.dark input[type="password"],
-  html.dark input[type="email"],
-  html.dark input[type="tel"],
-  html.dark input[type="date"],
-  html.dark input[type="number"],
-  html.dark select,
-  html.dark textarea {
+  /* :where() — aniqlik 0: sahifadagi "!bg-transparent", "!border-none" kabi klasslar ustun keladi */
+  :where(html.dark) :where(input[type="text"], input[type="password"], input[type="email"],
+    input[type="tel"], input[type="date"], input[type="number"], select, textarea) {
     background-color: rgba(30, 41, 59, 0.92) !important;
     border-color: rgba(71, 85, 105, 0.65) !important;
     color: #f1f5f9 !important;
@@ -136,14 +138,10 @@
   }
   ::-webkit-scrollbar-thumb:hover { background-color: rgba(100, 116, 139, 0.55); }
 
-  input[type="text"],
-  input[type="password"],
-  input[type="email"],
-  input[type="tel"],
-  input[type="date"],
-  input[type="number"],
-  select,
-  textarea {
+  /* :where() — aniqlik 0: sahifadagi "!border-none", "!pl-0" kabi klasslar ustun keladi.
+     16px shrift — iOS'da maydonga bosilganda sahifa kattalashib ketmasin. */
+  :where(input[type="text"], input[type="password"], input[type="email"], input[type="tel"],
+    input[type="date"], input[type="number"], select, textarea) {
       background-color: rgba(255, 255, 255, 0.92) !important;
       border: 1px solid rgba(148, 163, 184, 0.45) !important;
       color: var(--ink) !important;

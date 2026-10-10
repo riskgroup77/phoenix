@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1f3f8f" />
+  <title>Internet yo'q — Phoenix</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; box-sizing: border-box;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f6f7fb; color: #0f172a; }
+    @media (prefers-color-scheme: dark) { body { background: #0b1220; color: #e2e8f0; } .card { background: #111a2e; border-color: #1e293b; } p { color: #94a3b8; } }
+    .card { max-width: 420px; width: 100%; text-align: center; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px 22px; }
+    img { width: 72px; height: 72px; border-radius: 16px; }
+    h1 { font-size: 20px; margin: 16px 0 8px; }
+    p { margin: 0 0 20px; color: #475569; line-height: 1.5; }
+    button { font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 12px 20px; background: #1f3f8f; color: #fff; cursor: pointer; min-height: 44px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img src="/icons/icon-192.png" alt="" />
+    <h1>Internet aloqasi yo'q</h1>
+    <p>Phoenix'ni ochish uchun internetga ulaning. Aloqa tiklangach sahifa avtomatik yangilanadi.</p>
+    <button type="button" onclick="location.reload()">Qayta urinish</button>
+  </div>
+  <script>window.addEventListener('online', function () { location.reload(); });</script>
+</body>
+</html>

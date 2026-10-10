@@ -61,3 +61,8 @@ CROSSREF_USERNAME = ''
 CROSSREF_PASSWORD = ''
 
 MEDIA_ROOT =os.path.join(BASE_DIR, 'test_media')  # noqa: F405
+# Testlarda collectstatic qilinmaydi — manifest talab qilmaydigan statik saqlash
+STORAGES = {
+    'default': {'BACKEND': 'config.media_protection.ProtectedMediaStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}

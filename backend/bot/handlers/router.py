@@ -28,6 +28,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not tg_user or not update.message:
         return
 
+    # Saytdan kelgan havola: t.me/<bot>?start=v_<kod> (raqamni tasdiqlash) yoki r_<kod> (parolni tiklash)
+    if context.args:
+        from bot.handlers.verification import handle_start_payload
+
+        if await handle_start_payload(update, context, context.args[0]):
+            return
+
     client = await restore_client(tg_user.id)
     if client:
         try:

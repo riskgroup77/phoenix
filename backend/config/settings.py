@@ -98,6 +98,7 @@ INSTALLED_APPS = [
     'apps.notifications',
     'apps.udc',
     'apps.analytics',
+    'apps.assistant',
 ]
 
 # CorsMiddleware must be as high as possible (before WhiteNoise / CommonMiddleware) so
@@ -188,11 +189,23 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Django 5.1+ da STATICFILES_STORAGE olib tashlangan — STORAGES orqali (avval whitenoise siqish ishlamasdi).
+# default — maxfiy fayllarga imzoli, muddatli havola beradigan saqlash (config/media_protection.py).
+STORAGES = {
+    'default': {'BACKEND': 'config.media_protection.ProtectedMediaStorage'},
+    # Manifestsiz siqish: shablonda yo'q statik faylga havola bo'lsa ham 500 bermaydi
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+}
+# Maxfiy fayllar (qo'lyozmalar, cheklar, DOI/UDK/tarjima) faqat imzoli havola bilan ochiladi
+MEDIA_PROTECTION_ENABLED = os.getenv('MEDIA_PROTECTION_ENABLED', 'true').lower() in ('1', 'true', 'yes', 'on')
+MEDIA_URL_TTL_SECONDS = int(os.getenv('MEDIA_URL_TTL_SECONDS', str(6 * 3600)))
+# nginx da /_protected_media/ (internal) sozlangach true: faylni nginx beradi (infrastructure/nginx/snippets/phoenix-media.conf)
+MEDIA_ACCEL_REDIRECT = os.getenv('MEDIA_ACCEL_REDIRECT', 'false').lower() in ('1', 'true', 'yes', 'on')
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -339,6 +352,17 @@ FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://localhost:3000').rstr
 
 # Telegram: bildirishnomalarni botga yuborish (apps/notifications/telegram.py)
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
+# true — telefon raqami Telegram orqali tasdiqlanmagan muallif maqola yubora / to'lov qila olmaydi
+PHONE_VERIFICATION_REQUIRED = os.getenv('PHONE_VERIFICATION_REQUIRED', 'false').lower() in ('1', 'true', 'yes', 'on')
+# Monitoring ogohlantirishlari (server 500 xatolari, brauzer xatolari, zaxira, sayt ishlamay qolsa) shu chatga
+PHONIX_ALERT_CHAT_ID = (os.getenv('PHONIX_ALERT_CHAT_ID') or '').strip()
+# Ommaviy oferta / maxfiylik siyosati: ro'yxatdan o'tishda rozilik majburiy, qaysi tahrirga rozilik berilgani saqlanadi.
+# Matn o'zgarsa — frontend/config/legal.ts dagi LEGAL_VERSION bilan birga yangilang.
+LEGAL_TERMS_VERSION = os.getenv('LEGAL_TERMS_VERSION', '2026-10-10').strip()[:20]
+TERMS_ACCEPTANCE_REQUIRED = os.getenv('TERMS_ACCEPTANCE_REQUIRED', 'true').lower() in ('1', 'true', 'yes', 'on')
+# Demo hisoblar (911111111/muallif ...). Rasmiy ishga tushirishda false: deploy ularni qayta yaratmaydi,
+# seed_demo_data ishlamaydi. O'chirish: python manage.py seed_demo_data --purge --logins
+PHONIX_DEMO_ENABLED = os.getenv('PHONIX_DEMO_ENABLED', 'true').lower() in ('1', 'true', 'yes', 'on')
 # Profil sahifasidagi "Botni ochish" havolasi uchun (masalan: IlmiyFaoliyatBot, @ belgisiz)
 TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME', '').lstrip('@')
 
@@ -466,6 +490,19 @@ ANTIPLAG_EMBEDDING_BATCH = int(os.getenv('ANTIPLAG_EMBEDDING_BATCH', '16'))
 ANTIPLAG_PARAPHRASE_THRESHOLD = float(os.getenv('ANTIPLAG_PARAPHRASE_THRESHOLD', '0.78'))
 ANTIPLAG_PARAPHRASE_MAX_LEXICAL = float(os.getenv('ANTIPLAG_PARAPHRASE_MAX_LEXICAL', '0.34'))
 ANTIPLAG_PARAPHRASE_MAX_SENTENCES = int(os.getenv('ANTIPLAG_PARAPHRASE_MAX_SENTENCES', '35'))
+# Lokal vektor indeksi (OpenSearch'siz parafraz + tarjima plagiati). ~0.5 GB RAM (E5-small) talab qiladi.
+# Yoqilgach: python manage.py build_antiplag_vectors (cron/timer bilan kunlik yangilash tavsiya etiladi)
+# Muallif AI yordamchisi: Gemini faqat qoidalar tushunmagan yoki erkin matndan maydon olish kerak bo'lganda
+# Qo'llab-quvvatlash kontaktlari (yordamchi javoblarida; frontend VITE_SUPPORT_* bilan bir xil qiling)
+SUPPORT_PHONE = os.getenv('SUPPORT_PHONE', '').strip()
+SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', 'support@ilmiyfaoliyat.uz').strip()
+ASSISTANT_LLM_ENABLED = os.getenv('ASSISTANT_LLM_ENABLED', 'true').lower() in ('1', 'true', 'yes', 'on')
+ASSISTANT_LLM_DAILY_LIMIT = int(os.getenv('ASSISTANT_LLM_DAILY_LIMIT', '60'))
+ANTIPLAG_LOCAL_VECTORS_ENABLED = os.getenv('ANTIPLAG_LOCAL_VECTORS_ENABLED', 'false').lower() in ('1', 'true', 'yes', 'on')
+ANTIPLAG_VECTOR_DIR = (os.getenv('ANTIPLAG_VECTOR_DIR') or '').strip()
+ANTIPLAG_VECTOR_PASSAGE_CHARS = int(os.getenv('ANTIPLAG_VECTOR_PASSAGE_CHARS', '400'))
+ANTIPLAG_VECTOR_PASSAGES_PER_DOC = int(os.getenv('ANTIPLAG_VECTOR_PASSAGES_PER_DOC', '24'))
+ANTIPLAG_CROSSLINGUAL_THRESHOLD = float(os.getenv('ANTIPLAG_CROSSLINGUAL_THRESHOLD', '0.84'))
 
 # Internet / Garant snippet qidiruv
 GOOGLE_CSE_API_KEY = (os.getenv('GOOGLE_CSE_API_KEY') or '').strip()
@@ -589,6 +626,11 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
+        # Server 500 va brauzer xatolari — Telegram'ga (PHONIX_ALERT_CHAT_ID), takrorlanmasdan
+        'telegram_alert': {
+            'class': 'config.alert_handler.TelegramAlertHandler',
+            'level': 'ERROR',
+        },
     },
     'root': {
         'handlers': ['console'],
@@ -602,6 +644,16 @@ LOGGING = {
         },
         'phoenix.request': {
             'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['telegram_alert'],
+            'level': 'WARNING',
+            'propagate': True,
+        },
+        'phoenix.client': {
+            'handlers': ['console', 'telegram_alert'],
             'level': 'INFO',
             'propagate': False,
         },

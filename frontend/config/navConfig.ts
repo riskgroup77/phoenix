@@ -60,6 +60,7 @@ export const roleNames: Record<Role, string> = {
 export const sidebarNavByRole: Record<Role, RoleNavSections> = {
   [Role.Author]: {
     primary: [
+      { to: '/ai', icon: Bot, label: 'AI yordamchi' },
       { to: '/dashboard', icon: LayoutDashboard, label: 'Boshqaruv paneli' },
       { to: '/articles', icon: FileText, label: 'Maqolalarim' },
       { to: '/submit', icon: Upload, label: 'Maqola yuborish' },
@@ -155,7 +156,7 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
 /** Mobil pastki navigatsiya — eng muhim 5-6 ta */
 export const bottomNavByRole: Partial<Record<Role, NavItem[]>> = {
   [Role.Author]: [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Asosiy' },
+    { to: '/ai', icon: Bot, label: 'AI' },
     { to: '/articles', icon: FileText, label: 'Maqolalar' },
     { to: '/submit', icon: Upload, label: 'Yuborish' },
     { to: '/services', icon: Sparkles, label: 'Xizmatlar' },

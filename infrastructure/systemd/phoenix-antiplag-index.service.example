@@ -24,4 +24,6 @@ Environment=DJANGO_SETTINGS_MODULE=config.settings
 Nice=10
 ExecStart=/phonix/backend/venv/bin/python manage.py build_antiplag_index --prune
 ExecStart=/phonix/backend/venv/bin/python manage.py harvest_oai --all --fill-full-text 500
+# Parafraz / tarjima plagiati uchun lokal vektor indeksi (ANTIPLAG_LOCAL_VECTORS_ENABLED=true bo'lsagina ishlaydi)
+ExecStart=-/phonix/backend/venv/bin/python manage.py build_antiplag_vectors --if-enabled
 TimeoutStartSec=8h

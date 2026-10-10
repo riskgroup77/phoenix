@@ -140,6 +140,17 @@ def available_modules() -> list[dict[str, Any]]:
             'description': "Ochiq kirishdagi ilmiy maqolalar bilan solishtiriladi.",
         })
 
+    from apps.articles.antiplagiat_vectors import local_vectors_ready
+
+    if local_vectors_ready() and not opensearch_enabled():
+        mods.append({
+            'id': SEMANTIC_PARAPHRASE_ID,
+            'label': "Parafraz va tarjima (ma'no bo'yicha o'xshashlik)",
+            'group': 'Tahlil',
+            'description': "Qayta yozilgan yoki rus/ingliz tilidan tarjima qilingan parchalar ichki bazada "
+                           "ma'no bo'yicha qidiriladi (ko'p tilli E5 modeli).",
+        })
+
     if opensearch_enabled():
         mods.append({
             'id': SEMANTIC_PARAPHRASE_ID,

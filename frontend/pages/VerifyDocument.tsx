@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { API_V1_BASE_URL } from '../config/apiBase';
+import { useT } from '../i18n/LanguageContext';
 
 type VerifyResponse = {
   valid: boolean;
@@ -32,6 +33,7 @@ const DETAIL_LABELS: Record<string, string> = {
 
 /** Sertifikatlardagi QR kod: #/verify/<kod> — hujjat tizimda haqiqatan berilganini tekshiradi. */
 const VerifyDocument: React.FC = () => {
+  const { t } = useT();
   const { code = '' } = useParams<{ code: string }>();
   const [data, setData] = useState<VerifyResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,7 +58,7 @@ const VerifyDocument: React.FC = () => {
       <div className="min-h-screen bg-slate-50/90 flex items-center justify-center p-4">
         <div className="text-center text-slate-500">
           <Loader2 className="h-10 w-10 animate-spin mx-auto mb-3 text-indigo-400" />
-          <p>Hujjat tekshirilmoqda...</p>
+          <p>{t('Hujjat tekshirilmoqda...')}</p>
         </div>
       </div>
     );
@@ -71,8 +73,8 @@ const VerifyDocument: React.FC = () => {
       <a href="/#/" className="flex items-center gap-2.5 text-[var(--editorial-text)] no-underline">
         <span className="w-9 h-9 rounded-[10px] bg-[#1f3f8f] text-white flex items-center justify-center font-extrabold">P</span>
         <span className="flex flex-col leading-tight">
-          <span className="font-extrabold">Phoenix</span>
-          <span className="text-xs text-[var(--editorial-muted)]">Ilmiy nashrlar markazi · hujjatni tekshirish</span>
+          <span className="font-extrabold">{t('Phoenix')}</span>
+          <span className="text-xs text-[var(--editorial-muted)]">{t('Ilmiy nashrlar markazi · hujjatni tekshirish')}</span>
         </span>
       </a>
       <Card className="max-w-lg w-full">
@@ -80,10 +82,10 @@ const VerifyDocument: React.FC = () => {
           <>
             <div className="flex items-center gap-3 text-green-800 mb-4">
               <CheckCircle className="h-10 w-10 shrink-0" />
-              <h1 className="text-xl font-bold text-slate-900">Hujjat haqiqiy</h1>
+              <h1 className="text-xl font-bold text-slate-900">{t('Hujjat haqiqiy')}</h1>
             </div>
             <p className="text-sm text-slate-500 mb-6">
-              Ushbu hujjat ilmiyfaoliyat.uz tizimi tomonidan berilgan.
+              {t('Ushbu hujjat ilmiyfaoliyat.uz tizimi tomonidan berilgan.')}
             </p>
             <dl className="space-y-3 text-sm">
               {[
@@ -112,8 +114,8 @@ const VerifyDocument: React.FC = () => {
           <div className="flex items-start gap-3 text-red-800">
             <XCircle className="h-10 w-10 shrink-0" />
             <div>
-              <h1 className="text-xl font-bold text-slate-900 mb-1">Hujjat tasdiqlanmadi</h1>
-              <p className="text-sm text-slate-600">{data?.detail || 'Hujjat topilmadi yoki kod noto\'g\'ri.'}</p>
+              <h1 className="text-xl font-bold text-slate-900 mb-1">{t('Hujjat tasdiqlanmadi')}</h1>
+              <p className="text-sm text-slate-600">{data?.detail || t("Hujjat topilmadi yoki kod noto'g'ri.")}</p>
             </div>
           </div>
         )}

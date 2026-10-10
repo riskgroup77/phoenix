@@ -3,8 +3,10 @@ import { useSearchParams } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { API_V1_BASE_URL } from '../config/apiBase';
+import { useT } from '../i18n/LanguageContext';
 
 const UdkVerify: React.FC = () => {
+  const { t } = useT();
   const [searchParams] = useSearchParams();
   const id = searchParams.get('id');
   const articleId = searchParams.get('article_id');
@@ -42,7 +44,7 @@ const UdkVerify: React.FC = () => {
       <div className="min-h-screen bg-slate-50/90 flex items-center justify-center p-4">
         <div className="text-center text-slate-500">
           <Loader2 className="h-10 w-10 animate-spin mx-auto mb-3 text-indigo-400" />
-          <p>Ma\'lumotnoma tekshirilmoqda...</p>
+          <p>{t("Ma'lumotnoma tekshirilmoqda...")}</p>
         </div>
       </div>
     );
@@ -55,45 +57,45 @@ const UdkVerify: React.FC = () => {
           <>
             <div className="flex items-center gap-3 text-green-800 mb-4">
               <CheckCircle className="h-10 w-10 shrink-0" />
-              <h1 className="text-xl font-bold text-slate-900">Ma\'lumotnoma haqiqiy</h1>
+              <h1 className="text-xl font-bold text-slate-900">{t("Ma'lumotnoma haqiqiy")}</h1>
             </div>
             <p className="text-sm text-slate-500 mb-6">
-              Ushbu UDK ma\'lumotnoma platforma tomonidan berilgan va tasdiqlangan.
+              {t("Ushbu UDK ma'lumotnoma platforma tomonidan berilgan va tasdiqlangan.")}
             </p>
             <dl className="space-y-3 text-sm">
               {data.document_number && (
                 <>
-                  <dt className="text-slate-500">Hujjat raqami</dt>
+                  <dt className="text-slate-500">{t('Hujjat raqami')}</dt>
                   <dd className="text-slate-900 font-mono">{data.document_number}</dd>
                 </>
               )}
               {data.document_date && (
                 <>
-                  <dt className="text-slate-500">Hujjat sanasi</dt>
+                  <dt className="text-slate-500">{t('Hujjat sanasi')}</dt>
                   <dd className="text-slate-900">{data.document_date}</dd>
                 </>
               )}
               {data.author_name && (
                 <>
-                  <dt className="text-slate-500">Muallif</dt>
+                  <dt className="text-slate-500">{t('Muallif')}</dt>
                   <dd className="text-slate-900">{data.author_name}</dd>
                 </>
               )}
               {data.title && (
                 <>
-                  <dt className="text-slate-500">Ish nomi</dt>
+                  <dt className="text-slate-500">{t('Ish nomi')}</dt>
                   <dd className="text-slate-900">{data.title}</dd>
                 </>
               )}
               {data.udk_code && (
                 <>
-                  <dt className="text-slate-500">UDK raqami</dt>
+                  <dt className="text-slate-500">{t('UDK raqami')}</dt>
                   <dd className="text-[var(--editorial-primary)] font-mono font-semibold">{data.udk_code}</dd>
                 </>
               )}
               {data.udk_description && (
                 <>
-                  <dt className="text-slate-500">Tavsif</dt>
+                  <dt className="text-slate-500">{t('Tavsif')}</dt>
                   <dd className="text-slate-600">{data.udk_description}</dd>
                 </>
               )}
@@ -103,10 +105,10 @@ const UdkVerify: React.FC = () => {
           <>
             <div className="flex items-center gap-3 text-red-700 mb-4">
               <XCircle className="h-10 w-10 shrink-0" />
-              <h1 className="text-xl font-bold text-slate-900">Tekshirish natijasi</h1>
+              <h1 className="text-xl font-bold text-slate-900">{t('Tekshirish natijasi')}</h1>
             </div>
             <p className="text-slate-600">
-              {data?.detail || 'Ma\'lumotnoma topilmadi yoki haqiqiy emas.'}
+              {data?.detail || t("Ma'lumotnoma topilmadi yoki haqiqiy emas.")}
             </p>
           </>
         )}

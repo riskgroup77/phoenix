@@ -73,6 +73,11 @@ class TransactionViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """Override create to return full transaction data including ID"""
+        from apps.users.phone_verification import verification_required_message
+
+        blocked = verification_required_message(request.user)
+        if blocked:
+            return Response({'detail': blocked}, status=status.HTTP_403_FORBIDDEN)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)

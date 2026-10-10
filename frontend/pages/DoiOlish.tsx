@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAiPrefill, str, num } from '../contexts/AiPrefillContext';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
@@ -7,8 +8,10 @@ import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
 import { Bot, Upload, Loader2, FileText } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useT } from '../i18n/LanguageContext';
 
 const DoiOlish: React.FC = () => {
+  const { t } = useT();
   const { user } = useAuth();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -16,6 +19,17 @@ const DoiOlish: React.FC = () => {
   const [amount, setAmount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  const aiPrefill = useAiPrefill('doi');
+  useEffect(() => {
+    if (!aiPrefill) return;
+    const f = aiPrefill.fields;
+    if (str(f.firstName)) setFirstName(str(f.firstName));
+    if (str(f.lastName)) setLastName(str(f.lastName));
+    const picked = aiPrefill.file;
+    if (picked && /\.(docx?|pdf)$/i.test(picked.name)) setFile(picked);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiPrefill?.nonce, aiPrefill?.file]);
 
   useEffect(() => {
     if (!user) return;
@@ -42,16 +56,16 @@ const DoiOlish: React.FC = () => {
     const fn = firstName.trim();
     const ln = lastName.trim();
     if (!fn || !ln) {
-      toast.warning('Ism va familyani kiriting.');
+      toast.warning(t('Ism va familyani kiriting.'));
       return;
     }
     if (!file) {
-      toast.warning('Maqola faylini tanlang (DOC yoki PDF).');
+      toast.warning(t('Maqola faylini tanlang (DOC yoki PDF).'));
       return;
     }
     const name = (file.name || '').toLowerCase();
     if (!name.endsWith('.doc') && !name.endsWith('.docx') && !name.endsWith('.pdf')) {
-      toast.warning('Faqat DOC, DOCX yoki PDF fayllar qabul qilinadi.');
+      toast.warning(t('Faqat DOC, DOCX yoki PDF fayllar qabul qilinadi.'));
       return;
     }
     setSubmitting(true);
@@ -66,7 +80,7 @@ const DoiOlish: React.FC = () => {
         transaction_id?: string;
       };
       if (res?.fulfilled) {
-        toast.success(res?.message || 'So\'rov taqrizchiga yuborildi. DOI link tayyor bo\'lgach bildirishnoma orqali xabar beramiz.');
+        toast.success(res?.message || t("So'rov taqrizchiga yuborildi. DOI link tayyor bo'lgach bildirishnoma orqali xabar beramiz."));
         setFirstName('');
         setLastName('');
         setFile(null);
@@ -76,9 +90,9 @@ const DoiOlish: React.FC = () => {
         paymentService.redirectToPaymentPage(res.transaction_id);
         return;
       }
-      toast.error('So\'rov yuborishda xatolik.');
+      toast.error(t("So'rov yuborishda xatolik."));
     } catch (err: any) {
-      toast.error(err?.message || 'So\'rov yuborishda xatolik.');
+      toast.error(err?.message || t("So'rov yuborishda xatolik."));
     } finally {
       setSubmitting(false);
     }
@@ -91,45 +105,45 @@ const DoiOlish: React.FC = () => {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <EditorialPageHeader
-        title="DOI Raqami Olish"
-        subtitle="Maqolangiz uchun unikal raqamli obyekt identifikatorini (DOI) ro'yxatdan o'tkazish. Ma'lumotlarni kiriting va to'lovni amalga oshiring; so'rov taqrizchiga yuboriladi, DOI link tayyor bo'lgach arxivda ko'rinadi va bildirishnoma keladi."
+        title={t('DOI Raqami Olish')}
+        subtitle={t("Maqolangiz uchun unikal raqamli obyekt identifikatorini (DOI) ro'yxatdan o'tkazish. Ma'lumotlarni kiriting va to'lovni amalga oshiring; so'rov taqrizchiga yuboriladi, DOI link tayyor bo'lgach arxivda ko'rinadi va bildirishnoma keladi.")}
       />
       <Card>
         {loading ? (
-          <p className="text-slate-500">Yuklanmoqda…</p>
+          <p className="text-slate-500">{t('Yuklanmoqda…')}</p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6 max-w-xl">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">Ism *</label>
+                <label className="block text-sm font-medium text-slate-600 mb-1">{t('Ism *')}</label>
                 <input
                   type="text"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   className={inputClass}
-                  placeholder="Ism"
+                  placeholder={t('Ism')}
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">Familya *</label>
+                <label className="block text-sm font-medium text-slate-600 mb-1">{t('Familya *')}</label>
                 <input
                   type="text"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   className={inputClass}
-                  placeholder="Familya"
+                  placeholder={t('Familya')}
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1">Maqola fayli (DOC yoki PDF) *</label>
+              <label className="block text-sm font-medium text-slate-600 mb-1">{t('Maqola fayli (DOC yoki PDF) *')}</label>
               <label className="flex flex-col items-center justify-center w-full p-8 border-2 border-dashed rounded-lg border-slate-300/80 bg-slate-100/70 hover:bg-white/10 cursor-pointer transition-colors">
                 <Upload className="w-10 h-10 text-slate-500 mb-2" />
                 <span className="text-sm text-slate-500">
-                  {file ? file.name : 'Faylni tanlang yoki shu yerga tortib tashlang'}
+                  {file ? file.name : t('Faylni tanlang yoki shu yerga tortib tashlang')}
                 </span>
                 <input
                   type="file"
@@ -142,10 +156,10 @@ const DoiOlish: React.FC = () => {
 
             <div className="p-4 rounded-lg bg-slate-100/70 border border-slate-200/90">
               <p className="text-sm text-slate-600">
-                <span className="font-semibold text-cyan-800">Narx:</span> {amount.toLocaleString()} so'm
+                <span className="font-semibold text-cyan-800">{t('Narx:')}</span> {amount.toLocaleString()} {t("so'm")}
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                To'lovdan keyin so'rov taqrizchiga yuboriladi. Taqrizchi DOI raqamini olib linkni yuklaydi; link arxivingizda va bildirishnomada chiqadi.
+                {t("To'lovdan keyin so'rov taqrizchiga yuboriladi. Taqrizchi DOI raqamini olib linkni yuklaydi; link arxivingizda va bildirishnomada chiqadi.")}
               </p>
             </div>
 
@@ -156,9 +170,9 @@ const DoiOlish: React.FC = () => {
               className="w-full sm:min-w-[240px] sm:w-auto mt-1"
             >
               {submitting ? (
-                <><Loader2 className="inline h-4 w-4 animate-spin mr-2" />Yuborilmoqda…</>
+                <><Loader2 className="inline h-4 w-4 animate-spin mr-2" />{t('Yuborilmoqda…')}</>
               ) : (
-                <><FileText className="inline h-4 w-4 mr-2" />To'lov va so'rov yuborish</>
+                <><FileText className="inline h-4 w-4 mr-2" />{t("To'lov va so'rov yuborish")}</>
               )}
             </Button>
           </form>

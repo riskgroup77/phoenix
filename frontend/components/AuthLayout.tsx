@@ -47,6 +47,10 @@ const AuthLayout: React.FC<{ children: React.ReactNode; title: string }> = ({ ch
         <p className="m-0 text-xs text-[var(--milliy-band-text)]">
           © {new Date().getFullYear()} Phoenix — {t('Ilmiy nashrlar markazi')}{' · '}
           <Link to="/" className="underline underline-offset-2 text-white/90 hover:text-white">{t('Jurnallar katalogi')}</Link>
+          {' · '}
+          <Link to="/oferta" className="underline underline-offset-2 text-white/90 hover:text-white">Ommaviy oferta</Link>
+          {' · '}
+          <Link to="/maxfiylik" className="underline underline-offset-2 text-white/90 hover:text-white">Maxfiylik siyosati</Link>
         </p>
       </aside>
 

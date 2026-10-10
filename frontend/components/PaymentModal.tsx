@@ -7,6 +7,8 @@ import React from 'react';
 import Button from './ui/Button';
 import ModalPortal from './ui/ModalPortal';
 import { CreditCard, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { PaymentConsentNote } from './LegalLinks';
+import { useT } from '../i18n/LanguageContext';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -29,6 +31,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   error,
   currency = 'so\'m'
 }) => {
+  const { t } = useT();
   if (!isOpen) return null;
 
   const formatAmount = (amount: number): string => {
@@ -41,30 +44,29 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         {status === 'idle' && (
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold text-slate-900">To'lovni tasdiqlash</h3>
+              <h3 className="text-xl font-semibold text-slate-900">{t("To'lovni tasdiqlash")}</h3>
               <button
                 onClick={onClose}
                 className="text-slate-500 hover:text-slate-900 transition-colors"
-                aria-label="Yopish"
+                aria-label={t('Yopish')}
               >
                 <XCircle className="h-5 w-5" />
               </button>
             </div>
-            <p className="text-slate-600 mb-2">
-              {serviceName} uchun to'lov:
-            </p>
+            <p className="text-slate-600 mb-2">{t("{serviceName} uchun to'lov:", { serviceName: serviceName })}</p>
             <div className="p-4 bg-blue-900/20 rounded-lg border border-blue-700/30 mb-4">
               <p className="text-2xl font-bold text-slate-900 text-center">
                 {formatAmount(amount)} {currency}
               </p>
             </div>
+            <PaymentConsentNote className="mb-4" />
             <div className="flex gap-3">
               <Button onClick={onPay} className="flex-1">
                 <CreditCard className="mr-2 h-4 w-4" />
-                To'lovni Amalga Oshirish
+                {t("To'lovni Amalga Oshirish")}
               </Button>
               <Button variant="secondary" onClick={onClose} className="flex-1">
-                Bekor qilish
+                {t('Bekor qilish')}
               </Button>
             </div>
           </div>
@@ -73,41 +75,41 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         {status === 'processing' && (
           <div className="text-center">
             <Loader2 className="h-12 w-12 text-blue-500 mx-auto mb-4 animate-spin" />
-            <p className="mt-4 text-lg font-medium text-slate-700">To'lov tasdiqlanmoqda...</p>
-            <p className="mt-2 text-sm text-slate-500">Iltimos, kuting</p>
+            <p className="mt-4 text-lg font-medium text-slate-700">{t("To'lov tasdiqlanmoqda...")}</p>
+            <p className="mt-2 text-sm text-slate-500">{t('Iltimos, kuting')}</p>
           </div>
         )}
 
         {status === 'success' && (
           <div className="text-center">
             <CheckCircle className="h-16 w-16 text-green-800 mx-auto mb-4" />
-            <p className="mt-4 text-lg font-medium text-slate-700">To'lov muvaffaqiyatli!</p>
-            <p className="mt-2 text-sm text-slate-500">To'lov sahifasiga yo'naltirilmoqdasiz</p>
+            <p className="mt-4 text-lg font-medium text-slate-700">{t("To'lov muvaffaqiyatli!")}</p>
+            <p className="mt-2 text-sm text-slate-500">{t("To'lov sahifasiga yo'naltirilmoqdasiz")}</p>
           </div>
         )}
 
         {status === 'failed' && (
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold text-slate-900">To'lovda xatolik</h3>
+              <h3 className="text-xl font-semibold text-slate-900">{t("To'lovda xatolik")}</h3>
               <button
                 onClick={onClose}
                 className="text-slate-500 hover:text-slate-900 transition-colors"
-                aria-label="Yopish"
+                aria-label={t('Yopish')}
               >
                 <XCircle className="h-5 w-5" />
               </button>
             </div>
             <div className="text-center mb-4">
               <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <p className="text-sm text-slate-500 max-w-xs mx-auto">{error || "To'lovni amalga oshirishda xatolik yuz berdi"}</p>
+              <p className="text-sm text-slate-500 max-w-xs mx-auto">{error || t("To'lovni amalga oshirishda xatolik yuz berdi")}</p>
             </div>
             <div className="flex gap-3">
               <Button onClick={onPay} className="flex-1">
-                Qayta Urinish
+                {t('Qayta Urinish')}
               </Button>
               <Button variant="secondary" onClick={onClose} className="flex-1">
-                Yopish
+                {t('Yopish')}
               </Button>
             </div>
           </div>

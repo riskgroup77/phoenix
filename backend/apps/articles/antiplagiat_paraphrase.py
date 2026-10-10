@@ -16,6 +16,7 @@ from apps.articles.antiplagiat_opensearch import (
     search_knn_fragments,
     search_text_fragments,
 )
+from apps.articles.antiplagiat_normalize import guess_lang
 from apps.articles.antiplagiat_overlap import estimate_overlap_chars, sentence_overlap_score
 from apps.articles.antiplagiat_privacy import is_own_or_excluded, safe_source_fields
 
@@ -62,6 +63,15 @@ def scan_paraphrase_hits(
     if not (enabled & PARAPHRASE_MODULE_IDS):
         return []
     if not embeddings_available() and not opensearch_enabled():
+        return []
+    if not opensearch_enabled():
+        # OpenSearch yo'q — lokal vektor indeksi (bepul): parafraz va tarjima plagiati
+        from apps.articles.antiplagiat_vectors import local_vectors_ready
+
+        if local_vectors_ready():
+            return scan_local_vector_hits(
+                candidates, limit=limit, exclude_article_id=exclude_article_id, exclude_author_id=exclude_author_id,
+            )
         return []
 
     hits: list[dict[str, Any]] = []
@@ -113,4 +123,80 @@ def scan_paraphrase_hits(
             if len(hits) >= limit:
                 return hits
 
+    return hits
+
+
+def scan_local_vector_hits(
+    candidates: list[tuple[int, str]],
+    *,
+    limit: int = 35,
+    exclude_article_id: str | None = None,
+    exclude_author_id: str | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Lokal vektor indeksi (antiplagiat_vectors) bo'yicha:
+      - bir xil til: leksik o'xshashlik past, ma'no o'xshashligi yuqori → parafraz;
+      - boshqa til (ru/en manba, uz matn va h.k.): ma'no o'xshashligi juda yuqori → tarjima plagiati.
+    Leksik jihatdan aynan mos jumlalar bu yerda hisoblanmaydi — ularni asosiy (barmoq izi) qatlam topadi.
+    """
+    from apps.articles.antiplagiat_vectors import search_fragments
+
+    max_sent = int(getattr(settings, 'ANTIPLAG_PARAPHRASE_MAX_SENTENCES', 35))
+    para_thr = float(getattr(settings, 'ANTIPLAG_PARAPHRASE_THRESHOLD', 0.78))
+    cross_thr = float(getattr(settings, 'ANTIPLAG_CROSSLINGUAL_THRESHOLD', 0.84))
+    max_lex = float(getattr(settings, 'ANTIPLAG_PARAPHRASE_MAX_LEXICAL', 0.34))
+
+    sents = [s for _i, s in candidates[:max_sent] if len(s or '') >= 40]
+    if not sents:
+        return []
+    results = search_fragments(sents, top_k=3, min_score=min(para_thr, cross_thr))
+    hits: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for sent, sources in zip(sents, results):
+        sent_lang = guess_lang(sent)
+        for src in sources:
+            if is_own_or_excluded(src, exclude_article_id=exclude_article_id, exclude_author_id=exclude_author_id):
+                continue
+            frag = src.get('fragment') or ''
+            if len(frag) < 40:
+                continue
+            cos = float(src.get('score') or 0.0)
+            cross = guess_lang(frag) != sent_lang
+            if cross:
+                if cos < cross_thr:
+                    continue
+                lex = 0.0
+            else:
+                lex = sentence_overlap_score(sent, frag)
+                if lex > max_lex or cos < para_thr:
+                    continue
+            key = (sent[:120], str(src.get('doc_id') or src.get('title') or ''))
+            if key in seen:
+                continue
+            seen.add(key)
+            oc = estimate_overlap_chars(sent, frag) if not cross else 0
+            if oc <= 0:
+                oc = max(20, int(len(sent) * (0.6 if cross else 0.35)))
+            src_module = src.get('module_id') or 'milliy_reestr'
+            hits.append({
+                **safe_source_fields(
+                    sentence=sent,
+                    source_text=frag,
+                    title=src.get('title') or '',
+                    url=src.get('url') or '',
+                    is_public=bool(src.get('is_public')),
+                ),
+                'snippet': sent[:220],
+                'document_fragment': sent[:360],
+                'search_module': f"{_module_label(src_module)} ({'tarjima' if cross else 'parafraz'})",
+                'module_id': src_module,
+                'match_type': 'verified',
+                'match_subtype': 'translation' if cross else 'paraphrase',
+                'embedding_score': round(cos, 4),
+                'lexical_score': round(lex, 4),
+                'overlap_chars': oc,
+                'similarity': 0.0,
+            })
+            if len(hits) >= limit:
+                return hits
     return hits

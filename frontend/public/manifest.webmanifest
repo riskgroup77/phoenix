@@ -1,0 +1,24 @@
+{
+  "name": "Phoenix — Ilmiy nashrlar markazi",
+  "short_name": "Phoenix",
+  "description": "Ilmiy maqolalarni jurnallarda nashr qilish, antiplagiat tekshiruvi, UDK va DOI xizmatlari.",
+  "lang": "uz",
+  "dir": "ltr",
+  "start_url": "/#/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1220",
+  "theme_color": "#1f3f8f",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Maqola yuborish", "short_name": "Yuborish", "url": "/#/submit", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Mening maqolalarim", "short_name": "Maqolalar", "url": "/#/articles", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Antiplagiat", "short_name": "Antiplagiat", "url": "/#/plagiarism-check", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

@@ -8,6 +8,7 @@ import PlagiarismShortReport from './PlagiarismShortReport';
 import AntiplagiatHighlightView from './AntiplagiatHighlightView';
 import type { AntiplagiatCertificateData } from './AntiplagiatCertificate';
 import type { PlagiarismFullReportData } from './PlagiarismFullReport';
+import { useT } from '../i18n/LanguageContext';
 
 const ScoreBar: React.FC<{ label: string; value: number; color: string }> = ({ label, value, color }) => (
   <div>
@@ -49,6 +50,7 @@ const AntiplagiatResultView: React.FC<Props> = ({
   onBack,
   backLabel = "Arxiv hujjatlarga qaytish",
 }) => {
+  const { t } = useT();
   const [showFullReport, setShowFullReport] = useState(false);
   const [showShortReport, setShowShortReport] = useState(false);
 
@@ -67,56 +69,54 @@ const AntiplagiatResultView: React.FC<Props> = ({
         )}
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-900 mb-1">Antiplagiat tekshiruvi natijasi</h2>
+          <h2 className="text-xl font-bold text-slate-900 mb-1">{t('Antiplagiat tekshiruvi natijasi')}</h2>
           <p className="text-sm text-slate-500 mb-4">
-            Hujjat: <strong>{certificateData.fileName}</strong> · Sertifikat № {certificateData.certificateNumber} ·{' '}
+            {t('Hujjat:')} <strong>{certificateData.fileName}</strong> {t('· Sertifikat №')} {certificateData.certificateNumber} ·{' '}
             {certificateData.checkDate}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
-            <ScoreBar label="Originallik" value={originalityPercent} color="#16a34a" />
-            <ScoreBar label="Iqtibos keltirishlar" value={result.citations} color="#2563eb" />
-            <ScoreBar label="O'z-o'zidan iqtibos keltirishlar" value={result.selfCitation} color="#ca8a04" />
-            <ScoreBar label="O'zlashtirib olishlar" value={result.plagiarism} color="#dc2626" />
+            <ScoreBar label={t('Originallik')} value={originalityPercent} color="#16a34a" />
+            <ScoreBar label={t('Iqtibos keltirishlar')} value={result.citations} color="#2563eb" />
+            <ScoreBar label={t("O'z-o'zidan iqtibos keltirishlar")} value={result.selfCitation} color="#ca8a04" />
+            <ScoreBar label={t("O'zlashtirib olishlar")} value={result.plagiarism} color="#dc2626" />
           </div>
           <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
-            Tekshiruv matnli kesishmalarni, iboralarni almashtirish va parafraz qilish holatlarini ham hisobga oladi.
-            Ko&apos;rsatkichlar jami 100% ni tashkil qiladi. Haqiqiy manbalar: platforma korpusi,
-            OpenAlex, Crossref va (sozlangan bo&apos;lsa) Semantic Scholar / CORE — simulyatsiyasiz overlap.
+            {t("Tekshiruv matnli kesishmalarni, iboralarni almashtirish va parafraz qilish holatlarini ham hisobga oladi. Ko'rsatkichlar jami 100% ni tashkil qiladi. Haqiqiy manbalar: platforma korpusi, OpenAlex, Crossref va (sozlangan bo'lsa) Semantic Scholar / CORE — simulyatsiyasiz overlap.")}
           </p>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <div className="rounded-lg border border-violet-100 bg-violet-50 p-3 text-center">
-              <p className="text-xs font-semibold text-slate-600">SI matn</p>
+              <p className="text-xs font-semibold text-slate-600">{t('SI matn')}</p>
               <p className="text-xl font-bold text-violet-700">{result.aiContent.toFixed(2)}%</p>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-center col-span-2 md:col-span-1">
-              <p className="text-xs font-semibold text-slate-600">Manbalar</p>
-              <p className="text-xl font-bold text-slate-800">{result.sources.length} ta</p>
+              <p className="text-xs font-semibold text-slate-600">{t('Manbalar')}</p>
+              <p className="text-xl font-bold text-slate-800">{t('{length} ta', { length: result.sources.length })}</p>
             </div>
           </div>
           <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-            <div><dt className="text-slate-500 inline">Muallif: </dt><dd className="inline font-medium">{certificateData.author}</dd></div>
-            <div><dt className="text-slate-500 inline">Ish turi: </dt><dd className="inline font-medium">{certificateData.workType}</dd></div>
-            <div><dt className="text-slate-500 inline">Modullar: </dt><dd className="inline font-medium">{certificateData.searchModules}</dd></div>
-            <div><dt className="text-slate-500 inline">Manbalar: </dt><dd className="inline font-medium">{result.sources.length} ta</dd></div>
+            <div><dt className="text-slate-500 inline">{t('Muallif:')} </dt><dd className="inline font-medium">{certificateData.author}</dd></div>
+            <div><dt className="text-slate-500 inline">{t('Ish turi:')} </dt><dd className="inline font-medium">{certificateData.workType}</dd></div>
+            <div><dt className="text-slate-500 inline">{t('Modullar:')} </dt><dd className="inline font-medium">{certificateData.searchModules}</dd></div>
+            <div><dt className="text-slate-500 inline">{t('Manbalar:')} </dt><dd className="inline font-medium">{t('{length} ta', { length: result.sources.length })}</dd></div>
           </dl>
         </div>
 
         <div className="flex flex-wrap gap-2 no-print">
           <Button onClick={() => setShowShortReport(true)} variant="secondary">
             <FileText className="mr-2 h-4 w-4" />
-            Qisqacha hisobot
+            {t('Qisqacha hisobot')}
           </Button>
           <Button onClick={() => setShowFullReport(true)}>
             <FileText className="mr-2 h-4 w-4" />
-            To&apos;liq hisobot
+            {t("To'liq hisobot")}
           </Button>
           <Button onClick={handlePrint} variant="secondary">
             <Download className="mr-2 h-4 w-4" />
-            PDF yuklab olish
+            {t('PDF yuklab olish')}
           </Button>
           <Button onClick={handlePrint} variant="secondary">
             <Printer className="mr-2 h-4 w-4" />
-            Chop etish
+            {t('Chop etish')}
           </Button>
         </div>
 
@@ -134,10 +134,10 @@ const AntiplagiatResultView: React.FC<Props> = ({
           </div>
         )}
 
-        <Card title="Topilgan manbalar (namuna)" className="no-print max-h-96 overflow-hidden flex flex-col">
+        <Card title={t('Topilgan manbalar (namuna)')} className="no-print max-h-96 overflow-hidden flex flex-col">
           <div className="overflow-y-auto max-h-72 space-y-3 pr-1">
             {result.sources.length === 0 ? (
-              <p className="text-sm text-slate-500 text-center py-4">Aniq manba topilmadi.</p>
+              <p className="text-sm text-slate-500 text-center py-4">{t('Aniq manba topilmadi.')}</p>
             ) : (
               result.sources.slice(0, 30).map((source, index) => (
                 <div key={index} className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
@@ -161,13 +161,13 @@ const AntiplagiatResultView: React.FC<Props> = ({
               ))
             )}
             {result.sources.length > 30 && (
-              <p className="text-xs text-slate-500 text-center">+ yana {result.sources.length - 30} ta manba to&apos;liq hisobotda</p>
+              <p className="text-xs text-slate-500 text-center">{t("+ yana {value} ta manba to'liq hisobotda", { value: result.sources.length - 30 })}</p>
             )}
           </div>
         </Card>
 
         <div id="certificate-print-area">
-          <h3 className="text-lg font-bold text-slate-900 mb-3">Tekshiruv sertifikati</h3>
+          <h3 className="text-lg font-bold text-slate-900 mb-3">{t('Tekshiruv sertifikati')}</h3>
           <AntiplagiatCertificate data={certificateData} />
         </div>
       </div>
@@ -175,15 +175,15 @@ const AntiplagiatResultView: React.FC<Props> = ({
       {showShortReport && (
         <div className="fixed inset-0 bg-black/90 z-50 flex flex-col print:bg-white">
           <div className="flex justify-between items-center p-4 bg-white/55 border-b border-slate-200/90 no-print">
-            <h3 className="text-xl font-bold text-slate-900">Qisqacha antiplagiat hisoboti</h3>
+            <h3 className="text-xl font-bold text-slate-900">{t('Qisqacha antiplagiat hisoboti')}</h3>
             <div className="flex gap-3">
               <Button onClick={() => window.print()} variant="primary">
                 <Printer className="mr-2 h-4 w-4" />
-                Chop etish / PDF
+                {t('Chop etish / PDF')}
               </Button>
               <Button onClick={() => setShowShortReport(false)} variant="secondary">
                 <X className="mr-2 h-4 w-4" />
-                Yopish
+                {t('Yopish')}
               </Button>
             </div>
           </div>
@@ -196,15 +196,15 @@ const AntiplagiatResultView: React.FC<Props> = ({
       {showFullReport && (
         <div className="fixed inset-0 bg-black/90 z-50 flex flex-col print:bg-white">
           <div className="flex justify-between items-center p-4 bg-white/55 border-b border-slate-200/90 no-print">
-            <h3 className="text-xl font-bold text-slate-900">To&apos;liq antiplagiat hisoboti</h3>
+            <h3 className="text-xl font-bold text-slate-900">{t("To'liq antiplagiat hisoboti")}</h3>
             <div className="flex gap-3">
               <Button onClick={() => window.print()} variant="primary">
                 <Printer className="mr-2 h-4 w-4" />
-                Chop etish / PDF
+                {t('Chop etish / PDF')}
               </Button>
               <Button onClick={() => setShowFullReport(false)} variant="secondary">
                 <X className="mr-2 h-4 w-4" />
-                Yopish
+                {t('Yopish')}
               </Button>
             </div>
           </div>

@@ -85,6 +85,8 @@ export interface User {
   averageReviewTime?: number; // in days
   acceptanceRate?: number; // percentage
   telegramUsername?: string; // For Telegram notifications
+  /** Telefon raqami Telegram orqali tasdiqlanganmi */
+  phoneVerified?: boolean;
 }
 
 export interface PlagiarismCheckResults {

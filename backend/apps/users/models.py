@@ -68,6 +68,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     average_review_time = models.FloatField(_('average review time (days)'), default=0)
     acceptance_rate = models.FloatField(_('acceptance rate (%)'), default=0)
     
+    # Telefon raqami egasiga tegishli ekani tasdiqlanganmi (Telegram kontakt ulashish orqali — bepul)
+    phone_verified = models.BooleanField(_('phone verified'), default=False)
+    phone_verified_at = models.DateTimeField(_('phone verified at'), null=True, blank=True)
+    # Ommaviy oferta va maxfiylik siyosatiga rozilik (qaysi tahririga va qachon)
+    terms_accepted_at = models.DateTimeField(_('terms accepted at'), null=True, blank=True)
+    terms_version = models.CharField(_('terms version'), max_length=20, blank=True)
+
     # Status fields
     is_active = models.BooleanField(_('active'), default=True)
     is_staff = models.BooleanField(_('staff status'), default=False)
@@ -105,6 +112,40 @@ class User(AbstractBaseUser, PermissionsMixin):
         if badge not in self.gamification_badges:
             self.gamification_badges.append(badge)
             self.save()
+
+
+class PhoneChallenge(models.Model):
+    """
+    Telegram orqali telefonni tasdiqlash / parolni tiklash uchun bir martalik kod.
+    Kod t.me/<bot>?start=<prefiks>_<kod> havolasida boradi; bot foydalanuvchidan kontaktini ulashishni so'raydi.
+    Telegram kontakt faqat egasi tomonidan yuborilganda (contact.user_id == yuboruvchi) qabul qilinadi.
+    """
+
+    PURPOSE_VERIFY = 'verify'
+    PURPOSE_RESET = 'reset'          # parolni tiklash so'rovi (telefon bo'yicha)
+    PURPOSE_RESET_LINK = 'reset_link'  # kontakt tasdiqlangach saytdagi bir martalik havola
+    PURPOSE_CHOICES = (
+        (PURPOSE_VERIFY, 'Telefonni tasdiqlash'),
+        (PURPOSE_RESET, 'Parolni tiklash'),
+        (PURPOSE_RESET_LINK, 'Parolni tiklash havolasi'),
+    )
+
+    code = models.CharField(max_length=64, unique=True, db_index=True)
+    purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='phone_challenges')
+    phone = models.CharField(max_length=20, blank=True)
+    telegram_id = models.BigIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _('Telefon tasdiqlash kodi')
+        verbose_name_plural = _('Telefon tasdiqlash kodlari')
+        indexes = [models.Index(fields=['purpose', 'created_at'])]
+
+    def __str__(self):
+        return f'{self.purpose}:{self.phone or self.user_id}'
 
 
 class TelegramSession(models.Model):

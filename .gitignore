@@ -42,3 +42,9 @@ db.sqlite3
 /hisobot*.jpg
 /sertifikat.jpg
 /task1.ogg
+
+# Antiplagiat lokal vektor indeksi (build_antiplag_vectors)
+backend/antiplag_vectors/
+
+# Server zaxiralari (infrastructure/backup/phoenix-backup.sh, deploy kod zaxiralari)
+/backups/

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
@@ -7,6 +7,8 @@ import AppFooter from './AppFooter';
 import ScrollingBanner from './ScrollingBanner';
 import ArticleChatDock, { MainRightInsetContext } from './ArticleChatDock';
 import CommandPalette from './CommandPalette';
+import { PageSkeleton } from './ui/Skeleton';
+import InstallAppBanner from './InstallAppBanner';
 import { X } from 'lucide-react';
 
 /**
@@ -51,11 +53,14 @@ const Layout: React.FC = () => {
         )}
 
         <div className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto flex flex-col">
+          <InstallAppBanner />
           <main
             className="pinm-main phoenix-main editorial-main flex-1 w-full max-w-[1264px] mx-auto px-4 py-6 sm:px-8 sm:py-8 pb-28 lg:pb-10 transition-[padding] duration-200"
             style={mainRightInset > 0 ? { paddingRight: mainRightInset } : undefined}
           >
-            <Outlet />
+            <Suspense fallback={<PageSkeleton />}>
+              <Outlet />
+            </Suspense>
           </main>
           <AppFooter />
         </div>

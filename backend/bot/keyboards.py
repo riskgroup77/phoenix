@@ -8,7 +8,7 @@ def guest_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
             ['🔒 Kirish', '📝 Ro\'yxatdan o\'tish'],
-            ['ℹ️ Yordam'],
+            ['🔑 Parolni tiklash', 'ℹ️ Yordam'],
         ],
         resize_keyboard=True,
     )

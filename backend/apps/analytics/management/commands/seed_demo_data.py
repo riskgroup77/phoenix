@@ -70,12 +70,27 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--purge', action='store_true', help="Faqat demo ma'lumotlarni o'chirish")
         parser.add_argument('--seed', type=int, default=2026, help='Tasodifiylik urug\'i (bir xil natija uchun)')
+        parser.add_argument(
+            '--logins', action='store_true',
+            help='--purge bilan: demo login hisoblarini (911111111/muallif ...) ham o\'chirish (ishga tushirishdan oldin)',
+        )
 
     def handle(self, *args, **opts):
+        from django.conf import settings
+        from django.core.management.base import CommandError
+
+        if not opts['purge'] and not settings.DEBUG and not getattr(settings, 'PHONIX_DEMO_ENABLED', True):
+            raise CommandError('PHONIX_DEMO_ENABLED=false — demo ma\'lumot yaratish o\'chirilgan.')
         with seeding():
             removed = self.purge()
             self.stdout.write(f"O'chirildi: {removed}")
             if opts['purge']:
+                if opts['logins']:
+                    self.stdout.write(f"Demo login hisoblari o'chirildi: {self.purge_logins()}")
+                    if getattr(settings, 'PHONIX_DEMO_ENABLED', True):
+                        self.stdout.write(self.style.WARNING(
+                            'Keyingi deploy ularni qayta yaratmasligi uchun backend/.env ga PHONIX_DEMO_ENABLED=false yozing.'
+                        ))
                 return
             call_command('setup_demo_and_admin', stdout=io.StringIO())
             self.rng = random.Random(opts['seed'])
@@ -140,6 +155,16 @@ class Command(BaseCommand):
                 name__in=names, authorpublication__isnull=True, conference__isnull=True,
             ).delete()
         return {k: v for k, v in out.items() if v}
+
+    def purge_logins(self) -> int:
+        """Demo login hisoblari (faqat @demo... email bilan belgilanganlari) va ularning qolgan yozuvlari."""
+        from apps.users.models import User
+
+        qs = User.objects.filter(demo_q())
+        n = qs.count()
+        with transaction.atomic():
+            qs.delete()
+        return n
 
     # ------------------------------------------------------------------ yordamchilar
 

@@ -5,6 +5,7 @@ import EditorialPageHeader from '../components/EditorialPageHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
 import { FileText, Loader2 } from 'lucide-react';
+import { useT } from '../i18n/LanguageContext';
 
 interface ArticleSampleRequestItem {
   id: string;
@@ -27,6 +28,7 @@ const qualityLabels: Record<string, string> = {
 };
 
 const ArticleSampleRequests: React.FC = () => {
+  const { t } = useT();
   const { user } = useAuth();
   const [list, setList] = useState<ArticleSampleRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,20 +56,20 @@ const ArticleSampleRequests: React.FC = () => {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <EditorialPageHeader
-        title="Maqola namuna so'rovlari"
+        title={t("Maqola namuna so'rovlari")}
         subtitle={
           isReviewer
-            ? "Mualliflar maqola namunasi olish uchun yuborgan so'rovlar. Talablar va mavzuni ko'ring."
-            : "Sizning maqola namuna so'rovlaringiz. Taqrizchi bajarganida status yangilanadi."
+            ? t("Mualliflar maqola namunasi olish uchun yuborgan so'rovlar. Talablar va mavzuni ko'ring.")
+            : t("Sizning maqola namuna so'rovlaringiz. Taqrizchi bajarganida status yangilanadi.")
         }
       />
       <Card>
         {loading ? (
           <p className="text-[var(--editorial-muted)] flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin text-[var(--editorial-primary)]" /> Yuklanmoqda…
+            <Loader2 className="h-4 w-4 animate-spin text-[var(--editorial-primary)]" /> {t('Yuklanmoqda…')}
           </p>
         ) : list.length === 0 ? (
-          <EmptyState compact illustration="inbox" title="So'rovlar yo'q" description="Yangi so'rovlar kelganda shu yerda ko'rinadi." />
+          <EmptyState compact illustration="inbox" title={t("So'rovlar yo'q")} description={t("Yangi so'rovlar kelganda shu yerda ko'rinadi.")} />
         ) : (
           <div className="space-y-4">
             {list.map((req) => (
@@ -79,13 +81,13 @@ const ArticleSampleRequests: React.FC = () => {
                 <p className="text-sm text-[var(--editorial-body)] line-clamp-2">{req.topic}</p>
                 <p className="text-xs text-[var(--editorial-muted)]">
                   {new Date(req.created_at).toLocaleDateString('uz-UZ')} ·{' '}
-                  {qualityLabels[req.quality_level] || req.quality_level} · {req.pages} sahifa ·{' '}
+                  {qualityLabels[req.quality_level] || req.quality_level} · {req.pages} {t('sahifa ·')}{' '}
                   {req.status === 'submitted'
-                    ? 'Kutilmoqda'
+                    ? t('Kutilmoqda')
                     : req.status === 'in_progress'
-                    ? 'Bajarilmoqda'
+                    ? t('Bajarilmoqda')
                     : req.status === 'completed'
-                    ? 'Yakunlangan'
+                    ? t('Yakunlangan')
                     : req.status}
                 </p>
                 {req.requirements && (

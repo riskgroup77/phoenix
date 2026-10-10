@@ -7,7 +7,8 @@ Sozlash:
      Payload URL: https://api.ilmiyfaoliyat.uz/hooks/github/deploy/
      Content type: application/json
      Secret: xuddi shu GITHUB_DEPLOY_WEBHOOK_SECRET
-     Events: Just the push event
+     Events: "Let me select individual events" → faqat "Workflow runs"
+     (deploy faqat CI testlari MUVAFFAQIYATLI o'tgandan keyin; push hodisasi e'tiborga olinmaydi)
   3) Gunicorn foydalanuvchisi deploy skriptini ishga tushira olishi kerak
      (odatda NOPASSWD sudo yoki skriptni deploy user uchun).
 
@@ -43,12 +44,28 @@ def _verify_github_signature(payload: bytes, secret: str, signature_header: str 
     return hmac.compare_digest(sent, expected)
 
 
-def _run_deploy_script() -> None:
+def _deploy_command(script: str, sha: str) -> list[str]:
+    """
+    Deploy skripti backend xizmatini qayta ishga tushiradi. Skript shu xizmat ichida (gunicorn) ishlasa,
+    systemd uni xizmat bilan birga to'xtatib yuboradi — shuning uchun alohida transient unit (systemd-run).
+    """
+    import shutil
+
+    if shutil.which('systemd-run') and shutil.which('sudo'):
+        return [
+            'sudo', '-n', 'systemd-run', '--unit', f'phoenix-deploy-{sha[:12] or "manual"}', '--collect',
+            '--setenv=PHONIX_GIT_RESET=true', f'--setenv=PHONIX_GIT_REF={sha}',
+            '/bin/bash', script,
+        ]
+    return ['/bin/bash', script]
+
+
+def _run_deploy_script(sha: str = '') -> None:
     script = getattr(settings, 'DEPLOY_HOOK_SCRIPT', '/phonix/deploy_phonix.sh')
-    env = {**os.environ, 'PHONIX_GIT_RESET': 'true'}
+    env = {**os.environ, 'PHONIX_GIT_RESET': 'true', 'PHONIX_GIT_REF': sha}
     try:
         proc = subprocess.run(
-            ['/bin/bash', script],
+            _deploy_command(script, sha),
             cwd='/phonix',
             env=env,
             timeout=3600,
@@ -82,7 +99,8 @@ def github_deploy_webhook(request) -> HttpResponse:
         return JsonResponse({'detail': 'invalid signature'}, status=401)
 
     event = request.headers.get('X-GitHub-Event') or ''
-    if event != 'push':
+    # Faqat CI tugaganda (workflow_run). "push" da deploy qilinmaydi — testdan o'tmagan kod chiqmasin.
+    if event != 'workflow_run':
         return JsonResponse({'ok': True, 'ignored': f'event:{event}'}, status=200)
 
     try:
@@ -95,13 +113,26 @@ def github_deploy_webhook(request) -> HttpResponse:
     if allowed_repos and repo_name not in allowed_repos:
         return JsonResponse({'ok': True, 'ignored': f'repo:{repo_name}'}, status=200)
 
+    run = data.get('workflow_run') or {}
     branch = (getattr(settings, 'GITHUB_DEPLOY_HOOK_BRANCH', 'main') or 'main').strip()
-    ref = data.get('ref') or ''
-    if ref != f'refs/heads/{branch}':
-        return JsonResponse({'ok': True, 'ignored': f'ref:{ref}'}, status=200)
+    workflow = (getattr(settings, 'GITHUB_DEPLOY_CI_WORKFLOW', 'CI') or 'CI').strip()
+    reasons = []
+    if data.get('action') != 'completed':
+        reasons.append(f"action:{data.get('action')}")
+    if run.get('name') != workflow:
+        reasons.append(f"workflow:{run.get('name')}")
+    if run.get('head_branch') != branch:
+        reasons.append(f"branch:{run.get('head_branch')}")
+    if run.get('event') != 'push':
+        reasons.append(f"trigger:{run.get('event')}")
+    if run.get('conclusion') != 'success':
+        reasons.append(f"conclusion:{run.get('conclusion')}")
+    if reasons:
+        return JsonResponse({'ok': True, 'ignored': ','.join(reasons)}, status=200)
 
-    t = threading.Thread(target=_run_deploy_script, name='github-deploy-hook', daemon=True)
+    sha = str(run.get('head_sha') or '')
+    t = threading.Thread(target=_run_deploy_script, args=(sha,), name='github-deploy-hook', daemon=True)
     t.start()
-    logger.info('GitHub deploy webhook: accepted push ref=%s repo=%s', ref, repo_name)
-    return JsonResponse({'accepted': True, 'ref': ref}, status=202)
+    logger.info('GitHub deploy webhook: CI success → deploy %s (%s)', sha[:12], repo_name)
+    return JsonResponse({'accepted': True, 'sha': sha}, status=202)
 

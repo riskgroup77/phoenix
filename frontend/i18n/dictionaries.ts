@@ -3,6 +3,8 @@
  * i18n/dictionaries.test.ts kodda t('…') bilan yozilgan har bir matn shu yerda borligini tekshiradi.
  * Kirill yozuvi lug'atsiz — avtomatik transliteratsiya (translit.ts).
  */
+import { PAGE_ROWS } from './dictPages';
+
 type Row = [uz: string, ru: string, en: string];
 
 const ROWS: Row[] = [
@@ -497,9 +499,11 @@ const ROWS: Row[] = [
   ['UDK, DOI, tarjima va kitob nashri xizmatlari', 'УДК, DOI, перевод и издание книг', 'UDC, DOI, translation and book publishing'],
 ];
 
+const ALL_ROWS: Row[] = [...ROWS, ...PAGE_ROWS];
+
 function build(index: 1 | 2): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const row of ROWS) out[row[0]] = row[index];
+  for (const row of ALL_ROWS) out[row[0]] = row[index];
   return out;
 }
 
@@ -509,4 +513,4 @@ export const DICTIONARIES: Record<'ru' | 'en', Record<string, string>> = {
 };
 
 /** Testlar uchun: lug'atdagi barcha o'zbekcha kalitlar */
-export const DICTIONARY_KEYS = ROWS.map((r) => r[0]);
+export const DICTIONARY_KEYS = ALL_ROWS.map((r) => r[0]);

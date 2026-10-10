@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
 import { DollarSign, Edit2, Save, X, Loader2, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useT } from '../i18n/LanguageContext';
 
 interface ServicePrice {
   id: number;
@@ -16,6 +17,7 @@ interface ServicePrice {
 }
 
 const PriceManagement: React.FC = () => {
+  const { t } = useT();
   const { user } = useAuth();
   const [prices, setPrices] = useState<ServicePrice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +44,7 @@ const PriceManagement: React.FC = () => {
       setPrices(pricesList);
     } catch (error) {
       console.error('Failed to load service prices:', error);
-      toast.error('Narxlarni yuklashda xatolik');
+      toast.error(t('Narxlarni yuklashda xatolik'));
     } finally {
       setLoading(false);
     }
@@ -60,18 +62,18 @@ const PriceManagement: React.FC = () => {
   const handleSave = async (id: number) => {
     const newAmount = editValues[id];
     if (!newAmount || newAmount < 0) {
-      toast.warning('Narx 0 dan katta bo\'lishi kerak');
+      toast.warning(t("Narx 0 dan katta bo'lishi kerak"));
       return;
     }
 
     setSaving(true);
     try {
       await apiService.udc.servicePrices.update(id, { amount: newAmount });
-      toast.success('Narx muvaffaqiyatli yangilandi');
+      toast.success(t('Narx muvaffaqiyatli yangilandi'));
       setEditingId(null);
       loadPrices();
     } catch (error: any) {
-      toast.error(error?.message || 'Narxni saqlashda xatolik');
+      toast.error(error?.message || t('Narxni saqlashda xatolik'));
     } finally {
       setSaving(false);
     }
@@ -79,33 +81,33 @@ const PriceManagement: React.FC = () => {
 
   const handleAddNew = async () => {
     if (!newService.service_key || !newService.label || !newService.amount) {
-      toast.warning('Barcha maydonlarni to\'ldiring');
+      toast.warning(t("Barcha maydonlarni to'ldiring"));
       return;
     }
 
     setSaving(true);
     try {
       await apiService.udc.servicePrices.create(newService);
-      toast.success('Yangi xizmat qo\'shildi');
+      toast.success(t("Yangi xizmat qo'shildi"));
       setShowAddModal(false);
       setNewService({ service_key: '', label: '', amount: 0 });
       loadPrices();
     } catch (error: any) {
-      toast.error(error?.message || 'Xizmat qo\'shishda xatolik');
+      toast.error(error?.message || t("Xizmat qo'shishda xatolik"));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Bu xizmatni o\'chirmoqchimisiz?')) return;
+    if (!confirm(t("Bu xizmatni o'chirmoqchimisiz?"))) return;
 
     try {
       await apiService.udc.servicePrices.delete(id);
-      toast.success('Xizmat o\'chirildi');
+      toast.success(t("Xizmat o'chirildi"));
       loadPrices();
     } catch (error: any) {
-      toast.error(error?.message || 'O\'chirishda xatolik');
+      toast.error(error?.message || t("O'chirishda xatolik"));
     }
   };
 
@@ -141,7 +143,7 @@ const PriceManagement: React.FC = () => {
   if (!user || user.role !== 'super_admin') {
     return (
       <div className="text-center py-12">
-        <p className="text-slate-500">Bu sahifaga faqat bosh administrator kirishi mumkin.</p>
+        <p className="text-slate-500">{t('Bu sahifaga faqat bosh administrator kirishi mumkin.')}</p>
       </div>
     );
   }
@@ -157,15 +159,15 @@ const PriceManagement: React.FC = () => {
               <DollarSign className="h-6 w-6 text-emerald-800" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900">Xizmat Narxlari</h1>
+              <h1 className="text-xl font-bold text-slate-900">{t('Xizmat Narxlari')}</h1>
               <p className="text-sm text-slate-500">
-                Barcha pullik xizmatlar narxlarini boshqarish
+                {t('Barcha pullik xizmatlar narxlarini boshqarish')}
               </p>
             </div>
           </div>
           <Button onClick={() => setShowAddModal(true)} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
-            Yangi Xizmat
+            {t('Yangi Xizmat')}
           </Button>
         </div>
 
@@ -174,16 +176,14 @@ const PriceManagement: React.FC = () => {
             <Loader2 className="h-8 w-8 animate-spin text-emerald-800" />
           </div>
         ) : prices.length === 0 ? (
-          <p className="text-slate-500 text-center py-8">Hozircha xizmatlar yo'q.</p>
+          <p className="text-slate-500 text-center py-8">{t("Hozircha xizmatlar yo'q.")}</p>
         ) : (
           <div className="space-y-6">
             {Object.entries(groupedPrices).map(([category, categoryPrices]) => (
               <div key={category}>
                 <h3 className="text-lg font-semibold text-slate-900 mb-3 flex items-center gap-2">
                   {category}
-                  <span className="text-xs px-2 py-1 rounded bg-white/10 text-slate-600">
-                    {categoryPrices.length} ta xizmat
-                  </span>
+                  <span className="text-xs px-2 py-1 rounded bg-white/10 text-slate-600">{t('{length} ta xizmat', { length: categoryPrices.length })}</span>
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {categoryPrices.map((price) => (
@@ -216,7 +216,7 @@ const PriceManagement: React.FC = () => {
                               className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700"
                             >
                               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                              Saqlash
+                              {t('Saqlash')}
                             </Button>
                             <Button
                               variant="secondary"
@@ -224,7 +224,7 @@ const PriceManagement: React.FC = () => {
                               className="flex items-center gap-2"
                             >
                               <X className="h-4 w-4" />
-                              Bekor qilish
+                              {t('Bekor qilish')}
                             </Button>
                           </div>
                         </div>
@@ -235,7 +235,7 @@ const PriceManagement: React.FC = () => {
                               {formatPrice(price.amount, price.currency)}
                             </p>
                             <p className="text-xs text-slate-500 mt-1">
-                              Oxirgi yangilanish: {new Date(price.updated_at).toLocaleDateString('uz-UZ')}
+                              {t('Oxirgi yangilanish:')} {new Date(price.updated_at).toLocaleDateString('uz-UZ')}
                             </p>
                           </div>
                           <div className="flex gap-2">
@@ -269,30 +269,30 @@ const PriceManagement: React.FC = () => {
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/35 flex items-center justify-center z-50 p-4">
           <div className="bg-white/55 rounded-xl p-6 max-w-md w-full border border-slate-200/90">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">Yangi Xizmat Qo'shish</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">{t("Yangi Xizmat Qo'shish")}</h3>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-slate-500 mb-1">Xizmat Kodi (service_key) *</label>
+                <label className="block text-sm font-medium text-slate-500 mb-1">{t('Xizmat Kodi (service_key) *')}</label>
                 <input
                   type="text"
                   value={newService.service_key}
                   onChange={(e) => setNewService(prev => ({ ...prev, service_key: e.target.value }))}
-                  placeholder="masalan: custom_service"
+                  placeholder={t('masalan: custom_service')}
                   className="w-full px-3 py-2 rounded-lg bg-slate-100/70 border border-slate-200/90 text-slate-900 focus:ring-2 focus:ring-green-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-500 mb-1">Xizmat Nomi *</label>
+                <label className="block text-sm font-medium text-slate-500 mb-1">{t('Xizmat Nomi *')}</label>
                 <input
                   type="text"
                   value={newService.label}
                   onChange={(e) => setNewService(prev => ({ ...prev, label: e.target.value }))}
-                  placeholder="Masalan: Maxsus xizmat"
+                  placeholder={t('Masalan: Maxsus xizmat')}
                   className="w-full px-3 py-2 rounded-lg bg-slate-100/70 border border-slate-200/90 text-slate-900 focus:ring-2 focus:ring-green-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-500 mb-1">Narx (so'm) *</label>
+                <label className="block text-sm font-medium text-slate-500 mb-1">{t("Narx (so'm) *")}</label>
                 <input
                   type="number"
                   value={newService.amount}
@@ -310,14 +310,14 @@ const PriceManagement: React.FC = () => {
                 onClick={() => setShowAddModal(false)}
                 className="flex-1"
               >
-                Bekor qilish
+                {t('Bekor qilish')}
               </Button>
               <Button
                 onClick={handleAddNew}
                 disabled={saving || !newService.service_key || !newService.label || !newService.amount}
                 className="flex-1 bg-green-600 hover:bg-green-700"
               >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Qo\'shish'}
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("Qo'shish")}
               </Button>
             </div>
           </div>

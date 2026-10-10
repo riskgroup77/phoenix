@@ -8,6 +8,7 @@ import Button from '../components/ui/Button';
 import { Download, UploadCloud, Send, Languages, ArrowRight, User, Calendar, FileText, Check, Loader2 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { TranslationStatus, Role } from '../types';
+import { useT } from '../i18n/LanguageContext';
 
 interface TranslationRequestApiResponse {
     id: string;
@@ -31,6 +32,7 @@ interface TranslationRequestApiResponse {
 }
 
 const TranslationDetail: React.FC = () => {
+    const { t } = useT();
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -64,7 +66,7 @@ const TranslationDetail: React.FC = () => {
                 setRequest(requestData as TranslationRequestApiResponse);
             } catch (err: unknown) {
                 console.error('Failed to fetch translation request:', err);
-                setError("Tarjima so'rovi ma'lumotlarini yuklashda xatolik yuz berdi.");
+                setError(t("Tarjima so'rovi ma'lumotlarini yuklashda xatolik yuz berdi."));
             } finally {
                 setLoading(false);
             }
@@ -75,8 +77,8 @@ const TranslationDetail: React.FC = () => {
 
     if (!user) {
         return (
-            <Card title="Kirish kerak">
-                <p>Ushbu sahifani ko&apos;rish uchun tizimga kiring.</p>
+            <Card title={t('Kirish kerak')}>
+                <p>{t("Ushbu sahifani ko'rish uchun tizimga kiring.")}</p>
             </Card>
         );
     }
@@ -87,10 +89,10 @@ const TranslationDetail: React.FC = () => {
 
     if (error) {
         return (
-            <Card title="Xatolik">
+            <Card title={t('Xatolik')}>
                 <p className="text-red-700">{error}</p>
                 <Button onClick={() => window.location.reload()} className="mt-4">
-                    Qayta urinish
+                    {t('Qayta urinish')}
                 </Button>
             </Card>
         );
@@ -98,8 +100,8 @@ const TranslationDetail: React.FC = () => {
 
     if (!request) {
         return (
-            <Card title="Xatolik">
-                <p>Tarjima so&apos;rovi topilmadi.</p>
+            <Card title={t('Xatolik')}>
+                <p>{t("Tarjima so'rovi topilmadi.")}</p>
             </Card>
         );
     }
@@ -111,8 +113,8 @@ const TranslationDetail: React.FC = () => {
 
     if (!canView) {
         return (
-            <Card title="Ruxsat rad etildi">
-                <p>Ushbu sahifani ko&apos;rish huquqingiz yo&apos;q.</p>
+            <Card title={t('Ruxsat rad etildi')}>
+                <p>{t("Ushbu sahifani ko'rish huquqingiz yo'q.")}</p>
             </Card>
         );
     }
@@ -133,7 +135,7 @@ const TranslationDetail: React.FC = () => {
             });
         } catch (err: unknown) {
             console.error('Failed to accept translation request:', err);
-            alert("Tarjima so'rovini qabul qilishda xatolik yuz berdi.");
+            alert(t("Tarjima so'rovini qabul qilishda xatolik yuz berdi."));
         }
     };
 
@@ -146,7 +148,7 @@ const TranslationDetail: React.FC = () => {
     const handleComplete = async () => {
         if (!canManage || !id) return;
         if (!translatedFile) {
-            alert('Iltimos, avval tarjima qilingan faylni yuklang.');
+            alert(t('Iltimos, avval tarjima qilingan faylni yuklang.'));
             return;
         }
 
@@ -166,11 +168,11 @@ const TranslationDetail: React.FC = () => {
                 link: '/articles',
             });
 
-            alert("Tarjima muvaffaqiyatli yuborildi. Muallif tayyor faylni ko'ra oladi.");
+            alert(t("Tarjima muvaffaqiyatli yuborildi. Muallif tayyor faylni ko'ra oladi."));
             navigate('/articles');
         } catch (err: unknown) {
             console.error('Failed to complete translation:', err);
-            alert('Tarjimani yakunlashda xatolik yuz berdi.');
+            alert(t('Tarjimani yakunlashda xatolik yuz berdi.'));
         } finally {
             setUploading(false);
         }
@@ -213,25 +215,24 @@ const TranslationDetail: React.FC = () => {
                             }`}
                         >
                             <p className="font-semibold text-slate-900">
-                                To&apos;lov holati
+                                {t("To'lov holati")}
                             </p>
                             <p className="mt-1 text-slate-800">
                                 {request.payment_status_label ||
                                     (costNum <= 0
-                                        ? 'To\'lov talab qilinmaydi.'
+                                        ? t("To'lov talab qilinmaydi.")
                                         : request.payment_completed
-                                          ? 'To\'lov tasdiqlangan.'
-                                          : 'To\'lov holati tekshirilmoqda — «Xizmatlar → Tarjima»dan to\'lovni yakunlang.')}
+                                          ? t("To'lov tasdiqlangan.")
+                                          : t("To'lov holati tekshirilmoqda — «Xizmatlar → Tarjima»dan to'lovni yakunlang."))}
                             </p>
                             {showAuthorPayReminder && (
                                 <p className="mt-2 text-xs text-slate-700">
-                                    Click yoki Payme orqali to&apos;lov tugagach, bu yerda &quot;To&apos;lov tasdiqlangan&quot;
-                                    deb chiqadi. To&apos;lov kutayotgan bo&apos;lsa, biroz kutib sahifani yangilang.
+                                    {t('Click yoki Payme orqali to\'lov tugagach, bu yerda "To\'lov tasdiqlangan" deb chiqadi. To\'lov kutayotgan bo\'lsa, biroz kutib sahifani yangilang.')}
                                 </p>
                             )}
                             {canManage && translationNeedsPay && (
                                 <p className="mt-2 text-xs text-amber-950">
-                                    Muallif to&apos;lovni yakunlaguncha buyurtmani ishga qabul qilish mumkin emas.
+                                    {t("Muallif to'lovni yakunlaguncha buyurtmani ishga qabul qilish mumkin emas.")}
                                 </p>
                             )}
                         </div>
@@ -239,8 +240,7 @@ const TranslationDetail: React.FC = () => {
 
                     {isAuthor && !canManage && (
                         <p className="text-sm text-slate-500 mb-4 p-3 rounded-lg bg-slate-100/70 border border-slate-200/90">
-                            Bu sizning tarjima buyurtmangiz. Holat yangilanishi va tayyor fayl paydo bo&apos;lishi
-                            taqrizchi tomonidan bajariladi.
+                            {t("Bu sizning tarjima buyurtmangiz. Holat yangilanishi va tayyor fayl paydo bo'lishi taqrizchi tomonidan bajariladi.")}
                         </p>
                     )}
 
@@ -248,36 +248,34 @@ const TranslationDetail: React.FC = () => {
                         <div className="editorial-card flex items-center gap-3 p-3 !mb-0">
                             <User className="w-5 h-5 text-slate-500" />
                             <div>
-                                <p className="text-xs text-slate-500">Muallif</p>
-                                <p className="font-semibold text-slate-900">{request.author_name || "Noma'lum"}</p>
+                                <p className="text-xs text-slate-500">{t('Muallif')}</p>
+                                <p className="font-semibold text-slate-900">{request.author_name || t("Noma'lum")}</p>
                             </div>
                         </div>
                         <div className="editorial-card flex items-center gap-3 p-3 !mb-0">
                             <Calendar className="w-5 h-5 text-slate-500" />
                             <div>
-                                <p className="text-xs text-slate-500">Sana</p>
+                                <p className="text-xs text-slate-500">{t('Sana')}</p>
                                 <p className="font-semibold text-slate-900">
                                     {request.submission_date
                                         ? new Date(request.submission_date).toLocaleDateString()
-                                        : "Noma'lum"}
+                                        : t("Noma'lum")}
                                 </p>
                             </div>
                         </div>
                         <div className="editorial-card flex items-center gap-3 p-3 !mb-0">
                             <FileText className="w-5 h-5 text-slate-500" />
                             <div>
-                                <p className="text-xs text-slate-500">So&apos;zlar soni</p>
-                                <p className="font-semibold text-slate-900">
-                                    {request.word_count?.toLocaleString() || 0} ta
-                                </p>
+                                <p className="text-xs text-slate-500">{t("So'zlar soni")}</p>
+                                <p className="font-semibold text-slate-900">{t('{value} ta', { value: request.word_count?.toLocaleString() || 0 })}</p>
                             </div>
                         </div>
                         <div className="editorial-card flex items-center gap-3 p-3 !mb-0">
                             <FileText className="w-5 h-5 text-slate-500" />
                             <div>
-                                <p className="text-xs text-slate-500">Narxi</p>
+                                <p className="text-xs text-slate-500">{t('Narxi')}</p>
                                 <p className="font-semibold text-slate-900">
-                                    {request.cost != null ? Number(request.cost).toLocaleString() : 0} so&apos;m
+                                    {request.cost != null ? Number(request.cost).toLocaleString() : 0} {t("so'm")}
                                 </p>
                             </div>
                         </div>
@@ -285,41 +283,39 @@ const TranslationDetail: React.FC = () => {
                 </Card>
             </div>
             <div className="lg:col-span-1 space-y-6">
-                <Card title="Asosiy hujjat">
+                <Card title={t('Asosiy hujjat')}>
                     {request.source_file_path ? (
                         <a href={apiService.getMediaUrl(request.source_file_path)} download>
                             <Button variant="secondary" className="w-full">
-                                <Download className="mr-2 h-4 w-4" /> Manba faylni yuklab olish
+                                <Download className="mr-2 h-4 w-4" /> {t('Manba faylni yuklab olish')}
                             </Button>
                         </a>
                     ) : (
-                        <p className="text-slate-500 text-center py-4">Hujjat mavjud emas</p>
+                        <p className="text-slate-500 text-center py-4">{t('Hujjat mavjud emas')}</p>
                     )}
                 </Card>
 
                 {canAccept && (
-                    <Card title="Harakatlar">
+                    <Card title={t('Harakatlar')}>
                         <p className="text-xs text-slate-500 mb-3">
-                            Avval manba faylni yuklab oling, tarjima qiling, keyin tayyor faylni yuklash uchun
-                            &quot;Jarayonda&quot; holatiga o&apos;ting.
+                            {t('Avval manba faylni yuklab oling, tarjima qiling, keyin tayyor faylni yuklash uchun "Jarayonda" holatiga o\'ting.')}
                         </p>
                         <Button onClick={handleAcceptRequest} className="w-full">
-                            <Check className="mr-2 h-4 w-4" /> Ishga qabul qilish
+                            <Check className="mr-2 h-4 w-4" /> {t('Ishga qabul qilish')}
                         </Button>
                     </Card>
                 )}
 
                 {canUpload && (
-                    <Card title="Tayyor tarjimani yuklash">
+                    <Card title={t('Tayyor tarjimani yuklash')}>
                         <p className="text-xs text-slate-500 mb-3">
-                            Tarjima yoki tayyor matnni (DOCX/PDF) yuklang. Yakunlaganingizdan keyin muallifga
-                            ko&apos;rinadi.
+                            {t("Tarjima yoki tayyor matnni (DOCX/PDF) yuklang. Yakunlaganingizdan keyin muallifga ko'rinadi.")}
                         </p>
                         <label htmlFor="file-upload" className="cursor-pointer">
                             <div className="p-8 border-2 border-dashed rounded-lg border-[var(--editorial-border)] text-center bg-[var(--editorial-bg-alt)] hover:border-[var(--editorial-primary)]/40 transition-colors">
                                 <UploadCloud className="mx-auto h-12 w-12 text-slate-500" />
                                 <p className="mt-2 text-sm text-slate-500">
-                                    {translatedFile ? `Tanlandi: ${translatedFile.name}` : 'Tayyor faylni tanlang'}
+                                    {translatedFile ? `Tanlandi: ${translatedFile.name}` : t('Tayyor faylni tanlang')}
                                 </p>
                             </div>
                             <input id="file-upload" type="file" className="sr-only" onChange={handleFileChange} />
@@ -332,11 +328,11 @@ const TranslationDetail: React.FC = () => {
                             {uploading ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Yuklanmoqda...
+                                    {t('Yuklanmoqda...')}
                                 </>
                             ) : (
                                 <>
-                                    <Send className="mr-2 h-4 w-4" /> Yakunlash va muallifga yuborish
+                                    <Send className="mr-2 h-4 w-4" /> {t('Yakunlash va muallifga yuborish')}
                                 </>
                             )}
                         </Button>
@@ -344,10 +340,10 @@ const TranslationDetail: React.FC = () => {
                 )}
 
                 {request.status === TranslationStatus.Bajarildi && request.translated_file_path && (
-                    <Card title="Tayyor tarjima">
+                    <Card title={t('Tayyor tarjima')}>
                         <a href={apiService.getMediaUrl(request.translated_file_path)} download>
                             <Button variant="primary" className="w-full">
-                                <Download className="mr-2 h-4 w-4" /> Tayyor faylni yuklab olish
+                                <Download className="mr-2 h-4 w-4" /> {t('Tayyor faylni yuklab olish')}
                             </Button>
                         </a>
                     </Card>

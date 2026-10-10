@@ -4,6 +4,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { apiService } from '../services/apiService';
 import { BookOpen, Download, ExternalLink, Loader2 } from 'lucide-react';
+import { useT } from '../i18n/LanguageContext';
 
 interface PublicArticleData {
   id: string;
@@ -24,6 +25,7 @@ interface PublicArticleData {
 }
 
 const PublicArticleShare: React.FC = () => {
+  const { t } = useT();
   const { id } = useParams<{ id: string }>();
   const [article, setArticle] = useState<PublicArticleData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +34,7 @@ const PublicArticleShare: React.FC = () => {
   useEffect(() => {
     const fetchPublicArticle = async () => {
       if (!id) {
-        setError('Maqola havolasi noto‘g‘ri.');
+        setError(t('Maqola havolasi noto‘g‘ri.'));
         setLoading(false);
         return;
       }
@@ -44,7 +46,7 @@ const PublicArticleShare: React.FC = () => {
         const data = response?.data || response;
         setArticle(data);
       } catch (err: any) {
-        setError(err?.message || 'Maqola ma’lumotlarini yuklashda xatolik yuz berdi.');
+        setError(err?.message || t('Maqola ma’lumotlarini yuklashda xatolik yuz berdi.'));
       } finally {
         setLoading(false);
       }
@@ -56,10 +58,10 @@ const PublicArticleShare: React.FC = () => {
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto py-10">
-        <Card title="Maqola ma'lumotlari yuklanmoqda">
+        <Card title={t("Maqola ma'lumotlari yuklanmoqda")}>
           <div className="flex items-center justify-center py-12 text-slate-600">
             <Loader2 className="h-6 w-6 animate-spin mr-2" />
-            Yuklanmoqda...
+            {t('Yuklanmoqda...')}
           </div>
         </Card>
       </div>
@@ -69,11 +71,11 @@ const PublicArticleShare: React.FC = () => {
   if (error || !article) {
     return (
       <div className="max-w-3xl mx-auto py-10">
-        <Card title="Maqola topilmadi">
-          <p className="text-red-800">{error || 'Maqola topilmadi.'}</p>
+        <Card title={t('Maqola topilmadi')}>
+          <p className="text-red-800">{error || t('Maqola topilmadi.')}</p>
           <div className="mt-5">
             <Link to="/login">
-              <Button>Kirish sahifasiga o‘tish</Button>
+              <Button>{t('Kirish sahifasiga o‘tish')}</Button>
             </Link>
           </div>
         </Card>
@@ -84,14 +86,14 @@ const PublicArticleShare: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50/90 py-10 px-4">
       <div className="max-w-2xl mx-auto">
-        <Card title="Nashr etilgan maqola">
+        <Card title={t('Nashr etilgan maqola')}>
           <div className="space-y-6">
             <div>
               <h2 className="text-xl font-bold text-slate-900 leading-snug">{article.title}</h2>
               <p className="text-sm text-slate-500 mt-1">
-                Muallif: <span className="text-slate-700">{article.author_name || 'Noma’lum'}</span>
+                {t('Muallif:')} <span className="text-slate-700">{article.author_name || t('Noma’lum')}</span>
                 {' · '}
-                Jurnal: <span className="text-slate-700">{article.journal_name || 'Noma’lum'}</span>
+                {t('Jurnal:')} <span className="text-slate-700">{article.journal_name || t('Noma’lum')}</span>
               </p>
               {article.doi && (
                 <p className="text-sm text-slate-500 mt-0.5">DOI: <span className="text-slate-700">{article.doi}</span></p>
@@ -100,10 +102,10 @@ const PublicArticleShare: React.FC = () => {
 
             {/* Jurnal linki va sertifikat — share sahifasining asosiy qismi */}
             <div className="rounded-xl bg-slate-100/70 border border-slate-200/90 p-4 space-y-4">
-              <h3 className="text-sm font-semibold text-slate-600">Nashr natijalari</h3>
+              <h3 className="text-sm font-semibold text-slate-600">{t('Nashr natijalari')}</h3>
               {article.publication_link ? (
                 <div>
-                  <p className="text-xs text-slate-500 mb-1">Maqola chop etilgan jurnal havolasi</p>
+                  <p className="text-xs text-slate-500 mb-1">{t('Maqola chop etilgan jurnal havolasi')}</p>
                   <a
                     href={article.publication_link}
                     target="_blank"
@@ -111,15 +113,15 @@ const PublicArticleShare: React.FC = () => {
                     className="inline-flex items-center gap-2 text-blue-800 hover:text-blue-700 font-medium"
                   >
                     <ExternalLink size={18} />
-                    Jurnal havolasini ochish
+                    {t('Jurnal havolasini ochish')}
                   </a>
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">Jurnal havolasi hali kiritilmagan.</p>
+                <p className="text-sm text-slate-500">{t('Jurnal havolasi hali kiritilmagan.')}</p>
               )}
               {article.certificate_download_link ? (
                 <div>
-                  <p className="text-xs text-slate-500 mb-1">Nashr sertifikati</p>
+                  <p className="text-xs text-slate-500 mb-1">{t('Nashr sertifikati')}</p>
                   <a
                     href={article.certificate_download_link}
                     target="_blank"
@@ -128,39 +130,39 @@ const PublicArticleShare: React.FC = () => {
                     download
                   >
                     <Download size={18} />
-                    Sertifikatni yuklab olish
+                    {t('Sertifikatni yuklab olish')}
                   </a>
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">Sertifikat hali yuklanmagan.</p>
+                <p className="text-sm text-slate-500">{t('Sertifikat hali yuklanmagan.')}</p>
               )}
             </div>
 
             {(!article.publication_link && !article.certificate_download_link) && (
               <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-950 text-sm">
-                Nashr havolasi va sertifikat hali to‘ldirilmagan.
+                {t('Nashr havolasi va sertifikat hali to‘ldirilmagan.')}
               </div>
             )}
 
           <div className="pt-2">
-            <h3 className="text-lg font-semibold text-slate-900 mb-3">Antiplagiat tarixi</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-3">{t('Antiplagiat tarixi')}</h3>
             {Array.isArray(article.plagiarism_history) && article.plagiarism_history.length > 0 ? (
               <div className="space-y-2">
                 {article.plagiarism_history.map((item, index) => (
                   <div key={`${item.checked_at}-${index}`} className="p-3 rounded-lg bg-slate-100/70 border border-slate-200/90">
                     <p className="text-xs text-slate-500">
-                      Tekshiruv vaqti: {item.checked_at ? new Date(item.checked_at).toLocaleString() : 'Noma’lum'}
+                      {t('Tekshiruv vaqti:')} {item.checked_at ? new Date(item.checked_at).toLocaleString() : t('Noma’lum')}
                     </p>
                     <div className="mt-1 text-sm text-slate-700 flex flex-col sm:flex-row sm:gap-6">
-                      <span>Plagiat: <strong>{item.plagiarism_percentage ?? '—'}%</strong></span>
-                      <span>AI kontent: <strong>{item.ai_content_percentage ?? '—'}%</strong></span>
+                      <span>{t('Plagiat:')} <strong>{item.plagiarism_percentage ?? '—'}%</strong></span>
+                      <span>{t('AI kontent:')} <strong>{item.ai_content_percentage ?? '—'}%</strong></span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="p-3 rounded-lg bg-slate-100/70 border border-slate-200/90 text-sm text-slate-500">
-                Hozircha antiplagiat tarixi mavjud emas.
+                {t('Hozircha antiplagiat tarixi mavjud emas.')}
               </div>
             )}
           </div>
@@ -168,7 +170,7 @@ const PublicArticleShare: React.FC = () => {
           <div className="pt-2">
             <Link to="/login">
               <Button>
-                <BookOpen className="mr-2 h-4 w-4" /> Platformaga kirish
+                <BookOpen className="mr-2 h-4 w-4" /> {t('Platformaga kirish')}
               </Button>
             </Link>
           </div>

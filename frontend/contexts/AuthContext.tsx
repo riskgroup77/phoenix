@@ -3,6 +3,8 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { useNavigate } from 'react-router-dom';
 import { User, Notification } from '../types';
 import { apiService } from '../services/apiService';
+import { clearTokens, hasStoredSession } from '../utils/authTokens';
+import { clearServiceWorkerRuntimeCache } from '../utils/pwa';
 
 export interface LoginResult {
   ok: boolean;
@@ -21,6 +23,8 @@ interface AuthContextType {
   markAsRead: (id: number) => void;
   markAllAsRead: () => void;
   unreadCount: number;
+  /** Telegram orqali tasdiqlangach — sahifani yangilamasdan holatni yangilash */
+  markPhoneVerified: () => void;
 }
 
 // Create the context with a default value that matches AuthContextType
@@ -35,6 +39,7 @@ const AuthContext = createContext<AuthContextType>({
   markAsRead: () => {},
   markAllAsRead: () => {},
   unreadCount: 0,
+  markPhoneVerified: () => {},
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -47,8 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshNotifications = useCallback(async () => {
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) return;
+      if (!hasStoredSession()) return;
       const notificationsData = await apiService.notifications.list();
       // API sahifalangan ({count, results}) yoki oddiy massiv qaytarishi mumkin
       const notificationsArray = Array.isArray(notificationsData)
@@ -72,12 +76,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Load user from localStorage on initial load
+  // Sahifa ochilganda sessiyani tiklash (token xotirada yoki HttpOnly cookie'da)
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const token = localStorage.getItem('access_token');
-        if (!token) {
+        // Cookie rejimida token xotirada yo'q bo'lishi mumkin — profil so'rovi HttpOnly cookie bilan tiklaydi
+        if (!hasStoredSession()) {
           setLoading(false);
           return;
         }
@@ -106,7 +110,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               points: 0
             },
             avatarUrl: userData.avatar_url || userData.avatarUrl || '',
-            telegramUsername: userData.telegram_username || userData.telegramUsername || ''
+            telegramUsername: userData.telegram_username || userData.telegramUsername || '',
+            phoneVerified: Boolean(userData.phone_verified),
           };
           
           setUser(user);
@@ -124,8 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!isSessionExpired) {
             console.error('Failed to fetch user profile:', profileError);
           }
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
+          clearTokens();
           setTimeout(() => navigate('/login'), 0);
         }
       } catch (error: any) {
@@ -140,8 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!isSessionExpired) {
           console.error('Error in loadUser:', error);
         }
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
+        clearTokens();
         setTimeout(() => navigate('/login'), 0);
       } finally {
         setLoading(false);
@@ -152,16 +155,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [navigate, refreshNotifications]);
 
   // Bell bildirgilarini yangilab turish (DOI, taqriz va boshqalar real-time ko'rinsin)
+  // Yengil so'rov: faqat o'qilmaganlar soni; ro'yxat faqat son o'zgarganda yuklanadi.
+  // Tab yashirin bo'lsa — to'xtaydi, qaytganda darhol yangilanadi; xatoda oraliq uzayadi (5 daqiqagacha).
+  const lastUnreadRef = React.useRef<number | null>(null);
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    refreshNotifications();
-    const t = window.setInterval(() => {
-      if (!cancelled) refreshNotifications();
-    }, 30000);
+    let failures = 0;
+    let timer: number | undefined;
+    const BASE_MS = 30000;
+
+    const poll = async () => {
+      if (cancelled) return;
+      if (typeof document !== 'undefined' && document.hidden) {
+        schedule();
+        return;
+      }
+      try {
+        const res = await apiService.notifications.unreadCount();
+        const count = Number(res?.count ?? res?.data?.count ?? 0);
+        if (count !== lastUnreadRef.current) {
+          lastUnreadRef.current = count;
+          await refreshNotifications();
+        }
+        failures = 0;
+      } catch {
+        failures = Math.min(failures + 1, 4);
+      }
+      schedule();
+    };
+    const schedule = () => {
+      if (cancelled) return;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(poll, Math.min(BASE_MS * 2 ** failures, 300000));
+    };
+    const onVisible = () => {
+      if (!document.hidden) {
+        window.clearTimeout(timer);
+        void poll();
+      }
+    };
+
+    lastUnreadRef.current = null;
+    void refreshNotifications();
+    schedule();
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       cancelled = true;
-      window.clearInterval(t);
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [user, refreshNotifications]);
 
@@ -197,14 +239,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Extract tokens and user data from different possible response structures
       const accessToken = responseData?.access || responseData?.access_token;
-      const refreshToken = responseData?.refresh || responseData?.refresh_token;
       const userData = responseData?.user || responseData;
       
-      if (accessToken) {
-        localStorage.setItem('access_token', accessToken);
-        if (refreshToken) {
-          localStorage.setItem('refresh_token', refreshToken);
-        }
+      if (accessToken || responseData?.cookie_auth) {
+        // Tokenlar apiService.auth.login da saqlangan (cookie rejimida — faqat xotirada)
 
         // If we have user data in the response, use it directly
         if (userData?.id) {
@@ -223,7 +261,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               points: 0
             },
             avatarUrl: userData.avatar_url || userData.avatarUrl || '',
-            telegramUsername: userData.telegram_username || userData.telegramUsername || ''
+            telegramUsername: userData.telegram_username || userData.telegramUsername || '',
+            phoneVerified: Boolean(userData.phone_verified),
           };
           
           setUser(user);
@@ -302,6 +341,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     await apiService.auth.logout();
+    clearServiceWorkerRuntimeCache();
     setUser(null);
     navigate('/login');
   }, [navigate]);
@@ -345,6 +385,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  const markPhoneVerified = useCallback(() => {
+    setUser((u) => (u ? { ...u, phoneVerified: true } : u));
+  }, []);
+
   const contextValue: AuthContextType = {
     user,
     login,
@@ -356,6 +400,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     markAsRead,
     markAllAsRead,
     unreadCount,
+    markPhoneVerified,
   };
 
   return React.createElement(

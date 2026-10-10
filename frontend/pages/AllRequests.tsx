@@ -10,8 +10,10 @@ import {
   OperatorServiceType,
 } from '../utils/operatorRequests';
 import { toast } from 'react-toastify';
+import { useT } from '../i18n/LanguageContext';
 
 const AllRequests: React.FC = () => {
+  const { t } = useT();
   const { user } = useAuth();
   const [requests, setRequests] = useState<OperatorRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +31,7 @@ const AllRequests: React.FC = () => {
     } catch (error) {
       console.error('Failed to load requests:', error);
       setLoadError('So\'rovlarni yuklashda xatolik. Qayta urinib ko\'ring.');
-      toast.error('So\'rovlarni yuklab bo\'lmadi');
+      toast.error(t("So'rovlarni yuklab bo'lmadi"));
     } finally {
       setLoading(false);
     }
@@ -87,15 +89,15 @@ const AllRequests: React.FC = () => {
   });
 
   if (user?.role !== Role.Operator) {
-    return <div className="text-red-500 text-center mt-8">Bu sahifa faqat operatorlar uchun.</div>;
+    return <div className="text-red-500 text-center mt-8">{t('Bu sahifa faqat operatorlar uchun.')}</div>;
   }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Barcha So&apos;rovlar</h1>
-          <p className="text-slate-500">UDK, DOI, namuna, tarjima va maqola so&apos;rovlari (API)</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">{t("Barcha So'rovlar")}</h1>
+          <p className="text-slate-500">{t("UDK, DOI, namuna, tarjima va maqola so'rovlari (API)")}</p>
         </div>
         <button
           type="button"
@@ -104,7 +106,7 @@ const AllRequests: React.FC = () => {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white/80 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Yangilash
+          {t('Yangilash')}
         </button>
       </div>
 
@@ -118,7 +120,7 @@ const AllRequests: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-5 h-5" />
             <input
               type="text"
-              placeholder="Qidiruv (maqola, muallif, jurnal)..."
+              placeholder={t('Qidiruv (maqola, muallif, jurnal)...')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -130,14 +132,14 @@ const AllRequests: React.FC = () => {
             onChange={(e) => setFilterType(e.target.value)}
             className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="all">Barcha xizmatlar</option>
+            <option value="all">{t('Barcha xizmatlar')}</option>
             <option value="DOI">DOI</option>
             <option value="UDK">UDK</option>
-            <option value="ArticleSample">Maqola namuna</option>
-            <option value="PlagiarismCheck">Antiplagiat</option>
-            <option value="Translation">Tarjima</option>
-            <option value="BookPublication">Kitob nashr</option>
-            <option value="JournalArticle">Jurnal maqolasi</option>
+            <option value="ArticleSample">{t('Maqola namuna')}</option>
+            <option value="PlagiarismCheck">{t('Antiplagiat')}</option>
+            <option value="Translation">{t('Tarjima')}</option>
+            <option value="BookPublication">{t('Kitob nashr')}</option>
+            <option value="JournalArticle">{t('Jurnal maqolasi')}</option>
           </select>
 
           <select
@@ -145,42 +147,42 @@ const AllRequests: React.FC = () => {
             onChange={(e) => setFilterStatus(e.target.value)}
             className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="all">Barcha holatlar</option>
-            <option value={ArticleStatus.Yangi}>Yangi</option>
-            <option value="submitted">Yuborilgan</option>
-            <option value="pending">Kutilmoqda</option>
-            <option value={ArticleStatus.WithEditor}>Redaktorda</option>
-            <option value={ArticleStatus.PlagiarismReview}>Tekshiruvda</option>
-            <option value="completed">Yakunlangan</option>
-            <option value={ArticleStatus.Published}>Nashr etilgan</option>
-            <option value="rejected">Rad etilgan</option>
+            <option value="all">{t('Barcha holatlar')}</option>
+            <option value={ArticleStatus.Yangi}>{t('Yangi')}</option>
+            <option value="submitted">{t('Yuborilgan')}</option>
+            <option value="pending">{t('Kutilmoqda')}</option>
+            <option value={ArticleStatus.WithEditor}>{t('Redaktorda')}</option>
+            <option value={ArticleStatus.PlagiarismReview}>{t('Tekshiruvda')}</option>
+            <option value="completed">{t('Yakunlangan')}</option>
+            <option value={ArticleStatus.Published}>{t('Nashr etilgan')}</option>
+            <option value="rejected">{t('Rad etilgan')}</option>
           </select>
         </div>
       </div>
 
       <div className="bg-slate-100/70 backdrop-blur-lg rounded-xl border border-slate-200/90 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
+        <div className="overflow-x-auto rtable-wrap">
+          <table className="min-w-full rtable">
             <thead className="bg-slate-100/70">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">#</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Maqola</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Muallif</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Jurnal</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Xizmat</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Holat</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Sana</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Amal</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">{t('Maqola')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">{t('Muallif')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">{t('Jurnal')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">{t('Xizmat')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">{t('Holat')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">{t('Sana')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">{t('Amal')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200/50">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-slate-500">Yuklanmoqda...</td>
+                  <td colSpan={8} className="px-6 py-8 text-center text-slate-500">{t('Yuklanmoqda...')}</td>
                 </tr>
               ) : filteredRequests.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-slate-500">So&apos;rovlar topilmadi</td>
+                  <td colSpan={8} className="px-6 py-8 text-center text-slate-500">{t("So'rovlar topilmadi")}</td>
                 </tr>
               ) : (
                 filteredRequests.map((request, index) => {
@@ -237,7 +239,7 @@ const AllRequests: React.FC = () => {
         <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-xl p-6 border border-blue-500/30">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-blue-900 mb-1">Jami</p>
+              <p className="text-sm text-blue-900 mb-1">{t('Jami')}</p>
               <p className="text-3xl font-bold text-slate-900">{requests.length}</p>
             </div>
             <FileText className="w-12 h-12 text-blue-800 opacity-50" />
@@ -246,7 +248,7 @@ const AllRequests: React.FC = () => {
         <div className="bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 rounded-xl p-6 border border-yellow-500/30">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-yellow-900 mb-1">Kutilmoqda</p>
+              <p className="text-sm text-yellow-900 mb-1">{t('Kutilmoqda')}</p>
               <p className="text-3xl font-bold text-slate-900">
                 {requests.filter((r) => r.status === 'pending' || r.status === 'submitted').length}
               </p>
@@ -257,7 +259,7 @@ const AllRequests: React.FC = () => {
         <div className="bg-gradient-to-br from-green-500/20 to-green-600/20 rounded-xl p-6 border border-green-500/30">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-emerald-900 mb-1">Yakunlangan</p>
+              <p className="text-sm text-emerald-900 mb-1">{t('Yakunlangan')}</p>
               <p className="text-3xl font-bold text-slate-900">
                 {requests.filter((r) => r.status === 'completed' || r.status === ArticleStatus.Published).length}
               </p>
@@ -268,7 +270,7 @@ const AllRequests: React.FC = () => {
         <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/20 rounded-xl p-6 border border-purple-500/30">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-purple-900 mb-1">Rad etilgan</p>
+              <p className="text-sm text-purple-900 mb-1">{t('Rad etilgan')}</p>
               <p className="text-3xl font-bold text-slate-900">
                 {requests.filter((r) => r.status === 'rejected' || r.status === ArticleStatus.Rejected).length}
               </p>

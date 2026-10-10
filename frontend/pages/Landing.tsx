@@ -363,14 +363,14 @@ const Landing: React.FC = () => {
               </p>
             </div>
           </div>
-          <form onSubmit={submitVerify} className="flex gap-2 w-full lg:w-auto">
+          <form onSubmit={submitVerify} className="flex flex-col min-[360px]:flex-row gap-2 w-full lg:w-auto">
             <label className="sr-only" htmlFor="landing-verify">{t('Hujjat raqami')}</label>
             <input
               id="landing-verify"
               value={verifyCode}
               onChange={(e) => setVerifyCode(e.target.value)}
               placeholder="CHK-1A2B3C4D"
-              className="editorial-select flex-1 lg:w-64"
+              className="editorial-select flex-1 min-w-0 lg:w-64"
             />
             <button type="submit" className="milliy-btn-primary shrink-0">{t('Tekshirish')}</button>
           </form>
@@ -380,9 +380,11 @@ const Landing: React.FC = () => {
       <footer className="border-t border-[var(--editorial-border)]">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-8 flex flex-wrap items-center justify-between gap-4 text-sm text-[var(--editorial-muted)]">
           <span>© {new Date().getFullYear()} Phoenix — {t('Ilmiy nashrlar markazi')}</span>
-          <span className="flex gap-4">
+          <span className="flex flex-wrap gap-x-4 gap-y-2">
             <Link to="/login" className="editorial-link">{t('Kirish')}</Link>
             <Link to="/register" className="editorial-link">{t("Ro'yxatdan o'tish")}</Link>
+            <Link to="/oferta" className="editorial-link">Ommaviy oferta</Link>
+            <Link to="/maxfiylik" className="editorial-link">Maxfiylik siyosati</Link>
           </span>
         </div>
       </footer>

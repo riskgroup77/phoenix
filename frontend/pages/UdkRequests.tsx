@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
 import { Library, ExternalLink, Loader2, Check, X, FileText } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useT } from '../i18n/LanguageContext';
 
 interface UdkRequestItem {
   id: string;
@@ -26,6 +27,7 @@ interface UdkRequestItem {
 }
 
 const UdkRequests: React.FC = () => {
+  const { t } = useT();
   const { user } = useAuth();
   const [list, setList] = useState<UdkRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,19 +57,19 @@ const UdkRequests: React.FC = () => {
     const input = udkInputs[id] || { code: '', description: '' };
     const code = (input.code || '').trim();
     if (!code) {
-      toast.warning('UDK kodini kiriting.');
+      toast.warning(t('UDK kodini kiriting.'));
       return;
     }
     setSavingId(id);
     try {
       await apiService.udc.requests.complete(id, code, input.description?.trim());
-      toast.success('UDK so\'rovi yakunlandi. Muallifga xabar yuborildi.');
+      toast.success(t("UDK so'rovi yakunlandi. Muallifga xabar yuborildi."));
       setUdkInputs((prev) => ({ ...prev, [id]: { code: '', description: '' } }));
       const res = await apiService.udc.requests.list();
       const data = Array.isArray(res) ? res : (res?.results ?? res?.data ?? []);
       setList(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      toast.error(err?.message || 'Saqlashda xatolik.');
+      toast.error(err?.message || t('Saqlashda xatolik.'));
     } finally {
       setSavingId(null);
     }
@@ -78,14 +80,14 @@ const UdkRequests: React.FC = () => {
     setRejectingId(id);
     try {
       await apiService.udc.requests.reject(id, reason);
-      toast.success('UDK so\'rovi rad etildi.');
+      toast.success(t("UDK so'rovi rad etildi."));
       setShowRejectModal(null);
       setRejectInputs((prev) => ({ ...prev, [id]: '' }));
       const res = await apiService.udc.requests.list();
       const data = Array.isArray(res) ? res : (res?.results ?? res?.data ?? []);
       setList(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      toast.error(err?.message || 'Rad etishda xatolik.');
+      toast.error(err?.message || t('Rad etishda xatolik.'));
     } finally {
       setRejectingId(null);
     }
@@ -120,11 +122,11 @@ const UdkRequests: React.FC = () => {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <EditorialPageHeader
-        title="UDK so'rovlari"
+        title={t("UDK so'rovlari")}
         subtitle={
           isReviewer
-            ? "Mualliflar UDK raqami olish uchun yuborgan so'rovlar. Mavzu va annotatsiyani o'qib, mos UDK kodini kiriting."
-            : "Sizning UDK so'rovlaringiz. Taqrizchi UDK kodini kiritgach bu yerda ko'rinadi."
+            ? t("Mualliflar UDK raqami olish uchun yuborgan so'rovlar. Mavzu va annotatsiyani o'qib, mos UDK kodini kiriting.")
+            : t("Sizning UDK so'rovlaringiz. Taqrizchi UDK kodini kiritgach bu yerda ko'rinadi.")
         }
       />
       <Card>
@@ -133,13 +135,13 @@ const UdkRequests: React.FC = () => {
             <Loader2 className="h-8 w-8 animate-spin text-[var(--editorial-primary)]" />
           </div>
         ) : list.length === 0 ? (
-          <EmptyState compact illustration="inbox" title="UDK so'rovlari yo'q" description="Yangi so'rovlar kelganda shu yerda ko'rinadi." />
+          <EmptyState compact illustration="inbox" title={t("UDK so'rovlari yo'q")} description={t("Yangi so'rovlar kelganda shu yerda ko'rinadi.")} />
         ) : (
           <div className="space-y-4">
             {/* Kutilayotgan so'rovlar (submitted) */}
             {isReviewer && submittedList.length > 0 && (
               <div className="mb-6">
-                <h3 className="font-serif text-lg font-semibold text-[var(--editorial-primary)] mb-3">Kutilayotgan so'rovlar ({submittedList.length})</h3>
+                <h3 className="font-serif text-lg font-semibold text-[var(--editorial-primary)] mb-3">{t("Kutilayotgan so'rovlar ({length})", { length: submittedList.length })}</h3>
                 <div className="space-y-4">
                   {submittedList.map((req) => (
                     <div
@@ -163,7 +165,7 @@ const UdkRequests: React.FC = () => {
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 text-sm text-cyan-800 hover:underline mt-2"
                             >
-                              <FileText size={14} /> Faylni yuklab olish
+                              <FileText size={14} /> {t('Faylni yuklab olish')}
                             </a>
                           )}
                         </div>
@@ -175,7 +177,7 @@ const UdkRequests: React.FC = () => {
                               ...prev,
                               [req.id]: { ...prev[req.id], code: e.target.value }
                             }))}
-                            placeholder="UDK kodi (masalan: 332.055.2)"
+                            placeholder={t('UDK kodi (masalan: 332.055.2)')}
                             className="editorial-select w-full"
                           />
                           <input
@@ -185,25 +187,25 @@ const UdkRequests: React.FC = () => {
                               ...prev,
                               [req.id]: { ...prev[req.id], description: e.target.value }
                             }))}
-                            placeholder="UDK tavsifi (ixtiyoriy)"
+                            placeholder={t('UDK tavsifi (ixtiyoriy)')}
                             className="editorial-select w-full"
                           />
-                          <div className="flex gap-2">
+                          <div className="flex flex-col min-[360px]:flex-row gap-2">
                             <Button
                               onClick={() => handleComplete(req.id)}
                               disabled={savingId === req.id || !(udkInputs[req.id]?.code || '').trim()}
                               className="flex-1 flex items-center justify-center gap-2"
                             >
                               {savingId === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                              Tasdiqlash
+                              {t('Tasdiqlash')}
                             </Button>
                             <Button
                               variant="secondary"
                               onClick={() => setShowRejectModal(req.id)}
-                              className="flex items-center gap-2"
+                              className="flex items-center justify-center gap-2"
                             >
                               <X className="h-4 w-4" />
-                              Rad etish
+                              {t('Rad etish')}
                             </Button>
                           </div>
                         </div>
@@ -216,7 +218,7 @@ const UdkRequests: React.FC = () => {
 
             {/* Barcha so'rovlar ro'yxati */}
             <h3 className="font-serif text-lg font-semibold text-[var(--editorial-text)] mb-3">
-              {isReviewer ? 'Barcha so\'rovlar' : 'Mening so\'rovlarim'}
+              {isReviewer ? t("Barcha so'rovlar") : t("Mening so'rovlarim")}
             </h3>
             {list.map((req) => (
               <div
@@ -241,9 +243,7 @@ const UdkRequests: React.FC = () => {
                       </p>
                     )}
                     {req.status === 'rejected' && req.reject_reason && (
-                      <p className="text-sm text-red-700 mt-2">
-                        Sabab: {req.reject_reason}
-                      </p>
+                      <p className="text-sm text-red-700 mt-2">{t('Sabab: {reject_reason}', { reject_reason: req.reject_reason })}</p>
                     )}
                     {req.file_url && (
                       <a
@@ -252,7 +252,7 @@ const UdkRequests: React.FC = () => {
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-sm text-cyan-800 hover:underline mt-2"
                       >
-                        <ExternalLink size={14} /> Fayl
+                        <ExternalLink size={14} /> {t('Fayl')}
                       </a>
                     )}
                   </div>
@@ -267,11 +267,11 @@ const UdkRequests: React.FC = () => {
       {showRejectModal && (
         <div className="fixed inset-0 bg-slate-900/35 flex items-center justify-center z-50 p-4">
           <div className="bg-white/55 rounded-xl p-6 max-w-md w-full border border-slate-200/90">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">UDK so'rovini rad etish</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">{t("UDK so'rovini rad etish")}</h3>
             <textarea
               value={rejectInputs[showRejectModal] ?? ''}
               onChange={(e) => setRejectInputs((prev) => ({ ...prev, [showRejectModal]: e.target.value }))}
-              placeholder="Rad etish sababi (ixtiyoriy)"
+              placeholder={t('Rad etish sababi (ixtiyoriy)')}
               rows={3}
               className="w-full px-3 py-2 rounded-lg bg-slate-100/70 border border-slate-200/90 text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-red-500 resize-none"
             />
@@ -281,14 +281,14 @@ const UdkRequests: React.FC = () => {
                 onClick={() => setShowRejectModal(null)}
                 className="flex-1"
               >
-                Bekor qilish
+                {t('Bekor qilish')}
               </Button>
               <Button
                 onClick={() => handleReject(showRejectModal)}
                 disabled={rejectingId === showRejectModal}
                 className="flex-1 bg-red-600 hover:bg-red-700"
               >
-                {rejectingId === showRejectModal ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Rad etish'}
+                {rejectingId === showRejectModal ? <Loader2 className="h-4 w-4 animate-spin" /> : t('Rad etish')}
               </Button>
             </div>
           </div>

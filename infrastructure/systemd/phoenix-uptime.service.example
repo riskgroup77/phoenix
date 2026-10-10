@@ -1,0 +1,15 @@
+# Phoenix — monitoring: sayt/API, disk, zaxira yoshi, xizmatlar, SSL. Muammo bo'lsa Telegram'ga xabar.
+# backend/.env: TELEGRAM_BOT_TOKEN va PHONIX_ALERT_CHAT_ID (xabar boradigan chat ID) bo'lishi kerak.
+# deploy_phonix.sh o'zi o'rnatadi. Qo'lda: sudo systemctl start phoenix-uptime ; journalctl -u phoenix-uptime
+
+[Unit]
+Description=Phoenix — monitoring tekshiruvi
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+Environment=PHONIX_DIR=/phonix
+ExecStart=/bin/bash /phonix/infrastructure/monitoring/phoenix-uptime.sh
+TimeoutStartSec=5min

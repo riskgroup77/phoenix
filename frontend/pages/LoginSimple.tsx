@@ -21,7 +21,7 @@ const LoginSimple: React.FC = () => {
     // Redirect if user is already logged in
     useEffect(() => {
         if (user) {
-            navigate('/dashboard');
+            navigate('/');
         }
     }, [user, navigate]);
 
@@ -101,7 +101,7 @@ const LoginSimple: React.FC = () => {
                                 id="phone"
                                 value={phone}
                                 onChange={handlePhoneChange}
-                                className="flex-1 p-3 bg-white/50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-blue-500"
+                                className="flex-1 min-w-0 p-3 bg-white/50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-blue-500"
                                 placeholder="90 123 45 67"
                                 required
                                 autoComplete="tel"

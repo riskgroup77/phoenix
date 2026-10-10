@@ -14,6 +14,7 @@ import {
 import { formatMaxUploadLabel } from '../constants/upload';
 import { useAntiplagiatModules } from '../hooks/useAntiplagiatModules';
 import GirihPattern from './GirihPattern';
+import { useT } from '../i18n/LanguageContext';
 
 type TabId = 'document' | 'modules';
 
@@ -48,6 +49,7 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
   onClose,
   onFileSelect,
 }) => {
+  const { t: tr } = useT();
   const [tab, setTab] = useState<TabId>('document');
   const [typeOpen, setTypeOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState('');
@@ -138,14 +140,11 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
     <div className="antiplagiat-page">
       <div className="antiplagiat-hero">
         <GirihPattern opacity={0.12} />
-        <p className="antiplagiat-hero-kicker">Ilmiyfaoliyat.uz · Milliy antiplagiat xizmati</p>
+        <p className="antiplagiat-hero-kicker">{tr('Ilmiyfaoliyat.uz · Milliy antiplagiat xizmati')}</p>
         <h1 className="antiplagiat-hero-title">
-          Originallik va SI matn aniqlash
+          {tr('Originallik va SI matn aniqlash')}
         </h1>
-        <p className="antiplagiat-hero-sub">
-          Ichki baza va ochiq ilmiy manbalar ({availableModules.length} ta modul) bo&apos;yicha haqiqiy moslik
-          qidiruvi, sertifikat va to&apos;liq hisobot.
-        </p>
+        <p className="antiplagiat-hero-sub">{tr("Ichki baza va ochiq ilmiy manbalar ({length} ta modul) bo'yicha haqiqiy moslik qidiruvi, sertifikat va to'liq hisobot.", { length: availableModules.length })}</p>
         <div className="antiplagiat-mode-row">
           <button
             type="button"
@@ -153,7 +152,7 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
             onClick={() => setCheckMode('plagiarism')}
           >
             <Shield size={18} />
-            Plagiatga tekshirish
+            {tr('Plagiatga tekshirish')}
           </button>
           <button
             type="button"
@@ -161,7 +160,7 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
             onClick={() => setCheckMode('ai')}
           >
             <Sparkles size={18} />
-            SI tahlili
+            {tr('SI tahlili')}
           </button>
           <button
             type="button"
@@ -169,16 +168,16 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
             onClick={() => setCheckMode('both')}
           >
             <Layers size={18} />
-            Ikkalasi ham
+            {tr('Ikkalasi ham')}
           </button>
         </div>
       </div>
 
       <div className="antiplagiat-panel mx-auto w-full max-w-3xl">
         <div className="antiplagiat-panel-header">
-          <h2 className="antiplagiat-panel-title">Yangi hujjat tekshirish</h2>
+          <h2 className="antiplagiat-panel-title">{tr('Yangi hujjat tekshirish')}</h2>
           {onClose && (
-            <button type="button" className="antiplagiat-panel-close" onClick={onClose} aria-label="Yopish">
+            <button type="button" className="antiplagiat-panel-close" onClick={onClose} aria-label={tr('Yopish')}>
               ×
             </button>
           )}
@@ -190,15 +189,13 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
             className={`antiplagiat-tab ${tab === 'document' ? 'antiplagiat-tab-active' : ''}`}
             onClick={() => setTab('document')}
           >
-            Hujjat
+            {tr('Hujjat')}
           </button>
           <button
             type="button"
             className={`antiplagiat-tab ${tab === 'modules' ? 'antiplagiat-tab-active' : ''}`}
             onClick={() => setTab('modules')}
-          >
-            Tekshirish modullari ({values.enabledModuleIds.length})
-          </button>
+          >{tr('Tekshirish modullari ({length})', { length: values.enabledModuleIds.length })}</button>
         </div>
 
         <div className="antiplagiat-panel-body">
@@ -206,32 +203,32 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="antiplagiat-label">Ism *</label>
+                  <label className="antiplagiat-label">{tr('Ism *')}</label>
                   <input
                     className="antiplagiat-input"
                     value={values.authorFirstName}
                     onChange={(e) => onChange({ authorFirstName: e.target.value })}
-                    placeholder="Ism"
+                    placeholder={tr('Ism')}
                   />
                 </div>
                 <div>
-                  <label className="antiplagiat-label">Familya *</label>
+                  <label className="antiplagiat-label">{tr('Familya *')}</label>
                   <input
                     className="antiplagiat-input"
                     value={values.authorLastName}
                     onChange={(e) => onChange({ authorLastName: e.target.value })}
-                    placeholder="Familya"
+                    placeholder={tr('Familya')}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="antiplagiat-label">Hujjat nomi *</label>
+                <label className="antiplagiat-label">{tr('Hujjat nomi *')}</label>
                 <input
                   className="antiplagiat-input"
                   value={values.documentName}
                   onChange={(e) => onChange({ documentName: e.target.value })}
-                  placeholder="Hujjat nomini kiriting"
+                  placeholder={tr('Hujjat nomini kiriting')}
                 />
               </div>
 
@@ -246,15 +243,13 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
                 onKeyDown={(e) => e.key === 'Enter' && fileInputRef.current?.click()}
               >
                 <p className="text-sm text-slate-600">
-                  Hujjatni shu joyga tortib tashlang yoki{' '}
-                  <span className="antiplagiat-link">hujjatni tanlang</span>
+                  {tr('Hujjatni shu joyga tortib tashlang yoki')}{' '}
+                  <span className="antiplagiat-link">{tr('hujjatni tanlang')}</span>
                 </p>
                 {values.file && (
                   <p className="mt-2 text-sm font-medium text-slate-800">{values.file.name}</p>
                 )}
-                <p className="mt-1 text-xs text-slate-500">
-                  Maksimal: {formatMaxUploadLabel()} (.doc, .docx, .pdf, .rtf, .odt)
-                </p>
+                <p className="mt-1 text-xs text-slate-500">{tr('Maksimal: {value} (.doc, .docx, .pdf, .rtf, .odt)', { value: formatMaxUploadLabel() })}</p>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -265,14 +260,14 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
               </div>
 
               <div className="relative">
-                <label className="antiplagiat-label">Hujjat turi *</label>
+                <label className="antiplagiat-label">{tr('Hujjat turi *')}</label>
                 <button
                   type="button"
                   className="antiplagiat-select-trigger"
                   onClick={() => setTypeOpen((o) => !o)}
                 >
                   <span className={values.documentType ? 'text-slate-800' : 'text-slate-400'}>
-                    {values.documentType || 'Hujjat turini tanlang'}
+                    {values.documentType || tr('Hujjat turini tanlang')}
                   </span>
                   <span className="text-slate-400">▾</span>
                 </button>
@@ -281,7 +276,7 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
                     <input
                       autoFocus
                       className="antiplagiat-select-search"
-                      placeholder="Qidirish..."
+                      placeholder={tr('Qidirish...')}
                       value={typeFilter}
                       onChange={(e) => setTypeFilter(e.target.value)}
                     />
@@ -307,13 +302,13 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
               </div>
 
               <div>
-                <label className="antiplagiat-label">Hujjat tavsifi</label>
+                <label className="antiplagiat-label">{tr('Hujjat tavsifi')}</label>
                 <textarea
                   className="antiplagiat-textarea"
                   rows={3}
                   value={values.documentDescription}
                   onChange={(e) => onChange({ documentDescription: e.target.value })}
-                  placeholder="Ixtiyoriy — hujjat haqida qisqacha"
+                  placeholder={tr('Ixtiyoriy — hujjat haqida qisqacha')}
                 />
               </div>
             </div>
@@ -334,7 +329,7 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   className="antiplagiat-input flex-1"
-                  placeholder="Modul qidirish..."
+                  placeholder={tr('Modul qidirish...')}
                   value={moduleSearch}
                   onChange={(e) => setModuleSearch(e.target.value)}
                 />
@@ -343,7 +338,7 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
                   value={moduleCategory}
                   onChange={(e) => setModuleCategory(e.target.value)}
                 >
-                  <option value="all">Barcha kategoriyalar</option>
+                  <option value="all">{tr('Barcha kategoriyalar')}</option>
                   {categories.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
@@ -376,8 +371,8 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
 
         <div className="antiplagiat-panel-footer">
           <p className="antiplagiat-price">
-            Bitta hujjat tekshirish narxi{' '}
-            <strong>{price.toLocaleString('uz-UZ')}</strong> so&apos;m
+            {tr('Bitta hujjat tekshirish narxi')}{' '}
+            <strong>{price.toLocaleString('uz-UZ')}</strong> {tr("so'm")}
           </p>
           <button
             type="button"
@@ -385,23 +380,23 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
             disabled={!canSubmit}
             onClick={onSubmit}
           >
-            {isChecking ? 'Tekshirilmoqda...' : submitLabel}
+            {isChecking ? tr('Tekshirilmoqda...') : submitLabel}
           </button>
         </div>
       </div>
 
       <div className="antiplagiat-features">
         <article className="antiplagiat-feature-card">
-          <h3>Haqiqiy manbalar</h3>
-          <p>Hisobotda faqat topilgan haqiqiy moslik va tekshirilgan bazalar ko&apos;rsatiladi.</p>
+          <h3>{tr('Haqiqiy manbalar')}</h3>
+          <p>{tr("Hisobotda faqat topilgan haqiqiy moslik va tekshirilgan bazalar ko'rsatiladi.")}</p>
         </article>
         <article className="antiplagiat-feature-card">
-          <h3>Batafsil hisobot</h3>
-          <p>O&apos;zlashtirish, iqtibos, o&apos;z-o&apos;ziga iqtibos, manbalar va sertifikat.</p>
+          <h3>{tr('Batafsil hisobot')}</h3>
+          <p>{tr("O'zlashtirish, iqtibos, o'z-o'ziga iqtibos, manbalar va sertifikat.")}</p>
         </article>
         <article className="antiplagiat-feature-card">
-          <h3>SI uslubi tahlili</h3>
-          <p>Sun&apos;iy intellektga xos iboralar bo&apos;yicha taxminiy ko&apos;rsatkich (dalil emas).</p>
+          <h3>{tr('SI uslubi tahlili')}</h3>
+          <p>{tr("Sun'iy intellektga xos iboralar bo'yicha taxminiy ko'rsatkich (dalil emas).")}</p>
         </article>
       </div>
     </div>

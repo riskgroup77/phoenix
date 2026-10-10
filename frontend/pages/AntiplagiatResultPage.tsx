@@ -7,6 +7,7 @@ import type { PlagiarismFullReportData } from '../components/PlagiarismFullRepor
 import { buildAntiplagiatViewFromArticle } from '../utils/antiplagiatFromArticle';
 import { apiService } from '../services/apiService';
 import { toast } from 'react-toastify';
+import { useT } from '../i18n/LanguageContext';
 
 interface LoadedResult {
   result: {
@@ -25,6 +26,7 @@ interface LoadedResult {
  * Arxivdan «Ko'rish» — faqat tekshiruv natijasi (yuklash/to'lov formasi yo'q).
  */
 const AntiplagiatResultPage: React.FC = () => {
+  const { t } = useT();
   const { articleId } = useParams<{ articleId: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -33,7 +35,7 @@ const AntiplagiatResultPage: React.FC = () => {
 
   useEffect(() => {
     if (!articleId) {
-      setError('Hujjat identifikatori topilmadi.');
+      setError(t('Hujjat identifikatori topilmadi.'));
       setLoading(false);
       return;
     }
@@ -48,13 +50,13 @@ const AntiplagiatResultPage: React.FC = () => {
         if (cancelled) return;
 
         if (!article?.plagiarism_checked_at) {
-          setError('Bu hujjat uchun antiplagiat tekshiruvi hali yakunlanmagan yoki mavjud emas.');
+          setError(t('Bu hujjat uchun antiplagiat tekshiruvi hali yakunlanmagan yoki mavjud emas.'));
           return;
         }
 
         const built = buildAntiplagiatViewFromArticle(article);
         if (!built) {
-          setError('Tekshiruv natijalarini yuklab bo\'lmadi. Keyinroq qayta urinib ko\'ring.');
+          setError(t("Tekshiruv natijalarini yuklab bo'lmadi. Keyinroq qayta urinib ko'ring."));
           return;
         }
 
@@ -64,8 +66,8 @@ const AntiplagiatResultPage: React.FC = () => {
         });
       } catch {
         if (!cancelled) {
-          setError('Natijani yuklashda xatolik. Internetni tekshirib, qayta urinib ko\'ring.');
-          toast.error('Antiplagiat natijasi yuklanmadi.');
+          setError(t("Natijani yuklashda xatolik. Internetni tekshirib, qayta urinib ko'ring."));
+          toast.error(t('Antiplagiat natijasi yuklanmadi.'));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -81,7 +83,7 @@ const AntiplagiatResultPage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-3">
         <div className="animate-spin rounded-full h-11 w-11 border-b-2 border-blue-600" />
-        <p className="text-sm text-slate-600">Antiplagiat natijasi yuklanmoqda...</p>
+        <p className="text-sm text-slate-600">{t('Antiplagiat natijasi yuklanmoqda...')}</p>
       </div>
     );
   }
@@ -89,11 +91,11 @@ const AntiplagiatResultPage: React.FC = () => {
   if (error || !data) {
     return (
       <div className="max-w-lg mx-auto text-center py-20 px-4">
-        <p className="text-slate-700 mb-4">{error || 'Natija topilmadi.'}</p>
+        <p className="text-slate-700 mb-4">{error || t('Natija topilmadi.')}</p>
         <div className="flex flex-col sm:flex-row gap-2 justify-center">
-          <Button onClick={() => navigate('/arxiv')}>Arxiv hujjatlarga qaytish</Button>
+          <Button onClick={() => navigate('/arxiv')}>{t('Arxiv hujjatlarga qaytish')}</Button>
           <Button variant="secondary" onClick={() => navigate('/plagiarism-check')}>
-            Yangi tekshiruv
+            {t('Yangi tekshiruv')}
           </Button>
         </div>
       </div>

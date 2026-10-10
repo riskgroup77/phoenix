@@ -2,10 +2,14 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { initClientMonitoring } from './utils/monitoring';
+import { initResponsiveTables } from './utils/responsiveTables';
+import { initPwa } from './utils/pwa';
 import './styles/tailwind.css';
 import './styles/phoenix-theme.css';
 
 initClientMonitoring();
+initResponsiveTables();
+initPwa();
 
 // Sertifikatlardagi QR kodlar https://ilmiyfaoliyat.uz/verify/<kod> ko'rinishida (hash'siz).
 // Ilova HashRouter'da — shunday yo'llarni #/verify/<kod> ga yo'naltiramiz (eski chop etilganlar ham ishlaydi).

@@ -7,6 +7,7 @@ import { Role, Journal, JournalCategory, PaymentModel, JournalPricingType, Addit
 import Button from '../components/ui/Button';
 import { Edit, Trash2, PlusCircle, X, Check, UploadCloud } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { useT } from '../i18n/LanguageContext';
 
 /** Form may hold number | undefined; avoid comparing number to '' for tsc */
 function optionalJournalPercent(v: unknown): number | null {
@@ -16,6 +17,7 @@ function optionalJournalPercent(v: unknown): number | null {
 }
 
 const JournalManagement: React.FC = () => {
+    const { t } = useT();
     const { user } = useAuth();
     const [journals, setJournals] = useState<Journal[]>([]);
     const [categories, setCategories] = useState<JournalCategory[]>([]);
@@ -94,7 +96,7 @@ const JournalManagement: React.FC = () => {
                 setUsers(usersArray);
             } catch (err: any) {
                 console.error('Failed to fetch data:', err);
-                setError('Ma\'lumotlarni yuklashda xatolik yuz berdi.');
+                setError(t("Ma'lumotlarni yuklashda xatolik yuz berdi."));
             } finally {
                 setLoading(false);
             }
@@ -111,7 +113,7 @@ const JournalManagement: React.FC = () => {
 
 
     if (user?.role !== Role.SuperAdmin) {
-        return <Card title="Ruxsat Rad Etildi"><p>Ushbu sahifani ko'rish uchun sizda yetarli ruxsat yo'q.</p></Card>;
+        return <Card title={t('Ruxsat Rad Etildi')}><p>{t("Ushbu sahifani ko'rish uchun sizda yetarli ruxsat yo'q.")}</p></Card>;
     }
     
     if (loading) {
@@ -120,9 +122,9 @@ const JournalManagement: React.FC = () => {
     
     if (error) {
         return (
-            <Card title="Xatolik">
+            <Card title={t('Xatolik')}>
                 <p className="text-red-700">{error}</p>
-                <Button onClick={() => window.location.reload()} className="mt-4">Qayta urinish</Button>
+                <Button onClick={() => window.location.reload()} className="mt-4">{t('Qayta urinish')}</Button>
             </Card>
         );
     }
@@ -198,7 +200,7 @@ const JournalManagement: React.FC = () => {
     
     const handleAddCategory = async () => {
         if (!newCategoryName.trim()) {
-            alert('Kategoriya nomini kiriting.');
+            alert(t('Kategoriya nomini kiriting.'));
             return;
         }
         
@@ -214,18 +216,18 @@ const JournalManagement: React.FC = () => {
             setIsAddingCategory(false);
         } catch (err: any) {
             console.error('Failed to add category:', err);
-            alert(`Kategoriya qo'shishda xatolik yuz berdi: ${err.message || 'Unknown error'}`);
+            alert(t("Kategoriya qo'shishda xatolik yuz berdi: {value}", { value: err.message || 'Unknown error' }));
         }
     };
 
     const handleDeleteCategory = async (categoryId: string) => {
         const isCategoryInUse = journals.some(j => (j.categoryId || (j as any).category) === categoryId);
         if (isCategoryInUse) {
-            alert("Ushbu kategoriya jurnallar tomonidan ishlatilmoqda va o'chirib bo'lmaydi.");
+            alert(t("Ushbu kategoriya jurnallar tomonidan ishlatilmoqda va o'chirib bo'lmaydi."));
             return;
         }
         
-        if (window.confirm("Haqiqatan ham ushbu kategoriyani o'chirmoqchimisiz?")) {
+        if (window.confirm(t("Haqiqatan ham ushbu kategoriyani o'chirmoqchimisiz?"))) {
             try {
                 await apiService.journals.deleteCategory(categoryId);
                 setCategories(prev => prev.filter(c => c.id !== categoryId));
@@ -235,7 +237,7 @@ const JournalManagement: React.FC = () => {
                 }
             } catch (err: any) {
                 console.error('Failed to delete category:', err);
-                alert(`Kategoriyani o'chirishda xatolik yuz berdi: ${err.message || 'Unknown error'}`);
+                alert(t("Kategoriyani o'chirishda xatolik yuz berdi: {value}", { value: err.message || 'Unknown error' }));
             }
         }
     };
@@ -267,7 +269,7 @@ const JournalManagement: React.FC = () => {
         e.preventDefault();
         
         if (!formData.name || !formData.categoryId || !formData.journalAdminId) {
-            alert("Iltimos, Jurnal Nomi, Kategoriyasi va Admini maydonlarini to'ldiring.");
+            alert(t("Iltimos, Jurnal Nomi, Kategoriyasi va Admini maydonlarini to'ldiring."));
             return;
         }
 
@@ -306,7 +308,7 @@ const JournalManagement: React.FC = () => {
                         // We'll include it in the FormData for the journal update
                     } catch (uploadError: any) {
                         console.error('Failed to process image:', uploadError);
-                        alert(`Rasmni qayta ishlashda xatolik yuz berdi: ${uploadError.message || 'Unknown error'}`);
+                        alert(t('Rasmni qayta ishlashda xatolik yuz berdi: {value}', { value: uploadError.message || 'Unknown error' }));
                         return; // Don't update the journal if image processing fails
                     }
                 }
@@ -349,7 +351,7 @@ const JournalManagement: React.FC = () => {
                         // We'll include it in the FormData for the journal creation
                     } catch (uploadError: any) {
                         console.error('Failed to process image:', uploadError);
-                        alert(`Rasmni qayta ishlashda xatolik yuz berdi: ${uploadError.message || 'Unknown error'}`);
+                        alert(t('Rasmni qayta ishlashda xatolik yuz berdi: {value}', { value: uploadError.message || 'Unknown error' }));
                         return; // Don't create the journal if image processing fails
                     }
                 }
@@ -389,7 +391,7 @@ const JournalManagement: React.FC = () => {
                 setDeletingJournal(null);
             } catch (err: any) {
                 console.error('Failed to delete journal:', err);
-                alert(`Jurnalni o'chirishda xatolik yuz berdi: ${err.message || 'Unknown error'}`);
+                alert(t("Jurnalni o'chirishda xatolik yuz berdi: {value}", { value: err.message || 'Unknown error' }));
             }
         }
     };
@@ -398,22 +400,22 @@ const JournalManagement: React.FC = () => {
         <>
             <div className="space-y-6 max-w-6xl mx-auto">
             <EditorialPageHeader
-                title="Jurnallarni boshqarish"
-                subtitle="Platforma jurnallarini yaratish, tahrirlash va kategoriyalash."
+                title={t('Jurnallarni boshqarish')}
+                subtitle={t('Platforma jurnallarini yaratish, tahrirlash va kategoriyalash.')}
                 actions={
-                    <Button onClick={() => handleOpenModal()}><PlusCircle className="mr-2 h-4 w-4"/> Yangi Jurnal Qo'shish</Button>
+                    <Button onClick={() => handleOpenModal()}><PlusCircle className="mr-2 h-4 w-4"/> {t("Yangi Jurnal Qo'shish")}</Button>
                 }
             />
             <Card>
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                    <div className="flex items-center gap-3">
-                        <label className="editorial-field-label">Kategoriya bo'yicha:</label>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0">
+                        <label className="editorial-field-label">{t("Kategoriya bo'yicha:")}</label>
                         <select
                             value={selectedCategoryFilter}
                             onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-                            className="editorial-select min-w-[220px]"
+                            className="editorial-select w-full sm:w-auto sm:min-w-[220px]"
                         >
-                            <option value="all">Barcha kategoriyalar</option>
+                            <option value="all">{t('Barcha kategoriyalar')}</option>
                             {categories.map(cat => (
                                 <option key={cat.id} value={cat.id}>{cat.name}</option>
                             ))}
@@ -423,7 +425,7 @@ const JournalManagement: React.FC = () => {
                 <div className="space-y-4">
                     {orderedCategoryIds.length === 0 && (
                         <div className="editorial-empty py-8">
-                            Tanlangan kategoriya bo'yicha jurnal topilmadi.
+                            {t("Tanlangan kategoriya bo'yicha jurnal topilmadi.")}
                         </div>
                     )}
                     {orderedCategoryIds.map(categoryId => {
@@ -435,7 +437,7 @@ const JournalManagement: React.FC = () => {
                             <div key={categoryId} className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <h4 className="text-sm font-serif font-semibold uppercase tracking-wide text-[var(--editorial-primary)]">{categoryName}</h4>
-                                    <span className="text-xs text-[var(--editorial-muted)]">{groupedJournals[categoryId].length} ta jurnal</span>
+                                    <span className="text-xs text-[var(--editorial-muted)]">{t('{length} ta jurnal', { length: groupedJournals[categoryId].length })}</span>
                                 </div>
                                 {groupedJournals[categoryId].map(journal => {
                         // Handle both field name formats (camelCase from frontend, snake_case from backend)
@@ -461,7 +463,7 @@ const JournalManagement: React.FC = () => {
                                     {imageUrl && (
                                         <img 
                                             src={imageUrl} 
-                                            alt="Jurnal rasmi" 
+                                            alt={t('Jurnal rasmi')} 
                                             className="h-16 w-16 rounded-md object-cover flex-shrink-0 border border-[var(--editorial-border)]"
                                             onError={(e) => {
                                                 (e.target as HTMLImageElement).style.display = 'none';
@@ -471,18 +473,18 @@ const JournalManagement: React.FC = () => {
                                     <div>
                                         <h4 className="font-serif font-semibold text-lg text-[var(--editorial-text)]">{journal.name}</h4>
                                         <p className="text-sm text-[var(--editorial-muted)]">
-                                            Admin: {admin ? `${admin.firstName || admin.first_name} ${admin.lastName || admin.last_name}` : 'Tayinlanmagan'}
+                                            {t('Admin:')} {admin ? `${admin.firstName || admin.first_name} ${admin.lastName || admin.last_name}` : t('Tayinlanmagan')}
                                             <span className="mx-2">•</span>
-                                            Kategoriya: <span className="font-medium text-[var(--editorial-primary)]">{category?.name || "Noma'lum"}</span>
+                                            {t('Kategoriya:')} <span className="font-medium text-[var(--editorial-primary)]">{category?.name || t("Noma'lum")}</span>
                                             <span className="mx-2">•</span>
-                                            Narx: <span className="font-medium text-[var(--editorial-teal)]">{priceText}</span>
+                                            {t('Narx:')} <span className="font-medium text-[var(--editorial-teal)]">{priceText}</span>
                                         </p>
                                         <p className="text-xs text-[var(--editorial-muted)] font-mono mt-1">ISSN: {journal.issn}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-2 mt-3 sm:mt-0">
-                                    <button onClick={() => handleOpenModal(journal)} className="text-[var(--editorial-primary)] hover:opacity-80 p-2 rounded-md transition-colors" aria-label="Tahrirlash"><Edit size={18}/></button>
-                                    <button onClick={() => handleDeleteClick(journal)} className="text-red-700 hover:opacity-80 p-2 rounded-md transition-colors" aria-label="O'chirish"><Trash2 size={18}/></button>
+                                    <button onClick={() => handleOpenModal(journal)} className="text-[var(--editorial-primary)] hover:opacity-80 p-2 rounded-md transition-colors" aria-label={t('Tahrirlash')}><Edit size={18}/></button>
+                                    <button onClick={() => handleDeleteClick(journal)} className="text-red-700 hover:opacity-80 p-2 rounded-md transition-colors" aria-label={t("O'chirish")}><Trash2 size={18}/></button>
                                 </div>
                             </div>
                         );
@@ -496,58 +498,58 @@ const JournalManagement: React.FC = () => {
 
             {isModalOpen && (
                  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 p-4 overflow-auto min-h-screen flex flex-col items-center py-8">
-                    <Card className="w-full max-w-2xl min-w-0 max-h-[90vh] flex flex-col overflow-hidden my-auto shrink-0" title={editingJournal ? "Jurnalni Tahrirlash" : "Yangi Jurnal Qo'shish"}>
+                    <Card className="w-full max-w-2xl min-w-0 max-h-[90vh] flex flex-col overflow-hidden my-auto shrink-0" title={editingJournal ? t('Jurnalni Tahrirlash') : t("Yangi Jurnal Qo'shish")}>
                         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 -mr-1">
                         {editingJournal && (
                             <div className="mb-4">
-                                <h3 className="text-lg font-medium text-slate-900 mb-2">Jurnal Rasmi</h3>
+                                <h3 className="text-lg font-medium text-slate-900 mb-2">{t('Jurnal Rasmi')}</h3>
                                 {(editingJournal as any).imageUrl || (editingJournal as any).image_url ? (
                                     <img 
                                         src={(editingJournal as any).imageUrl || (editingJournal as any).image_url} 
-                                        alt="Jurnal rasmi" 
+                                        alt={t('Jurnal rasmi')} 
                                         className="h-32 w-32 rounded-lg object-cover"
                                         onError={(e) => {
                                             (e.target as HTMLImageElement).style.display = 'none';
                                         }}
                                     />
                                 ) : (
-                                    <p className="text-slate-500 text-sm">Rasm mavjud emas</p>
+                                    <p className="text-slate-500 text-sm">{t('Rasm mavjud emas')}</p>
                                 )}
                             </div>
                         )}
                         <form onSubmit={handleSaveJournal} className="space-y-4 min-w-0">
                             <div className="min-w-0">
-                                <label className="block text-sm font-medium text-slate-600 mb-2">Jurnal Nomi</label>
-                                <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full min-w-0 box-border" placeholder="Jurnal nomini kiriting..." required/>
+                                <label className="block text-sm font-medium text-slate-600 mb-2">{t('Jurnal Nomi')}</label>
+                                <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full min-w-0 box-border" placeholder={t('Jurnal nomini kiriting...')} required/>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-w-0">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Jurnal Kategoriyasi</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{t('Jurnal Kategoriyasi')}</label>
                                     {isAddingCategory ? (
                                         <div className="flex items-center gap-2">
-                                            <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="w-full" placeholder="Yangi kategoriya nomi" autoFocus/>
+                                            <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="w-full" placeholder={t('Yangi kategoriya nomi')} autoFocus/>
                                             <Button type="button" onClick={handleAddCategory} className="!p-3 !rounded-lg"><Check size={20}/></Button>
                                             <Button type="button" variant="secondary" onClick={() => setIsAddingCategory(false)} className="!p-3 !rounded-lg"><X size={20}/></Button>
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-2">
                                             <select name="categoryId" value={formData.categoryId} onChange={handleInputChange} className="w-full" required>
-                                                <option value="" disabled>Kategoriyani tanlang</option>
+                                                <option value="" disabled>{t('Kategoriyani tanlang')}</option>
                                                 {categories.map(cat => (
                                                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                                                 ))}
                                             </select>
-                                            <Button type="button" onClick={() => setIsAddingCategory(true)} className="!p-2.5 !rounded-lg" title="Yangi kategoriya qo'shish"><PlusCircle size={18}/></Button>
+                                            <Button type="button" onClick={() => setIsAddingCategory(true)} className="!p-2.5 !rounded-lg" title={t("Yangi kategoriya qo'shish")}><PlusCircle size={18}/></Button>
                                             {formData.categoryId && (
-                                                <Button type="button" variant="danger" onClick={() => handleDeleteCategory(formData.categoryId!)} className="!p-2.5 !rounded-lg" title="Tanlangan kategoriyani o'chirish"><Trash2 size={18}/></Button>
+                                                <Button type="button" variant="danger" onClick={() => handleDeleteCategory(formData.categoryId!)} className="!p-2.5 !rounded-lg" title={t("Tanlangan kategoriyani o'chirish")}><Trash2 size={18}/></Button>
                                             )}
                                         </div>
                                     )}
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Jurnal Admini</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{t('Jurnal Admini')}</label>
                                     <select name="journalAdminId" value={formData.journalAdminId} onChange={handleInputChange} className="w-full" required>
-                                        <option value="" disabled>Adminni tanlang</option>
+                                        <option value="" disabled>{t('Adminni tanlang')}</option>
                                         {journalAdmins.map(admin => (
                                             <option key={admin.id} value={admin.id}>{admin.firstName || admin.first_name} {admin.lastName || admin.last_name}</option>
                                         ))}
@@ -556,20 +558,20 @@ const JournalManagement: React.FC = () => {
                             </div>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-w-0">
                                 <div className="min-w-0">
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Narx Turi</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{t('Narx Turi')}</label>
                                     <select name="pricingType" value={formData.pricingType} onChange={handleInputChange} className="w-full">
-                                        <option value={JournalPricingType.Fixed}>Qat'iy narx</option>
-                                        <option value={JournalPricingType.PerPage}>Sahifa uchun</option>
+                                        <option value={JournalPricingType.Fixed}>{t("Qat'iy narx")}</option>
+                                        <option value={JournalPricingType.PerPage}>{t('Sahifa uchun')}</option>
                                     </select>
                                 </div>
                                 {formData.pricingType === JournalPricingType.Fixed ? (
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-600 mb-2">Chop etish narxi (so'm)</label>
+                                        <label className="block text-sm font-medium text-slate-600 mb-2">{t("Chop etish narxi (so'm)")}</label>
                                         <input type="number" name="publicationFee" value={formData.publicationFee || ''} onChange={handleInputChange} className="w-full" placeholder="200000"/>
                                     </div>
                                 ) : (
                                      <div>
-                                        <label className="block text-sm font-medium text-slate-600 mb-2">Sahifa narxi (so'm)</label>
+                                        <label className="block text-sm font-medium text-slate-600 mb-2">{t("Sahifa narxi (so'm)")}</label>
                                         <input type="number" name="pricePerPage" value={formData.pricePerPage || ''} onChange={handleInputChange} className="w-full" placeholder="15000"/>
                                     </div>
                                 )}
@@ -580,25 +582,25 @@ const JournalManagement: React.FC = () => {
                                     <input type="text" name="issn" value={formData.issn} onChange={handleInputChange} className="w-full min-w-0 box-border" placeholder="XXXX-XXXX"/>
                                 </div>
                                 <div className="min-w-0">
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">To'lov Turi</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{t("To'lov Turi")}</label>
                                     <select name="paymentModel" value={formData.paymentModel} onChange={handleInputChange} className="w-full min-w-0 box-border">
-                                        <option value={PaymentModel.PrePayment}>Maqola qabul qilinishidan oldin</option>
-                                        <option value={PaymentModel.PostPayment}>Maqola qabul qilinganidan so'ng</option>
+                                        <option value={PaymentModel.PrePayment}>{t('Maqola qabul qilinishidan oldin')}</option>
+                                        <option value={PaymentModel.PostPayment}>{t("Maqola qabul qilinganidan so'ng")}</option>
                                     </select>
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">Jurnal Rasmi</label>
+                                <label className="block text-sm font-medium text-slate-600 mb-2">{t('Jurnal Rasmi')}</label>
                                 {formData.imageUrl ? (
                                     <div className="mt-2 flex items-center gap-4">
-                                        <img src={formData.imageUrl} alt="Jurnal rasmi" className="h-24 w-48 rounded-lg object-cover" />
+                                        <img src={formData.imageUrl} alt={t('Jurnal rasmi')} className="h-24 w-48 rounded-lg object-cover" />
                                         <div>
                                             <label htmlFor="journal-image-upload" className="cursor-pointer bg-white/10 rounded-md py-2 px-3 text-sm font-medium text-blue-900 hover:text-blue-800 hover:bg-white/20">
-                                                O'zgartirish
+                                                {t("O'zgartirish")}
                                             </label>
                                             <input id="journal-image-upload" name="journal-image-upload" type="file" className="sr-only" accept="image/png, image/jpeg" onChange={handleImageChange} />
                                             <button type="button" onClick={() => setFormData(prev => ({...prev, imageUrl: ''}))} className="ml-3 text-red-700 hover:text-red-800 text-sm">
-                                                O'chirish
+                                                {t("O'chirish")}
                                             </button>
                                         </div>
                                     </div>
@@ -607,7 +609,7 @@ const JournalManagement: React.FC = () => {
                                         <label htmlFor="journal-image-upload" className="cursor-pointer">
                                             <div className="p-8 border-2 border-dashed rounded-lg border-slate-200 text-center bg-slate-100/70 hover:bg-white/10 transition-colors">
                                                 <UploadCloud className="mx-auto h-12 w-12 text-slate-500" />
-                                                <p className="mt-2 text-sm text-slate-500">Rasm yuklang (JPG, PNG)</p>
+                                                <p className="mt-2 text-sm text-slate-500">{t('Rasm yuklang (JPG, PNG)')}</p>
                                             </div>
                                             <input id="journal-image-upload" name="journal-image-upload" type="file" className="sr-only" accept="image/png, image/jpeg" onChange={handleImageChange} />
                                         </label>
@@ -615,44 +617,44 @@ const JournalManagement: React.FC = () => {
                                 )}
                             </div>
                             <div className="pt-4 border-t border-slate-200/90 min-w-0">
-                                <h4 className="text-sm font-semibold text-blue-900 mb-3">Antiplagiat & AI Detektor talablari</h4>
-                                <p className="text-xs text-slate-500 mb-3">Maqola nashrga yuborilganda tekshiriladi. Bo&apos;sh qoldirilsa — shart o&apos;rnatilmaydi.</p>
+                                <h4 className="text-sm font-semibold text-blue-900 mb-3">{t('Antiplagiat & AI Detektor talablari')}</h4>
+                                <p className="text-xs text-slate-500 mb-3">{t("Maqola nashrga yuborilganda tekshiriladi. Bo'sh qoldirilsa — shart o'rnatilmaydi.")}</p>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-600 mb-1">Plagiat max %</label>
-                                        <input type="number" name="plagiarism_max_percent" min={0} max={100} step={0.1} value={formData.plagiarism_max_percent ?? ''} onChange={handleInputChange} className="w-full" placeholder="mas. 25"/>
+                                        <label className="block text-sm font-medium text-slate-600 mb-1">{t('Plagiat max %')}</label>
+                                        <input type="number" name="plagiarism_max_percent" min={0} max={100} step={0.1} value={formData.plagiarism_max_percent ?? ''} onChange={handleInputChange} className="w-full" placeholder={t('mas. 25')}/>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-600 mb-1">AI kontent max %</label>
-                                        <input type="number" name="ai_content_max_percent" min={0} max={100} step={0.1} value={formData.ai_content_max_percent ?? ''} onChange={handleInputChange} className="w-full" placeholder="mas. 30"/>
+                                        <label className="block text-sm font-medium text-slate-600 mb-1">{t('AI kontent max %')}</label>
+                                        <input type="number" name="ai_content_max_percent" min={0} max={100} step={0.1} value={formData.ai_content_max_percent ?? ''} onChange={handleInputChange} className="w-full" placeholder={t('mas. 30')}/>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-600 mb-1">Originalilik min %</label>
-                                        <input type="number" name="originality_min_percent" min={0} max={100} step={0.1} value={formData.originality_min_percent ?? ''} onChange={handleInputChange} className="w-full" placeholder="mas. 70"/>
+                                        <label className="block text-sm font-medium text-slate-600 mb-1">{t('Originalilik min %')}</label>
+                                        <input type="number" name="originality_min_percent" min={0} max={100} step={0.1} value={formData.originality_min_percent ?? ''} onChange={handleInputChange} className="w-full" placeholder={t('mas. 70')}/>
                                     </div>
                                 </div>
                             </div>
                             <div className="min-w-0">
-                                <label className="block text-sm font-medium text-slate-600 mb-2">Tavsif</label>
-                                <textarea name="description" value={formData.description} onChange={handleInputChange} className="w-full min-w-0 max-w-full box-border resize-y" rows={4} placeholder="Jurnal haqida qisqacha ma'lumot..."></textarea>
+                                <label className="block text-sm font-medium text-slate-600 mb-2">{t('Tavsif')}</label>
+                                <textarea name="description" value={formData.description} onChange={handleInputChange} className="w-full min-w-0 max-w-full box-border resize-y" rows={4} placeholder={t("Jurnal haqida qisqacha ma'lumot...")}></textarea>
                             </div>
 
                             <div className="pt-4 border-t border-slate-200/90 min-w-0">
                                 <label className="flex items-start gap-3 cursor-pointer">
                                     <input type="checkbox" name="required" checked={formData.additionalDocumentConfig?.required} onChange={handleAdditionalDocConfigChange} className="h-5 w-5 mt-0.5 shrink-0 rounded bg-white/10 border-slate-300/80 text-blue-500 focus:ring-blue-500" style={{boxShadow: 'none'}}/>
-                                    <span className="font-medium text-slate-700 break-words">Qo'shimcha hujjat talab qilish (masalan, taqriz)</span>
+                                    <span className="font-medium text-slate-700 break-words">{t("Qo'shimcha hujjat talab qilish (masalan, taqriz)")}</span>
                                 </label>
                                 {formData.additionalDocumentConfig?.required && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pl-8">
                                         <div>
-                                            <label className="block text-sm font-medium text-slate-600 mb-2">Hujjat Nomi</label>
-                                            <input type="text" name="label" value={formData.additionalDocumentConfig.label} onChange={handleAdditionalDocConfigChange} className="w-full" placeholder="Taqriz fayli"/>
+                                            <label className="block text-sm font-medium text-slate-600 mb-2">{t('Hujjat Nomi')}</label>
+                                            <input type="text" name="label" value={formData.additionalDocumentConfig.label} onChange={handleAdditionalDocConfigChange} className="w-full" placeholder={t('Taqriz fayli')}/>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-slate-600 mb-2">Hujjat Turi</label>
+                                            <label className="block text-sm font-medium text-slate-600 mb-2">{t('Hujjat Turi')}</label>
                                             <select name="type" value={formData.additionalDocumentConfig.type} onChange={handleAdditionalDocConfigChange} className="w-full">
-                                                <option value="file">Fayl yuklash</option>
-                                                <option value="link">Havola kiritish</option>
+                                                <option value="file">{t('Fayl yuklash')}</option>
+                                                <option value="link">{t('Havola kiritish')}</option>
                                             </select>
                                         </div>
                                     </div>
@@ -660,8 +662,8 @@ const JournalManagement: React.FC = () => {
                             </div>
 
                             <div className="flex justify-end gap-4 pt-4 border-t border-slate-200/90 mt-6">
-                                <Button type="button" variant="secondary" onClick={handleCloseModal}>Bekor qilish</Button>
-                                <Button type="submit">{editingJournal ? "Saqlash" : "Qo'shish"}</Button>
+                                <Button type="button" variant="secondary" onClick={handleCloseModal}>{t('Bekor qilish')}</Button>
+                                <Button type="submit">{editingJournal ? t('Saqlash') : t("Qo'shish")}</Button>
                             </div>
                         </form>
                         </div>
@@ -671,12 +673,12 @@ const JournalManagement: React.FC = () => {
 
             {deletingJournal && (
                 <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <Card className="w-full max-w-md" title="O'chirishni tasdiqlang">
+                    <Card className="w-full max-w-md" title={t("O'chirishni tasdiqlang")}>
                         <div className="flex items-center gap-4 mb-4">
                             {(deletingJournal as any).imageUrl || (deletingJournal as any).image_url ? (
                                 <img 
                                     src={(deletingJournal as any).imageUrl || (deletingJournal as any).image_url} 
-                                    alt="Jurnal rasmi" 
+                                    alt={t('Jurnal rasmi')} 
                                     className="h-16 w-16 rounded-lg object-cover"
                                     onError={(e) => {
                                         // Hide image if it fails to load
@@ -686,16 +688,15 @@ const JournalManagement: React.FC = () => {
                             ) : null}
                             <div>
                                 <h3 className="text-lg font-medium text-slate-900">{deletingJournal.name}</h3>
-                                <p className="text-slate-500 text-sm">Jurnalni o'chirish</p>
+                                <p className="text-slate-500 text-sm">{t("Jurnalni o'chirish")}</p>
                             </div>
                         </div>
                         <p className="text-slate-600 mb-6">
-                            Haqiqatan ham <strong className="text-slate-900">{deletingJournal.name}</strong> jurnalini o'chirmoqchimisiz?
-                            Bu harakatni bekor qilib bo'lmaydi.
+                            {t('Haqiqatan ham')} <strong className="text-slate-900">{deletingJournal.name}</strong> {t("jurnalini o'chirmoqchimisiz? Bu harakatni bekor qilib bo'lmaydi.")}
                         </p>
                         <div className="flex justify-end gap-4 mt-8">
-                            <Button variant="secondary" onClick={() => setDeletingJournal(null)}>Bekor qilish</Button>
-                            <Button variant="danger" onClick={confirmDelete}>O'chirish</Button>
+                            <Button variant="secondary" onClick={() => setDeletingJournal(null)}>{t('Bekor qilish')}</Button>
+                            <Button variant="danger" onClick={confirmDelete}>{t("O'chirish")}</Button>
                         </div>
                     </Card>
                 </div>

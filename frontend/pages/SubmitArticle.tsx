@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useAiPrefill, str, num } from '../contexts/AiPrefillContext';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
@@ -116,6 +117,28 @@ const SubmitArticle: React.FC = () => {
     setDraftNotice(r.savedAt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // AI ish maydoni: fayldan olingan sarlavha/annotatsiya/kalit so'zlar va tanlangan jurnal (qoralamadan keyin)
+  const aiPrefill = useAiPrefill('submit_article');
+  useEffect(() => {
+    if (!aiPrefill) return;
+    const f = aiPrefill.fields;
+    const picked = aiPrefill.file;
+    const okFile = picked && /\.docx?$/i.test(picked.name) && picked.size <= MAX_FILE_MB * 1024 * 1024 ? picked : null;
+    setFormData((prev) => ({
+      ...prev,
+      title: str(f.title) || prev.title,
+      abstract: str(f.abstract) || prev.abstract,
+      keywords: str(f.keywords) || prev.keywords,
+      authorName: str(f.authorName) || prev.authorName,
+      journalId: str(f.journalId) || prev.journalId,
+      file: okFile || prev.file,
+      pageCount: okFile ? estimatePageCountFromFile(okFile) : num(f.pageCount) || prev.pageCount,
+    }));
+    setDraftNotice(null);
+    setCurrentStep(str(f.journalId) ? 2 : 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiPrefill?.nonce, aiPrefill?.file]);
 
   const resetDraft = () => {
     draft.clear();

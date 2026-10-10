@@ -10,10 +10,12 @@ import EditorialTabs from '../components/EditorialTabs';
 import { Search, Edit3, Eye, FileText, CheckCircle, XCircle, Clock, Users, FileEdit, BookOpen, TrendingUp } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { getArticleJournalIdFromApi } from '../utils/articleIds';
+import { useT } from '../i18n/LanguageContext';
 
 interface JournalAdminPanelProps {}
 
 const JournalAdminPanel: React.FC = () => {
+    const { t } = useT();
     const { user } = useAuth();
     const navigate = useNavigate();
     
@@ -85,7 +87,7 @@ const JournalAdminPanel: React.FC = () => {
                 setJournals(managedJournals);
             } catch (err: any) {
                 console.error('Failed to fetch admin data:', err);
-                setError('Ma\'lumotlarni yuklashda xatolik yuz berdi.');
+                setError(t("Ma'lumotlarni yuklashda xatolik yuz berdi."));
             } finally {
                 setLoading(false);
             }
@@ -141,8 +143,8 @@ const JournalAdminPanel: React.FC = () => {
     
     if (user?.role !== Role.JournalAdmin) {
         return (
-            <Card title="Ruxsat Rad Etildi">
-                <p>Ushbu sahifani ko'rish uchun sizda yetarli ruxsat yo'q.</p>
+            <Card title={t('Ruxsat Rad Etildi')}>
+                <p>{t("Ushbu sahifani ko'rish uchun sizda yetarli ruxsat yo'q.")}</p>
             </Card>
         );
     }
@@ -153,9 +155,9 @@ const JournalAdminPanel: React.FC = () => {
     
     if (error) {
         return (
-            <Card title="Xatolik">
+            <Card title={t('Xatolik')}>
                 <p className="text-red-700">{error}</p>
-                <Button onClick={() => window.location.reload()} className="mt-4">Qayta urinish</Button>
+                <Button onClick={() => window.location.reload()} className="mt-4">{t('Qayta urinish')}</Button>
             </Card>
         );
     }
@@ -178,31 +180,31 @@ const JournalAdminPanel: React.FC = () => {
             setArticles(updatedArticles);
         } catch (err) {
             console.error('Failed to update article status:', err);
-            setError('Maqola holatini yangilashda xatolik yuz berdi.');
+            setError(t('Maqola holatini yangilashda xatolik yuz berdi.'));
         }
     };
     
     return (
         <div className="space-y-6 max-w-6xl mx-auto">
             <EditorialPageHeader
-                title="Jurnal Administratori Paneli"
-                subtitle="Jurnalingizga kelgan maqolalarni ko'rib chiqing va holatini boshqaring."
+                title={t('Jurnal Administratori Paneli')}
+                subtitle={t("Jurnalingizga kelgan maqolalarni ko'rib chiqing va holatini boshqaring.")}
             />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
                 <div className="editorial-card text-center">
                     <FileText className="h-7 w-7 mx-auto text-[var(--editorial-primary)] mb-2" />
                     <p className="font-serif text-2xl font-bold text-[var(--editorial-text)] tabular-nums">{tabCounts.new}</p>
-                    <p className="text-sm text-[var(--editorial-muted)] mt-1">Yangi Kelganlar</p>
+                    <p className="text-sm text-[var(--editorial-muted)] mt-1">{t('Yangi Kelganlar')}</p>
                 </div>
                 <div className="editorial-card text-center">
                     <Clock className="h-7 w-7 mx-auto text-[var(--editorial-primary)] mb-2" />
                     <p className="font-serif text-2xl font-bold text-[var(--editorial-text)] tabular-nums">{tabCounts.pending}</p>
-                    <p className="text-sm text-[var(--editorial-muted)] mt-1">Nashrni kutmoqda</p>
+                    <p className="text-sm text-[var(--editorial-muted)] mt-1">{t('Nashrni kutmoqda')}</p>
                 </div>
                 <div className="editorial-card text-center">
                     <BookOpen className="h-7 w-7 mx-auto text-[var(--editorial-teal)] mb-2" />
                     <p className="font-serif text-2xl font-bold text-[var(--editorial-text)] tabular-nums">{tabCounts.all}</p>
-                    <p className="text-sm text-[var(--editorial-muted)] mt-1">Jami nashrlar</p>
+                    <p className="text-sm text-[var(--editorial-muted)] mt-1">{t('Jami nashrlar')}</p>
                 </div>
             </div>
 
@@ -221,8 +223,8 @@ const JournalAdminPanel: React.FC = () => {
                     <Search className="text-slate-500 mx-4 shrink-0" size={20} />
                     <input
                         type="text"
-                        placeholder="Maqola sarlavhasi bo'yicha qidirish..."
-                        className="w-full !bg-transparent !border-none !py-3 !pr-4 !pl-0 !shadow-none !ring-0"
+                        placeholder={t("Maqola sarlavhasi bo'yicha qidirish...")}
+                        className="input-bare w-full !py-3 !pr-4 !pl-0"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -264,7 +266,7 @@ const JournalAdminPanel: React.FC = () => {
                                             
                                             <div className="flex justify-between items-center mt-4 text-xs text-slate-500">
                                                 <span>{new Date(article.submissionDate).toLocaleDateString()}</span>
-                                                <span>Sahifalar: {article.pageCount || 0}</span>
+                                                <span>{t('Sahifalar: {value}', { value: article.pageCount || 0 })}</span>
                                             </div>
                                         </div>
                                         
@@ -277,7 +279,7 @@ const JournalAdminPanel: React.FC = () => {
                                                 <button 
                                                     onClick={() => handleViewArticle(article.id)}
                                                     className="p-2 rounded-md hover:bg-white/10 transition-colors"
-                                                    title="Ko'rish"
+                                                    title={t("Ko'rish")}
                                                 >
                                                     <Eye className="h-4 w-4 text-blue-800" />
                                                 </button>
@@ -285,7 +287,7 @@ const JournalAdminPanel: React.FC = () => {
                                                 <button 
                                                     onClick={() => handleEditArticle(article.id)}
                                                     className="p-2 rounded-md hover:bg-white/10 transition-colors"
-                                                    title="Tahrirlash"
+                                                    title={t('Tahrirlash')}
                                                 >
                                                     <Edit3 className="h-4 w-4 text-yellow-800" />
                                                 </button>
@@ -294,7 +296,7 @@ const JournalAdminPanel: React.FC = () => {
                                                     <button 
                                                         onClick={() => handleUpdateStatus(article.id, ArticleStatus.Accepted)}
                                                         className="p-2 rounded-md hover:bg-white/10 transition-colors"
-                                                        title="Qabul qilish"
+                                                        title={t('Qabul qilish')}
                                                     >
                                                         <CheckCircle className="h-4 w-4 text-emerald-800" />
                                                     </button>
@@ -304,7 +306,7 @@ const JournalAdminPanel: React.FC = () => {
                                                     <button 
                                                         onClick={() => handleUpdateStatus(article.id, ArticleStatus.Rejected)}
                                                         className="p-2 rounded-md hover:bg-white/10 transition-colors"
-                                                        title="Rad etish"
+                                                        title={t('Rad etish')}
                                                     >
                                                         <XCircle className="h-4 w-4 text-red-700" />
                                                     </button>
@@ -319,7 +321,7 @@ const JournalAdminPanel: React.FC = () => {
                         <div className="editorial-empty py-8">
                             {searchQuery 
                                 ? `"${searchQuery}" bo'yicha hech narsa topilmadi.` 
-                                : "Ushbu bo'limda hozircha maqolalar mavjud emas."}
+                                : t("Ushbu bo'limda hozircha maqolalar mavjud emas.")}
                         </div>
                     )}
                 </div>

@@ -248,8 +248,8 @@ const Analytics: React.FC = () => {
             {art.journals.length === 0 ? (
               <div className="p-5"><EmptyState compact title={t("Jurnallar bo'yicha ma'lumot yo'q")} /></div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto rtable-wrap">
+                <table className="w-full text-sm rtable">
                   <thead className="text-left text-[var(--editorial-muted)]">
                     <tr className="border-b border-[var(--editorial-border)]">
                       <th className="px-5 py-3 font-semibold">{t('Jurnal')}</th>
@@ -340,8 +340,8 @@ const Analytics: React.FC = () => {
               {(workload.reviewers || []).length === 0 ? (
                 <div className="p-5"><EmptyState compact title={t("Faol taqrizchilar yo'q")} /></div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto rtable-wrap">
+                  <table className="w-full text-sm rtable">
                     <thead className="text-left text-[var(--editorial-muted)]">
                       <tr className="border-b border-[var(--editorial-border)]">
                         <th className="px-5 py-3 font-semibold">{t('Taqrizchi')}</th>

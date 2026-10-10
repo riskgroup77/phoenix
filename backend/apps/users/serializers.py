@@ -21,9 +21,12 @@ class UserSerializer(serializers.ModelSerializer):
             'telegram_notifications', 'telegram_connected', 'telegram_bot_username',
             'gamification_profile', 'specializations', 'reviews_completed',
             'average_review_time', 'acceptance_rate', 'password', 'is_active',
-            'date_joined'
+            'date_joined', 'phone_verified', 'phone_verified_at', 'terms_accepted_at', 'terms_version',
         )
-        read_only_fields = ('id', 'date_joined', 'gamification_profile', 'avatar_url', 'is_active')
+        read_only_fields = (
+            'id', 'date_joined', 'gamification_profile', 'avatar_url', 'is_active',
+            'phone_verified', 'phone_verified_at', 'terms_accepted_at', 'terms_version',
+        )
 
     def validate_orcid_id(self, value):
         from .orcid import normalize_orcid
@@ -101,12 +104,16 @@ class RegisterSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=False, allow_blank=True, max_length=255)  # Ixtiyoriy - avtomatik yaratiladi
     first_name = serializers.CharField(required=True, max_length=150)
     last_name = serializers.CharField(required=True, max_length=150)
+    # Ommaviy oferta va maxfiylik siyosatiga rozilik (TERMS_ACCEPTANCE_REQUIRED=true bo'lsa majburiy)
+    terms_accepted = serializers.BooleanField(write_only=True, required=False, default=False)
+    terms_version = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=20)
     
     class Meta:
         model = User
         fields = (
             'phone', 'email', 'password', 'password_confirm',
-            'first_name', 'last_name', 'patronymic', 'affiliation', 'orcid_id'
+            'first_name', 'last_name', 'patronymic', 'affiliation', 'orcid_id',
+            'terms_accepted', 'terms_version',
         )
 
     def validate_orcid_id(self, value):
@@ -193,13 +200,26 @@ class RegisterSerializer(serializers.ModelSerializer):
         
         if not attrs.get('last_name', '').strip():
             raise serializers.ValidationError({"last_name": "Familiya kiritilishi shart"})
+
+        from django.conf import settings as dj_settings
+        if getattr(dj_settings, 'TERMS_ACCEPTANCE_REQUIRED', True) and not attrs.get('terms_accepted'):
+            raise serializers.ValidationError({
+                'terms_accepted': "Ro'yxatdan o'tish uchun ommaviy oferta va maxfiylik siyosatiga rozilik bering"
+            })
         
         return attrs
     
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
+        accepted = validated_data.pop('terms_accepted', False)
+        version = (validated_data.pop('terms_version', '') or '').strip()
         user = User(**validated_data)
+        if accepted:
+            from django.conf import settings as dj_settings
+            from django.utils import timezone
+            user.terms_accepted_at = timezone.now()
+            user.terms_version = (version or getattr(dj_settings, 'LEGAL_TERMS_VERSION', ''))[:20]
         user.set_password(password)
         user.save()
         return user
@@ -347,7 +367,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'telegram_username', 'telegram_notifications', 'telegram_connected', 'telegram_bot_username',
             'gamification_profile', 'specializations',
             'reviews_completed', 'average_review_time', 'acceptance_rate',
-            'is_active', 'date_joined', 'last_login'
+            'is_active', 'date_joined', 'last_login',
+            'phone_verified', 'phone_verified_at', 'terms_accepted_at', 'terms_version',
         )
         read_only_fields = fields
     

@@ -3,6 +3,7 @@ import logging
 
 import requests
 from asgiref.sync import sync_to_async
+from django.conf import settings
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
@@ -99,6 +100,12 @@ async def login_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def register_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message:
+        site = getattr(settings, 'PUBLIC_SITE_URL', '') or 'https://ilmiyfaoliyat.uz'
+        await update.message.reply_text(
+            "📄 Ro'yxatdan o'tish orqali siz ommaviy oferta va maxfiylik siyosati shartlarini qabul qilasiz:\n"
+            f"{site}/#/oferta\n{site}/#/maxfiylik",
+            disable_web_page_preview=True,
+        )
         await update.message.reply_text("👤 Ismingizni kiriting:")
     return REG_FIRST
 
@@ -141,6 +148,9 @@ async def register_password(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         'first_name': first,
         'last_name': last,
         'affiliation': 'Telegram orqali ro\'yxatdan o\'tgan',
+        # register_start da oferta havolasi ko'rsatildi — ro'yxatdan o'tishni davom ettirish = aksept
+        'terms_accepted': True,
+        'terms_version': getattr(settings, 'LEGAL_TERMS_VERSION', ''),
     }
     try:
         data = await sync_to_async(client.register)(payload)

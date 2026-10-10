@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
 import { Bot, ExternalLink, Loader2 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useT } from '../i18n/LanguageContext';
 
 interface DoiRequestItem {
   id: string;
@@ -20,6 +21,7 @@ interface DoiRequestItem {
 }
 
 const DoiRequests: React.FC = () => {
+  const { t } = useT();
   const { user } = useAuth();
   const [list, setList] = useState<DoiRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,19 +47,19 @@ const DoiRequests: React.FC = () => {
   const handleSaveLink = async (id: string) => {
     const link = (linkInputs[id] || '').trim();
     if (!link || !link.startsWith('http')) {
-      toast.warning('To\'g\'ri DOI link (URL) kiriting.');
+      toast.warning(t("To'g'ri DOI link (URL) kiriting."));
       return;
     }
     setSavingId(id);
     try {
       await apiService.doi.updateLink(id, link);
-      toast.success('DOI link saqlandi. Muallifga bildirishnoma yuborildi.');
+      toast.success(t('DOI link saqlandi. Muallifga bildirishnoma yuborildi.'));
       setLinkInputs((prev) => ({ ...prev, [id]: '' }));
       const res = await apiService.doi.list();
       const data = Array.isArray(res) ? res : (res?.results ?? res?.data ?? []);
       setList(Array.isArray(data) ? data : []);
     } catch (err: any) {
-      toast.error(err?.message || 'Saqlashda xatolik.');
+      toast.error(err?.message || t('Saqlashda xatolik.'));
     } finally {
       setSavingId(null);
     }
@@ -71,18 +73,18 @@ const DoiRequests: React.FC = () => {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <EditorialPageHeader
-        title="DOI so'rovlari"
+        title={t("DOI so'rovlari")}
         subtitle={
           isReviewer
-            ? "Mualliflar DOI raqami olish uchun yuborgan so'rovlar. Saytdan DOI raqamini oling, taqrizchi linkini kiriting va saqlang — muallif arxivida ko'radi va bildirishnoma oladi."
-            : "Sizning DOI so'rovlaringiz. Taqrizchi link kiritgach shu yerda va arxivda ko'rinadi."
+            ? t("Mualliflar DOI raqami olish uchun yuborgan so'rovlar. Saytdan DOI raqamini oling, taqrizchi linkini kiriting va saqlang — muallif arxivida ko'radi va bildirishnoma oladi.")
+            : t("Sizning DOI so'rovlaringiz. Taqrizchi link kiritgach shu yerda va arxivda ko'rinadi.")
         }
       />
       <Card>
         {loading ? (
-          <p className="text-[var(--editorial-muted)]">Yuklanmoqda…</p>
+          <p className="text-[var(--editorial-muted)]">{t('Yuklanmoqda…')}</p>
         ) : list.length === 0 ? (
-          <EmptyState compact illustration="inbox" title="DOI so'rovlari yo'q" description="Yangi so'rovlar kelganda shu yerda ko'rinadi." />
+          <EmptyState compact illustration="inbox" title={t("DOI so'rovlari yo'q")} description={t("Yangi so'rovlar kelganda shu yerda ko'rinadi.")} />
         ) : (
           <div className="space-y-4">
             {list.map((req) => (
@@ -93,7 +95,7 @@ const DoiRequests: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-slate-900 truncate">{req.author_short}</p>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {new Date(req.created_at).toLocaleDateString('uz-UZ')} · {req.status === 'submitted' ? 'Taqrizchida' : req.status === 'completed' ? 'Yakunlangan' : req.status}
+                    {new Date(req.created_at).toLocaleDateString('uz-UZ')} · {req.status === 'submitted' ? t('Taqrizchida') : req.status === 'completed' ? t('Yakunlangan') : req.status}
                   </p>
                   {req.file_url && (
                     <a
@@ -102,7 +104,7 @@ const DoiRequests: React.FC = () => {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-sm text-[var(--editorial-primary)] hover:underline mt-2"
                     >
-                      <ExternalLink size={14} /> Faylni yuklab olish
+                      <ExternalLink size={14} /> {t('Faylni yuklab olish')}
                     </a>
                   )}
                   {req.status === 'completed' && req.doi_link && (
@@ -112,7 +114,7 @@ const DoiRequests: React.FC = () => {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-sm text-emerald-800 hover:underline mt-2 ml-4"
                     >
-                      DOI link
+                      {t('DOI link')}
                     </a>
                   )}
                 </div>
@@ -123,13 +125,13 @@ const DoiRequests: React.FC = () => {
                       value={linkInputs[req.id] ?? ''}
                       onChange={(e) => setLinkInputs((prev) => ({ ...prev, [req.id]: e.target.value }))}
                       placeholder="https://..."
-                      className="editorial-select min-w-[200px]"
+                      className="editorial-select w-full sm:w-auto sm:min-w-[200px] sm:flex-1"
                     />
                     <Button
                       onClick={() => handleSaveLink(req.id)}
                       disabled={savingId === req.id || !(linkInputs[req.id] || '').trim()}
                     >
-                      {savingId === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Linkni saqlash"}
+                      {savingId === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : t('Linkni saqlash')}
                     </Button>
                   </div>
                 )}

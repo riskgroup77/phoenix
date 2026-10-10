@@ -6,8 +6,10 @@ import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
 import { Archive, Download, BookOpen, Loader2, Share2 } from 'lucide-react';
+import { useT } from '../i18n/LanguageContext';
 
 const MyCollections: React.FC = () => {
+    const { t } = useT();
     const { user } = useAuth();
     const [issues, setIssues] = useState<any[]>([]);
     const [journals, setJournals] = useState<any[]>([]);
@@ -73,7 +75,7 @@ const MyCollections: React.FC = () => {
         try {
             if (navigator.clipboard?.writeText) {
                 await navigator.clipboard.writeText(link);
-                alert('To\'plam havolasi nusxalandi. Havolani istalgan kishiga yuboring.');
+                alert(t("To'plam havolasi nusxalandi. Havolani istalgan kishiga yuboring."));
             } else {
                 window.prompt('Havolani nusxalang:', link);
             }
@@ -83,15 +85,15 @@ const MyCollections: React.FC = () => {
     };
 
     if (!user) {
-        return <Card title="Xatolik"><p>Foydalanuvchi topilmadi.</p></Card>;
+        return <Card title={t('Xatolik')}><p>{t('Foydalanuvchi topilmadi.')}</p></Card>;
     }
     
     if (loading) {
         return (
-            <Card title="Mening To'plamlarim">
+            <Card title={t("Mening To'plamlarim")}>
                 <div className="flex justify-center items-center h-64">
                     <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                    <span className="ml-3">Ma'lumotlar yuklanmoqda...</span>
+                    <span className="ml-3">{t("Ma'lumotlar yuklanmoqda...")}</span>
                 </div>
             </Card>
         );
@@ -99,14 +101,14 @@ const MyCollections: React.FC = () => {
     
     if (error) {
         return (
-            <Card title="Xatolik">
+            <Card title={t('Xatolik')}>
                 <div className="text-red-700 p-4 bg-red-900/20 rounded-lg">
                     <p>{error}</p>
                     <button 
                         onClick={() => window.location.reload()} 
                         className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
                     >
-                        Qayta urinib ko'rish
+                        {t("Qayta urinib ko'rish")}
                     </button>
                 </div>
             </Card>
@@ -116,8 +118,8 @@ const MyCollections: React.FC = () => {
     return (
         <div className="max-w-5xl mx-auto">
             <EditorialPageHeader
-                title="Mening To'plamlarim"
-                subtitle="Bu yerda sizning maqolalaringiz kiritilgan jurnallarning oylik to'plamlarini topishingiz mumkin."
+                title={t("Mening To'plamlarim")}
+                subtitle={t("Bu yerda sizning maqolalaringiz kiritilgan jurnallarning oylik to'plamlarini topishingiz mumkin.")}
             />
             <div className="space-y-4">
                 {myCollections.length > 0 ? (
@@ -128,10 +130,8 @@ const MyCollections: React.FC = () => {
                                 <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                                     <div>
                                         <h3 className="text-xl font-bold text-slate-900">{journal?.name}</h3>
-                                        <p className="font-semibold text-blue-900 mt-1">{issue.issue_number} soni</p>
-                                        <p className="text-xs text-slate-500 mt-2">
-                                            Nashr sanasi: {new Date(issue.publication_date).toLocaleDateString()}
-                                        </p>
+                                        <p className="font-semibold text-blue-900 mt-1">{t('{issue_number} soni', { issue_number: issue.issue_number })}</p>
+                                        <p className="text-xs text-slate-500 mt-2">{t('Nashr sanasi: {value}', { value: new Date(issue.publication_date).toLocaleDateString() })}</p>
                                     </div>
                                     <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                                         {(issue.collection_file_url || issue.collection_url) && (
@@ -142,7 +142,7 @@ const MyCollections: React.FC = () => {
                                                 className="inline-block"
                                             >
                                                 <Button variant="secondary" className="w-full sm:w-auto">
-                                                    <Download className="mr-2 h-4 w-4" /> To'plamni Yuklash
+                                                    <Download className="mr-2 h-4 w-4" /> {t("To'plamni Yuklash")}
                                                 </Button>
                                             </a>
                                         )}
@@ -151,7 +151,7 @@ const MyCollections: React.FC = () => {
                                             className="w-full sm:w-auto"
                                             onClick={() => handleShareCollection(issue.id)}
                                         >
-                                            <Share2 className="mr-2 h-4 w-4" /> Ulashish
+                                            <Share2 className="mr-2 h-4 w-4" /> {t('Ulashish')}
                                         </Button>
                                     </div>
                                 </div>
@@ -161,8 +161,8 @@ const MyCollections: React.FC = () => {
                 ) : (
                     <EmptyState
                         illustration="inbox"
-                        title="To'plamlar hozircha yo'q"
-                        description="Maqolangiz biror sonda nashr etilganda va admin to'plam havolasini yuborganda, u shu yerda paydo bo'ladi."
+                        title={t("To'plamlar hozircha yo'q")}
+                        description={t("Maqolangiz biror sonda nashr etilganda va admin to'plam havolasini yuborganda, u shu yerda paydo bo'ladi.")}
                     />
                 )}
             </div>

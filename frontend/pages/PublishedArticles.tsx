@@ -7,6 +7,7 @@ import { apiService } from '../services/apiService';
 import { asApiList } from '../utils/apiList';
 import { ArticleStatus, Role, Issue } from '../types';
 import { UploadCloud, Send, Link as LinkIcon, Loader2, Share2, ExternalLink, Download, FileCheck, ChevronDown } from 'lucide-react';
+import { useT } from '../i18n/LanguageContext';
 
 const MONTH_NAMES = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentyabr", "Oktyabr", "Noyabr", "Dekabr"];
 const currentYear = new Date().getFullYear();
@@ -33,6 +34,7 @@ function getArticleJournalId(a: { journal?: unknown }): string {
 }
 
 const PublishedArticles: React.FC = () => {
+    const { t } = useT();
     const { user } = useAuth();
     const { addNotification } = useNotifications();
     const userRole = typeof user?.role === 'string' ? user.role.toLowerCase() : user?.role;
@@ -172,13 +174,13 @@ const PublishedArticles: React.FC = () => {
         const draftUrl = (pubUrlByArticle[articleId] ?? (article as any)?.publication_url ?? '').trim();
         const file = certFileByArticle[articleId] ?? null;
         if (!draftUrl && !file) {
-            alert("Kamida bittasini kiriting: nashr havolasi (URL) yoki sertifikat fayli.");
+            alert(t('Kamida bittasini kiriting: nashr havolasi (URL) yoki sertifikat fayli.'));
             return;
         }
         if (file) {
             const ok = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'].includes(file.type);
             if (!ok) {
-                alert("Sertifikat faqat PDF yoki JPG/PNG bo'lishi kerak.");
+                alert(t("Sertifikat faqat PDF yoki JPG/PNG bo'lishi kerak."));
                 return;
             }
         }
@@ -204,25 +206,25 @@ const PublishedArticles: React.FC = () => {
                 delete next[articleId];
                 return next;
             });
-            alert("Ma'lumotlar saqlandi va muallifga xabar yuborildi.");
+            alert(t("Ma'lumotlar saqlandi va muallifga xabar yuborildi."));
         } catch (err: any) {
             console.error(err);
-            alert(err?.message || 'Yuborishda xatolik.');
+            alert(err?.message || t('Yuborishda xatolik.'));
         } finally {
             setSendingDeliveryId(null);
         }
     };
 
     if (!user || (!isJournalAdminUser && !isSuperAdminUser)) {
-        return <Card title="Ruxsat Rad Etildi"><p>Ushbu sahifani ko'rish uchun sizda yetarli ruxsat yo'q.</p></Card>;
+        return <Card title={t('Ruxsat Rad Etildi')}><p>{t("Ushbu sahifani ko'rish uchun sizda yetarli ruxsat yo'q.")}</p></Card>;
     }
     
     if (loading) {
         return (
-            <Card title="Oylik Sonlar va Arxiv">
+            <Card title={t('Oylik Sonlar va Arxiv')}>
                 <div className="flex justify-center items-center h-64">
                     <Loader2 className="h-8 w-8 animate-spin text-[var(--editorial-primary)]" />
-                    <span className="ml-3">Ma'lumotlar yuklanmoqda...</span>
+                    <span className="ml-3">{t("Ma'lumotlar yuklanmoqda...")}</span>
                 </div>
             </Card>
         );
@@ -230,14 +232,14 @@ const PublishedArticles: React.FC = () => {
     
     if (error) {
         return (
-            <Card title="Xatolik">
+            <Card title={t('Xatolik')}>
                 <div className="text-red-700 p-4 bg-red-900/20 rounded-lg">
                     <p>{error}</p>
                     <button 
                         onClick={() => window.location.reload()} 
                         className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
                     >
-                        Qayta urinib ko'rish
+                        {t("Qayta urinib ko'rish")}
                     </button>
                 </div>
             </Card>
@@ -246,11 +248,11 @@ const PublishedArticles: React.FC = () => {
 
     const handleCreateOrUpdateIssue = async () => {
         if (!selectedJournalId) {
-            alert("Iltimos, jurnalni tanlang.");
+            alert(t('Iltimos, jurnalni tanlang.'));
             return;
         }
         if (!collectionPdf && !collectionUrl) {
-            alert("Iltimos, oylik to'plamning faylini (DOC/DOCX/PDF) yuklang yoki havola kiriting.");
+            alert(t("Iltimos, oylik to'plamning faylini (DOC/DOCX/PDF) yuklang yoki havola kiriting."));
             return;
         }
 
@@ -305,7 +307,7 @@ const PublishedArticles: React.FC = () => {
                 });
             }
 
-            alert(`Jurnalning ${monthName} ${selectedYear} soni muvaffaqiyatli saqlandi va mualliflarga xabar yuborildi.`);
+            alert(t('Jurnalning {monthName} {selectedYear} soni muvaffaqiyatli saqlandi va mualliflarga xabar yuborildi.', { monthName: monthName, selectedYear: selectedYear }));
             setCollectionPdf(null);
             setCollectionUrl('');
         } catch (err: any) {
@@ -317,29 +319,29 @@ const PublishedArticles: React.FC = () => {
     return (
         <div className="max-w-6xl mx-auto">
             <EditorialPageHeader
-                title="Oylik Sonlar va Arxiv"
+                title={t('Oylik Sonlar va Arxiv')}
                 subtitle={
                     isSuperAdminUser
-                        ? "O'z jurnallaringiz uchun oylik to'plamlarni boshqaring. Super admin: barcha jurnallardan birini tanlashingiz mumkin."
-                        : "O'z jurnallaringiz uchun oylik to'plamlarni boshqaring."
+                        ? t("O'z jurnallaringiz uchun oylik to'plamlarni boshqaring. Super admin: barcha jurnallardan birini tanlashingiz mumkin.")
+                        : t("O'z jurnallaringiz uchun oylik to'plamlarni boshqaring.")
                 }
             />
         <Card>
 
             {managedJournals.length === 0 && !loading && (
                 <div className="mb-6 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-100 text-sm">
-                    <strong>Sizga biriktirilgan jurnal topilmadi.</strong> Agar bu xato bo‘lsa, super admin jurnal sozlamalarida sizni &quot;jurnal administratori&quot; sifatida biriktirganini tekshiring.
+                    <strong>{t('Sizga biriktirilgan jurnal topilmadi.')}</strong> {t('Agar bu xato bo‘lsa, super admin jurnal sozlamalarida sizni "jurnal administratori" sifatida biriktirganini tekshiring.')}
                 </div>
             )}
 
             {managedJournals.length > 0 && (
                 <div className="mb-4 p-4 rounded-xl border border-blue-500/20 bg-blue-500/5 text-sm text-slate-600">
-                    <span className="text-slate-500">Siz boshqaradigan jurnal{managedJournals.length > 1 ? 'lar' : ''} </span>
+                    <span className="text-slate-500">{managedJournals.length > 1 ? t('Siz boshqaradigan jurnallar') : t('Siz boshqaradigan jurnal')} </span>
                     <span className="text-slate-900 font-medium">
                         {managedJournals.map((j) => j.name).join(' · ')}
                     </span>
                     {managedJournals.length > 1 && (
-                        <span className="text-slate-500"> ({managedJournals.length} ta)</span>
+                        <span className="text-slate-500">{t('({length} ta)', { length: managedJournals.length })}</span>
                     )}
                 </div>
             )}
@@ -347,7 +349,7 @@ const PublishedArticles: React.FC = () => {
             <div className="editorial-card mb-6 flex flex-col md:flex-row gap-4 !p-4">
                 {managedJournals.length > 0 && (
                     <div className="md:min-w-[220px] flex-1">
-                        <label className="editorial-field-label">Jurnal (shu bo'yicha son va maqolalar)</label>
+                        <label className="editorial-field-label">{t("Jurnal (shu bo'yicha son va maqolalar)")}</label>
                         <select 
                             value={selectedJournalId} 
                             onChange={e => setSelectedJournalId(e.target.value)} 
@@ -362,14 +364,14 @@ const PublishedArticles: React.FC = () => {
                         </select>
                         {selectedJournal && (
                             <p className="text-xs text-slate-500 mt-1.5">
-                                Tanlangan: <span className="text-slate-600">{selectedJournal.name}</span>
+                                {t('Tanlangan:')} <span className="text-slate-600">{selectedJournal.name}</span>
                                 {selectedJournal.issn ? ` · ISSN: ${selectedJournal.issn}` : ''}
                             </p>
                         )}
                     </div>
                 )}
                 <div>
-                    <label className="editorial-field-label">Yil</label>
+                    <label className="editorial-field-label">{t('Yil')}</label>
                     <select 
                         value={selectedYear} 
                         onChange={e => setSelectedYear(parseInt(e.target.value))} 
@@ -380,7 +382,7 @@ const PublishedArticles: React.FC = () => {
                     </select>
                 </div>
                 <div>
-                    <label className="editorial-field-label">Oy</label>
+                    <label className="editorial-field-label">{t('Oy')}</label>
                     <select 
                         value={selectedMonth} 
                         onChange={e => setSelectedMonth(parseInt(e.target.value))} 
@@ -394,10 +396,8 @@ const PublishedArticles: React.FC = () => {
 
             {activeIssue ? (
                 <div className="p-6 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
-                    <h3 className="text-xl font-bold text-emerald-900">
-                        {MONTH_NAMES[selectedMonth]} {selectedYear} soni allaqachon yaratilgan.
-                    </h3>
-                    <p className="text-emerald-900 mt-2">Ma'lumotlarni yangilash uchun quyidagi formadan foydalanishingiz mumkin.</p>
+                    <h3 className="text-xl font-bold text-emerald-900">{t('{MONTH_NAMES} {selectedYear} soni allaqachon yaratilgan.', { MONTH_NAMES: MONTH_NAMES[selectedMonth], selectedYear: selectedYear })}</h3>
+                    <p className="text-emerald-900 mt-2">{t("Ma'lumotlarni yangilash uchun quyidagi formadan foydalanishingiz mumkin.")}</p>
                 </div>
             ) : null}
 
@@ -405,10 +405,10 @@ const PublishedArticles: React.FC = () => {
                 <div className="flex flex-wrap items-end justify-between gap-2">
                     <div>
                         <h3 className="text-base font-semibold text-slate-900 dark:text-white">
-                            {activeIssue ? "Ma'lumotlarni yangilash" : 'Yangi son yaratish'}
+                            {activeIssue ? t("Ma'lumotlarni yangilash") : t('Yangi son yaratish')}
                         </h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                            Tanlangan oy: <strong className="text-slate-800 dark:text-slate-200">{Array.isArray(articlesForNewIssue) ? articlesForNewIssue.length : 0}</strong> ta nashr etilgan maqola
+                            {t('Tanlangan oy:')} <strong className="text-slate-800 dark:text-slate-200">{Array.isArray(articlesForNewIssue) ? articlesForNewIssue.length : 0}</strong> {t('ta nashr etilgan maqola')}
                         </p>
                     </div>
                 </div>
@@ -434,12 +434,12 @@ const PublishedArticles: React.FC = () => {
                                             <div className="flex flex-wrap gap-3 mt-2 text-xs">
                                                 {pubLink ? (
                                                     <a href={pubLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
-                                                        <ExternalLink className="h-3.5 w-3.5" /> Nashr
+                                                        <ExternalLink className="h-3.5 w-3.5" /> {t('Nashr')}
                                                     </a>
                                                 ) : null}
                                                 {certLink ? (
                                                     <a href={certLink} target="_blank" rel="noopener noreferrer" className="text-indigo-500 dark:text-indigo-300 hover:underline inline-flex items-center gap-1">
-                                                        <Download className="h-3.5 w-3.5" /> Sertifikat
+                                                        <Download className="h-3.5 w-3.5" /> {t('Sertifikat')}
                                                     </a>
                                                 ) : null}
                                             </div>
@@ -451,7 +451,7 @@ const PublishedArticles: React.FC = () => {
                                             onClick={() => handleShareArticle(article.id)}
                                             className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
                                         >
-                                            {copiedArticleId === article.id ? 'Nusxalandi' : 'Havola'}
+                                            {copiedArticleId === article.id ? t('Nusxalandi') : t('Havola')}
                                         </button>
                                         <button
                                             type="button"
@@ -459,7 +459,7 @@ const PublishedArticles: React.FC = () => {
                                             className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 inline-flex items-center justify-center gap-1"
                                         >
                                             <FileCheck className="h-3.5 w-3.5" />
-                                            Yuborish
+                                            {t('Yuborish')}
                                             <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                         </button>
                                     </div>
@@ -468,10 +468,10 @@ const PublishedArticles: React.FC = () => {
                                 {isExpanded && (
                                 <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-0 border-t border-slate-100 dark:border-slate-800 space-y-3">
                                     <p className="text-xs text-slate-500 dark:text-slate-400 pt-3">
-                                        Nashr havolasi va/yoki sertifikatni kiriting — muallifga bildirishnoma boradi.
+                                        {t('Nashr havolasi va/yoki sertifikatni kiriting — muallifga bildirishnoma boradi.')}
                                     </p>
                                     <div>
-                                        <label className="text-xs text-slate-500 dark:text-slate-400 block mb-1">Nashr havolasi (URL)</label>
+                                        <label className="text-xs text-slate-500 dark:text-slate-400 block mb-1">{t('Nashr havolasi (URL)')}</label>
                                         <input
                                             type="url"
                                             className="pinm-field w-full text-sm py-2 px-3"
@@ -483,7 +483,7 @@ const PublishedArticles: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-xs text-slate-500 dark:text-slate-400 block mb-1">Sertifikat (PDF / JPG / PNG)</label>
+                                        <label className="text-xs text-slate-500 dark:text-slate-400 block mb-1">{t('Sertifikat (PDF / JPG / PNG)')}</label>
                                         <input
                                             type="file"
                                             accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
@@ -505,11 +505,11 @@ const PublishedArticles: React.FC = () => {
                                     >
                                         {sendingDeliveryId === article.id ? (
                                             <>
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Yuborilmoqda...
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('Yuborilmoqda...')}
                                             </>
                                         ) : (
                                             <>
-                                                <Send className="mr-2 h-4 w-4" /> Muallifga yuborish
+                                                <Send className="mr-2 h-4 w-4" /> {t('Muallifga yuborish')}
                                             </>
                                         )}
                                     </Button>
@@ -520,17 +520,17 @@ const PublishedArticles: React.FC = () => {
                         })
                     ) : (
                         <div className="p-4 rounded-xl border border-slate-200/90 dark:border-slate-700/60 bg-slate-50 dark:bg-slate-800/40 text-sm text-slate-500 dark:text-slate-400 text-center">
-                            Tanlangan oy uchun nashr etilgan maqolalar topilmadi.
+                            {t('Tanlangan oy uchun nashr etilgan maqolalar topilmadi.')}
                         </div>
                     )}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-2">To'plam fayli (DOC/DOCX/PDF)</label>
+                    <label className="block text-sm font-medium text-slate-600 mb-2">{t("To'plam fayli (DOC/DOCX/PDF)")}</label>
                     <label htmlFor="collection-pdf-upload" className="cursor-pointer">
                         <div className="p-8 border-2 border-dashed rounded-lg border-slate-200 text-center bg-slate-100/70 hover:bg-white/10 transition-colors">
                             <UploadCloud className="mx-auto h-10 w-10 text-slate-500" />
-                            <p className="mt-2 text-sm text-slate-500">{collectionPdf ? `Tanlangan: ${collectionPdf.name}` : 'DOC, DOCX yoki PDF faylni tanlang'}</p>
+                            <p className="mt-2 text-sm text-slate-500">{collectionPdf ? `Tanlangan: ${collectionPdf.name}` : t('DOC, DOCX yoki PDF faylni tanlang')}</p>
                         </div>
                         <input 
                             id="collection-pdf-upload" 
@@ -543,7 +543,7 @@ const PublishedArticles: React.FC = () => {
                     </label>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-slate-600 mb-2">To'plam havolasi (ixtiyoriy)</label>
+                    <label className="block text-sm font-medium text-slate-600 mb-2">{t("To'plam havolasi (ixtiyoriy)")}</label>
                     <div className="relative">
                         <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18}/>
                         <input 
@@ -563,11 +563,11 @@ const PublishedArticles: React.FC = () => {
                     >
                         {loading ? (
                             <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Yuklanmoqda...
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('Yuklanmoqda...')}
                             </>
                         ) : (
                             <>
-                                <Send className="mr-2 h-4 w-4"/> {activeIssue ? "Yangilash" : "Sonni Yopish va Saqlash"}
+                                <Send className="mr-2 h-4 w-4"/> {activeIssue ? t('Yangilash') : t('Sonni Yopish va Saqlash')}
                             </>
                         )}
                     </Button>

@@ -4,6 +4,7 @@ import Button from './ui/Button';
 import { apiService } from '../services/apiService';
 import { toast } from 'react-toastify';
 import { MessageSquare, Send } from 'lucide-react';
+import { useT } from '../i18n/LanguageContext';
 
 export interface OperatorChatMessage {
   id: string;
@@ -36,6 +37,7 @@ const AuthorOperatorChat: React.FC<AuthorOperatorChatProps> = ({
   variant = 'default',
   embeddedInGlobalDock = false,
 }) => {
+  const { t } = useT();
   const [messages, setMessages] = useState<OperatorChatMessage[]>([]);
   const [text, setText] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
@@ -50,7 +52,7 @@ const AuthorOperatorChat: React.FC<AuthorOperatorChatProps> = ({
         setMessages(list as OperatorChatMessage[]);
       } catch {
         if (!opts?.silent) {
-          toast.error('Chat xabarlarini yuklashda xatolik.');
+          toast.error(t('Chat xabarlarini yuklashda xatolik.'));
         }
       } finally {
         setInitialLoading(false);
@@ -111,10 +113,10 @@ const AuthorOperatorChat: React.FC<AuthorOperatorChatProps> = ({
       }
     >
       {initialLoading ? (
-        <p className={`text-center text-slate-500 ${isDock ? 'py-4 text-xs' : 'py-6 text-sm'}`}>Yuklanmoqda...</p>
+        <p className={`text-center text-slate-500 ${isDock ? 'py-4 text-xs' : 'py-6 text-sm'}`}>{t('Yuklanmoqda...')}</p>
       ) : messages.length === 0 ? (
         <p className={`text-center text-slate-500 ${isDock ? 'py-4 text-xs' : 'py-6 text-sm'}`}>
-          Hozircha xabar yo‘q. Birinchi xabarni yozing.
+          {t('Hozircha xabar yo‘q. Birinchi xabarni yozing.')}
         </p>
       ) : (
         messages.map((msg) => {
@@ -155,7 +157,7 @@ const AuthorOperatorChat: React.FC<AuthorOperatorChatProps> = ({
             void send();
           }
         }}
-        placeholder={isDock ? 'Xabar… (Enter — yuborish)' : 'Xabar yozing... (Enter — yuborish, Shift+Enter — yangi qator)'}
+        placeholder={isDock ? t('Xabar… (Enter — yuborish)') : t('Xabar yozing... (Enter — yuborish, Shift+Enter — yangi qator)')}
         rows={isDock ? 2 : 3}
         className={
           isDock
@@ -172,7 +174,7 @@ const AuthorOperatorChat: React.FC<AuthorOperatorChatProps> = ({
         variant="primary"
       >
         <Send className={isDock ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
-        {sending ? 'Yuborilmoqda...' : 'Yuborish'}
+        {sending ? t('Yuborilmoqda...') : t('Yuborish')}
       </Button>
     </div>
   );

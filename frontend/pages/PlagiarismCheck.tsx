@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useAiPrefill, str, num } from '../contexts/AiPrefillContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import ModalPortal from '../components/ui/ModalPortal';
@@ -17,6 +18,7 @@ import { getUserFriendlyError } from '../utils/errorHandler';
 import { toast } from 'react-toastify';
 import { useServicePrices } from '../hooks/useServicePrices';
 import { MAX_UPLOAD_BYTES, formatMaxUploadLabel } from '../constants/upload';
+import { useT } from '../i18n/LanguageContext';
 
 // New types for detailed results
 interface PlagiarismSource {
@@ -69,6 +71,7 @@ function formatPlagiarismPaymentMessage(raw: string): string {
 }
 
 const PlagiarismCheck: React.FC = () => {
+  const { t } = useT();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -85,6 +88,23 @@ const PlagiarismCheck: React.FC = () => {
   const patchForm = (patch: Partial<AntiplagiatFormValues>) => {
     setForm((prev) => ({ ...prev, ...patch }));
   };
+
+  // AI ish maydoni to'ldirgan qiymatlar
+  const aiPrefill = useAiPrefill('plagiarism_check');
+  useEffect(() => {
+    if (!aiPrefill) return;
+    const f = aiPrefill.fields;
+    const patch: Partial<AntiplagiatFormValues> = {};
+    if (str(f.documentName)) patch.documentName = str(f.documentName);
+    if (str(f.documentType)) patch.documentType = str(f.documentType);
+    if (str(f.documentDescription)) patch.documentDescription = str(f.documentDescription);
+    if (str(f.authorFirstName)) patch.authorFirstName = str(f.authorFirstName);
+    if (str(f.authorLastName)) patch.authorLastName = str(f.authorLastName);
+    const picked = aiPrefill.file;
+    if (picked && picked.size <= MAX_UPLOAD_BYTES) patch.file = picked;
+    patchForm(patch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiPrefill?.nonce, aiPrefill?.file]);
   
   // Narx API dan olinadi
   const PLAGIARISM_CHECK_PRICE = getPrice('plagiarism_check');
@@ -211,7 +231,7 @@ const PlagiarismCheck: React.FC = () => {
                   setArticleId(pendingArticleId);
                   setPendingPlagiarismPayment(null);
                   setPaymentVerifiedCompleted(true);
-                  toast.success('To\'lov tasdiqlandi. Antiplagiat tekshiruvi avtomatik boshlanmoqda...');
+                  toast.success(t("To'lov tasdiqlandi. Antiplagiat tekshiruvi avtomatik boshlanmoqda..."));
                   window.setTimeout(() => {
                       void runPlagiarismAfterPayment(pendingArticleId);
                   }, 300);
@@ -221,19 +241,19 @@ const PlagiarismCheck: React.FC = () => {
                   sessionStorage.removeItem(STORAGE_KEY_TRANSACTION_ID);
                   sessionStorage.removeItem(STORAGE_KEY_ARTICLE_ID);
                   setPendingPlagiarismPayment(null);
-                  toast.error('To\'lov bekor qilindi yoki muvaffaqiyatsiz.');
+                  toast.error(t("To'lov bekor qilindi yoki muvaffaqiyatsiz."));
                   return;
               }
               // pending — bank callback kechikishi mumkin
               setArticleId(pendingArticleId);
               setPendingPlagiarismPayment({ transactionId: pendingTxId, articleId: pendingArticleId });
               toast.info(
-                  'To\'lov hali tizimda tasdiqlanmagan. Agar Clickda to\'lov qilgan bo\'lsangiz, 1–2 daqiqa kutib "To\'lov holatini tekshirish" tugmasini bosing.',
+                  t('To\'lov hali tizimda tasdiqlanmagan. Agar Clickda to\'lov qilgan bo\'lsangiz, 1–2 daqiqa kutib "To\'lov holatini tekshirish" tugmasini bosing.'),
                   { autoClose: 9000 }
               );
           } catch {
               if (!cancelled) {
-                  toast.warning('To\'lov holatini tekshirib bo\'lmadi. Internetni tekshirib, sahifani yangilang.');
+                  toast.warning(t("To'lov holatini tekshirib bo'lmadi. Internetni tekshirib, sahifani yangilang."));
               }
           }
       })();
@@ -421,11 +441,11 @@ const PlagiarismCheck: React.FC = () => {
       const ready = await pollUntilPlagiarismReady(targetArticleId);
       if (ready) {
         await fetchPlagiarismResults(targetArticleId);
-        toast.success('Antiplagiat tekshiruvi yakunlandi. Arxivda ko\'rishingiz mumkin.');
+        toast.success(t("Antiplagiat tekshiruvi yakunlandi. Arxivda ko'rishingiz mumkin."));
         goToResultView(targetArticleId);
         return;
       }
-      toast.info('Tekshiruv davom etmoqda. Serverda modullar skanerlanmoqda...');
+      toast.info(t('Tekshiruv davom etmoqda. Serverda modullar skanerlanmoqda...'));
       await apiService.articles.checkPlagiarism(targetArticleId, {
         enabledModules: form.enabledModuleIds,
         force: true,
@@ -435,7 +455,7 @@ const PlagiarismCheck: React.FC = () => {
         throw new Error('Tekshiruv vaqti tugadi. Keyinroq «Arxiv hujjatlar» bo\'limidan natijani ko\'ring.');
       }
       await fetchPlagiarismResults(targetArticleId);
-      toast.success('Antiplagiat tekshiruvi muvaffaqiyatli amalga oshirildi!');
+      toast.success(t('Antiplagiat tekshiruvi muvaffaqiyatli amalga oshirildi!'));
       goToResultView(targetArticleId);
     } catch (err: unknown) {
       const msg = getUserFriendlyError(err) || 'Antiplagiat tekshiruvida xatolik yuz berdi.';
@@ -451,7 +471,7 @@ const PlagiarismCheck: React.FC = () => {
       const txId = pendingPlagiarismPayment?.transactionId || sessionStorage.getItem(STORAGE_KEY_TRANSACTION_ID);
       const artId = pendingPlagiarismPayment?.articleId || sessionStorage.getItem(STORAGE_KEY_ARTICLE_ID);
       if (!txId || !artId) {
-          toast.warning('Kutilayotgan to\'lov topilmadi.');
+          toast.warning(t("Kutilayotgan to'lov topilmadi."));
           return;
       }
       try {
@@ -462,7 +482,7 @@ const PlagiarismCheck: React.FC = () => {
               setArticleId(artId);
               setPendingPlagiarismPayment(null);
               setPaymentVerifiedCompleted(true);
-              toast.success('To\'lov tasdiqlandi. Antiplagiat tekshiruvi avtomatik boshlanmoqda...');
+              toast.success(t("To'lov tasdiqlandi. Antiplagiat tekshiruvi avtomatik boshlanmoqda..."));
               window.setTimeout(() => {
                   void runPlagiarismAfterPayment(artId);
               }, 300);
@@ -472,12 +492,12 @@ const PlagiarismCheck: React.FC = () => {
               sessionStorage.removeItem(STORAGE_KEY_TRANSACTION_ID);
               sessionStorage.removeItem(STORAGE_KEY_ARTICLE_ID);
               setPendingPlagiarismPayment(null);
-              toast.error('To\'lov bekor qilindi yoki muvaffaqiyatsiz.');
+              toast.error(t("To'lov bekor qilindi yoki muvaffaqiyatsiz."));
               return;
           }
-          toast.info('To\'lov hali tasdiqlanmagan. Bir ozdan keyin yana urinib ko\'ring.');
+          toast.info(t("To'lov hali tasdiqlanmagan. Bir ozdan keyin yana urinib ko'ring."));
       } catch {
-          toast.error('Holatni tekshirishda xatolik. Qayta urinib ko\'ring.');
+          toast.error(t("Holatni tekshirishda xatolik. Qayta urinib ko'ring."));
       }
   };
 
@@ -553,7 +573,7 @@ const PlagiarismCheck: React.FC = () => {
         return;
       }
       if (picked.size > MAX_UPLOAD_BYTES) {
-          toast.error(`Fayl hajmi ${formatMaxUploadLabel()} dan oshmasligi kerak.`);
+          toast.error(t('Fayl hajmi {value} dan oshmasligi kerak.', { value: formatMaxUploadLabel() }));
           return;
       }
       patchForm({ file: picked });
@@ -623,19 +643,19 @@ const PlagiarismCheck: React.FC = () => {
   const handleCheck = async (paymentCompleted = false, forcedArticleId?: string) => {
       if (!form.file || !user) return;
       if (!form.authorFirstName.trim() || !form.authorLastName.trim()) {
-          toast.error('Ism va familyani kiriting.');
+          toast.error(t('Ism va familyani kiriting.'));
           return;
       }
       if (!form.documentName.trim()) {
-          toast.error('Hujjat nomini kiriting.');
+          toast.error(t('Hujjat nomini kiriting.'));
           return;
       }
       if (!form.documentType) {
-          toast.error('Hujjat turini tanlang.');
+          toast.error(t('Hujjat turini tanlang.'));
           return;
       }
       if (!form.enabledModuleIds.length) {
-          toast.error('Kamida bitta tekshirish modulini yoqing.');
+          toast.error(t('Kamida bitta tekshirish modulini yoqing.'));
           return;
       }
       // Narx 0 bo'lsa to'lovsiz tekshirish; aks holda to'lov talab qilinadi
@@ -670,7 +690,7 @@ const PlagiarismCheck: React.FC = () => {
               plagiarismResult.report,
               plagiarismResult.originality,
             );
-            toast.success('Antiplagiat natijasi yuklandi.');
+            toast.success(t('Antiplagiat natijasi yuklandi.'));
             goToResultView(targetArticleId);
             return;
           }
@@ -681,7 +701,7 @@ const PlagiarismCheck: React.FC = () => {
             throw new Error('Tekshiruv vaqti tugadi. Keyinroq natijani «Arxiv hujjatlar»dan ko\'ring.');
           }
           await fetchPlagiarismResults(targetArticleId);
-          toast.success('Antiplagiat tekshiruvi muvaffaqiyatli amalga oshirildi!');
+          toast.success(t('Antiplagiat tekshiruvi muvaffaqiyatli amalga oshirildi!'));
           goToResultView(targetArticleId);
       } catch (err: any) {
           const msg = getUserFriendlyError(err) || 'Antiplagiat tekshiruvida xatolik yuz berdi.';
@@ -713,16 +733,16 @@ const PlagiarismCheck: React.FC = () => {
           />
 
           {PLAGIARISM_CHECK_PRICE === 0 && (
-            <p className="mt-3 text-center text-xs text-emerald-700">Test rejimi — to&apos;lovsiz tekshirish</p>
+            <p className="mt-3 text-center text-xs text-emerald-700">{t("Test rejimi — to'lovsiz tekshirish")}</p>
           )}
 
           {isChecking && (
               <div className="mx-auto mt-8 max-w-lg rounded-lg border border-[var(--editorial-border,#e2ddd4)] bg-[var(--editorial-bg-alt,#f5f0e8)] p-4">
                   <p className="mb-1 text-center font-serif font-semibold text-[var(--editorial-text,#1a1a1a)]">
-                    Chuqur antiplagiat tekshiruvi
+                    {t('Chuqur antiplagiat tekshiruvi')}
                   </p>
                   <p className="mb-3 text-center text-xs text-[var(--editorial-muted,#64748b)]">
-                    Ichki baza va ochiq ilmiy manbalar bo'yicha haqiqiy moslik qidiriladi (bir necha daqiqa)
+                    {t("Ichki baza va ochiq ilmiy manbalar bo'yicha haqiqiy moslik qidiriladi (bir necha daqiqa)")}
                   </p>
                   {checkStatusLabel && (
                     <p className="mb-2 text-center text-sm text-[var(--editorial-primary,#1f3f8f)]">
@@ -741,9 +761,9 @@ const PlagiarismCheck: React.FC = () => {
 
           {paymentVerifiedCompleted && !isChecking && !result && (
               <div className="mx-auto mt-4 max-w-md rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center">
-                  <p className="mb-2 text-sm font-semibold text-emerald-900">To&apos;lov tasdiqlandi</p>
+                  <p className="mb-2 text-sm font-semibold text-emerald-900">{t("To'lov tasdiqlandi")}</p>
                   <Button onClick={() => handleCheck(true)} disabled={isChecking} className="w-full">
-                      Tekshirishni davom ettirish
+                      {t('Tekshirishni davom ettirish')}
                   </Button>
               </div>
           )}
@@ -751,17 +771,17 @@ const PlagiarismCheck: React.FC = () => {
           {pendingPlagiarismPayment && !paymentVerifiedCompleted && (
               <div className="mx-auto mt-4 max-w-md rounded-lg border border-amber-200 bg-amber-50 p-4 text-center">
                   <p className="mb-3 text-sm text-amber-900">
-                      To&apos;lov Clickda qilingan bo&apos;lsa, tizimga kelishi biroz vaqt olishi mumkin.
+                      {t("To'lov Clickda qilingan bo'lsa, tizimga kelishi biroz vaqt olishi mumkin.")}
                   </p>
                   <Button type="button" variant="secondary" onClick={recheckPlagiarismPayment} className="w-full sm:w-auto">
-                      To&apos;lov holatini tekshirish
+                      {t("To'lov holatini tekshirish")}
                   </Button>
               </div>
           )}
 
           {isChecking && (
               <p className="mt-4 text-center text-sm text-slate-600">
-                Tekshiruv yakunlangach natija «Arxiv hujjatlar» bo&apos;limida saqlanadi.
+                {t("Tekshiruv yakunlangach natija «Arxiv hujjatlar» bo'limida saqlanadi.")}
               </p>
           )}
       </div>
@@ -772,17 +792,17 @@ const PlagiarismCheck: React.FC = () => {
               <div className="w-full max-w-md rounded-2xl border border-white/50 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 shadow-2xl">
                   {paymentStatus === 'idle' && (
                       <div>
-                          <h3 className="mb-4 text-xl font-bold text-slate-950">To'lovni tasdiqlash</h3>
+                          <h3 className="mb-4 text-xl font-bold text-slate-950">{t("To'lovni tasdiqlash")}</h3>
                           <p className="mb-4 font-medium text-slate-900">
-                              Antiplagiat tekshiruvi uchun to'lov: <span className="font-bold text-violet-950">{PLAGIARISM_CHECK_PRICE.toLocaleString()} so'm</span>
+                              {t("Antiplagiat tekshiruvi uchun to'lov:")} <span className="font-bold text-violet-950">{t("{value} so'm", { value: PLAGIARISM_CHECK_PRICE.toLocaleString() })}</span>
                           </p>
                           <div className="flex gap-3">
                               <Button onClick={handlePay} className="flex-1">
                                   <CreditCard className="mr-2 h-4 w-4" />
-                                  To'lovni Amalga Oshirish
+                                  {t("To'lovni Amalga Oshirish")}
                               </Button>
                               <Button variant="secondary" onClick={closePaymentModal} className="flex-1">
-                                  Bekor qilish
+                                  {t('Bekor qilish')}
                               </Button>
                           </div>
                       </div>
@@ -790,32 +810,32 @@ const PlagiarismCheck: React.FC = () => {
                   {paymentStatus === 'processing' && (
                       <div className="text-center">
                           <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
-                          <p className="mt-4 text-lg font-semibold text-slate-950">To&apos;lovga tayyorlanmoqda…</p>
+                          <p className="mt-4 text-lg font-semibold text-slate-950">{t("To'lovga tayyorlanmoqda…")}</p>
                           <p className="mx-auto mt-2 max-w-xs text-sm font-medium text-slate-800">
-                              Maqola yaratilmoqda va tranzaksiya ochilmoqda. Bu 30–60 soniya davom etishi mumkin; iltimos kuting yoki oynani yopmang.
+                              {t('Maqola yaratilmoqda va tranzaksiya ochilmoqda. Bu 30–60 soniya davom etishi mumkin; iltimos kuting yoki oynani yopmang.')}
                           </p>
                       </div>
                   )}
                   {paymentStatus === 'success' && (
                       <div className="text-center">
                           <div className="mb-4 text-4xl text-emerald-800">✓</div>
-                          <p className="mt-4 text-lg font-semibold text-slate-950">To'lov muvaffaqiyatli!</p>
+                          <p className="mt-4 text-lg font-semibold text-slate-950">{t("To'lov muvaffaqiyatli!")}</p>
                           <Button onClick={() => { closePaymentModal(); handleCheck(true); }} className="w-full mt-6">
-                              Tekshirishni Davom Ettirish
+                              {t('Tekshirishni Davom Ettirish')}
                           </Button>
                       </div>
                   )}
                   {paymentStatus === 'failed' && (
                       <div>
                           <div className="mb-4 text-center text-4xl text-red-600">✗</div>
-                          <p className="mt-4 text-center text-lg font-bold text-slate-950">To'lovda xatolik!</p>
+                          <p className="mt-4 text-center text-lg font-bold text-slate-950">{t("To'lovda xatolik!")}</p>
                           <p className="mx-auto mb-4 max-w-xs break-words rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-center text-sm font-medium text-slate-900">{paymentError}</p>
                           <div className="flex gap-3">
                               <Button onClick={handlePay} className="flex-1">
-                                  Qayta Urinish
+                                  {t('Qayta Urinish')}
                               </Button>
                               <Button variant="secondary" onClick={closePaymentModal} className="flex-1">
-                                  Yopish
+                                  {t('Yopish')}
                               </Button>
                           </div>
                       </div>

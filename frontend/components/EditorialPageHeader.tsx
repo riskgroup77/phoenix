@@ -13,7 +13,12 @@ const EditorialPageHeader: React.FC<Props> = ({ title, subtitle, actions }) => (
         <h1 className="editorial-page-title">{title}</h1>
         {subtitle && <p className="editorial-page-subtitle mt-2">{subtitle}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}
+      {actions && (
+        // Telefonda tugmalar ustma-ust va to'liq kenglikda (bosish oson), kattaroq ekranda — yonma-yon
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 w-full sm:w-auto shrink-0 [&>*]:w-full [&>*]:justify-center sm:[&>*]:w-auto">
+          {actions}
+        </div>
+      )}
     </div>
   </div>
 );

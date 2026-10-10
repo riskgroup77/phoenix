@@ -6,6 +6,7 @@ import { slugToCategory } from '../constants/authorCategories';
 import Button from '../components/ui/Button';
 import { BookOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useT } from '../i18n/LanguageContext';
 
 interface JournalItem {
   id: string;
@@ -19,6 +20,7 @@ interface JournalItem {
 }
 
 const BrowseByCategory: React.FC = () => {
+  const { t } = useT();
   const [searchParams] = useSearchParams();
   const categorySlug = searchParams.get('category');
   const categoryName = categorySlug ? slugToCategory(categorySlug) : null;
@@ -47,7 +49,7 @@ const BrowseByCategory: React.FC = () => {
     } catch (e) {
       console.error('Failed to load journals', e);
       setJournals([]);
-      setError('Jurnallar yuklanmadi. Keyinroq urinib ko‘ring.');
+      setError(t('Jurnallar yuklanmadi. Keyinroq urinib ko‘ring.'));
     } finally {
       setLoading(false);
     }
@@ -76,21 +78,21 @@ const BrowseByCategory: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <Card title={categoryName ? `"${categoryName}" bo‘yicha jurnallar` : 'Jurnallar'}>
+      <Card title={categoryName ? `"${categoryName}" bo‘yicha jurnallar` : t('Jurnallar')}>
         {categoryName && (
           <p className="text-slate-500 text-sm mb-6 -mt-2">
-            Ushbu kategoriyadagi jurnallar ro‘yxati. Maqola yuborish uchun «Maqola yuborish» bo‘limidan jurnal tanlang.
+            {t('Ushbu kategoriyadagi jurnallar ro‘yxati. Maqola yuborish uchun «Maqola yuborish» bo‘limidan jurnal tanlang.')}
           </p>
         )}
         {error ? (
           <div className="text-center py-12">
             <p className="text-red-700 mb-4">{error}</p>
-            <Button onClick={load}>Qayta urinish</Button>
+            <Button onClick={load}>{t('Qayta urinish')}</Button>
           </div>
         ) : loading ? (
           <div className="flex justify-center py-12" role="status" aria-live="polite">
             <div className="animate-spin rounded-full h-10 w-10 border-2 border-blue-500 border-t-transparent" aria-hidden="true" />
-            <span className="sr-only">Yuklanmoqda</span>
+            <span className="sr-only">{t('Yuklanmoqda')}</span>
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
@@ -98,18 +100,18 @@ const BrowseByCategory: React.FC = () => {
             <h3 className="mt-2 text-sm font-medium text-slate-900">
               {categoryName
                 ? `"${categoryName}" bo‘yicha jurnal topilmadi`
-                : 'Jurnal topilmadi'}
+                : t('Jurnal topilmadi')}
             </h3>
             <p className="mt-1 text-sm text-slate-500">
               {categoryName
-                ? 'Boshqa kategoriyani tanlang yoki jurnal administratori ushbu kategoriyaga jurnal qo‘shguncha kuting.'
-                : 'Kategoriyani yuqoridagi menyudan tanlang.'}
+                ? t('Boshqa kategoriyani tanlang yoki jurnal administratori ushbu kategoriyaga jurnal qo‘shguncha kuting.')
+                : t('Kategoriyani yuqoridagi menyudan tanlang.')}
             </p>
             <Link
               to="/submit"
               className="inline-block mt-4 text-blue-800 hover:text-blue-700 text-sm font-medium"
             >
-              Maqola yuborish →
+              {t('Maqola yuborish →')}
             </Link>
           </div>
         ) : (

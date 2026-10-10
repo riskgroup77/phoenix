@@ -16,7 +16,7 @@ function sourceFiles(dir: string): string[] {
     if (SKIP_DIRS.has(name)) continue;
     const full = join(dir, name);
     if (statSync(full).isDirectory()) out.push(...sourceFiles(full));
-    else if (/\.(tsx?|jsx?)$/.test(name) && !/\.test\.tsx?$/.test(name) && !full.includes(`i18n${'\\'}dictionaries`) && !full.includes('i18n/dictionaries')) out.push(full);
+    else if (/\.(tsx?|jsx?)$/.test(name) && !/\.test\.tsx?$/.test(name) && !/i18n[\\/]dict/.test(full)) out.push(full);
   }
   return out;
 }

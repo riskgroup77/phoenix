@@ -1,0 +1,23 @@
+# Phoenix — kunlik zaxira (baza + media). phoenix-backup.timer chaqiradi.
+#
+# O'rnatish (deploy_phonix.sh o'zi ham o'rnatadi):
+#   sudo cp phoenix-backup.service.example /etc/systemd/system/phoenix-backup.service
+#   sudo cp phoenix-backup.timer.example   /etc/systemd/system/phoenix-backup.timer
+#   sudo systemctl daemon-reload && sudo systemctl enable --now phoenix-backup.timer
+# Qo'lda ishga tushirish:  sudo systemctl start phoenix-backup
+# Tekshirish:  journalctl -u phoenix-backup -n 50 ;  ls -lh /phonix/backups/db/daily
+# Tiklash:     bash /phonix/infrastructure/backup/phoenix-restore.sh <dump fayl>
+
+[Unit]
+Description=Phoenix — baza va media zaxirasi
+After=network.target docker.service
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+Environment=PHONIX_DIR=/phonix
+Nice=10
+IOSchedulingClass=idle
+ExecStart=/bin/bash /phonix/infrastructure/backup/phoenix-backup.sh daily
+TimeoutStartSec=2h

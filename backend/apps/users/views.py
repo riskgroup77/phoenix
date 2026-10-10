@@ -6,7 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.throttling import ScopedRateThrottle
-from config.jwt_cookies import attach_jwt_cookies, clear_jwt_cookies
+from config.jwt_cookies import attach_jwt_cookies, auth_body, clear_jwt_cookies
 from django.db import DatabaseError
 from django.db.models import Count, Q, Sum
 from rest_framework.exceptions import ParseError
@@ -638,13 +638,7 @@ def register_impl(request):
                 user = serializer.save()
                 refresh = RefreshToken.for_user(user)
                 logger.info(f"✅ User registered successfully: {user.phone}, {user.email}")
-                body = {
-                    'user': UserSerializer(user, context={'request': request}).data,
-                    'refresh': str(refresh),
-                    'access': str(refresh.access_token),
-                }
-                if not getattr(settings, 'JWT_RETURN_TOKENS_IN_JSON', True):
-                    body = {'user': body['user']}
+                body = auth_body(UserSerializer(user, context={'request': request}).data, refresh)
                 resp = Response(body, status=status.HTTP_201_CREATED)
                 if getattr(settings, 'JWT_USE_HTTPONLY_COOKIES', False):
                     attach_jwt_cookies(resp, str(refresh.access_token), str(refresh))
@@ -739,13 +733,7 @@ def login_impl(request):
             user = serializer.validated_data['user']
             refresh = RefreshToken.for_user(user)
             logger.info("Login successful for user phone ending: %s", str(user.phone)[-4:])
-            body = {
-                'user': UserSerializer(user, context={'request': request}).data,
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }
-            if not getattr(settings, 'JWT_RETURN_TOKENS_IN_JSON', True):
-                body = {'user': body['user']}
+            body = auth_body(UserSerializer(user, context={'request': request}).data, refresh)
             resp = Response(body)
             if getattr(settings, 'JWT_USE_HTTPONLY_COOKIES', False):
                 attach_jwt_cookies(resp, str(refresh.access_token), str(refresh))

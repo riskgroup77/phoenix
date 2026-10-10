@@ -39,8 +39,15 @@ git_update_monorepo() {
     if [ "${PHONIX_GIT_RESET:-false}" = "true" ]; then
         echo "   Git fetch + reset --hard (PHONIX_GIT_RESET)..."
         cp -a backend/.env /tmp/.env.phonix.bak 2>/dev/null || true
-        git fetch origin master 2>/dev/null || git fetch origin main
-        git reset --hard origin/master 2>/dev/null || git reset --hard origin/main
+        # Asosiy branch — main (eski "master" qolgan bo'lsa ham u deploy qilinmaydi).
+        # PHONIX_GIT_REF — aniq commit (CI dan o'tgan commit aynan shu chiqadi, oraliqdagi push emas).
+        git fetch origin main || error_exit "git fetch xatolik"
+        if [ -n "${PHONIX_GIT_REF:-}" ]; then
+            git cat-file -e "${PHONIX_GIT_REF}^{commit}" 2>/dev/null || error_exit "Commit topilmadi: ${PHONIX_GIT_REF}"
+            git reset --hard "${PHONIX_GIT_REF}"
+        else
+            git reset --hard origin/main
+        fi
         if [ -f /tmp/.env.phonix.bak ]; then
             cp -a /tmp/.env.phonix.bak backend/.env
             echo "   backend/.env tiklandi"
@@ -48,7 +55,7 @@ git_update_monorepo() {
     else
         echo "   Git pull qilinmoqda..."
         git stash 2>/dev/null || true
-        git pull origin master || git pull origin main || error_exit "Git pull xatolik"
+        git pull origin main || error_exit "Git pull xatolik"
         git stash pop 2>/dev/null || true
     fi
 }
@@ -127,24 +134,24 @@ check_other_services() {
 }
 
 # Backup yaratish
+# Kod zaxirasi: faqat kod (venv, node_modules, media, build — kirmaydi; ular katta va qayta tiklanadi).
+# Avval butun backend/ (venv va media bilan) har deployda nusxalanar va hech qachon o'chirilmasdi — disk to'lardi.
+# Baza va media alohida: infrastructure/backup/phoenix-backup.sh (kunlik timer + migratsiyadan oldin).
+CODE_BACKUP_KEEP="${PHONIX_CODE_BACKUP_KEEP:-5}"
 create_backup() {
-    echo "💾 Backup yaratish..."
-    
-    BACKUP_DIR="${DEPLOY_DIR}/backups/$(date +%Y%m%d_%H%M%S)"
+    echo "💾 Kod zaxirasi..."
+    BACKUP_DIR="${DEPLOY_DIR}/backups/code/$(date +%Y%m%d_%H%M%S)"
     mkdir -p ${BACKUP_DIR}
-    
-    # Backend backup
-    if [ -d "${DEPLOY_DIR}/backend" ]; then
-        echo "📦 Backend backup..."
-        cp -r ${DEPLOY_DIR}/backend ${BACKUP_DIR}/backend 2>/dev/null || true
-    fi
-    
-    # Frontend backup
-    if [ -d "${DEPLOY_DIR}/frontend" ]; then
-        echo "📦 Frontend backup..."
-        cp -r ${DEPLOY_DIR}/frontend ${BACKUP_DIR}/frontend 2>/dev/null || true
-    fi
-    
+    local excludes="--exclude=venv --exclude=node_modules --exclude=media --exclude=test_media --exclude=staticfiles --exclude=dist --exclude=__pycache__ --exclude=*.sqlite3 --exclude=logs"
+    for part in backend frontend; do
+        if [ -d "${DEPLOY_DIR}/${part}" ]; then
+            tar -czf "${BACKUP_DIR}/${part}.tar.gz" ${excludes} -C "${DEPLOY_DIR}" "${part}" 2>/dev/null || true
+        fi
+    done
+    # Avvalgi (eski formatdagi) to'liq nusxalar backups/<sana>/ — eng oxirgisi qoladi, qolganlari diskni tejash uchun o'chiriladi
+    ls -1dt "${DEPLOY_DIR}"/backups/20*/ 2>/dev/null | tail -n +2 | xargs -r rm -rf
+    # Faqat oxirgi N ta kod zaxirasi qoladi
+    ls -1dt "${DEPLOY_DIR}"/backups/code/*/ 2>/dev/null | tail -n +"$((CODE_BACKUP_KEEP + 1))" | xargs -r rm -rf
     # .env backup
     if [ -f "${DEPLOY_DIR}/backend/.env" ]; then
         echo "📦 .env backup..."
@@ -178,12 +185,14 @@ cd ${DEPLOY_DIR}
 
 if [ -d ".git" ]; then
     git_update_monorepo
-else
-    echo "   Monorepo clone qilinmoqda..."
-    cd /
-    [ -d "${DEPLOY_DIR}" ] && rm -rf "${DEPLOY_DIR}"
-    git clone ${MONO_REPO} ${DEPLOY_DIR} || error_exit "Monorepo clone xatolik"
+elif [ -z "$(ls -A "${DEPLOY_DIR}" 2>/dev/null | grep -v '^backups$')" ]; then
+    echo "   Monorepo clone qilinmoqda (bo'sh papkaga)..."
+    git clone ${MONO_REPO} "${DEPLOY_DIR}.clone" || error_exit "Monorepo clone xatolik"
+    cp -a "${DEPLOY_DIR}.clone/." "${DEPLOY_DIR}/" && rm -rf "${DEPLOY_DIR}.clone"
     cd ${DEPLOY_DIR}
+else
+    # Avval bu yerda butun ${DEPLOY_DIR} (media, .env, zaxiralar bilan) o'chirilib qayta klonlanardi — xavfli
+    error_exit "${DEPLOY_DIR} da .git yo'q, lekin fayllar bor (media/.env). Avtomatik o'chirilmaydi — qo'lda tekshiring."
 fi
 
 # 4. Backend
@@ -211,6 +220,14 @@ if [ ! -f .env ]; then
         echo "   .env env.production.example dan yaratilmoqda..."
         cp env.production.example .env
     fi
+fi
+
+# Migratsiyadan oldin baza zaxirasi — xato migratsiyadan keyin tiklash mumkin bo'lsin.
+# Zaxira olinmasa deploy to'xtaydi (ataylab o'tkazib yuborish: PHONIX_SKIP_DB_BACKUP=true).
+if [ "${PHONIX_SKIP_DB_BACKUP:-false}" != "true" ]; then
+    echo "   Baza zaxiralanmoqda (migratsiyadan oldin)..."
+    PHONIX_DIR="${DEPLOY_DIR}" bash "${DEPLOY_DIR}/infrastructure/backup/phoenix-backup.sh" pre-deploy \
+        || error_exit "Baza zaxirasi olinmadi — migratsiya bajarilmadi (PHONIX_SKIP_DB_BACKUP=true bilan o'tkazib yuborish mumkin)"
 fi
 
 # Migrations
@@ -261,8 +278,8 @@ npm run build || error_exit "Frontend build xatolik"
 # Nginx static (ixtiyoriy): PHONIX_FRONTEND_WEB_ROOT=/var/www/ilmiyfaoliyat shaklida
 if [ -n "${PHONIX_FRONTEND_WEB_ROOT:-}" ] && [ -d "dist" ]; then
     echo "   Static fayllar nginx papkasiga nusxalanmoqda: ${PHONIX_FRONTEND_WEB_ROOT}"
-    mkdir -p "${PHONIX_FRONTEND_WEB_ROOT}"
-    rsync -a --delete dist/ "${PHONIX_FRONTEND_WEB_ROOT}/" || error_exit "rsync static xatolik"
+    sudo_cmd mkdir -p "${PHONIX_FRONTEND_WEB_ROOT}"
+    sudo_cmd rsync -a --delete dist/ "${PHONIX_FRONTEND_WEB_ROOT}/" || error_exit "rsync static xatolik"
     if command -v nginx >/dev/null 2>&1; then
         sudo_cmd nginx -t 2>/dev/null && sudo_cmd systemctl reload nginx 2>/dev/null || true
     fi
@@ -279,8 +296,65 @@ if [ -f "${NGINX_FRONTEND_CONF}" ] && [ -d /etc/nginx/sites-available ]; then
     fi
 fi
 
+# Media himoyasi snippeti (api server bloki "include /etc/nginx/snippets/phoenix-media.conf;" qilsa ishlaydi)
+NGINX_MEDIA_SNIPPET="${DEPLOY_DIR}/infrastructure/nginx/snippets/phoenix-media.conf"
+if [ -f "${NGINX_MEDIA_SNIPPET}" ] && [ -d /etc/nginx ]; then
+    sudo_cmd mkdir -p /etc/nginx/snippets
+    sudo_cmd install -m 644 "${NGINX_MEDIA_SNIPPET}" /etc/nginx/snippets/phoenix-media.conf
+    if grep -qs "phoenix-media.conf" /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf 2>/dev/null; then
+        sudo_cmd nginx -t 2>/dev/null && sudo_cmd systemctl reload nginx 2>/dev/null || true
+        # Nginx internal joy tayyor — fayllarni nginx bersin (Django oqimini band qilmasin)
+        if [ -f "${DEPLOY_DIR}/backend/.env" ] && ! grep -q "^MEDIA_ACCEL_REDIRECT=" "${DEPLOY_DIR}/backend/.env"; then
+            echo "MEDIA_ACCEL_REDIRECT=true" >> "${DEPLOY_DIR}/backend/.env"
+        fi
+        echo "   ✅ Media himoyasi nginx da yoqilgan"
+    else
+        echo "   ⚠️  Media himoyasi nginx da hali ULANMAGAN: api konfigidagi 'location /media/ {...}' o'rniga"
+        echo "      'include /etc/nginx/snippets/phoenix-media.conf;' yozing (docs/OPERATIONS.md, 9-bo'lim)"
+    fi
+fi
+
 echo "✅ Frontend yangilandi"
 echo ""
+
+# Fon xizmatlari (systemd): Celery worker, kunlik zaxira, antiplagiat indeksi, eslatmalar, monitoring.
+# Yo'q bo'lsa o'rnatiladi va yoqiladi; mavjudiga (siz sozlagan bo'lishingiz mumkin) tegilmaydi.
+# Hammasini repodagi namunaga qayta yozish: PHONIX_UPDATE_UNITS=true
+install_phoenix_units() {
+    [ -d /etc/systemd/system ] || return 0
+    local svc_user svc_group changed=0
+    svc_user=$(systemctl show -p User --value "${SERVICE_NAME}" 2>/dev/null || true)
+    [ -n "$svc_user" ] || svc_user=$(stat -c %U "${DEPLOY_DIR}/backend" 2>/dev/null || echo deploy)
+    svc_group=$(id -gn "$svc_user" 2>/dev/null || echo "$svc_user")
+    for unit in phoenix-celery.service \
+                phoenix-backup.service phoenix-backup.timer \
+                phoenix-antiplag-index.service phoenix-antiplag-index.timer \
+                phoenix-reminders.service phoenix-reminders.timer \
+                phoenix-uptime.service phoenix-uptime.timer; do
+        local src="${DEPLOY_DIR}/infrastructure/systemd/${unit}.example" dst="/etc/systemd/system/${unit}"
+        [ -f "$src" ] || continue
+        if [ -f "$dst" ] && [ "${PHONIX_UPDATE_UNITS:-false}" != "true" ]; then
+            continue
+        fi
+        local tmp
+        tmp=$(mktemp)
+        sed -e "s#^User=.*#User=${svc_user}#" -e "s#^Group=.*#Group=${svc_group}#" \
+            -e "s#/phonix/#${DEPLOY_DIR}/#g" "$src" > "$tmp"
+        sudo_cmd install -m 644 "$tmp" "$dst"
+        rm -f "$tmp"
+        echo "   🔧 ${unit} o'rnatildi"
+        changed=1
+    done
+    if [ "$changed" = "1" ]; then
+        sudo_cmd systemctl daemon-reload
+        for t in phoenix-backup.timer phoenix-antiplag-index.timer phoenix-reminders.timer phoenix-uptime.timer; do
+            [ -f "/etc/systemd/system/$t" ] && sudo_cmd systemctl enable --now "$t" >/dev/null 2>&1 || true
+        done
+        [ -f /etc/systemd/system/phoenix-celery.service ] && sudo_cmd systemctl enable phoenix-celery >/dev/null 2>&1 || true
+    fi
+}
+echo "🔧 Fon xizmatlari tekshirilmoqda..."
+install_phoenix_units
 
 # 6. Service restart (Graceful)
 echo "🔄 Service restart qilinmoqda..."
@@ -300,6 +374,9 @@ CELERY_SERVICE="phoenix-celery"
 if systemctl list-unit-files 2>/dev/null | grep -q "^${CELERY_SERVICE}.service"; then
     echo "   Celery worker qayta ishga tushirilmoqda..."
     sudo_cmd systemctl restart ${CELERY_SERVICE} || echo "   ⚠️  ${CELERY_SERVICE} restart xato"
+    sleep 3
+    systemctl is-active --quiet ${CELERY_SERVICE} && echo "   ✅ Celery worker ishlayapti" \
+        || echo "   ⚠️  Celery worker ishga tushmadi: journalctl -u ${CELERY_SERVICE} -n 50"
 else
     echo "   ⚠️  ${CELERY_SERVICE} o'rnatilmagan — antiplagiat thread rejimida ishlaydi"
 fi

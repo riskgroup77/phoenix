@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ListSkeleton, PageSkeleton } from '../components/ui/Skeleton';
 import TelegramSettingsCard from '../components/TelegramSettingsCard';
+import PhoneVerifyCard from '../components/PhoneVerifyCard';
+import PrivacyDataCard from '../components/PrivacyDataCard';
 import { LANGUAGES, useT } from '../i18n/LanguageContext';
 import { normalizeOrcid, orcidUrl } from '../utils/orcid';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -314,8 +316,8 @@ const Profile: React.FC = () => {
                             Hozircha to&apos;lovlar tarixi yo&apos;q.
                         </p>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm">
+                        <div className="overflow-x-auto rtable-wrap">
+                            <table className="w-full text-left text-sm rtable">
                                 <thead>
                                     <tr className="border-b border-slate-200">
                                         <th className="pb-2 font-medium text-slate-500">Xizmat</th>
@@ -451,6 +453,7 @@ const Profile: React.FC = () => {
                             </Button>
                         </div>
                     </Card>
+                    <PrivacyDataCard />
                     <Card title="Hisobni boshqarish">
                         <div className="space-y-4">
                             {showPaymentTestTools && (
@@ -636,49 +639,50 @@ const Profile: React.FC = () => {
                             </form>
                         ) : (
                             <div className="space-y-4">
+                                <PhoneVerifyCard />
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="flex items-center p-3 bg-slate-100/70 rounded-lg">
-                                        <User className="h-5 w-5 text-blue-800 mr-3" />
-                                        <div>
+                                    <div className="flex items-center p-3 bg-slate-100/70 rounded-lg min-w-0">
+                                        <User className="h-5 w-5 text-blue-800 mr-3 shrink-0" />
+                                        <div className="min-w-0">
                                             <p className="text-sm text-slate-500">To'liq ism</p>
-                                            <p className="text-slate-900">{profile.first_name} {profile.last_name} {profile.patronymic}</p>
+                                            <p className="text-slate-900 break-words [overflow-wrap:anywhere]">{profile.first_name} {profile.last_name} {profile.patronymic}</p>
                                         </div>
                                     </div>
                                     
-                                    <div className="flex items-center p-3 bg-slate-100/70 rounded-lg">
-                                        <Mail className="h-5 w-5 text-emerald-800 mr-3" />
-                                        <div>
+                                    <div className="flex items-center p-3 bg-slate-100/70 rounded-lg min-w-0">
+                                        <Mail className="h-5 w-5 text-emerald-800 mr-3 shrink-0" />
+                                        <div className="min-w-0">
                                             <p className="text-sm text-slate-500">Email</p>
-                                            <p className="text-slate-900">{profile.email}</p>
+                                            <p className="text-slate-900 break-words [overflow-wrap:anywhere]">{profile.email}</p>
                                         </div>
                                     </div>
                                     
-                                    <div className="flex items-center p-3 bg-slate-100/70 rounded-lg">
-                                        <Phone className="h-5 w-5 text-purple-400 mr-3" />
-                                        <div>
+                                    <div className="flex items-center p-3 bg-slate-100/70 rounded-lg min-w-0">
+                                        <Phone className="h-5 w-5 text-purple-400 mr-3 shrink-0" />
+                                        <div className="min-w-0">
                                             <p className="text-sm text-slate-500">Telefon</p>
-                                            <p className="text-slate-900">{profile.phone}</p>
+                                            <p className="text-slate-900 break-words [overflow-wrap:anywhere]">{profile.phone}</p>
                                         </div>
                                     </div>
                                     
-                                    <div className="flex items-center p-3 bg-slate-100/70 rounded-lg">
-                                        <Building className="h-5 w-5 text-yellow-800 mr-3" />
-                                        <div>
+                                    <div className="flex items-center p-3 bg-slate-100/70 rounded-lg min-w-0">
+                                        <Building className="h-5 w-5 text-yellow-800 mr-3 shrink-0" />
+                                        <div className="min-w-0">
                                             <p className="text-sm text-slate-500">Tashkilot</p>
-                                            <p className="text-slate-900">{profile.affiliation}</p>
+                                            <p className="text-slate-900 break-words [overflow-wrap:anywhere]">{profile.affiliation}</p>
                                         </div>
                                     </div>
                                     
                                     {profile.orcid_id && (
-                                        <div className="flex items-center p-3 bg-slate-100/70 rounded-lg">
-                                            <Hash className="h-5 w-5 text-red-700 mr-3" />
-                                            <div>
+                                        <div className="flex items-center p-3 bg-slate-100/70 rounded-lg min-w-0">
+                                            <Hash className="h-5 w-5 text-red-700 mr-3 shrink-0" />
+                                            <div className="min-w-0">
                                                 <p className="text-sm text-slate-500">ORCID iD</p>
                                                 <a
                                                     href={orcidUrl(profile.orcid_id)}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="editorial-link font-semibold"
+                                                    className="editorial-link font-semibold break-all"
                                                 >
                                                     {profile.orcid_id}
                                                 </a>
@@ -687,11 +691,11 @@ const Profile: React.FC = () => {
                                     )}
                                     
                                     {profile.telegram_username && (
-                                        <div className="flex items-center p-3 bg-slate-100/70 rounded-lg">
-                                            <span className="text-lg mr-3">@</span>
-                                            <div>
+                                        <div className="flex items-center p-3 bg-slate-100/70 rounded-lg min-w-0">
+                                            <span className="text-lg mr-3 shrink-0">@</span>
+                                            <div className="min-w-0">
                                                 <p className="text-sm text-slate-500">Telegram</p>
-                                                <p className="text-slate-900">{profile.telegram_username}</p>
+                                                <p className="text-slate-900 break-words [overflow-wrap:anywhere]">{profile.telegram_username}</p>
                                             </div>
                                         </div>
                                     )}

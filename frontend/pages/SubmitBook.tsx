@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useAiPrefill, str, num } from '../contexts/AiPrefillContext';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
@@ -9,6 +10,7 @@ import { ArticleStatus } from '../types';
 import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
 import { toast } from 'react-toastify';
+import { useT } from '../i18n/LanguageContext';
 
 // --- Pricing Data from Image ---
 const PRINTING_PER_PAGE = {
@@ -100,7 +102,9 @@ const OptionToggle: React.FC<{ label: string, options: { value: string, label: s
     </div>
 );
 
-const CheckboxCard: React.FC<{ title: string, description: string, price: number, checked: boolean, onChange: (checked: boolean) => void }> = ({ title, description, price, checked, onChange }) => (
+const CheckboxCard: React.FC<{ title: string, description: string, price: number, checked: boolean, onChange: (checked: boolean) => void }> = ({ title, description, price, checked, onChange }) => {
+  const { t } = useT();
+  return (
      <div onClick={() => onChange(!checked)} className={`p-4 rounded-lg bg-slate-100/70 border-2 cursor-pointer transition-all ${checked ? 'border-blue-500 bg-blue-500/10' : 'border-transparent hover:border-slate-200/90'}`}>
         <div className="flex items-start justify-between">
             <div className="flex-1 pr-4">
@@ -111,11 +115,12 @@ const CheckboxCard: React.FC<{ title: string, description: string, price: number
                 <div className={`w-5 h-5 rounded-md flex items-center justify-center border-2 transition-all ${checked ? 'bg-blue-600 border-blue-500' : 'bg-white/10 border-slate-300/80'}`}>
                     {checked && <Check className="w-3 h-3 text-slate-900" />}
                 </div>
-                 <p className="text-sm font-medium text-blue-900 mt-2 whitespace-nowrap">{price.toLocaleString()} so'm</p>
+                 <p className="text-sm font-medium text-blue-900 mt-2 whitespace-nowrap">{t("{value} so'm", { value: price.toLocaleString() })}</p>
             </div>
         </div>
     </div>
 );
+};
 
 const ClickLogo = () => (
      <div className="mx-auto mb-4 w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg">
@@ -126,6 +131,7 @@ const ClickLogo = () => (
 
 
 const SubmitBook: React.FC = () => {
+    const { t } = useT();
     const { user } = useAuth();
     const { addNotification } = useNotifications();
 
@@ -200,6 +206,33 @@ const SubmitBook: React.FC = () => {
             setShippingPhone(phone && !phone.startsWith('+') ? `+${phone}` : phone);
         }
     }, [user]);
+
+    // AI ish maydoni to'ldirgan qiymatlar (profil va muqova effektlaridan keyin — ularni ustidan yozadi)
+    const aiPrefill = useAiPrefill('book');
+    useEffect(() => {
+        if (!aiPrefill) return;
+        const f = aiPrefill.fields;
+        if (num(f.pages)) setPages(num(f.pages) as number);
+        if (num(f.copies)) setCopies(num(f.copies) as number);
+        if (f.paperQuality === 'eco' || f.paperQuality === 'standart') setPaperQuality(f.paperQuality);
+        if (f.coverType === 'soft' || f.coverType === 'hard') setCoverType(f.coverType);
+        if (typeof f.isbn === 'boolean' || typeof f.design === 'boolean') {
+            setOptions((prev) => ({
+                isbn: typeof f.isbn === 'boolean' ? f.isbn : prev.isbn,
+                design: typeof f.design === 'boolean' ? f.design : prev.design,
+            }));
+        }
+        if (f.publicationType === 'bosma' || f.publicationType === 'raqamli') setPublicationType(f.publicationType);
+        if (str(f.shippingRegion)) setShippingRegion(str(f.shippingRegion));
+        if (str(f.shippingAddress)) setShippingAddress(str(f.shippingAddress));
+        if (str(f.shippingFirstName)) setShippingFirstName(str(f.shippingFirstName));
+        if (str(f.shippingLastName)) setShippingLastName(str(f.shippingLastName));
+        if (str(f.title)) setTitle(str(f.title));
+        if (str(f.synopsis)) setSynopsis(str(f.synopsis));
+        const picked = aiPrefill.file;
+        if (picked && /\.docx?$/i.test(picked.name)) setManuscriptFile(picked);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [aiPrefill?.nonce, aiPrefill?.file]);
 
     // To'lov sahifasidan qaytganda transactionId ni tiklash va holatni avtomatik tekshirish
     useEffect(() => {
@@ -282,7 +315,7 @@ const SubmitBook: React.FC = () => {
                 message: `"${title.substring(0, 40)}..." kitob buyurtmasi taqrizchiga yuborildi.`,
                 link: `/articles/${linkedArticleId}`,
             });
-            toast.success('To\'lov tasdiqlandi. Buyurtma taqrizchilar paneliga yuborildi.');
+            toast.success(t("To'lov tasdiqlandi. Buyurtma taqrizchilar paneliga yuborildi."));
         },
         [addNotification, title]
     );
@@ -290,24 +323,24 @@ const SubmitBook: React.FC = () => {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (calculatedCosts.total <= 0) {
-            alert("Iltimos, sahifa va nusxalar sonini to'g'ri kiriting.");
+            alert(t("Iltimos, sahifa va nusxalar sonini to'g'ri kiriting."));
             return;
         }
         if (publicationType === 'bosma') {
             if (!shippingRegion.trim()) {
-                alert("Bosma nashr uchun viloyat yoki shaharni kiriting.");
+                alert(t('Bosma nashr uchun viloyat yoki shaharni kiriting.'));
                 return;
             }
             if (!shippingAddress.trim()) {
-                alert("Yetkazib berish manzilini (ko'cha, uy) kiriting.");
+                alert(t("Yetkazib berish manzilini (ko'cha, uy) kiriting."));
                 return;
             }
             if (!shippingFirstName.trim() || !shippingLastName.trim()) {
-                alert("Yetkazib berish uchun ism va familyani kiriting.");
+                alert(t('Yetkazib berish uchun ism va familyani kiriting.'));
                 return;
             }
             if (!shippingPhone.trim()) {
-                alert("Yetkazib berish uchun telefon raqamini kiriting.");
+                alert(t('Yetkazib berish uchun telefon raqamini kiriting.'));
                 return;
             }
         }
@@ -432,8 +465,8 @@ const SubmitBook: React.FC = () => {
         <>
             <div className="max-w-6xl mx-auto mb-6">
                 <EditorialPageHeader
-                    title="Kitob Nashr Etish Kalkulyatori"
-                    subtitle="Sahifalar, nusxalar va qo'shimcha xizmatlarni tanlang — narx avtomatik hisoblanadi."
+                    title={t('Kitob Nashr Etish Kalkulyatori')}
+                    subtitle={t("Sahifalar, nusxalar va qo'shimcha xizmatlarni tanlang — narx avtomatik hisoblanadi.")}
                 />
             </div>
             <Card>
@@ -441,30 +474,30 @@ const SubmitBook: React.FC = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         {/* Left Column: Configuration */}
                         <div className="space-y-6">
-                            <h3 className="text-lg font-semibold text-slate-900 border-b border-slate-200/90 pb-3">1. Asosiy Parametrlar</h3>
-                            <SliderInput label="Sahifalar soni" value={pages} onChange={setPages} min={16} max={1000} step={4} icon={BookText} />
-                            <SliderInput label="Nusxalar soni" value={copies} onChange={setCopies} min={1} max={1000} step={1} icon={BookCopy} />
-                            <OptionToggle label="Qog'oz sifati" options={[{ value: 'eco', label: 'Eco' }, { value: 'standart', label: 'Standart' }]} selected={paperQuality} onSelect={val => setPaperQuality(val as 'eco' | 'standart')} />
-                            <OptionToggle label="Muqova turi" options={[{ value: 'soft', label: 'Yumshoq' }, { value: 'hard', label: 'Qattiq' }]} selected={coverType} onSelect={val => setCoverType(val as 'soft' | 'hard')} />
+                            <h3 className="text-lg font-semibold text-slate-900 border-b border-slate-200/90 pb-3">{t('1. Asosiy Parametrlar')}</h3>
+                            <SliderInput label={t('Sahifalar soni')} value={pages} onChange={setPages} min={16} max={1000} step={4} icon={BookText} />
+                            <SliderInput label={t('Nusxalar soni')} value={copies} onChange={setCopies} min={1} max={1000} step={1} icon={BookCopy} />
+                            <OptionToggle label={t("Qog'oz sifati")} options={[{ value: 'eco', label: 'Eco' }, { value: 'standart', label: 'Standart' }]} selected={paperQuality} onSelect={val => setPaperQuality(val as 'eco' | 'standart')} />
+                            <OptionToggle label={t('Muqova turi')} options={[{ value: 'soft', label: 'Yumshoq' }, { value: 'hard', label: 'Qattiq' }]} selected={coverType} onSelect={val => setCoverType(val as 'soft' | 'hard')} />
 
-                            <h3 className="text-lg font-semibold text-slate-900 border-b border-slate-200/90 pb-3 pt-4">2. Qo'shimcha Xizmatlar</h3>
+                            <h3 className="text-lg font-semibold text-slate-900 border-b border-slate-200/90 pb-3 pt-4">{t("2. Qo'shimcha Xizmatlar")}</h3>
                             <div className="space-y-3">
-                                <CheckboxCard title="ISBN raqami olish" description="Kitobingizga xalqaro standart raqamini oling." price={ISBN_FEE} checked={options.isbn} onChange={c => setOptions(p => ({ ...p, isbn: c }))} />
-                                <CheckboxCard title="Professional muqova dizayni" description="Tajribali dizaynerlar tomonidan muqova tayyorlash." price={DESIGN_FEE} checked={options.design} onChange={c => setOptions(p => ({ ...p, design: c }))} />
+                                <CheckboxCard title={t('ISBN raqami olish')} description={t('Kitobingizga xalqaro standart raqamini oling.')} price={ISBN_FEE} checked={options.isbn} onChange={c => setOptions(p => ({ ...p, isbn: c }))} />
+                                <CheckboxCard title={t('Professional muqova dizayni')} description={t('Tajribali dizaynerlar tomonidan muqova tayyorlash.')} price={DESIGN_FEE} checked={options.design} onChange={c => setOptions(p => ({ ...p, design: c }))} />
                             </div>
                         </div>
 
                         {/* Right Column: Summary & Upload */}
                         <div className="space-y-6">
                              <div className="sticky top-24">
-                                <Card title="Hisob-kitob" className="!bg-black/40">
+                                <Card title={t('Hisob-kitob')} className="!bg-black/40">
                                     {calculatedCosts.total > 0 ? (
                                         <div className="space-y-2 text-sm">
-                                            <div className="flex justify-between py-1.5 border-b border-slate-200/90"><span className="text-slate-500">Chop etish:</span><span className="font-medium text-slate-900">{formatCurrency(calculatedCosts.printing)}</span></div>
-                                            <div className="flex justify-between py-1.5 border-b border-slate-200/90"><span className="text-slate-500">Muqova:</span><span className="font-medium text-slate-900">{formatCurrency(calculatedCosts.cover)}</span></div>
-                                            <div className="flex justify-between py-1.5 border-b border-slate-200/90"><span className="text-slate-500">Tikish:</span><span className="font-medium text-slate-900">{formatCurrency(calculatedCosts.binding)}</span></div>
+                                            <div className="flex justify-between py-1.5 border-b border-slate-200/90"><span className="text-slate-500">{t('Chop etish:')}</span><span className="font-medium text-slate-900">{formatCurrency(calculatedCosts.printing)}</span></div>
+                                            <div className="flex justify-between py-1.5 border-b border-slate-200/90"><span className="text-slate-500">{t('Muqova:')}</span><span className="font-medium text-slate-900">{formatCurrency(calculatedCosts.cover)}</span></div>
+                                            <div className="flex justify-between py-1.5 border-b border-slate-200/90"><span className="text-slate-500">{t('Tikish:')}</span><span className="font-medium text-slate-900">{formatCurrency(calculatedCosts.binding)}</span></div>
                                             {options.isbn && <div className="flex justify-between py-1.5 border-b border-slate-200/90"><span className="text-slate-500">ISBN:</span><span className="font-medium text-slate-900">{formatCurrency(calculatedCosts.isbn)}</span></div>}
-                                            {options.design && <div className="flex justify-between py-1.5 border-b border-slate-200/90"><span className="text-slate-500">Dizayn:</span><span className="font-medium text-slate-900">{formatCurrency(calculatedCosts.design)}</span></div>}
+                                            {options.design && <div className="flex justify-between py-1.5 border-b border-slate-200/90"><span className="text-slate-500">{t('Dizayn:')}</span><span className="font-medium text-slate-900">{formatCurrency(calculatedCosts.design)}</span></div>}
                                             <div className="flex justify-between items-center pt-4">
                                                 <span className="text-lg font-bold text-slate-900">JAMI:</span>
                                                 <span className="text-2xl font-bold text-blue-900">{formatCurrency(calculatedCosts.total)}</span>
@@ -473,7 +506,7 @@ const SubmitBook: React.FC = () => {
                                     ) : (
                                         <div className="text-center py-8 text-slate-500">
                                             <Info className="mx-auto h-8 w-8 mb-2" />
-                                            Narxni hisoblash uchun parametrlarni kiriting.
+                                            {t('Narxni hisoblash uchun parametrlarni kiriting.')}
                                         </div>
                                     )}
                                 </Card>
@@ -482,33 +515,33 @@ const SubmitBook: React.FC = () => {
                     </div>
 
                     <div className="mt-10 pt-6 border-t border-slate-200/90">
-                        <h3 className="text-lg font-semibold text-slate-900 mb-4">3. Kitob Ma'lumotlari va Fayllar</h3>
+                        <h3 className="text-lg font-semibold text-slate-900 mb-4">{t("3. Kitob Ma'lumotlari va Fayllar")}</h3>
                          <div className="space-y-6">
                             <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">Kitob Sarlavhasi</label>
+                                <label className="block text-sm font-medium text-slate-600 mb-2">{t('Kitob Sarlavhasi')}</label>
                                 <input type="text" value={title} onChange={e => setTitle(e.target.value)} required className="w-full"/>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-2">Annotatsiya / Synopsis</label>
+                                <label className="block text-sm font-medium text-slate-600 mb-2">{t('Annotatsiya / Synopsis')}</label>
                                 <textarea value={synopsis} onChange={e => setSynopsis(e.target.value)} required className="w-full" rows={4}></textarea>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Qo'lyozma Fayli (.doc, .docx)</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{t("Qo'lyozma Fayli (.doc, .docx)")}</label>
                                     <label htmlFor="manuscript-upload" className="cursor-pointer">
                                         <div className="p-8 border-2 border-dashed rounded-lg border-slate-200 text-center bg-slate-100/70 hover:bg-white/10 transition-colors h-full flex flex-col justify-center">
                                             <UploadCloud className="mx-auto h-10 w-10 text-slate-500" />
-                                            <p className="mt-2 text-sm text-slate-500">{manuscriptFile ? manuscriptFile.name : 'Faylni yuklang'}</p>
+                                            <p className="mt-2 text-sm text-slate-500">{manuscriptFile ? manuscriptFile.name : t('Faylni yuklang')}</p>
                                         </div>
                                         <input id="manuscript-upload" type="file" className="sr-only" onChange={(e) => setManuscriptFile(e.target.files ? e.target.files[0] : null)} accept=".doc,.docx" required />
                                     </label>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Muqova Rasmi (ixtiyoriy)</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{t('Muqova Rasmi (ixtiyoriy)')}</label>
                                     <label htmlFor="cover-upload" className="cursor-pointer">
                                         <div className="p-8 border-2 border-dashed rounded-lg border-slate-200 text-center bg-slate-100/70 hover:bg-white/10 transition-colors h-full flex flex-col justify-center">
                                             <UploadCloud className="mx-auto h-10 w-10 text-slate-500" />
-                                            <p className="mt-2 text-sm text-slate-500">{coverFile ? coverFile.name : 'Rasm yuklang'}</p>
+                                            <p className="mt-2 text-sm text-slate-500">{coverFile ? coverFile.name : t('Rasm yuklang')}</p>
                                         </div>
                                         <input id="cover-upload" type="file" className="sr-only" onChange={(e) => setCoverFile(e.target.files ? e.target.files[0] : null)} accept="image/*" />
                                     </label>
@@ -518,9 +551,9 @@ const SubmitBook: React.FC = () => {
                     </div>
 
                     <div className="mt-10 pt-6 border-t border-slate-200/90">
-                        <h3 className="text-lg font-semibold text-slate-900 mb-4">4. Nashr turi va yetkazib berish</h3>
+                        <h3 className="text-lg font-semibold text-slate-900 mb-4">{t('4. Nashr turi va yetkazib berish')}</h3>
                         <OptionToggle
-                            label="Nashr turi"
+                            label={t('Nashr turi')}
                             options={[
                                 { value: 'bosma', label: 'Bosma nashr (yuborish kerak)' },
                                 { value: 'raqamli', label: 'Raqamli nashr' },
@@ -530,31 +563,31 @@ const SubmitBook: React.FC = () => {
                         />
                         {publicationType === 'bosma' && (
                             <div className="mt-6 p-4 rounded-lg bg-slate-100/70 border border-slate-200/90 space-y-4">
-                                <p className="text-sm text-slate-500">Kitob bosma nashrda chiqsa, yetkazib berish uchun manzilni kiriting. Ism, familya va telefon profil ma'lumotlaridan avtomatik to'ldiriladi; boshqasiga yetkazib berish bo'lsa o'zgartiring.</p>
+                                <p className="text-sm text-slate-500">{t("Kitob bosma nashrda chiqsa, yetkazib berish uchun manzilni kiriting. Ism, familya va telefon profil ma'lumotlaridan avtomatik to'ldiriladi; boshqasiga yetkazib berish bo'lsa o'zgartiring.")}</p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-600 mb-2">Ism *</label>
+                                        <label className="block text-sm font-medium text-slate-600 mb-2">{t('Ism *')}</label>
                                         <input
                                             type="text"
                                             value={shippingFirstName}
                                             onChange={e => setShippingFirstName(e.target.value)}
-                                            placeholder="Ism"
+                                            placeholder={t('Ism')}
                                             className="w-full px-4 py-2 rounded-lg bg-slate-100/70 border border-slate-200/90 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-600 mb-2">Familya *</label>
+                                        <label className="block text-sm font-medium text-slate-600 mb-2">{t('Familya *')}</label>
                                         <input
                                             type="text"
                                             value={shippingLastName}
                                             onChange={e => setShippingLastName(e.target.value)}
-                                            placeholder="Familya"
+                                            placeholder={t('Familya')}
                                             className="w-full px-4 py-2 rounded-lg bg-slate-100/70 border border-slate-200/90 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Telefon (yetkazib berish uchun) *</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{t('Telefon (yetkazib berish uchun) *')}</label>
                                     <input
                                         type="tel"
                                         value={shippingPhone}
@@ -567,22 +600,22 @@ const SubmitBook: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Viloyat / Shahar *</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{t('Viloyat / Shahar *')}</label>
                                     <input
                                         type="text"
                                         value={shippingRegion}
                                         onChange={e => setShippingRegion(e.target.value)}
-                                        placeholder="Masalan: Toshkent, Samarqand"
+                                        placeholder={t('Masalan: Toshkent, Samarqand')}
                                         className="w-full px-4 py-2 rounded-lg bg-slate-100/70 border border-slate-200/90 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">Manzil (ko'cha, uy, kv) *</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{t("Manzil (ko'cha, uy, kv) *")}</label>
                                     <input
                                         type="text"
                                         value={shippingAddress}
                                         onChange={e => setShippingAddress(e.target.value)}
-                                        placeholder="Ko'cha nomi, uy raqami, kv"
+                                        placeholder={t("Ko'cha nomi, uy raqami, kv")}
                                         className="w-full px-4 py-2 rounded-lg bg-slate-100/70 border border-slate-200/90 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     />
                                 </div>
@@ -601,7 +634,7 @@ const SubmitBook: React.FC = () => {
                                 ))
                             }
                         >
-                            To'lovga o'tish va Yuborish
+                            {t("To'lovga o'tish va Yuborish")}
                         </Button>
                     </div>
                 </form>
@@ -613,32 +646,32 @@ const SubmitBook: React.FC = () => {
                         {paymentStatus === 'idle' && (
                             <>
                                 <ClickLogo />
-                                <h3 className="text-xl font-semibold text-slate-900">To'lovni tasdiqlash</h3>
-                                <p className="text-sm text-slate-500 mt-1">Kitob nashr etish</p>
+                                <h3 className="text-xl font-semibold text-slate-900">{t("To'lovni tasdiqlash")}</h3>
+                                <p className="text-sm text-slate-500 mt-1">{t('Kitob nashr etish')}</p>
                                 <p className="text-4xl font-bold my-4 text-slate-900">{formatCurrency(calculatedCosts.total)}</p>
                                 <Button 
                                     onClick={(e) => handlePay(e)} 
                                     className="w-full"
                                     type="button"
                                 >
-                                    To'lash
+                                    {t("To'lash")}
                                 </Button>
                                 <Button variant="secondary" onClick={closePaymentModal} className="w-full mt-3">
-                                    Bekor qilish
+                                    {t('Bekor qilish')}
                                 </Button>
                             </>
                         )}
                         {paymentStatus === 'processing' && (
                             <div className="py-8">
                                 <Loader2 className="mx-auto h-16 w-16 text-blue-500 animate-spin"/>
-                                <p className="mt-4 text-lg font-medium text-slate-700">To'lov tasdiqlanmoqda...</p>
+                                <p className="mt-4 text-lg font-medium text-slate-700">{t("To'lov tasdiqlanmoqda...")}</p>
                             </div>
                         )}
                         {paymentStatus === 'success' && (
                            <div className="py-8">
                                 <CheckCircle className="mx-auto h-16 w-16 text-green-800"/>
-                                <p className="mt-4 text-lg font-medium text-slate-700">To'lov oynasi ochildi</p>
-                                <p className="text-sm text-slate-500">Click sahifasi yangi tabda ochildi. To'lovni yakunlagach ushbu oynaga qayting.</p>
+                                <p className="mt-4 text-lg font-medium text-slate-700">{t("To'lov oynasi ochildi")}</p>
+                                <p className="text-sm text-slate-500">{t("Click sahifasi yangi tabda ochildi. To'lovni yakunlagach ushbu oynaga qayting.")}</p>
                                 <div className="space-y-2 mt-6">
                                     <Button onClick={() => {
                                         const stored = sessionStorage.getItem('submitbook_pending_transaction_id');
@@ -646,10 +679,10 @@ const SubmitBook: React.FC = () => {
                                         setIsProcessModalOpen(true);
                                         refreshProcessStatus(stored || undefined);
                                     }} className="w-full">
-                                        Jarayonni ko'rish
+                                        {t("Jarayonni ko'rish")}
                                     </Button>
                                     <Button onClick={closePaymentModal} variant="secondary" className="w-full">
-                                        Yopish
+                                        {t('Yopish')}
                                     </Button>
                                 </div>
                            </div>
@@ -657,7 +690,7 @@ const SubmitBook: React.FC = () => {
                         {paymentStatus === 'failed' && (
                            <div className="py-8">
                                 <XCircle className="mx-auto h-16 w-16 text-red-500"/>
-                                <p className="mt-4 text-lg font-medium text-slate-700">To'lovda xatolik!</p>
+                                <p className="mt-4 text-lg font-medium text-slate-700">{t("To'lovda xatolik!")}</p>
                                 <p className="text-sm text-slate-500 max-w-xs mx-auto">{paymentError}</p>
                                 <div className="flex space-x-2 mt-6">
                                      <Button 
@@ -665,7 +698,7 @@ const SubmitBook: React.FC = () => {
                                         className="w-full"
                                         type="button"
                                     >
-                                        Qayta urinish
+                                        {t('Qayta urinish')}
                                     </Button>
                                     <Button 
                                         variant="secondary" 
@@ -673,7 +706,7 @@ const SubmitBook: React.FC = () => {
                                         className="w-1/2"
                                         type="button"
                                     >
-                                        Yopish
+                                        {t('Yopish')}
                                     </Button>
                                 </div>
                            </div>
@@ -685,30 +718,30 @@ const SubmitBook: React.FC = () => {
             {isProcessModalOpen && (
                 <ModalPortal open={isProcessModalOpen}>
                     <Card className="w-full max-w-xl shadow-2xl">
-                        <h3 className="text-xl font-semibold text-slate-900 mb-4">Kitob nashri jarayoni</h3>
+                        <h3 className="text-xl font-semibold text-slate-900 mb-4">{t('Kitob nashri jarayoni')}</h3>
 
                         <div className="space-y-3">
                             <div className="p-3 rounded-lg bg-slate-100/70 border border-slate-200/90 flex items-center justify-between">
-                                <span className="text-slate-700">1. Buyurtma qabul qilindi</span>
+                                <span className="text-slate-700">{t('1. Buyurtma qabul qilindi')}</span>
                                 <CheckCircle className="h-5 w-5 text-green-800" />
                             </div>
                             <div className="p-3 rounded-lg bg-slate-100/70 border border-slate-200/90 flex items-center justify-between">
-                                <span className="text-slate-700">2. To'lov holati</span>
+                                <span className="text-slate-700">{t("2. To'lov holati")}</span>
                                 {processPaymentStatus === 'completed' && <CheckCircle className="h-5 w-5 text-green-800" />}
                                 {processPaymentStatus === 'failed' && <XCircle className="h-5 w-5 text-red-500" />}
                                 {(processPaymentStatus === 'pending' || processPaymentStatus === null) && <Loader2 className="h-5 w-5 text-yellow-800 animate-spin" />}
                             </div>
                             <div className="p-3 rounded-lg bg-slate-100/70 border border-slate-200/90 flex items-center justify-between">
-                                <span className="text-slate-700">3. Muharrir ko'rib chiqadi</span>
-                                <span className="text-xs text-slate-500">Kutilmoqda</span>
+                                <span className="text-slate-700">{t("3. Muharrir ko'rib chiqadi")}</span>
+                                <span className="text-xs text-slate-500">{t('Kutilmoqda')}</span>
                             </div>
                             <div className="p-3 rounded-lg bg-slate-100/70 border border-slate-200/90 flex items-center justify-between">
-                                <span className="text-slate-700">4. Nashrga tayyorlash</span>
-                                <span className="text-xs text-slate-500">Kutilmoqda</span>
+                                <span className="text-slate-700">{t('4. Nashrga tayyorlash')}</span>
+                                <span className="text-xs text-slate-500">{t('Kutilmoqda')}</span>
                             </div>
                             <div className="p-3 rounded-lg bg-slate-100/70 border border-slate-200/90 flex items-center justify-between">
-                                <span className="text-slate-700">5. Yakuniy natija</span>
-                                <span className="text-xs text-slate-500">Kutilmoqda</span>
+                                <span className="text-slate-700">{t('5. Yakuniy natija')}</span>
+                                <span className="text-xs text-slate-500">{t('Kutilmoqda')}</span>
                             </div>
                         </div>
 
@@ -719,9 +752,9 @@ const SubmitBook: React.FC = () => {
                                 className="w-full"
                                 disabled={isRefreshingProcess || !(transactionId || sessionStorage.getItem(STORAGE_KEY_BOOK_TX))}
                             >
-                                {isRefreshingProcess ? 'Yangilanmoqda...' : 'Holatni yangilash'}
+                                {isRefreshingProcess ? t('Yangilanmoqda...') : t('Holatni yangilash')}
                             </Button>
-                            <Button onClick={closeProcessModal} className="w-full">Yopish</Button>
+                            <Button onClick={closeProcessModal} className="w-full">{t('Yopish')}</Button>
                         </div>
                     </Card>
                 </ModalPortal>

@@ -670,6 +670,11 @@ class CreateArticleSerializer(serializers.ModelSerializer):
         return journal
 
     def create(self, validated_data):
+        from apps.users.phone_verification import verification_required_message
+
+        blocked = verification_required_message(self.context['request'].user)
+        if blocked:
+            raise serializers.ValidationError({'detail': blocked})
         co_author_contacts = validated_data.pop('co_author_contacts', [])
         validated_data['author'] = self.context['request'].user
         title = (validated_data.get('title') or '').strip()

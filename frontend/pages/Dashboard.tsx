@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
+import PhoneVerifyCard from '../components/PhoneVerifyCard';
 import { Role, ArticleStatus, ARTICLE_STATUS_LABELS } from '../types';
 import GirihPattern from '../components/GirihPattern';
 import EmptyState from '../components/EmptyState';
 import { PageSkeleton } from '../components/ui/Skeleton';
 import { formatUzDate } from '../utils/uzDate';
-import { FileText, CheckCircle, Shield, Upload, Bell, CreditCard } from 'lucide-react';
+import { FileText, CheckCircle, Shield, Upload, Bell, CreditCard, Bot } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { txAmount } from '../utils/amount';
 import { useT } from '../i18n/LanguageContext';
@@ -15,6 +16,7 @@ import JournalAdminDashboard from './dashboard/JournalAdminDashboard';
 import SuperAdminDashboard from './dashboard/SuperAdminDashboard';
 import AccountantDashboard from './dashboard/AccountantDashboard';
 
+import { setAuthorUi } from '../utils/authorUi';
 const Dashboard: React.FC = () => {
     const { user } = useAuth();
     const { unreadCount, notifications } = useNotifications();
@@ -285,6 +287,16 @@ const Dashboard: React.FC = () => {
                         <div className="flex flex-wrap gap-3">
                             <button
                                 type="button"
+                                onClick={() => {
+                                    setAuthorUi('ai');
+                                    navigate('/ai');
+                                }}
+                                className="milliy-btn-on-band milliy-btn-on-band--ghost"
+                            >
+                                <Bot className="w-4 h-4" aria-hidden /> {t('AI yordamchi')}
+                            </button>
+                            <button
+                                type="button"
                                 onClick={() => navigate('/plagiarism-check')}
                                 className="milliy-btn-on-band milliy-btn-on-band--ghost"
                             >
@@ -329,6 +341,8 @@ const Dashboard: React.FC = () => {
                         </span>
                     </Link>
                 </section>
+
+                <PhoneVerifyCard compact />
 
                 <div className="flex flex-wrap gap-6 items-start">
                     <section aria-labelledby="author-recent" className="flex flex-col gap-3.5 min-w-0 flex-[2_1_520px]">

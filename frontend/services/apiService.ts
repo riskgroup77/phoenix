@@ -5,6 +5,14 @@
 
 import { formatDrfValidationErrors, getUserFriendlyError, isAuthError } from '../utils/errorHandler';
 import { API_V1_BASE_URL, API_MEDIA_BASE_URL, isProductionHost } from '../config/apiBase';
+import {
+  clearTokens,
+  getAccessToken,
+  getRefreshToken,
+  isCookieMode,
+  setAccessToken,
+  storeLoginTokens,
+} from '../utils/authTokens';
 
 /** @deprecated Use API_V1_BASE_URL — nom mosligi uchun */
 const API_BASE_URL = API_V1_BASE_URL;
@@ -14,17 +22,10 @@ if (typeof window !== 'undefined' && !isProductionHost) {
   console.log(`[API] API_BASE_URL: ${API_BASE_URL}`);
 }
 
-// Get token from localStorage
-const getToken = () => localStorage.getItem('access_token');
-
-// Set token
-const setToken = (token: string) => localStorage.setItem('access_token', token);
-
-// Remove token
-const removeToken = () => {
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
-};
+// Tokenlar: productionda access — xotirada, refresh — HttpOnly cookie'da (utils/authTokens.ts)
+const getToken = () => getAccessToken();
+const setToken = (token: string) => setAccessToken(token);
+const removeToken = () => clearTokens();
 
 /** Login/register: eski Bearer yuborilmasin (noto‘g‘ri JWT 401 berishi mumkin). */
 function isPublicAuthEndpoint(endpoint: string): boolean {
@@ -39,10 +40,11 @@ let refreshInFlight: Promise<boolean> | null = null;
 /**
  * SimpleJWT refresh — parallel so‘rovlarda bitta marta bajariladi.
  */
-async function refreshAccessTokenFromApi(): Promise<boolean> {
+export async function refreshAccessTokenFromApi(): Promise<boolean> {
   if (refreshInFlight) return refreshInFlight;
-  const refresh = localStorage.getItem('refresh_token');
-  if (!refresh) {
+  const refresh = getRefreshToken();
+  // Cookie rejimida refresh token HttpOnly cookie'da — so'rov tanasiz yuboriladi
+  if (!refresh && !isCookieMode()) {
     return false;
   }
   refreshInFlight = (async (): Promise<boolean> => {
@@ -50,8 +52,8 @@ async function refreshAccessTokenFromApi(): Promise<boolean> {
       const r = await fetch(`${API_BASE_URL}/token/refresh/`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh }),
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify(refresh ? { refresh } : {}),
       });
       const text = await r.text();
       const data = (text ? JSON.parse(text) : {}) as { access?: string; refresh?: string };
@@ -106,6 +108,11 @@ export const apiFetch = async (
 
   if (token && !headers.has('Authorization') && !publicAuth) {
     headers.set('Authorization', `Bearer ${token}`);
+  }
+  // CSRF himoyasi: cookie bilan autentifikatsiyada backend o'zgartiruvchi so'rovlarda shu sarlavhani talab qiladi
+  // (boshqa saytdagi forma yoki skript uni qo'ya olmaydi — CORS preflight bloklaydi)
+  if (!publicAuth && !headers.has('X-Requested-With')) {
+    headers.set('X-Requested-With', 'XMLHttpRequest');
   }
 
   // Login/register: maxsus sarlavha qo‘ymaslik — CORS preflight sodda bo‘ladi (x-request-id ba’zi serverlarda bloklangan).
@@ -289,12 +296,7 @@ export const apiService = {
         method: 'POST',
         body: JSON.stringify({ phone, password }),
       });
-      
-      if (data.access) {
-        setToken(data.access);
-        localStorage.setItem('refresh_token', data.refresh);
-      }
-      
+      if (data.access || data.cookie_auth) storeLoginTokens(data);
       return data;
     },
 
@@ -303,22 +305,21 @@ export const apiService = {
         method: 'POST',
         body: JSON.stringify(userData),
       });
-      
-      if (data.access) {
-        setToken(data.access);
-        localStorage.setItem('refresh_token', data.refresh);
-      }
-      
+      if (data.access || data.cookie_auth) storeLoginTokens(data);
       return data;
     },
 
     logout: async () => {
-      const refresh = localStorage.getItem('refresh_token');
+      const refresh = getRefreshToken();
       try {
         await fetch(`${API_BASE_URL}/auth/logout/`, {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+          },
           body: JSON.stringify(refresh ? { refresh } : {}),
         });
       } catch {
@@ -328,6 +329,27 @@ export const apiService = {
     },
 
     getProfile: () => apiFetch('/auth/profile/'),
+
+    /** Telefonni Telegram orqali tasdiqlash: bot havolasini oladi */
+    phoneVerifyStart: (): Promise<{ deep_link?: string; expires_in?: number; already_verified?: boolean }> =>
+      apiFetch('/auth/phone-verify/start/', { method: 'POST', body: '{}' }),
+    phoneVerifyStatus: (): Promise<{ phone_verified: boolean }> => apiFetch('/auth/phone-verify/status/'),
+
+    /** Parolni tiklash (Telegram orqali): avval bot havolasi, keyin bir martalik havola bilan yangi parol */
+    passwordResetStart: (phone: string): Promise<{ deep_link: string; expires_in: number }> =>
+      apiFetch('/auth/password-reset/start/', { method: 'POST', body: JSON.stringify({ phone }) }),
+    passwordResetConfirm: (token: string, password: string, passwordConfirm: string) =>
+      apiFetch('/auth/password-reset/confirm/', {
+        method: 'POST',
+        body: JSON.stringify({ token, password, password_confirm: passwordConfirm }),
+      }),
+
+    /** Maxfiylik: o'z ma'lumotlarining nusxasi (JSON) */
+    myDataExport: () => apiFetch('/auth/my-data/'),
+
+    /** Maxfiylik: hisobni o'chirish so'rovi (super adminlarga yuboriladi) */
+    accountDeletionRequest: (reason: string) =>
+      apiFetch('/auth/delete-request/', { method: 'POST', body: JSON.stringify({ reason }) }),
 
     /** Muallifning arxiv hujjatlari: maqolalar, UDK, sertifikatlar, taqriz natijalari. */
     getArchive: () => apiFetch('/auth/archive/'),
@@ -344,15 +366,15 @@ export const apiService = {
      * JWT access yangilash (SimpleJWT). Refresh token alohida yuboriladi.
      */
     refreshAccessToken: async () => {
-      const refresh = localStorage.getItem('refresh_token');
-      if (!refresh) {
+      const refresh = getRefreshToken();
+      if (!refresh && !isCookieMode()) {
         throw new Error('Refresh token yo\'q');
       }
       const response = await fetch(`${API_BASE_URL}/token/refresh/`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh }),
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify(refresh ? { refresh } : {}),
       });
       const text = await response.text();
       let data: { access?: string; detail?: string };
@@ -406,6 +428,24 @@ export const apiService = {
     activity: (id: string) => apiFetch(`/auth/${id}/activity/`),
       
     stats: () => apiFetch('/auth/stats/'),
+  },
+
+  // Muallif AI yordamchisi (backend apps/assistant)
+  assistant: {
+    listConversations: () => apiFetch('/assistant/conversations/'),
+    createConversation: (title = '') =>
+      apiFetch('/assistant/conversations/', { method: 'POST', body: JSON.stringify({ title }) }),
+    getConversation: (id: string) => apiFetch(`/assistant/conversations/${id}/`),
+    renameConversation: (id: string, title: string) =>
+      apiFetch(`/assistant/conversations/${id}/`, { method: 'PATCH', body: JSON.stringify({ title }) }),
+    deleteConversation: (id: string) => apiFetch(`/assistant/conversations/${id}/`, { method: 'DELETE' }),
+    sendMessage: (id: string, payload: { text: string; lang: string; file?: File | null }) => {
+      const body = new FormData();
+      body.append('text', payload.text);
+      body.append('lang', payload.lang);
+      if (payload.file) body.append('file', payload.file);
+      return apiFetch(`/assistant/conversations/${id}/messages/`, { method: 'POST', body });
+    },
   },
 
   // Articles

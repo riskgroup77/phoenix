@@ -1,0 +1,11 @@
+# Har 5 daqiqada monitoring tekshiruvi.
+
+[Unit]
+Description=Phoenix — monitoring (har 5 daqiqa)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

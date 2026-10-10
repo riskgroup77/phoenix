@@ -14,6 +14,7 @@ import { asApiList } from '../utils/apiList';
 import { ARTICLE_STATUS_LABELS, ArticleStatus, Role } from '../types';
 import { getAuthorWorkflowStageLabel } from '../utils/articleAuthorWorkflow';
 import { isStandalonePlagiarismArticle } from '../utils/antiplagiatFromArticle';
+import { useT } from '../i18n/LanguageContext';
 
 type SectionTab = 'platform' | 'samples' | 'external';
 
@@ -92,6 +93,7 @@ interface AuthorPublication {
 }
 
 const AuthorPublications: React.FC = () => {
+  const { t } = useT();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [publications, setPublications] = useState<AuthorPublication[]>([]);
@@ -221,7 +223,7 @@ const AuthorPublications: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Rostdan ham ushbu nashrni o\'chirmoqchimisiz?')) {
+    if (confirm(t("Rostdan ham ushbu nashrni o'chirmoqchimisiz?"))) {
       try {
         await apiService.authorPublications.delete(id);
         loadData();
@@ -309,23 +311,23 @@ const AuthorPublications: React.FC = () => {
   return (
     <div className="container mx-auto p-6 max-w-6xl">
       <EditorialPageHeader
-        title="Muallif Nashrlari"
-        subtitle="Platformada yuborilgan maqolalar, maqola yozish buyurtmalari va boshqa ilmiy nashrlar shu yerda. Sertifikatlar va UDK hujjatlari «Arxiv hujjatlar» bo'limida."
+        title={t('Muallif Nashrlari')}
+        subtitle={t("Platformada yuborilgan maqolalar, maqola yozish buyurtmalari va boshqa ilmiy nashrlar shu yerda. Sertifikatlar va UDK hujjatlari «Arxiv hujjatlar» bo'limida.")}
         actions={
           isAuthor ? (
             <Button onClick={() => setShowNashrHisobotModal(true)} variant="primary">
               <FileDown className="w-4 h-4 mr-2" />
-              Nashr hisoboti
+              {t('Nashr hisoboti')}
             </Button>
           ) : (
             <>
               <Button onClick={handleQRScan} variant="secondary">
                 <QrCode className="w-4 h-4 mr-2" />
-                QR Code Scan
+                {t('QR Code Scan')}
               </Button>
               <Button onClick={() => setShowAddForm(true)}>
                 <Plus className="w-4 h-4 mr-2" />
-                Yangi Nashr
+                {t('Yangi Nashr')}
               </Button>
             </>
           )
@@ -349,7 +351,7 @@ const AuthorPublications: React.FC = () => {
         <div className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
-              <label htmlFor="search" className="block text-sm font-medium mb-2">Qidiruv</label>
+              <label htmlFor="search" className="block text-sm font-medium mb-2">{t('Qidiruv')}</label>
               <div className="relative">
                 <Search
                   className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
@@ -358,7 +360,7 @@ const AuthorPublications: React.FC = () => {
                 <input
                   id="search"
                   type="text"
-                  placeholder="Sarlavha, mualliflar, kalit so'zlar..."
+                  placeholder={t("Sarlavha, mualliflar, kalit so'zlar...")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pinm-field w-full pl-10"
@@ -367,13 +369,13 @@ const AuthorPublications: React.FC = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium mb-2">Ilmiy soha</label>
+              <label className="block text-sm font-medium mb-2">{t('Ilmiy soha')}</label>
               <select
                 value={selectedField}
                 onChange={(e) => setSelectedField(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Barcha sohalar</option>
+                <option value="">{t('Barcha sohalar')}</option>
                 {scientificFields.map(field => (
                   <option key={field.id} value={field.id}>
                     {field.name}
@@ -383,13 +385,13 @@ const AuthorPublications: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Nashr turi</label>
+              <label className="block text-sm font-medium mb-2">{t('Nashr turi')}</label>
               <select
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Barcha turlar</option>
+                <option value="">{t('Barcha turlar')}</option>
                 {publicationTypes.map(type => (
                   <option key={type.value} value={type.value}>
                     {type.label}
@@ -401,13 +403,13 @@ const AuthorPublications: React.FC = () => {
             {/* Author filter - only for super_admin */}
             {user?.role === 'super_admin' && (
               <div>
-                <label className="block text-sm font-medium mb-2">Muallif</label>
+                <label className="block text-sm font-medium mb-2">{t('Muallif')}</label>
                 <select
                   value={selectedAuthor}
                   onChange={(e) => setSelectedAuthor(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Barcha mualliflar</option>
+                  <option value="">{t('Barcha mualliflar')}</option>
                   {allAuthors.map(author => (
                     <option key={author.id} value={author.id}>
                       {author.first_name} {author.last_name}
@@ -425,7 +427,7 @@ const AuthorPublications: React.FC = () => {
                 setSelectedAuthor('');
               }}>
                 <Filter className="w-4 h-4 mr-2" />
-                Tozalash
+                {t('Tozalash')}
               </Button>
             </div>
           </div>
@@ -438,9 +440,9 @@ const AuthorPublications: React.FC = () => {
             <Card>
               <div className="p-8 text-center text-slate-500">
                 <FileText className="w-12 h-12 mx-auto mb-3 opacity-40" />
-                <p>Hozircha platformada yuborilgan maqolalar yo&apos;q.</p>
+                <p>{t("Hozircha platformada yuborilgan maqolalar yo'q.")}</p>
                 <Button className="mt-4" onClick={() => navigate('/submit')}>
-                  Maqola yuborish
+                  {t('Maqola yuborish')}
                 </Button>
               </div>
             </Card>
@@ -469,16 +471,16 @@ const AuthorPublications: React.FC = () => {
                       </div>
                       <h3 className="font-semibold text-slate-900 line-clamp-2 mb-2">{article.title}</h3>
                       <p className="text-sm text-slate-500 mb-1">
-                        <strong>Jurnal:</strong> {journalName}
+                        <strong>{t('Jurnal:')}</strong> {journalName}
                       </p>
                       {article.submission_date && (
                         <p className="text-xs text-slate-400">
-                          Yuborilgan: {new Date(article.submission_date).toLocaleDateString('uz-UZ')}
+                          {t('Yuborilgan:')} {new Date(article.submission_date).toLocaleDateString('uz-UZ')}
                         </p>
                       )}
                       {article.plagiarism_percentage != null && (
                         <p className="text-xs text-slate-500 mt-2">
-                          Antiplagiat: {Number(article.plagiarism_percentage).toFixed(1)}% · Originallik:{' '}
+                          {t('Antiplagiat:')} {Number(article.plagiarism_percentage).toFixed(1)}{t('% · Originallik:')}{' '}
                           {article.originality_percentage != null
                             ? Number(article.originality_percentage).toFixed(1)
                             : '—'}
@@ -500,21 +502,21 @@ const AuthorPublications: React.FC = () => {
             <Card>
               <div className="p-8 text-center text-slate-500">
                 <FileText className="w-12 h-12 mx-auto mb-3 opacity-40" />
-                <p>Maqola yozish buyurtmalari yo&apos;q.</p>
+                <p>{t("Maqola yozish buyurtmalari yo'q.")}</p>
                 <Button className="mt-4" variant="secondary" onClick={() => navigate('/maqola-namuna-olish')}>
-                  Buyurtma berish
+                  {t('Buyurtma berish')}
                 </Button>
               </div>
             </Card>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto rtable-wrap">
+              <table className="w-full text-left text-sm rtable">
                 <thead>
                   <tr className="border-b border-slate-200">
-                    <th className="pb-2 font-medium text-slate-500">Mavzu</th>
-                    <th className="pb-2 font-medium text-slate-500">Holat</th>
-                    <th className="pb-2 font-medium text-slate-500 hidden sm:table-cell">Sahifalar</th>
-                    <th className="pb-2 font-medium text-slate-500 hidden md:table-cell">Sana</th>
+                    <th className="pb-2 font-medium text-slate-500">{t('Mavzu')}</th>
+                    <th className="pb-2 font-medium text-slate-500">{t('Holat')}</th>
+                    <th className="pb-2 font-medium text-slate-500 hidden sm:table-cell">{t('Sahifalar')}</th>
+                    <th className="pb-2 font-medium text-slate-500 hidden md:table-cell">{t('Sana')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -525,7 +527,7 @@ const AuthorPublications: React.FC = () => {
                       onClick={() => navigate('/maqola-namuna-olish')}
                     >
                       <td className="py-3 pr-4 font-medium text-slate-900 max-w-xs truncate">
-                        {order.topic || order.requirements || 'Maqola yozish buyurtmasi'}
+                        {order.topic || order.requirements || t('Maqola yozish buyurtmasi')}
                       </td>
                       <td className="py-3 text-slate-600">
                         {SAMPLE_STATUS_LABELS[order.status] || order.status}
@@ -551,7 +553,7 @@ const AuthorPublications: React.FC = () => {
         <div className="flex justify-end mb-4">
           <Button onClick={() => setShowAddForm(true)} variant="secondary">
             <Plus className="w-4 h-4 mr-2" />
-            Yangi nashr qo&apos;shish
+            {t("Yangi nashr qo'shish")}
           </Button>
         </div>
       )}
@@ -620,7 +622,7 @@ const AuthorPublications: React.FC = () => {
                 </span>
                 {publication.is_verified && (
                   <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    Tasdiqlangan
+                    {t('Tasdiqlangan')}
                   </span>
                 )}
               </div>
@@ -658,15 +660,15 @@ const AuthorPublications: React.FC = () => {
 
               {/* Publication Details */}
               <div className="space-y-1 text-sm text-gray-600">
-                <div><strong>Ilmiy soha:</strong> {publication.scientific_field_name}</div>
-                <div><strong>Sana:</strong> {new Date(publication.publication_date).toLocaleDateString('uz-UZ')}</div>
+                <div><strong>{t('Ilmiy soha:')}</strong> {publication.scientific_field_name}</div>
+                <div><strong>{t('Sana:')}</strong> {new Date(publication.publication_date).toLocaleDateString('uz-UZ')}</div>
                 {publication.doi && <div><strong>DOI:</strong> {publication.doi}</div>}
-                {publication.pages && <div><strong>Sahifalar:</strong> {publication.pages}</div>}
+                {publication.pages && <div><strong>{t('Sahifalar:')}</strong> {publication.pages}</div>}
                 {publication.co_authors && (
-                  <div><strong>Hammualliflar:</strong> {publication.co_authors}</div>
+                  <div><strong>{t('Hammualliflar:')}</strong> {publication.co_authors}</div>
                 )}
                 {publication.keywords && (
-                  <div><strong>Kalit so'zlar:</strong> {publication.keywords}</div>
+                  <div><strong>{t("Kalit so'zlar:")}</strong> {publication.keywords}</div>
                 )}
               </div>
             </div>
@@ -688,11 +690,11 @@ const AuthorPublications: React.FC = () => {
           <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h2 className="text-xl font-bold mb-4">
-                {editingPublication ? 'Nashrni tahrirlash' : 'Yangi nashr qo\'shish'}
+                {editingPublication ? t('Nashrni tahrirlash') : t("Yangi nashr qo'shish")}
               </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label htmlFor="title" className="block text-sm font-medium mb-2">Sarlavha *</label>
+                  <label htmlFor="title" className="block text-sm font-medium mb-2">{t('Sarlavha *')}</label>
                   <input
                     id="title"
                     type="text"
@@ -705,14 +707,14 @@ const AuthorPublications: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Nashr turi *</label>
+                    <label className="block text-sm font-medium mb-2">{t('Nashr turi *')}</label>
                     <select
                       value={formData.publication_type}
                       onChange={(e) => setFormData({...formData, publication_type: e.target.value})}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="">Nashr turini tanlang</option>
+                      <option value="">{t('Nashr turini tanlang')}</option>
                       {publicationTypes.map(type => (
                         <option key={type.value} value={type.value}>
                           {type.label}
@@ -722,14 +724,14 @@ const AuthorPublications: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-2">Ilmiy soha *</label>
+                    <label className="block text-sm font-medium mb-2">{t('Ilmiy soha *')}</label>
                     <select
                       value={formData.scientific_field}
                       onChange={(e) => setFormData({...formData, scientific_field: e.target.value})}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="">Soxani tanlang</option>
+                      <option value="">{t('Soxani tanlang')}</option>
                       {scientificFields.map(field => (
                         <option key={field.id} value={field.id}>
                           {field.name}
@@ -741,7 +743,7 @@ const AuthorPublications: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="publication_date" className="block text-sm font-medium mb-2">Nashr sanasi *</label>
+                    <label htmlFor="publication_date" className="block text-sm font-medium mb-2">{t('Nashr sanasi *')}</label>
                     <input
                       id="publication_date"
                       type="date"
@@ -766,7 +768,7 @@ const AuthorPublications: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="pages" className="block text-sm font-medium mb-2">Sahifalar</label>
+                  <label htmlFor="pages" className="block text-sm font-medium mb-2">{t('Sahifalar')}</label>
                   <input
                     id="pages"
                     type="text"
@@ -778,19 +780,19 @@ const AuthorPublications: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="co_authors" className="block text-sm font-medium mb-2">Hammualliflar</label>
+                  <label htmlFor="co_authors" className="block text-sm font-medium mb-2">{t('Hammualliflar')}</label>
                   <input
                     id="co_authors"
                     type="text"
                     value={formData.co_authors}
                     onChange={(e) => setFormData({...formData, co_authors: e.target.value})}
-                    placeholder="A. A. Karimov, B. B. To'rayev"
+                    placeholder={t("A. A. Karimov, B. B. To'rayev")}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="abstract" className="block text-sm font-medium mb-2">Annotatsiya</label>
+                  <label htmlFor="abstract" className="block text-sm font-medium mb-2">{t('Annotatsiya')}</label>
                   <textarea
                     id="abstract"
                     value={formData.abstract}
@@ -801,19 +803,19 @@ const AuthorPublications: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="keywords" className="block text-sm font-medium mb-2">Kalit so'zlar</label>
+                  <label htmlFor="keywords" className="block text-sm font-medium mb-2">{t("Kalit so'zlar")}</label>
                   <input
                     id="keywords"
                     type="text"
                     value={formData.keywords}
                     onChange={(e) => setFormData({...formData, keywords: e.target.value})}
-                    placeholder="ta'lim, pedagogika, metodika"
+                    placeholder={t("ta'lim, pedagogika, metodika")}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="file_url" className="block text-sm font-medium mb-2">Fayl URL</label>
+                  <label htmlFor="file_url" className="block text-sm font-medium mb-2">{t('Fayl URL')}</label>
                   <input
                     id="file_url"
                     type="url"
@@ -829,10 +831,10 @@ const AuthorPublications: React.FC = () => {
                     setShowAddForm(false);
                     setEditingPublication(null);
                   }}>
-                    Bekor qilish
+                    {t('Bekor qilish')}
                   </Button>
                   <Button type="submit">
-                    {editingPublication ? 'Saqlash' : 'Qo\'shish'}
+                    {editingPublication ? t('Saqlash') : t("Qo'shish")}
                   </Button>
                 </div>
               </form>
@@ -846,11 +848,11 @@ const AuthorPublications: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md">
             <div className="p-6">
-              <h2 className="text-xl font-bold mb-4">QR Code Scanner</h2>
+              <h2 className="text-xl font-bold mb-4">{t('QR Code Scanner')}</h2>
               <div className="text-center py-8">
                 <QrCode className="w-16 h-16 mx-auto mb-4 text-slate-500" />
-                <p className="text-gray-600 mb-4">QR code skaner bu yerda bo'ladi</p>
-                <Button onClick={() => setShowQRScanner(false)}>Yopish</Button>
+                <p className="text-gray-600 mb-4">{t("QR code skaner bu yerda bo'ladi")}</p>
+                <Button onClick={() => setShowQRScanner(false)}>{t('Yopish')}</Button>
               </div>
             </div>
           </Card>

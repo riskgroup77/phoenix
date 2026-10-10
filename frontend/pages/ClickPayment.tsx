@@ -7,6 +7,7 @@ import { CreditCard, Loader, CheckCircle, XCircle, QrCode } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { toast } from 'react-toastify';
 import { shouldAutoOpenClickPayment } from '../utils/device';
+import { useT } from '../i18n/LanguageContext';
 
 const POLL_INTERVAL_MS = 3000;
 const POLL_MAX_MS = 15 * 60 * 1000;
@@ -59,6 +60,7 @@ function formatDateTime(iso?: string | null): string {
 }
 
 const ClickPayment: React.FC = () => {
+    const { t } = useT();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const transactionId = searchParams.get('transaction_id');
@@ -106,10 +108,10 @@ const ClickPayment: React.FC = () => {
             setTransaction(tx);
             if (tx?.status === 'completed' && !confirmedToastShown.current) {
                 confirmedToastShown.current = true;
-                toast.success("To'lov muvaffaqiyatli tasdiqlandi!");
+                toast.success(t("To'lov muvaffaqiyatli tasdiqlandi!"));
             }
             if ((tx?.status === 'failed' || tx?.status === 'cancelled') && !silent) {
-                toast.error(tx.error_note || "To'lov yakunlanmadi.");
+                toast.error(tx.error_note || t("To'lov yakunlanmadi."));
             }
             return tx;
         } catch {
@@ -130,7 +132,7 @@ const ClickPayment: React.FC = () => {
                 setPaymentUrl(url);
                 setStatus('success');
             } else {
-                setError(response.error || response.error_note || "To'lov URL olinmadi");
+                setError(response.error || response.error_note || t("To'lov URL olinmadi"));
                 setStatus('error');
             }
         } catch (err: unknown) {
@@ -144,7 +146,7 @@ const ClickPayment: React.FC = () => {
 
     useEffect(() => {
         if (!transactionId) {
-            setError('Transaction ID topilmadi');
+            setError(t('Transaction ID topilmadi'));
             return;
         }
 
@@ -163,7 +165,7 @@ const ClickPayment: React.FC = () => {
 
             if (tx?.status === 'failed' || tx?.status === 'cancelled') {
                 setStatus('error');
-                setError(tx.error_note || "To'lov yakunlanmadi yoki bekor qilindi.");
+                setError(tx.error_note || t("To'lov yakunlanmadi yoki bekor qilindi."));
                 setIsLoading(false);
                 return;
             }
@@ -182,7 +184,7 @@ const ClickPayment: React.FC = () => {
         const storageKey = `click_auto_redirect_${transactionId}`;
         if (sessionStorage.getItem(storageKey)) return;
         sessionStorage.setItem(storageKey, '1');
-        toast.info("Click to'lov sahifasiga yo'naltirilmoqdasiz...", { autoClose: 2000 });
+        toast.info(t("Click to'lov sahifasiga yo'naltirilmoqdasiz..."), { autoClose: 2000 });
         window.setTimeout(() => {
             window.location.assign(paymentUrl);
         }, 450);
@@ -262,18 +264,18 @@ const ClickPayment: React.FC = () => {
             <Card className="max-w-md w-full shadow-lg border border-[var(--editorial-border,#e2ddd4)]">
                 <div className="text-center mb-6">
                     <CreditCard className="h-16 w-16 mx-auto mb-4 text-[var(--editorial-primary,#1f3f8f)]" />
-                    <h2 className="font-serif text-2xl font-bold text-[var(--editorial-text,#1a1a1a)] mb-2">Click To&apos;lov</h2>
+                    <h2 className="font-serif text-2xl font-bold text-[var(--editorial-text,#1a1a1a)] mb-2">{t("Click To'lov")}</h2>
                     <p className="text-[var(--editorial-muted,#64748b)]">
                         {isPaymentCompleted
-                            ? "To'lov tasdiqlandi"
-                            : "To'lovni amalga oshirish uchun QR yoki tugmadan foydalaning"}
+                            ? t("To'lov tasdiqlandi")
+                            : t("To'lovni amalga oshirish uchun QR yoki tugmadan foydalaning")}
                     </p>
                 </div>
 
                 {isLoading && !isPaymentCompleted && (
                     <div className="text-center py-8">
                         <Loader className="h-12 w-12 mx-auto animate-spin text-[var(--editorial-primary,#1f3f8f)] mb-4" />
-                        <p className="text-slate-500">To&apos;lov sahifasi tayyorlanmoqda...</p>
+                        <p className="text-slate-500">{t("To'lov sahifasi tayyorlanmoqda...")}</p>
                     </div>
                 )}
 
@@ -292,35 +294,35 @@ const ClickPayment: React.FC = () => {
                             <div className="flex items-center gap-3 text-emerald-900 mb-3">
                                 <CheckCircle className="h-8 w-8 shrink-0" />
                                 <div className="text-left">
-                                    <p className="font-bold text-lg">To&apos;lov tasdiqlandi</p>
+                                    <p className="font-bold text-lg">{t("To'lov tasdiqlandi")}</p>
                                     <p className="text-sm text-emerald-800/90">
-                                        Click orqali to&apos;lov muvaffaqiyatli qabul qilindi
+                                        {t("Click orqali to'lov muvaffaqiyatli qabul qilindi")}
                                     </p>
                                 </div>
                             </div>
                             <dl className="space-y-2 text-sm text-slate-700">
                                 <div className="flex justify-between gap-2 border-b border-emerald-500/20 pb-2">
-                                    <dt className="text-slate-500">Xizmat</dt>
+                                    <dt className="text-slate-500">{t('Xizmat')}</dt>
                                     <dd className="font-medium text-right">{serviceLabel}</dd>
                                 </div>
                                 <div className="flex justify-between gap-2 border-b border-emerald-500/20 pb-2">
-                                    <dt className="text-slate-500">Summa</dt>
+                                    <dt className="text-slate-500">{t('Summa')}</dt>
                                     <dd className="font-semibold text-right">
                                         {formatAmount(transaction.amount, transaction.currency)}
                                     </dd>
                                 </div>
                                 <div className="flex justify-between gap-2 border-b border-emerald-500/20 pb-2">
-                                    <dt className="text-slate-500">Tranzaksiya ID</dt>
+                                    <dt className="text-slate-500">{t('Tranzaksiya ID')}</dt>
                                     <dd className="font-mono text-xs text-right break-all">{transaction.id}</dd>
                                 </div>
                                 {transaction.click_paydoc_id && (
                                     <div className="flex justify-between gap-2 border-b border-emerald-500/20 pb-2">
-                                        <dt className="text-slate-500">Click hujjat ID</dt>
+                                        <dt className="text-slate-500">{t('Click hujjat ID')}</dt>
                                         <dd className="font-mono text-xs text-right">{transaction.click_paydoc_id}</dd>
                                     </div>
                                 )}
                                 <div className="flex justify-between gap-2">
-                                    <dt className="text-slate-500">Tasdiqlangan vaqt</dt>
+                                    <dt className="text-slate-500">{t('Tasdiqlangan vaqt')}</dt>
                                     <dd className="font-medium text-right">
                                         {formatDateTime(transaction.completed_at || transaction.created_at)}
                                     </dd>
@@ -331,7 +333,7 @@ const ClickPayment: React.FC = () => {
                         {transaction.udk_certificate_url && (
                             <div className="p-4 bg-green-500/20 border border-green-500/30 rounded-lg">
                                 <p className="font-semibold text-emerald-900 mb-2">
-                                    UDK tasdiqlangan ma&apos;lumotnoma tayyor
+                                    {t("UDK tasdiqlangan ma'lumotnoma tayyor")}
                                 </p>
                                 <a
                                     href={transaction.udk_certificate_url}
@@ -339,7 +341,7 @@ const ClickPayment: React.FC = () => {
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center gap-2 text-sm text-emerald-800 hover:underline font-medium"
                                 >
-                                    Ma&apos;lumotnomani yuklab olish
+                                    {t("Ma'lumotnomani yuklab olish")}
                                 </a>
                             </div>
                         )}
@@ -348,10 +350,10 @@ const ClickPayment: React.FC = () => {
                             {transaction.service_type === 'publication_fee' && (
                                 <>
                                     <Button onClick={() => navigate('/arxiv')} className="w-full">
-                                        Arxiv hujjatlarga o&apos;tish
+                                        {t("Arxiv hujjatlarga o'tish")}
                                     </Button>
                                     <Button onClick={() => navigate('/articles?tab=journal')} variant="secondary" className="w-full">
-                                        Maqolalarimga o&apos;tish
+                                        {t("Maqolalarimga o'tish")}
                                     </Button>
                                 </>
                             )}
@@ -360,7 +362,7 @@ const ClickPayment: React.FC = () => {
                                     onClick={() => navigate('/plagiarism-check?payment_return=1&transaction_id=' + encodeURIComponent(transaction.id))}
                                     className="w-full"
                                 >
-                                    Antiplagiat tekshiruviga qaytish
+                                    {t('Antiplagiat tekshiruviga qaytish')}
                                 </Button>
                             )}
                             <Button
@@ -368,7 +370,7 @@ const ClickPayment: React.FC = () => {
                                 variant={transaction.service_type === 'publication_fee' || transaction.service_type === 'language_editing' ? 'secondary' : undefined}
                                 className="w-full"
                             >
-                                Bosh sahifaga qaytish
+                                {t('Bosh sahifaga qaytish')}
                             </Button>
                         </div>
                     </div>
@@ -376,21 +378,21 @@ const ClickPayment: React.FC = () => {
 
                 {showPendingSummary && (
                     <div className="mb-4 p-4 bg-slate-100/80 border border-slate-200/90 rounded-xl text-sm">
-                        <p className="font-semibold text-slate-800 mb-2">To&apos;lov ma&apos;lumotlari</p>
+                        <p className="font-semibold text-slate-800 mb-2">{t("To'lov ma'lumotlari")}</p>
                         <dl className="space-y-1.5 text-slate-700">
                             <div className="flex justify-between gap-2">
-                                <dt className="text-slate-500">Xizmat</dt>
+                                <dt className="text-slate-500">{t('Xizmat')}</dt>
                                 <dd className="font-medium text-right">{serviceLabel}</dd>
                             </div>
                             <div className="flex justify-between gap-2">
-                                <dt className="text-slate-500">Summa</dt>
+                                <dt className="text-slate-500">{t('Summa')}</dt>
                                 <dd className="font-semibold text-right">
                                     {formatAmount(transaction.amount, transaction.currency)}
                                 </dd>
                             </div>
                             <div className="flex justify-between gap-2">
-                                <dt className="text-slate-500">Holat</dt>
-                                <dd className="font-medium text-right text-amber-800">Kutilmoqda</dd>
+                                <dt className="text-slate-500">{t('Holat')}</dt>
+                                <dd className="font-medium text-right text-amber-800">{t('Kutilmoqda')}</dd>
                             </div>
                         </dl>
                     </div>
@@ -412,20 +414,20 @@ const ClickPayment: React.FC = () => {
                             )}
                             <span>
                                 {isPolling
-                                    ? "To'lov avtomatik tekshirilmoqda — tasdiqlangach quyida ko'rsatiladi"
-                                    : "To'lovni amalga oshirgach, tasdiq bu sahifada avtomatik chiqadi"}
+                                    ? t("To'lov avtomatik tekshirilmoqda — tasdiqlangach quyida ko'rsatiladi")
+                                    : t("To'lovni amalga oshirgach, tasdiq bu sahifada avtomatik chiqadi")}
                             </span>
                         </div>
 
                         <div className="p-4 bg-green-500/20 border border-green-500/30 rounded-lg">
                             <div className="flex items-center gap-2 text-emerald-900 mb-2">
                                 <CheckCircle className="h-5 w-5" />
-                                <p className="font-semibold">Click to&apos;lov sahifasi tayyor</p>
+                                <p className="font-semibold">{t("Click to'lov sahifasi tayyor")}</p>
                             </div>
                             <p className="text-sm text-slate-500">
                                 {useMobileAutoFlow
-                                    ? "Telefonda to'lov uchun avtomatik Click sahifasi ochiladi. Kompyuterdan kirgan bo'lsangiz, QR ni boshqa telefon bilan skanerlang."
-                                    : "QR kodni telefon bilan skanerlang yoki tugma orqali Click rasmiy to'lov sahifasiga o'ting (my.click.uz)."}
+                                    ? t("Telefonda to'lov uchun avtomatik Click sahifasi ochiladi. Kompyuterdan kirgan bo'lsangiz, QR ni boshqa telefon bilan skanerlang.")
+                                    : t("QR kodni telefon bilan skanerlang yoki tugma orqali Click rasmiy to'lov sahifasiga o'ting (my.click.uz).")}
                             </p>
                         </div>
 
@@ -433,17 +435,17 @@ const ClickPayment: React.FC = () => {
                             <div className="flex flex-col items-center justify-center p-8 bg-slate-100/70 rounded-xl border border-slate-200/90 min-h-[140px]">
                                 <Loader className="h-10 w-10 animate-spin text-cyan-800 mb-3" />
                                 <p className="text-slate-700 text-sm text-center font-medium">
-                                    Click to&apos;lov sahifasiga yo&apos;naltirilmoqdasiz...
+                                    {t("Click to'lov sahifasiga yo'naltirilmoqdasiz...")}
                                 </p>
                                 <p className="text-slate-500 text-xs mt-2 text-center">
-                                    Ochilmasa, pastdagi tugmani bosing.
+                                    {t('Ochilmasa, pastdagi tugmani bosing.')}
                                 </p>
                             </div>
                         ) : (
                             <div className="flex flex-col items-center p-4 bg-white rounded-xl shadow-sm">
                                 <p className="text-gray-700 text-sm font-medium mb-3 flex items-center gap-2">
                                     <QrCode className="h-4 w-4" />
-                                    QR kod — telefonda to&apos;lash
+                                    {t("QR kod — telefonda to'lash")}
                                 </p>
                                 <QRCodeSVG
                                     value={paymentUrl}
@@ -455,8 +457,7 @@ const ClickPayment: React.FC = () => {
                                     className="rounded-lg"
                                 />
                                 <p className="text-gray-700 text-xs mt-3 text-center max-w-[280px] font-medium">
-                                    Telefonda: <strong>Click ilovasi</strong> → «QR orqali to&apos;lash» yoki kamerani
-                                    shu QR ga qarating.
+                                    {t('Telefonda:')} <strong>{t('Click ilovasi')}</strong> {t("→ «QR orqali to'lash» yoki kamerani shu QR ga qarating.")}
                                 </p>
                             </div>
                         )}
@@ -464,8 +465,8 @@ const ClickPayment: React.FC = () => {
                         <div className="border-t border-slate-200/90 pt-4">
                             <p className="text-sm text-slate-500 text-center mb-3">
                                 {useMobileAutoFlow
-                                    ? "Click ochilmagan bo'lsa:"
-                                    : 'Yoki kompyuterdan — Click sahifasini ochish:'}
+                                    ? t("Click ochilmagan bo'lsa:")
+                                    : t('Yoki kompyuterdan — Click sahifasini ochish:')}
                             </p>
                             <Button
                                 onClick={handlePayment}
@@ -473,8 +474,8 @@ const ClickPayment: React.FC = () => {
                             >
                                 <CreditCard className="h-5 w-5" />
                                 {isMobilePaymentUi
-                                    ? "Click orqali to'lash"
-                                    : "Click orqali to'lash (sahifa yangi tabda ochiladi)"}
+                                    ? t("Click orqali to'lash")
+                                    : t("Click orqali to'lash (sahifa yangi tabda ochiladi)")}
                             </Button>
                         </div>
 
@@ -485,7 +486,7 @@ const ClickPayment: React.FC = () => {
                                 disabled={isLoading}
                                 className="text-sm text-slate-500 hover:text-slate-900 underline-offset-2 hover:underline disabled:opacity-50"
                             >
-                                Hozir tekshirish
+                                {t('Hozir tekshirish')}
                             </button>
                         </div>
 
@@ -495,7 +496,7 @@ const ClickPayment: React.FC = () => {
                                 onClick={() => navigate('/dashboard')}
                                 className="text-sm text-slate-500 hover:text-slate-900"
                             >
-                                Orqaga qaytish
+                                {t('Orqaga qaytish')}
                             </button>
                         </div>
                     </div>
@@ -504,7 +505,7 @@ const ClickPayment: React.FC = () => {
                 {status === 'error' && !isPaymentCompleted && (
                     <div className="space-y-4">
                         <Button onClick={loadPaymentUrl} className="w-full">
-                            Qayta urinib ko&apos;rish
+                            {t("Qayta urinib ko'rish")}
                         </Button>
                         <div className="text-center">
                             <button
@@ -512,7 +513,7 @@ const ClickPayment: React.FC = () => {
                                 onClick={() => navigate('/dashboard')}
                                 className="text-sm text-slate-500 hover:text-slate-900"
                             >
-                                Orqaga qaytish
+                                {t('Orqaga qaytish')}
                             </button>
                         </div>
                     </div>

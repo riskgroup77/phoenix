@@ -5,6 +5,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { ArrowLeft, Download, Edit, Trash2, Calendar, User, BookOpen, Users, MapPin, FileText, CheckCircle } from 'lucide-react';
 import apiService from '../services/apiService';
+import { useT } from '../i18n/LanguageContext';
 
 interface AuthorPublication {
   id: string;
@@ -40,6 +41,7 @@ interface AuthorPublication {
 }
 
 const AuthorPublicationDetail: React.FC = () => {
+  const { t } = useT();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [publication, setPublication] = useState<AuthorPublication | null>(null);
@@ -64,7 +66,7 @@ const AuthorPublicationDetail: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (confirm('Rostdan ham ushbu nashrni o\'chirmoqchimisiz?')) {
+    if (confirm(t("Rostdan ham ushbu nashrni o'chirmoqchimisiz?"))) {
       try {
         await apiService.authorPublications.delete(id!);
         navigate('/author-publications');
@@ -95,7 +97,7 @@ const AuthorPublicationDetail: React.FC = () => {
   if (!publication) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Nashr topilmadi</div>
+        <div className="text-lg">{t('Nashr topilmadi')}</div>
       </div>
     );
   }
@@ -106,7 +108,7 @@ const AuthorPublicationDetail: React.FC = () => {
       <div className="mb-6">
         <Button variant="secondary" onClick={() => navigate('/author-publications')}>
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Orqaga qaytish
+          {t('Orqaga qaytish')}
         </Button>
       </div>
 
@@ -123,16 +125,16 @@ const AuthorPublicationDetail: React.FC = () => {
                   {publication.file_url && (
                     <Button variant="secondary" onClick={() => window.open(publication.file_url)}>
                       <Download className="w-4 h-4 mr-2" />
-                      Yuklab olish
+                      {t('Yuklab olish')}
                     </Button>
                   )}
                   <Button variant="primary" onClick={() => setShowEditForm(true)}>
                     <Edit className="w-4 h-4 mr-2" />
-                    Tahrirlash
+                    {t('Tahrirlash')}
                   </Button>
                   <Button variant="danger" onClick={handleDelete}>
                     <Trash2 className="w-4 h-4 mr-2" />
-                    O'chirish
+                    {t("O'chirish")}
                   </Button>
                 </div>
               </div>
@@ -145,7 +147,7 @@ const AuthorPublicationDetail: React.FC = () => {
                 {publication.is_verified && (
                   <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 flex items-center gap-1">
                     <CheckCircle className="w-4 h-4" />
-                    Tasdiqlangan
+                    {t('Tasdiqlangan')}
                   </span>
                 )}
               </div>
@@ -200,7 +202,7 @@ const AuthorPublicationDetail: React.FC = () => {
               {/* Abstract */}
               {publication.abstract && (
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-2">Annotatsiya</h3>
+                  <h3 className="text-lg font-semibold mb-2">{t('Annotatsiya')}</h3>
                   <p className="text-gray-700 leading-relaxed">{publication.abstract}</p>
                 </div>
               )}
@@ -208,7 +210,7 @@ const AuthorPublicationDetail: React.FC = () => {
               {/* Keywords */}
               {publication.keywords && (
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-2">Kalit so'zlar</h3>
+                  <h3 className="text-lg font-semibold mb-2">{t("Kalit so'zlar")}</h3>
                   <div className="flex flex-wrap gap-2">
                     {publication.keywords.split(',').map((keyword, index) => (
                       <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-sm">
@@ -227,18 +229,18 @@ const AuthorPublicationDetail: React.FC = () => {
           {/* Publication Info */}
           <Card>
             <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Nashr ma'lumotlari</h3>
+              <h3 className="text-lg font-semibold mb-4">{t("Nashr ma'lumotlari")}</h3>
               <div className="space-y-3">
                 <div>
-                  <div className="text-sm text-slate-500">Muallif</div>
+                  <div className="text-sm text-slate-500">{t('Muallif')}</div>
                   <div className="font-medium">{publication.author_name}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-slate-500">Ilmiy soha</div>
+                  <div className="text-sm text-slate-500">{t('Ilmiy soha')}</div>
                   <div className="font-medium">{publication.scientific_field_name}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-slate-500">Nashr sanasi</div>
+                  <div className="text-sm text-slate-500">{t('Nashr sanasi')}</div>
                   <div className="font-medium">{new Date(publication.publication_date).toLocaleDateString('uz-UZ')}</div>
                 </div>
                 {publication.doi && (
@@ -249,13 +251,13 @@ const AuthorPublicationDetail: React.FC = () => {
                 )}
                 {publication.pages && (
                   <div>
-                    <div className="text-sm text-slate-500">Sahifalar</div>
+                    <div className="text-sm text-slate-500">{t('Sahifalar')}</div>
                     <div className="font-medium">{publication.pages}</div>
                   </div>
                 )}
                 {publication.co_authors && (
                   <div>
-                    <div className="text-sm text-slate-500">Hammualliflar</div>
+                    <div className="text-sm text-slate-500">{t('Hammualliflar')}</div>
                     <div className="font-medium">{publication.co_authors}</div>
                   </div>
                 )}
@@ -267,14 +269,14 @@ const AuthorPublicationDetail: React.FC = () => {
           {publication.file_url && (
             <Card>
               <div className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Fayl</h3>
+                <h3 className="text-lg font-semibold mb-4">{t('Fayl')}</h3>
                 <Button 
                   variant="primary" 
                   onClick={() => window.open(publication.file_url)}
                   className="w-full"
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Yuklab olish
+                  {t('Yuklab olish')}
                 </Button>
               </div>
             </Card>
@@ -287,11 +289,11 @@ const AuthorPublicationDetail: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <h2 className="text-xl font-bold mb-4">Nashrni tahrirlash</h2>
-              <p className="text-gray-600 mb-4">Bu funksiya hozircha rivojlanmoqda...</p>
+              <h2 className="text-xl font-bold mb-4">{t('Nashrni tahrirlash')}</h2>
+              <p className="text-gray-600 mb-4">{t('Bu funksiya hozircha rivojlanmoqda...')}</p>
               <div className="flex gap-2 justify-end">
                 <Button variant="secondary" onClick={() => setShowEditForm(false)}>
-                  Bekor qilish
+                  {t('Bekor qilish')}
                 </Button>
               </div>
             </div>

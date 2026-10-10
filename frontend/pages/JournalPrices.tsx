@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/apiService';
 import { DollarSign, Edit2, Save, X, Loader2, TrendingUp } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useT } from '../i18n/LanguageContext';
 
 interface JournalPrice {
     id: string;
@@ -17,6 +18,7 @@ interface JournalPrice {
 }
 
 const JournalPrices: React.FC = () => {
+    const { t } = useT();
     const { user } = useAuth();
     const [prices, setPrices] = useState<JournalPrice[]>([]);
     const [loading, setLoading] = useState(true);
@@ -37,7 +39,7 @@ const JournalPrices: React.FC = () => {
             setPrices(journalsList);
         } catch (error) {
             console.error('Failed to load journal prices:', error);
-            toast.error('Jurnal narxlarini yuklashda xatolik');
+            toast.error(t('Jurnal narxlarini yuklashda xatolik'));
         } finally {
             setLoading(false);
         }
@@ -61,7 +63,7 @@ const JournalPrices: React.FC = () => {
     const handleSave = async (id: string) => {
         const values = editValues[id];
         if (!values || values.publicationFee < 0 || values.pricePerPage < 0) {
-            toast.warning('Narxlar 0 dan katta bo\'lishi kerak');
+            toast.warning(t("Narxlar 0 dan katta bo'lishi kerak"));
             return;
         }
 
@@ -71,11 +73,11 @@ const JournalPrices: React.FC = () => {
                 publicationFee: values.publicationFee,
                 pricePerPage: values.pricePerPage,
             });
-            toast.success('Jurnal narxlari muvaffaqiyatli yangilandi');
+            toast.success(t('Jurnal narxlari muvaffaqiyatli yangilandi'));
             setEditingId(null);
             loadPrices();
         } catch (error: any) {
-            toast.error(error?.message || 'Narxlarni saqlashda xatolik');
+            toast.error(error?.message || t('Narxlarni saqlashda xatolik'));
         } finally {
             setSaving(false);
         }
@@ -88,7 +90,7 @@ const JournalPrices: React.FC = () => {
     if (!user || user.role !== 'super_admin') {
         return (
             <div className="text-center py-12">
-                <p className="text-slate-500">Bu sahifaga faqat bosh administrator kirishi mumkin.</p>
+                <p className="text-slate-500">{t('Bu sahifaga faqat bosh administrator kirishi mumkin.')}</p>
             </div>
         );
     }
@@ -102,9 +104,9 @@ const JournalPrices: React.FC = () => {
                             <TrendingUp className="h-6 w-6 text-blue-800" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold text-slate-900">Jurnal Narxlari</h1>
+                            <h1 className="text-xl font-bold text-slate-900">{t('Jurnal Narxlari')}</h1>
                             <p className="text-sm text-slate-500">
-                                Barcha jurnallar narxlarini boshqarish
+                                {t('Barcha jurnallar narxlarini boshqarish')}
                             </p>
                         </div>
                     </div>
@@ -115,7 +117,7 @@ const JournalPrices: React.FC = () => {
                         <Loader2 className="h-8 w-8 animate-spin text-blue-800" />
                     </div>
                 ) : prices.length === 0 ? (
-                    <p className="text-slate-500 text-center py-8">Hozircha jurnallar yo'q.</p>
+                    <p className="text-slate-500 text-center py-8">{t("Hozircha jurnallar yo'q.")}</p>
                 ) : (
                     <div className="space-y-4">
                         {prices.map((journal) => (
@@ -133,10 +135,10 @@ const JournalPrices: React.FC = () => {
                                         )}
                                     </div>
                                     {journal.category_name && (
-                                        <p className="text-sm text-slate-500 mt-1">Kategoriya: {journal.category_name}</p>
+                                        <p className="text-sm text-slate-500 mt-1">{t('Kategoriya: {category_name}', { category_name: journal.category_name })}</p>
                                     )}
                                     <p className="text-xs text-slate-500 mt-1">
-                                        Narx turi: {journal.pricingType === 'fixed' ? 'Sabit' : 'Dinamik'}
+                                        {t('Narx turi:')} {journal.pricingType === 'fixed' ? t('Sabit') : t('Dinamik')}
                                     </p>
                                 </div>
                                 
@@ -145,7 +147,7 @@ const JournalPrices: React.FC = () => {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
                                                 <label className="block text-sm font-medium text-slate-500 mb-1">
-                                                    Nashr qilish to'lovi
+                                                    {t("Nashr qilish to'lovi")}
                                                 </label>
                                                 <input
                                                     type="number"
@@ -164,7 +166,7 @@ const JournalPrices: React.FC = () => {
                                             </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-slate-500 mb-1">
-                                                    Bet narxi
+                                                    {t('Bet narxi')}
                                                 </label>
                                                 <input
                                                     type="number"
@@ -189,7 +191,7 @@ const JournalPrices: React.FC = () => {
                                                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
                                             >
                                                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                                Saqlash
+                                                {t('Saqlash')}
                                             </Button>
                                             <Button
                                                 variant="secondary"
@@ -197,7 +199,7 @@ const JournalPrices: React.FC = () => {
                                                 className="flex items-center gap-2"
                                             >
                                                 <X className="h-4 w-4" />
-                                                Bekor qilish
+                                                {t('Bekor qilish')}
                                             </Button>
                                         </div>
                                     </div>
@@ -205,13 +207,13 @@ const JournalPrices: React.FC = () => {
                                     <div className="flex items-center justify-between">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
                                             <div>
-                                                <p className="text-xs text-slate-500 mb-1">Nashr qilish to'lovi</p>
+                                                <p className="text-xs text-slate-500 mb-1">{t("Nashr qilish to'lovi")}</p>
                                                 <p className="text-lg font-bold text-emerald-800">
                                                     {formatPrice(journal.publicationFee)}
                                                 </p>
                                             </div>
                                             <div>
-                                                <p className="text-xs text-slate-500 mb-1">Bet narxi</p>
+                                                <p className="text-xs text-slate-500 mb-1">{t('Bet narxi')}</p>
                                                 <p className="text-lg font-bold text-cyan-800">
                                                     {formatPrice(journal.pricePerPage)}
                                                 </p>

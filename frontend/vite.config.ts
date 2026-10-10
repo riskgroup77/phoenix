@@ -54,10 +54,14 @@ export default defineConfig(({ mode }) => {
         rollupOptions: {
           output: {
             manualChunks: (id) => {
-              // Barcha node_modules bitta vendor chunkda (React forwardRef xatosini oldini olish)
-              if (id.includes('node_modules')) {
-                return 'vendor';
+              if (!id.includes('node_modules')) return undefined;
+              // Og'ir kutubxonalar faqat ularni ishlatadigan sahifa (lazy chunk) bilan yuklanadi —
+              // ular vendor'ni import qiladi, vendor ularni emas (aylanma bog'liqlik yo'q).
+              if (/[\\/]node_modules[\\/](xlsx|docx|jszip|file-saver|recharts|recharts-scale|victory-vendor|d3-[^\\/]+|internmap|decimal\.js-light|@sentry|@google)[\\/]/.test(id)) {
+                return undefined;
               }
+              // Qolgan node_modules (React va boshqalar) bitta vendor chunkda (React forwardRef xatosini oldini olish)
+              return 'vendor';
             }
           }
         }

@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useAiPrefill, str, num } from '../contexts/AiPrefillContext';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
@@ -8,6 +9,7 @@ import { TranslationStatus } from '../types';
 import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
 import { toast } from 'react-toastify';
+import { useT } from '../i18n/LanguageContext';
 
 interface FileAnalysis {
   wordCount: number;
@@ -18,6 +20,7 @@ interface FileAnalysis {
 }
 
 const TranslationService: React.FC = () => {
+  const { t } = useT();
   const { user } = useAuth();
   const { addNotification } = useNotifications();
   const [file, setFile] = useState<File | null>(null);
@@ -33,6 +36,28 @@ const TranslationService: React.FC = () => {
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [translationRequestId, setTranslationRequestId] = useState<string | null>(null);
+
+  // AI ish maydoni: tillar va fayl; fayl kelsa so'zlar soni avtomatik hisoblanadi
+  const aiPrefill = useAiPrefill('translation');
+  const aiAutoAnalyze = useRef(false);
+  useEffect(() => {
+    if (!aiPrefill) return;
+    const f = aiPrefill.fields;
+    if (str(f.sourceLang)) setSourceLang(str(f.sourceLang));
+    if (str(f.targetLang)) setTargetLang(str(f.targetLang));
+    if (aiPrefill.file && aiPrefill.file !== file) {
+      aiAutoAnalyze.current = true;
+      setAnalysisResult(null);
+      setFile(aiPrefill.file);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiPrefill?.nonce, aiPrefill?.file]);
+  useEffect(() => {
+    if (!aiAutoAnalyze.current || !file) return;
+    aiAutoAnalyze.current = false;
+    void analyzeFile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file]);
   const paymentTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const languages = [
@@ -124,7 +149,7 @@ const TranslationService: React.FC = () => {
 
   const analyzeFile = async () => {
     if (!file) {
-      toast.error('Iltimos, fayl tanlang');
+      toast.error(t('Iltimos, fayl tanlang'));
       return;
     }
 
@@ -140,10 +165,10 @@ const TranslationService: React.FC = () => {
         pricePerWord: Number.isFinite(ppw) && ppw > 0 ? ppw : 100,
       });
 
-      toast.success('Fayl tahlili tugallandi!');
+      toast.success(t('Fayl tahlili tugallandi!'));
     } catch (error) {
       console.error('Error analyzing file:', error);
-      toast.error('Fayl tahlilida xatolik yuz berdi');
+      toast.error(t('Fayl tahlilida xatolik yuz berdi'));
     } finally {
       setIsAnalyzing(false);
     }
@@ -186,7 +211,7 @@ const TranslationService: React.FC = () => {
 
   const handleSubmit = async (paymentCompleted = false) => {
     if (!file || !analysisResult || !user) {
-      toast.error('Barcha maydonlarni to\'ldiring');
+      toast.error(t("Barcha maydonlarni to'ldiring"));
       return;
     }
 
@@ -207,7 +232,7 @@ const TranslationService: React.FC = () => {
         return;
       }
 
-      toast.success('Tarjima so\'rovi muvaffaqiyatli yuborildi va to\'lov tasdiqlandi!');
+      toast.success(t("Tarjima so'rovi muvaffaqiyatli yuborildi va to'lov tasdiqlandi!"));
       // Reset form
       setFile(null);
       setAnalysisResult(null);
@@ -216,7 +241,7 @@ const TranslationService: React.FC = () => {
         fileInputRef.current.value = '';
       }
     } catch (error) {
-      toast.error('So\'rov yuborishda xatolik yuz berdi');
+      toast.error(t("So'rov yuborishda xatolik yuz berdi"));
     } finally {
       setIsSubmitting(false);
     }
@@ -225,15 +250,15 @@ const TranslationService: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto">
       <EditorialPageHeader
-        title="Ilmiy Tarjima Xizmati"
-        subtitle="Hujjatni yuklang, til juftligini tanlang va tarjima buyurtmasini yuboring."
+        title={t('Ilmiy Tarjima Xizmati')}
+        subtitle={t('Hujjatni yuklang, til juftligini tanlang va tarjima buyurtmasini yuboring.')}
       />
       <Card>
         <div className="space-y-6">
           {/* File Upload Section */}
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-2">
-              Hujjatni Yuklash
+              {t('Hujjatni Yuklash')}
             </label>
             <div className="flex items-center justify-center w-full">
               <label 
@@ -243,7 +268,7 @@ const TranslationService: React.FC = () => {
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
                   <Upload className="w-10 h-10 text-slate-500" />
                   <p className="mb-2 text-sm text-slate-500">
-                    <span className="font-semibold">Fayl tanlash</span> yoki olib keling
+                    <span className="font-semibold">{t('Fayl tanlash')}</span> {t('yoki olib keling')}
                   </p>
                   <p className="text-xs text-slate-500">
                     DOC, DOCX, PDF (MAX. 10MB)
@@ -271,7 +296,7 @@ const TranslationService: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-2">
-                Manba Tili
+                {t('Manba Tili')}
               </label>
               <select
                 value={sourceLang}
@@ -288,7 +313,7 @@ const TranslationService: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-2">
-                Maqsad Tili
+                {t('Maqsad Tili')}
               </label>
               <select
                 value={targetLang}
@@ -318,12 +343,12 @@ const TranslationService: React.FC = () => {
                   {isAnalyzing ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Tahlil qilinmoqda...
+                      {t('Tahlil qilinmoqda...')}
                     </>
                   ) : (
                     <>
                       <FileText className="mr-2 h-4 w-4" />
-                      Hujjatni Tahlil Qilish
+                      {t('Hujjatni Tahlil Qilish')}
                     </>
                   )}
                 </Button>
@@ -333,20 +358,20 @@ const TranslationService: React.FC = () => {
                 <div className="p-4 bg-slate-100/70 rounded-lg border border-slate-200/90">
                   <h3 className="font-medium text-slate-900 mb-3 flex items-center">
                     <Languages className="mr-2 h-5 w-5 text-blue-800" />
-                    Tahlil Natijalari
+                    {t('Tahlil Natijalari')}
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="p-3 bg-blue-900/20 rounded border border-blue-700/30">
-                      <p className="text-sm text-blue-900">Fayl nomi</p>
+                      <p className="text-sm text-blue-900">{t('Fayl nomi')}</p>
                       <p className="font-medium text-slate-900 truncate">{analysisResult.fileName}</p>
                     </div>
                     <div className="p-3 bg-green-900/20 rounded border border-green-700/30">
-                      <p className="text-sm text-emerald-900">So'zlar soni</p>
+                      <p className="text-sm text-emerald-900">{t("So'zlar soni")}</p>
                       <p className="font-medium text-slate-900">{analysisResult.wordCount.toLocaleString()}</p>
                     </div>
                     <div className="p-3 bg-yellow-900/20 rounded border border-yellow-700/30">
-                      <p className="text-sm text-yellow-900">Taxminiy narx</p>
-                      <p className="font-medium text-slate-900">{analysisResult.cost.toLocaleString()} so'm</p>
+                      <p className="text-sm text-yellow-900">{t('Taxminiy narx')}</p>
+                      <p className="font-medium text-slate-900">{t("{value} so'm", { value: analysisResult.cost.toLocaleString() })}</p>
                     </div>
                   </div>
                   
@@ -360,12 +385,12 @@ const TranslationService: React.FC = () => {
                         {isSubmitting ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Yuborilmoqda...
+                            {t('Yuborilmoqda...')}
                           </>
                         ) : (
                           <>
                             <CreditCard className="mr-2 h-4 w-4" />
-                            To'lov va Yuborish
+                            {t("To'lov va Yuborish")}
                           </>
                         )}
                       </Button>
@@ -380,7 +405,7 @@ const TranslationService: React.FC = () => {
                         }}
                         variant="secondary"
                       >
-                        Bekor qilish
+                        {t('Bekor qilish')}
                       </Button>
                     </div>
                   </div>
@@ -394,14 +419,13 @@ const TranslationService: React.FC = () => {
             <div className="flex items-start">
               <AlertCircle className="h-5 w-5 text-blue-800 mt-0.5 mr-2 flex-shrink-0" />
               <div>
-                <h4 className="font-medium text-blue-900">Muhim Ma'lumot</h4>
+                <h4 className="font-medium text-blue-900">{t("Muhim Ma'lumot")}</h4>
                 <p className="mt-1 text-sm text-slate-600">
-                  Tarjima xizmati uchun narx so&apos;zlar soniga qarab hisoblanadi. Hozirgi narx:{' '}
+                  {t("Tarjima xizmati uchun narx so'zlar soniga qarab hisoblanadi. Hozirgi narx:")}{' '}
                   <span className="font-semibold text-[var(--editorial-primary)]">
-                    {analysisResult ? analysisResult.pricePerWord.toLocaleString('uz-UZ') : '100'} so&apos;m
+                    {analysisResult ? analysisResult.pricePerWord.toLocaleString('uz-UZ') : '100'} {t("so'm")}
                   </span>{' '}
-                  har bir so&apos;z uchun. Jami: so&apos;zlar soni × bu narx. Sifatli tarjima mutaxassislarning
-                  qo&apos;lidan chiqadi.
+                  {t("har bir so'z uchun. Jami: so'zlar soni × bu narx. Sifatli tarjima mutaxassislarning qo'lidan chiqadi.")}
                 </p>
               </div>
             </div>
@@ -415,21 +439,21 @@ const TranslationService: React.FC = () => {
           <div className="bg-white/55 rounded-lg p-6 max-w-md w-full border border-slate-200/90">
             {paymentStatus === 'idle' && (
               <div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-4">To'lovni tasdiqlash</h3>
+                <h3 className="text-xl font-semibold text-slate-900 mb-4">{t("To'lovni tasdiqlash")}</h3>
                 <p className="text-slate-600 mb-2">
-                  Tarjima xizmati uchun to'lov:
+                  {t("Tarjima xizmati uchun to'lov:")}
                 </p>
                 <div className="p-3 bg-blue-900/20 rounded border border-blue-700/30 mb-4">
-                  <p className="text-sm text-blue-900">So'zlar soni: {analysisResult?.wordCount.toLocaleString()}</p>
-                  <p className="text-lg font-bold text-slate-900 mt-1">{analysisResult?.cost.toLocaleString()} so'm</p>
+                  <p className="text-sm text-blue-900">{t("So'zlar soni: {value}", { value: analysisResult?.wordCount.toLocaleString() })}</p>
+                  <p className="text-lg font-bold text-slate-900 mt-1">{t("{value} so'm", { value: analysisResult?.cost.toLocaleString() })}</p>
                 </div>
                 <div className="flex gap-3">
                   <Button onClick={handlePay} className="flex-1">
                     <CreditCard className="mr-2 h-4 w-4" />
-                    To'lovni Amalga Oshirish
+                    {t("To'lovni Amalga Oshirish")}
                   </Button>
                   <Button variant="secondary" onClick={closePaymentModal} className="flex-1">
-                    Bekor qilish
+                    {t('Bekor qilish')}
                   </Button>
                 </div>
               </div>
@@ -437,29 +461,29 @@ const TranslationService: React.FC = () => {
             {paymentStatus === 'processing' && (
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                <p className="mt-4 text-lg font-medium text-slate-700">To'lov tasdiqlanmoqda...</p>
+                <p className="mt-4 text-lg font-medium text-slate-700">{t("To'lov tasdiqlanmoqda...")}</p>
               </div>
             )}
             {paymentStatus === 'success' && (
               <div className="text-center">
                 <div className="text-green-800 text-4xl mb-4">✓</div>
-                <p className="mt-4 text-lg font-medium text-slate-700">To'lov muvaffaqiyatli!</p>
+                <p className="mt-4 text-lg font-medium text-slate-700">{t("To'lov muvaffaqiyatli!")}</p>
                 <Button onClick={() => { closePaymentModal(); handleSubmit(true); }} className="w-full mt-6">
-                  So'rovni Davom Ettirish
+                  {t("So'rovni Davom Ettirish")}
                 </Button>
               </div>
             )}
             {paymentStatus === 'failed' && (
               <div>
                 <div className="text-red-500 text-4xl mb-4 text-center">✗</div>
-                <p className="mt-4 text-lg font-medium text-slate-700 text-center">To'lovda xatolik!</p>
+                <p className="mt-4 text-lg font-medium text-slate-700 text-center">{t("To'lovda xatolik!")}</p>
                 <p className="text-sm text-slate-500 max-w-xs mx-auto text-center mb-4">{paymentError}</p>
                 <div className="flex gap-3">
                   <Button onClick={handlePay} className="flex-1">
-                    Qayta Urinish
+                    {t('Qayta Urinish')}
                   </Button>
                   <Button variant="secondary" onClick={closePaymentModal} className="flex-1">
-                    Yopish
+                    {t('Yopish')}
                   </Button>
                 </div>
               </div>

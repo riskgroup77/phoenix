@@ -65,4 +65,4 @@ CI (`.github/workflows/ci.yml`) har push'da shularni ishga tushiradi.
 - Maxfiy kalitlar faqat serverdagi `backend/.env` da; repoga yozilmaydi.
 
 Server, deploy va ekspluatatsiya: **[docs/OPERATIONS.md](docs/OPERATIONS.md)**.
-Eski hujjatlar va bir martalik skriptlar: `archive/` (ishga tushirmang).
+Eski hujjatlar va bir martalik skriptlar olib tashlangan (kerak bo'lsa git tarixida: `git show e6ab5b1:archive/...`).

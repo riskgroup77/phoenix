@@ -1,0 +1,12 @@
+# Har kuni soat 02:30 da zaxira (server o'chiq bo'lgan bo'lsa — yoqilganda darhol).
+
+[Unit]
+Description=Phoenix — kunlik zaxira
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target
