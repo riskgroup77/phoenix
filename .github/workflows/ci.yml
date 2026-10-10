@@ -27,11 +27,13 @@ jobs:
           pip install -r requirements-dev.txt
       - name: Django check
         env:
+          DJANGO_SETTINGS_MODULE: config.settings
           USE_SQLITE: 'true'
           SECRET_KEY: ci-not-for-production
         run: python manage.py check
       - name: Migrations up to date
         env:
+          DJANGO_SETTINGS_MODULE: config.settings
           USE_SQLITE: 'true'
           SECRET_KEY: ci-not-for-production
         run: python manage.py makemigrations --check --dry-run
