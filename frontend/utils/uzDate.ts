@@ -15,3 +15,12 @@ export function formatUzDate(value?: string | number | Date | null, withYear = f
   const base = `${d.getDate()}-${MONTHS[d.getMonth()]}`;
   return withYear ? `${base}, ${d.getFullYear()}` : base;
 }
+
+/** "11-oktabr, 2026 21:59" — brauzer locale'iga bog'liq bo'lmagan sana va vaqt */
+export function formatUzDateTime(value?: string | number | Date | null): string {
+  const date = formatUzDate(value, true);
+  if (!date) return '';
+  const d = value instanceof Date ? value : new Date(value as string | number);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}

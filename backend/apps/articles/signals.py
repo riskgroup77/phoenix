@@ -10,6 +10,7 @@ from .models import Article
 from .submission_notifications import (
     notify_article_draft_pending_payment,
     notify_article_submitted,
+    notify_article_resubmitted,
     _is_standalone_antiplagiat,
 )
 
@@ -83,6 +84,8 @@ def article_notify_staff_on_submission(sender, instance, created, **kwargs):
             return
         if status == 'Yangi' and prev in (None, 'Draft'):
             notify_article_submitted(instance)
+        elif status == 'Yangi' and prev == 'Revision':
+            notify_article_resubmitted(instance)
         elif status == 'Draft' and prev is None:
             notify_article_draft_pending_payment(instance)
     except Exception as exc:

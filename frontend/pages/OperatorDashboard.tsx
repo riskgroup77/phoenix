@@ -19,7 +19,6 @@ interface OperatorStats {
   totalRequests: number;
   pendingRequests: number;
   completedRequests: number;
-  totalUsers: number;
   totalTransactions: number;
   totalRevenue: number;
   udkRequests: number;
@@ -51,13 +50,12 @@ const OperatorDashboard: React.FC = () => {
     try {
       setLoading(true);
       
-      // Parallel API calls — users.list operator uchun 403; butun panel buzilmasin
-      const [udkRes, doiRes, samplesRes, transRes, usersRes, txRes] = await Promise.all([
+      // Parallel API calls — biri yiqilsa butun panel buzilmasin
+      const [udkRes, doiRes, samplesRes, transRes, txRes] = await Promise.all([
         apiService.udc.requests.list().catch(() => []),
         apiService.articles.getDoiRequests().catch(() => []),
         apiService.articles.getArticleSampleRequests().catch(() => []),
         apiService.translations.list().catch(() => []),
-        apiService.users.list().catch(() => []),
         apiService.payments.getTransactions().catch(() => []),
       ]);
 
@@ -72,7 +70,6 @@ const OperatorDashboard: React.FC = () => {
       const doiData = processData(doiRes);
       const samplesData = processData(samplesRes);
       const transData = processData(transRes);
-      const usersData = processData(usersRes);
       const txData = processData(txRes);
 
       // Calculate statistics
@@ -99,7 +96,6 @@ const OperatorDashboard: React.FC = () => {
         totalRequests,
         pendingRequests,
         completedRequests,
-        totalUsers: usersData.length,
         totalTransactions: txData.length,
         totalRevenue,
         udkRequests: udkData.length,
@@ -269,14 +265,14 @@ const OperatorDashboard: React.FC = () => {
           title={t('Maqola Namuna')}
           count={stats?.articleSamples || 0}
           color="green"
-          link="/article-samples"
+          link="/article-sample-requests"
         />
         <ServiceStatCard
           icon={MessageSquare}
           title={t('Tarjimalar')}
           count={stats?.translations || 0}
           color="orange"
-          link="/translations"
+          link="/all-requests?type=Translation"
         />
       </div>
 
@@ -372,24 +368,24 @@ const OperatorDashboard: React.FC = () => {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <QuickActionCard
-          icon={Users}
-          title={t('Foydalanuvchilar')}
-          description={t("Barcha foydalanuvchilarni ko'rish va boshqarish")}
-          link="/users"
+          icon={FileText}
+          title={t("Barcha so'rovlar")}
+          description={t("Barcha xizmatlar bo'yicha so'rovlarni ko'rish")}
+          link="/all-requests"
           color="blue"
         />
         <QuickActionCard
-          icon={CreditCard}
-          title={t("To'lovlar")}
-          description={t("To'lov operatsiyalari monitoringi")}
-          link="/financials"
+          icon={Library}
+          title={t('Maqolalar')}
+          description={t("Maqolalar va muallif chatlari")}
+          link="/articles"
           color="green"
         />
         <QuickActionCard
-          icon={BarChart3}
-          title={t('Hisobotlar')}
-          description={t('Platforma statistikasi va tahlillar')}
-          link="/analytics"
+          icon={MessageSquare}
+          title={t('DOI so\'rovlari')}
+          description={t("DOI olish so'rovlarini ko'rib chiqish")}
+          link="/doi-requests"
           color="purple"
         />
       </div>

@@ -55,7 +55,12 @@ const Prices: React.FC = () => {
             const servicesList = Array.isArray(serviceData) ? serviceData : (serviceData?.results || serviceData?.data || []);
             const journalsList = Array.isArray(journalData) ? journalData : (journalData?.results || journalData?.data || []);
             setServicePrices(servicesList);
-            setJournalPrices(journalsList);
+            // API snake_case qaytaradi (publication_fee, price_per_page — DecimalField satr sifatida)
+            setJournalPrices(journalsList.map((j: any) => ({
+                ...j,
+                publicationFee: Number(j.publicationFee ?? j.publication_fee ?? 0),
+                pricePerPage: Number(j.pricePerPage ?? j.price_per_page ?? 0),
+            })));
         } catch (error) {
             console.error('Failed to load prices:', error);
             toast.error(t('Narxlarni yuklashda xatolik'));
@@ -109,9 +114,9 @@ const Prices: React.FC = () => {
 
         setSaving(true);
         try {
-            await apiService.journals.update(id, {
-                publicationFee: values.publicationFee,
-                pricePerPage: values.pricePerPage,
+            await apiService.journals.patch(id, {
+                publication_fee: values.publicationFee,
+                price_per_page: values.pricePerPage,
             });
             toast.success(t('Jurnal narxlari muvaffaqiyatli yangilandi'));
             setEditingJournalId(null);
@@ -248,6 +253,8 @@ const Prices: React.FC = () => {
                                                             <Button
                                                                 variant="secondary"
                                                                 onClick={() => handleEditService(price)}
+                                                                title={t('Tahrirlash')}
+                                                                aria-label={t('Tahrirlash')}
                                                                 className="!p-2 !rounded-lg !shadow-none"
                                                             >
                                                                 <Edit2 className="h-4 w-4" />
@@ -363,6 +370,8 @@ const Prices: React.FC = () => {
                                                 <Button
                                                     variant="secondary"
                                                     onClick={() => handleEditJournal(journal)}
+                                                    title={t('Tahrirlash')}
+                                                    aria-label={t('Tahrirlash')}
                                                     className="ml-4"
                                                 >
                                                     <Edit2 className="h-4 w-4" />

@@ -20,6 +20,7 @@ import PublicationIndexingPanel from '../components/PublicationIndexingPanel';
 import AntiplagiatHighlightView from '../components/AntiplagiatHighlightView';
 import { buildAntiplagiatViewFromArticle } from '../utils/antiplagiatFromArticle';
 import { useT } from '../i18n/LanguageContext';
+import { formatUzDate, formatUzDateTime } from '../utils/uzDate';
 
 // Type for the API response which has different field names
 interface ArticleApiResponse {
@@ -74,6 +75,8 @@ const ArticleDetail: React.FC = () => {
     const [revisionReason, setRevisionReason] = useState('');
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
+    const [resubmitFile, setResubmitFile] = useState<File | null>(null);
+    const [resubmitting, setResubmitting] = useState(false);
 
     useEffect(() => {
         const fetchArticleData = async () => {
@@ -140,6 +143,8 @@ const ArticleDetail: React.FC = () => {
             const articleResponse = await apiService.articles.get(id);
             const articleData = articleResponse.data || articleResponse;
             setArticle(articleData);
+            // Backend holatni boshqasiga o'zgartirishi mumkin (masalan antiplagiat natijasiga ko'ra)
+            toast.success(articleData?.status === status ? 'Maqola holati yangilandi.' : 'Holat yangilandi — natijani maqola tarixida ko\'ring.');
         } catch (err) {
             console.error('Failed to update article status:', err);
             setError('Maqola holatini yangilashda xatolik yuz berdi.');
@@ -166,6 +171,27 @@ const ArticleDetail: React.FC = () => {
         } catch (err) {
             console.error('Failed to send revision:', err);
             toast.error('Tahrirga qaytarishda xatolik.');
+        }
+    };
+
+    /** Tahrirga qaytarilgan maqola: tuzatilgan fayl (ixtiyoriy) + Revision → Yangi */
+    const handleResubmit = async () => {
+        if (!id) return;
+        setResubmitting(true);
+        try {
+            if (resubmitFile) await apiService.articles.replaceFile(id, resubmitFile);
+            await apiService.articles.updateStatus(id, ArticleStatus.Yangi);
+            toast.success('Maqola qayta yuborildi. Tahririyatga bildirishnoma yuborildi.');
+            setResubmitFile(null);
+            const articleResponse = await apiService.articles.get(id);
+            const articleData = articleResponse.data || articleResponse;
+            setArticle(articleData);
+            setActivityLogs(Array.isArray(articleData.activity_logs) ? articleData.activity_logs : []);
+        } catch (err: any) {
+            console.error('Failed to resubmit article:', err);
+            toast.error(err?.message || 'Qayta yuborishda xatolik.');
+        } finally {
+            setResubmitting(false);
         }
     };
 
@@ -285,7 +311,7 @@ const ArticleDetail: React.FC = () => {
 
     const getStatusDisplayData = (status: string): { text: string; color: string; icon: React.ElementType } => {
         const map: Record<string, { text: string; color: string; icon: React.ElementType }> = {
-            'Draft': { text: 'Yangi topshirildi', color: 'bg-gray-500/20 text-slate-600', icon: FileText },
+            'Draft': { text: "Qoralama (to'lov kutilmoqda)", color: 'bg-gray-500/20 text-slate-600', icon: FileText },
             'Yangi': { text: 'Yangi topshirildi', color: 'bg-blue-500/20 text-blue-900', icon: Inbox },
             'WithEditor': { text: 'Tekshiruvda', color: 'bg-[#e5ecff] text-[#233f8c] dark:bg-[rgba(138,166,240,0.16)] dark:text-[#b9cbf7]', icon: Edit },
             'QabulQilingan': { text: 'Ko\'rib chiqilmoqda', color: 'bg-yellow-500/20 text-yellow-900', icon: CheckCircle },
@@ -526,7 +552,7 @@ const ArticleDetail: React.FC = () => {
                                 <p className="text-slate-600 whitespace-pre-wrap">{reason}</p>
                                 {revisionLog?.timestamp && (
                                     <p className="text-xs text-slate-500 mt-2">
-                                        {new Date(revisionLog.timestamp).toLocaleString()}
+                                        {formatUzDateTime(revisionLog.timestamp)}
                                     </p>
                                 )}
                             </Card>
@@ -544,7 +570,7 @@ const ArticleDetail: React.FC = () => {
                                 <p className="text-slate-600 whitespace-pre-wrap">{reason}</p>
                                 {rejectLog?.timestamp && (
                                     <p className="text-xs text-slate-500 mt-2">
-                                        {new Date(rejectLog.timestamp).toLocaleString()}
+                                        {formatUzDateTime(rejectLog.timestamp)}
                                     </p>
                                 )}
                             </Card>
@@ -563,7 +589,7 @@ const ArticleDetail: React.FC = () => {
                                         <div className="min-w-0 flex-1">
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <span className="font-medium text-slate-900 text-sm sm:text-base">{log.action}</span>
-                                                <span className="text-xs text-slate-500">{new Date(log.timestamp).toLocaleString()}</span>
+                                                <span className="text-xs text-slate-500">{formatUzDateTime(log.timestamp)}</span>
                                             </div>
                                             <p className="text-sm text-slate-600 mt-1">{log.details || ''}</p>
                                             {log.userId && (
@@ -589,16 +615,34 @@ const ArticleDetail: React.FC = () => {
                                 <Award size={18} /> Qabul ma'lumotnomasi
                             </Button>
                             
-                            {user?.role === Role.Author && (
-                                <Button onClick={() => navigate(`/submit/${id}`)} variant="secondary" className="w-full flex items-center justify-center gap-2">
-                                    <Edit size={18} /> Tahrirlash
-                                </Button>
-                            )}
-                            {(user?.role === Role.JournalAdmin || user?.role === Role.SuperAdmin) && article.status !== ArticleStatus.PlagiarismReview && (
-                                <>
-                                    <Button onClick={() => handleStatusUpdate(ArticleStatus.Accepted)} variant="primary" className="w-full flex items-center justify-center gap-2">
-                                        <Check size={18} /> Qabul qilish
+                            {/* Avval /submit/:id ga olib borardi — bunday sahifa yo'q (404), muallif qayta yubora olmasdi */}
+                            {user?.role === Role.Author && article.status === ArticleStatus.Revision && (
+                                <div className="space-y-2 rounded-lg border border-[var(--editorial-border)] p-3">
+                                    <label className="block text-sm font-medium text-slate-700">
+                                        Tuzatilgan fayl (DOC/DOCX, ixtiyoriy)
+                                        <input
+                                            type="file"
+                                            accept=".doc,.docx"
+                                            className="mt-1 block w-full text-sm"
+                                            onChange={(e) => setResubmitFile(e.target.files?.[0] ?? null)}
+                                        />
+                                    </label>
+                                    <Button onClick={handleResubmit} disabled={resubmitting} className="w-full flex items-center justify-center gap-2">
+                                        <Edit size={18} /> {resubmitting ? 'Yuborilmoqda...' : 'Qayta yuborish'}
                                     </Button>
+                                </div>
+                            )}
+                            {/* Yakuniy (nashr/rad) va to'lanmagan qoralamada qaror tugmalari yo'q — tasodifan
+                                nashr etilgan maqolani "Qabul qilindi"ga qaytarib yuborish mumkin edi */}
+                            {(user?.role === Role.JournalAdmin || user?.role === Role.SuperAdmin)
+                                && article.status !== ArticleStatus.PlagiarismReview
+                                && ![ArticleStatus.Published, ArticleStatus.Rejected, ArticleStatus.Draft].includes(article.status as ArticleStatus) && (
+                                <>
+                                    {article.status !== ArticleStatus.Accepted && (
+                                        <Button onClick={() => handleStatusUpdate(ArticleStatus.Accepted)} variant="primary" className="w-full flex items-center justify-center gap-2">
+                                            <Check size={18} /> Qabul qilish
+                                        </Button>
+                                    )}
                                     <Button onClick={() => setShowRevisionModal(true)} variant="secondary" className="w-full flex items-center justify-center gap-2">
                                         <Edit size={18} /> Tahrirga qaytarish
                                     </Button>
@@ -635,7 +679,7 @@ const ArticleDetail: React.FC = () => {
                             <div className="flex justify-between">
                                 <span className="text-slate-500">Yuborilgan sana</span>
                                 <span className="text-slate-900 font-medium">
-                                    {article.submission_date ? new Date(article.submission_date).toLocaleDateString() : 'Noma\'lum'}
+                                    {article.submission_date ? formatUzDate(article.submission_date, true) : 'Noma\'lum'}
                                 </span>
                             </div>
                         </div>

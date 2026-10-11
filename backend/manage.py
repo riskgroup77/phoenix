@@ -6,8 +6,11 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    # Default to local settings if not specified
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings_local')
+    # settings_local.py gitignore'da — yangi klonda yo'q bo'lsa config.settings ishlatiladi
+    local = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config', 'settings_local.py')
+    os.environ.setdefault(
+        'DJANGO_SETTINGS_MODULE', 'config.settings_local' if os.path.exists(local) else 'config.settings'
+    )
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

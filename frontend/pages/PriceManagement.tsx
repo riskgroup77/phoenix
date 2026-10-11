@@ -242,6 +242,8 @@ const PriceManagement: React.FC = () => {
                             <Button
                               variant="secondary"
                               onClick={() => handleEdit(price)}
+                              title={t('Tahrirlash')}
+                              aria-label={t('Tahrirlash')}
                               className="p-2"
                             >
                               <Edit2 className="h-4 w-4" />
@@ -249,6 +251,8 @@ const PriceManagement: React.FC = () => {
                             <Button
                               variant="secondary"
                               onClick={() => handleDelete(price.id)}
+                              title={t("O'chirish")}
+                              aria-label={t("O'chirish")}
                               className="p-2 text-red-700 hover:text-red-800"
                             >
                               <Trash2 className="h-4 w-4" />

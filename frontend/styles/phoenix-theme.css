@@ -1578,6 +1578,14 @@ body,
   }
 }
 
+/* 2xl da qidiruv yozuvi, Ctrl K va foydalanuvchi ismi qo'shiladi (~350px) — 1200px ga sig'maydi,
+   menyu qidiruv tugmasi ustiga chiqib ketardi */
+@media (min-width: 1536px) {
+  .milliy-topbar-inner {
+    max-width: 1520px;
+  }
+}
+
 .milliy-brand {
   display: flex;
   align-items: center;

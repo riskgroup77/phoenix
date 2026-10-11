@@ -31,6 +31,9 @@ def _log_submission_activity(article, *, action: str, details: str) -> None:
     from .models import ActivityLog
 
     try:
+        # signal va view/to'lov tasdig'i ikkalasi ham chaqiradi — jurnalda bir marta bo'lsin
+        if ActivityLog.objects.filter(article=article, action=action).exists():
+            return
         ActivityLog.objects.create(
             article=article,
             user=getattr(article, 'author', None),
@@ -184,4 +187,30 @@ def notify_article_submitted(article) -> None:
         notif_title='Yangi maqola yuborildi',
         message="Ko'rib chiqish uchun «Maqolalar» → «Yangi kelganlar» bo'limini oching.",
         stage='submitted',
+    )
+
+
+def notify_article_resubmitted(article) -> None:
+    """Muallif tahrirga qaytarilgan maqolani qayta yubordi (Revision → Yangi) — tahririyat bilishi kerak."""
+    from .models import Article, ArticleStatusEvent
+
+    if article is None:
+        return
+    try:
+        article = (
+            Article.objects.select_related('journal', 'author', 'journal__journal_admin')
+            .get(pk=article.pk)
+        )
+    except Article.DoesNotExist:
+        return
+    if _is_standalone_antiplagiat(article):
+        return
+
+    # Har bir qayta yuborish alohida xabar (48 soatlik takror filtri bitta stage ichida ishlaydi)
+    round_no = ArticleStatusEvent.objects.filter(article=article, from_status='Revision', to_status='Yangi').count()
+    _notify_recipients(
+        article,
+        notif_title='Maqola qayta yuborildi',
+        message="Muallif tahrirdan keyin maqolani qayta yubordi. «Maqolalar» → «Yangi kelganlar» bo'limida ko'ring.",
+        stage=f'resubmitted_{round_no}',
     )

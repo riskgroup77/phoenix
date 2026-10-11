@@ -155,7 +155,7 @@ const AppContent: React.FC = () => {
                     <Route path="journal-prices" element={<RoleRoute allowedRoles={[Role.SuperAdmin]}><JournalPrices /></RoleRoute>} />
                     <Route path="prices" element={<RoleRoute allowedRoles={[Role.SuperAdmin]}><Prices /></RoleRoute>} />
                     <Route path="price-management" element={<RoleRoute allowedRoles={[Role.SuperAdmin]}><PriceManagement /></RoleRoute>} />
-                    <Route path="udk-requests" element={<RoleRoute allowedRoles={[Role.SuperAdmin, Role.Reviewer]}><UdkRequests /></RoleRoute>} />
+                    <Route path="udk-requests" element={<RoleRoute allowedRoles={[Role.SuperAdmin, Role.Reviewer, Role.Operator]}><UdkRequests /></RoleRoute>} />
                     <Route path="udk-olish" element={<UdkOlish />} />
                     <Route path="services" element={<Services />} />
                     <Route path="browse" element={<BrowseByCategory />} />

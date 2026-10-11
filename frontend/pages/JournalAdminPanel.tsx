@@ -9,6 +9,7 @@ import EditorialPageHeader from '../components/EditorialPageHeader';
 import EditorialTabs from '../components/EditorialTabs';
 import { Search, Edit3, Eye, FileText, CheckCircle, XCircle, Clock, Users, FileEdit, BookOpen, TrendingUp } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { formatUzDate } from '../utils/uzDate';
 import { getArticleJournalIdFromApi } from '../utils/articleIds';
 import { useT } from '../i18n/LanguageContext';
 
@@ -265,8 +266,9 @@ const JournalAdminPanel: React.FC = () => {
                                             </div>
                                             
                                             <div className="flex justify-between items-center mt-4 text-xs text-slate-500">
-                                                <span>{new Date(article.submissionDate).toLocaleDateString()}</span>
-                                                <span>{t('Sahifalar: {value}', { value: article.pageCount || 0 })}</span>
+                                                {/* API snake_case qaytaradi (submission_date, page_count) */}
+                                                <span>{formatUzDate(String(article.submissionDate ?? (article as any).submission_date ?? '').replace(' ', 'T'), true)}</span>
+                                                <span>{t('Sahifalar: {value}', { value: article.pageCount || (article as any).page_count || 0 })}</span>
                                             </div>
                                         </div>
                                         

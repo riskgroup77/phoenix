@@ -7,6 +7,7 @@ import { Download, Search, Loader2 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { txAmount } from '../utils/amount';
 import { useT } from '../i18n/LanguageContext';
+import { formatUzDate } from '../utils/uzDate';
 
 const Financials: React.FC = () => {
     const { t: tr } = useT();
@@ -404,7 +405,7 @@ const Financials: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td className="px-4 py-4 text-sm text-slate-600">
-                                                {new Date(transaction.created_at).toLocaleDateString()}
+                                                {formatUzDate(transaction.created_at, true)}
                                             </td>
                                             <td className="px-4 py-4 text-sm">
                                                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[transaction.status] || 'bg-gray-500/20 text-slate-600'}`}>

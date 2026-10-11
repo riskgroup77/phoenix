@@ -255,13 +255,13 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               ) : (
                 <span className="milliy-avatar" aria-hidden="true">{initials}</span>
               )}
-              <span className="hidden 2xl:flex flex-col text-left max-w-[150px] leading-tight">
+              <span className="hidden min-[1700px]:flex flex-col text-left max-w-[150px] leading-tight">
                 <span className="text-sm font-semibold truncate">
                   {user.firstName} {user.lastName}
                 </span>
                 <span className="text-xs text-[var(--milliy-band-text)] truncate">{t(roleNames[user.role])}</span>
               </span>
-              <ChevronDown className="w-4 h-4 hidden 2xl:block" aria-hidden />
+              <ChevronDown className="w-4 h-4 hidden min-[1700px]:block" aria-hidden />
             </button>
             {isUserOpen && (
               <div className="editorial-dropdown absolute right-0 mt-2 w-52 py-1 z-[70]">

@@ -25,10 +25,8 @@ def _find_transaction_by_merchant_trans_id(merchant_trans_id):
             return Transaction.objects.get(id=uuid_val)
         except (ValueError, Transaction.DoesNotExist):
             pass
-    try:
-        return Transaction.objects.get(id=raw)
-    except (Transaction.DoesNotExist, ValueError):
-        pass
+    # UUID bo'lmagan qiymat (masalan "DEMO-…") — id bo'yicha qidirish ValidationError beradi va
+    # merchant_trans_id bo'yicha qidiruvga yetib bormas edi (Click'ga -9 qaytardi)
     try:
         return Transaction.objects.get(merchant_trans_id=raw)
     except Transaction.DoesNotExist:

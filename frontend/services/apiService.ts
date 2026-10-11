@@ -754,6 +754,12 @@ export const apiService = {
         method: 'POST',
       }),
 
+    /** Muallif tuzatilgan faylni yuklaydi (PATCH — PUT barcha maydonlarni talab qiladi). */
+    replaceFile: (id: string, file: File) => {
+      const formData = new FormData();
+      formData.append('final_pdf_path', file);
+      return apiFetch(`/articles/${id}/`, { method: 'PATCH', body: formData });
+    },
     updateStatus: (id: string, status: string, reason?: string) =>
       apiFetch(`/articles/${id}/update_status/`, {
         method: 'POST',
@@ -986,6 +992,10 @@ export const apiService = {
       }
     },
     
+    /** Qisman yangilash (PUT barcha majburiy maydonlarni talab qiladi). Kalitlar snake_case. */
+    patch: async (id: string, data: Record<string, unknown>) =>
+      apiFetch(`/journals/journals/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+
     update: async (id: string, journalData: any, imageFile?: File) => {
       
       if (imageFile) {

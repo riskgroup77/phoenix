@@ -339,7 +339,7 @@ class ArticleSerializer(serializers.ModelSerializer):
 
     def _status_labels(self):
         return {
-            'Draft': 'Yangi topshirildi',
+            'Draft': "Qoralama (to'lov kutilmoqda)",
             'Yangi': 'Yangi topshirildi',
             'WithEditor': 'Tekshiruvda',
             'Revision': 'To‘ldirish talab qilinadi',

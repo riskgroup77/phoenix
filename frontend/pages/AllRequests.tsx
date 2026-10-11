@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Role, ArticleStatus } from '../types';
 import { FileText, Search, Eye, Calendar, User, BookOpen, Clock, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
@@ -18,7 +18,11 @@ const AllRequests: React.FC = () => {
   const [requests, setRequests] = useState<OperatorRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [filterType, setFilterType] = useState<string>('all');
+  const [searchParams] = useSearchParams();
+  // Operator panelidagi kartochkalar ?type=UDK kabi filtr bilan ochadi
+  const [filterType, setFilterType] = useState<string>(searchParams.get('type') || 'all');
+  const typeParam = searchParams.get('type') || 'all';
+  useEffect(() => { setFilterType(typeParam); }, [typeParam]);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 

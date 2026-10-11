@@ -36,7 +36,13 @@ const JournalPrices: React.FC = () => {
         try {
             const data = await apiService.journals.list();
             const journalsList = Array.isArray(data) ? data : (data?.results || data?.data || []);
-            setPrices(journalsList);
+            // API snake_case qaytaradi (publication_fee, price_per_page — DecimalField satr sifatida)
+            setPrices(journalsList.map((j: any) => ({
+                ...j,
+                publicationFee: Number(j.publicationFee ?? j.publication_fee ?? 0),
+                pricePerPage: Number(j.pricePerPage ?? j.price_per_page ?? 0),
+                pricingType: j.pricingType ?? j.pricing_type ?? '',
+            })));
         } catch (error) {
             console.error('Failed to load journal prices:', error);
             toast.error(t('Jurnal narxlarini yuklashda xatolik'));
@@ -69,9 +75,9 @@ const JournalPrices: React.FC = () => {
 
         setSaving(true);
         try {
-            await apiService.journals.update(id, {
-                publicationFee: values.publicationFee,
-                pricePerPage: values.pricePerPage,
+            await apiService.journals.patch(id, {
+                publication_fee: values.publicationFee,
+                price_per_page: values.pricePerPage,
             });
             toast.success(t('Jurnal narxlari muvaffaqiyatli yangilandi'));
             setEditingId(null);
@@ -222,6 +228,8 @@ const JournalPrices: React.FC = () => {
                                         <Button
                                             variant="secondary"
                                             onClick={() => handleEdit(journal)}
+                                            title={t('Tahrirlash')}
+                                            aria-label={t('Tahrirlash')}
                                             className="ml-4"
                                         >
                                             <Edit2 className="h-4 w-4" />

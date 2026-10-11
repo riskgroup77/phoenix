@@ -96,6 +96,9 @@ const UdkRequests: React.FC = () => {
   if (!user) return null;
 
   const isReviewer = user.role === 'reviewer' || user.role === 'super_admin';
+  // Operator barcha so'rovlarni kuzatadi, lekin tasdiqlash/rad etish backendda ham yopiq
+  const isOperator = user.role === 'operator';
+  const seesAll = isReviewer || isOperator;
   const submittedList = list.filter((r) => r.status === 'submitted');
   const completedList = list.filter((r) => r.status === 'completed');
   const rejectedList = list.filter((r) => r.status === 'rejected');
@@ -126,6 +129,8 @@ const UdkRequests: React.FC = () => {
         subtitle={
           isReviewer
             ? t("Mualliflar UDK raqami olish uchun yuborgan so'rovlar. Mavzu va annotatsiyani o'qib, mos UDK kodini kiriting.")
+            : isOperator
+            ? t("Mualliflarning UDK so'rovlari (faqat ko'rish). UDK kodini taqrizchi kiritadi.")
             : t("Sizning UDK so'rovlaringiz. Taqrizchi UDK kodini kiritgach bu yerda ko'rinadi.")
         }
       />
@@ -218,7 +223,7 @@ const UdkRequests: React.FC = () => {
 
             {/* Barcha so'rovlar ro'yxati */}
             <h3 className="font-serif text-lg font-semibold text-[var(--editorial-text)] mb-3">
-              {isReviewer ? t("Barcha so'rovlar") : t("Mening so'rovlarim")}
+              {seesAll ? t("Barcha so'rovlar") : t("Mening so'rovlarim")}
             </h3>
             {list.map((req) => (
               <div
