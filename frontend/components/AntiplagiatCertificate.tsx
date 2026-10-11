@@ -35,7 +35,7 @@ const AntiplagiatCertificate: React.FC<{ data: AntiplagiatCertificateData }> = (
     return (
         <AntiplagJpgPage
             id="antipagiat-certificate"
-            className="antiplagiat-certificate"
+            data-paper className="antiplagiat-certificate"
             imageUrl={CERTIFICATE_TEMPLATE.image}
             baseWidth={CERTIFICATE_TEMPLATE.width}
             aspectRatio={CERTIFICATE_TEMPLATE.aspect}

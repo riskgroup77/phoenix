@@ -25,6 +25,8 @@ interface AuthContextType {
   unreadCount: number;
   /** Telegram orqali tasdiqlangach — sahifani yangilamasdan holatni yangilash */
   markPhoneVerified: () => void;
+  /** Profil rasmi yangilangach — header'dagi avatar ham darhol yangilansin */
+  setAvatarUrl: (url: string) => void;
 }
 
 // Create the context with a default value that matches AuthContextType
@@ -40,6 +42,7 @@ const AuthContext = createContext<AuthContextType>({
   markAllAsRead: () => {},
   unreadCount: 0,
   markPhoneVerified: () => {},
+  setAvatarUrl: () => {},
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -389,6 +392,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser((u) => (u ? { ...u, phoneVerified: true } : u));
   }, []);
 
+  const setAvatarUrl = useCallback((url: string) => {
+    setUser((u) => (u ? { ...u, avatarUrl: url } : u));
+  }, []);
+
   const contextValue: AuthContextType = {
     user,
     login,
@@ -401,6 +408,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     markAllAsRead,
     unreadCount,
     markPhoneVerified,
+    setAvatarUrl,
   };
 
   return React.createElement(

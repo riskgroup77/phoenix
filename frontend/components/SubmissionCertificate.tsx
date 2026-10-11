@@ -26,7 +26,7 @@ const SubmissionCertificate: React.FC<{ data: SubmissionCertificateData }> = ({ 
     );
 
     return (
-        <div className="bg-white text-gray-800 aspect-[210/297] w-full max-w-4xl mx-auto shadow-2xl overflow-hidden relative font-sans p-2">
+        <div data-paper className="bg-white text-gray-800 aspect-[210/297] w-full max-w-4xl mx-auto shadow-2xl overflow-hidden relative font-sans p-2">
             
             <WatermarkBackground />
             

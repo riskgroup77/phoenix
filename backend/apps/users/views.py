@@ -99,6 +99,47 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    AVATAR_MAX_BYTES = 5 * 1024 * 1024
+    AVATAR_FORMATS = {'JPEG': 'jpg', 'PNG': 'png', 'WEBP': 'webp'}
+
+    @action(detail=False, methods=['post', 'delete'], permission_classes=[IsAuthenticated], url_path='avatar')
+    def avatar(self, request):
+        """Profil rasmi: POST (multipart, `avatar`) — yuklash, DELETE — o'chirish.
+        Fayl nomi va turi mijozga ishonilmaydi: Pillow bilan ochib tekshiriladi va o'zimiz nomlaymiz."""
+        import uuid
+        from django.core.files.base import ContentFile
+        from PIL import Image, UnidentifiedImageError
+
+        user = request.user
+        if request.method == 'DELETE':
+            if user.avatar_url:
+                user.avatar_url.delete(save=False)
+            user.avatar_url = None
+            user.save(update_fields=['avatar_url'])
+            return Response(UserProfileSerializer(user, context={'request': request}).data)
+
+        upload = request.FILES.get('avatar')
+        if not upload:
+            return Response({'detail': 'Rasm fayli yuborilmadi.'}, status=status.HTTP_400_BAD_REQUEST)
+        if upload.size > self.AVATAR_MAX_BYTES:
+            return Response({'detail': "Rasm hajmi 5 MB dan oshmasligi kerak."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            img = Image.open(upload)
+            img.verify()
+            fmt = img.format
+        except (UnidentifiedImageError, Image.DecompressionBombError, OSError, SyntaxError, ValueError):
+            return Response({'detail': 'Fayl rasm emas yoki buzilgan.'}, status=status.HTTP_400_BAD_REQUEST)
+        if fmt not in self.AVATAR_FORMATS:
+            return Response({'detail': 'Faqat JPG, PNG yoki WEBP rasm.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        upload.seek(0)
+        old = user.avatar_url.name if user.avatar_url else None
+        user.avatar_url.save(f'{uuid.uuid4().hex}.{self.AVATAR_FORMATS[fmt]}', ContentFile(upload.read()), save=False)
+        user.save(update_fields=['avatar_url'])
+        if old and old != user.avatar_url.name:
+            user.avatar_url.storage.delete(old)
+        return Response(UserProfileSerializer(user, context={'request': request}).data)
+
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated], url_path='privacy-export')
     def privacy_export(self, request):
         """Shaxsiy ma'lumotlar xulosasi (GDPR uslubida — to'liq fayl eksporti emas)."""

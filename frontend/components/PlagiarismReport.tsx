@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Shield, Bot, FileText, AlertTriangle, CheckCircle, XCircle, ChevronDown, ChevronUp, Eye, BookOpen, Zap, BarChart3, Brain, Fingerprint } from 'lucide-react';
 import { useT } from '../i18n/LanguageContext';
+import { formatUzDateTime } from '../utils/uzDate';
 
 // ── Types ──
 interface SectionAnalysis {
@@ -227,7 +228,7 @@ const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPerc
           {overallRisk === 'high' ? <XCircle className="text-red-700" size={24} /> : overallRisk === 'medium' ? <AlertTriangle className="text-yellow-800" size={24} /> : <CheckCircle className="text-emerald-800" size={24} />}
           <div>
             <p className={`font-bold text-lg ${riskColor(overallRisk)}`}>{riskLabel(overallRisk)}</p>
-            <p className="text-xs text-slate-500">{t('Tekshiruv vaqti: {value} · Ishonchlilik: {confidence}%', { value: new Date(checkedAt).toLocaleString(), confidence: confidence })}</p>
+            <p className="text-xs text-slate-500">{t('Tekshiruv vaqti: {value} · Ishonchlilik: {confidence}%', { value: formatUzDateTime(checkedAt), confidence: confidence })}</p>
           </div>
         </div>
         <div className="text-right">

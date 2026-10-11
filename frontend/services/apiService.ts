@@ -329,6 +329,13 @@ export const apiService = {
     },
 
     getProfile: () => apiFetch('/auth/profile/'),
+    /** Profil rasmi (JPG/PNG/WEBP, 5 MB gacha) — server Pillow bilan tekshiradi */
+    uploadAvatar: (file: File) => {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      return apiFetch('/auth/avatar/', { method: 'POST', body: formData });
+    },
+    deleteAvatar: () => apiFetch('/auth/avatar/', { method: 'DELETE' }),
 
     /** Telefonni Telegram orqali tasdiqlash: bot havolasini oladi */
     phoneVerifyStart: (): Promise<{ deep_link?: string; expires_in?: number; already_verified?: boolean }> =>

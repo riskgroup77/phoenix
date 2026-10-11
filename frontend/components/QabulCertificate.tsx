@@ -30,6 +30,7 @@ const QabulCertificate: React.FC<{ data: QabulCertificateData }> = ({ data }) =>
 
     return (
         <div
+            data-paper
             className="w-full max-w-5xl mx-auto overflow-hidden relative rounded-xl shadow-xl"
             style={{ aspectRatio: '1414/1000', fontFamily: 'Arial, Helvetica, sans-serif' }}
             id="qabul-certificate"

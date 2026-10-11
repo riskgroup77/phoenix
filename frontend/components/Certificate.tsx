@@ -6,7 +6,7 @@ import { PhoenixLogo, Seal, CertificateBorderAndBackground } from './Certificate
 
 const Certificate: React.FC<{ data: CertificateData }> = ({ data }) => {
     return (
-        <div className="bg-white text-gray-800 aspect-[297/210] w-full max-w-6xl mx-auto shadow-2xl overflow-hidden relative font-sans p-2">
+        <div data-paper className="bg-white text-gray-800 aspect-[297/210] w-full max-w-6xl mx-auto shadow-2xl overflow-hidden relative font-sans p-2">
             
             <CertificateBorderAndBackground />
             

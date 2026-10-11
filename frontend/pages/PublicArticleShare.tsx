@@ -5,6 +5,7 @@ import Button from '../components/ui/Button';
 import { apiService } from '../services/apiService';
 import { BookOpen, Download, ExternalLink, Loader2 } from 'lucide-react';
 import { useT } from '../i18n/LanguageContext';
+import { formatUzDateTime } from '../utils/uzDate';
 
 interface PublicArticleData {
   id: string;
@@ -151,7 +152,7 @@ const PublicArticleShare: React.FC = () => {
                 {article.plagiarism_history.map((item, index) => (
                   <div key={`${item.checked_at}-${index}`} className="p-3 rounded-lg bg-slate-100/70 border border-slate-200/90">
                     <p className="text-xs text-slate-500">
-                      {t('Tekshiruv vaqti:')} {item.checked_at ? new Date(item.checked_at).toLocaleString() : t('Noma’lum')}
+                      {t('Tekshiruv vaqti:')} {item.checked_at ? formatUzDateTime(item.checked_at) : t('Noma’lum')}
                     </p>
                     <div className="mt-1 text-sm text-slate-700 flex flex-col sm:flex-row sm:gap-6">
                       <span>{t('Plagiat:')} <strong>{item.plagiarism_percentage ?? '—'}%</strong></span>

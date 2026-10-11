@@ -9,6 +9,7 @@ import { Search, User, Shield, Eye, Edit, Trash2, Plus, X, Download, FileText, L
 import { apiService } from '../services/apiService';
 import { toast } from 'react-toastify';
 import { useT } from '../i18n/LanguageContext';
+import { displayEmail } from '../utils/placeholderEmail';
 
 const UserManagement: React.FC = () => {
     const { t: tr } = useT();
@@ -420,7 +421,7 @@ const UserManagement: React.FC = () => {
                                             </div>
                                             <div className="ml-4">
                                                 <div className="text-sm font-medium text-slate-900">{user.first_name} {user.last_name}</div>
-                                                <div className="text-sm text-slate-500">{user.email}</div>
+                                                <div className="text-sm text-slate-500">{displayEmail(user.email) || '—'}</div>
                                             </div>
                                         </div>
                                     </td>
@@ -603,7 +604,7 @@ const UserManagement: React.FC = () => {
                             <section>
                                 <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">{tr("Asosiy ma'lumotlar")}</h3>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                                    <div><span className="text-slate-500">{tr('Email:')}</span> <span className="text-slate-900">{viewUser.email}</span></div>
+                                    <div><span className="text-slate-500">{tr('Email:')}</span> <span className="text-slate-900">{displayEmail(viewUser.email) || '—'}</span></div>
                                     <div><span className="text-slate-500">{tr('Telefon:')}</span> <span className="text-slate-900">{viewUser.phone}</span></div>
                                     <div><span className="text-slate-500">{tr('Rol:')}</span> <span className="text-slate-900">{roleNames[viewUser.role] ?? viewUser.role}</span></div>
                                     <div><span className="text-slate-500">{tr('Tashkilot:')}</span> <span className="text-slate-900">{viewUser.affiliation || '—'}</span></div>

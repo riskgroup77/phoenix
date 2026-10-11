@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ListSkeleton, PageSkeleton } from '../components/ui/Skeleton';
 import TelegramSettingsCard from '../components/TelegramSettingsCard';
 import PhoneVerifyCard from '../components/PhoneVerifyCard';
@@ -11,7 +11,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import Card from '../components/ui/Card';
 import EditorialTabs from '../components/EditorialTabs';
 import Button from '../components/ui/Button';
-import { User, Mail, Phone, Building, Award, Hash, Edit, CreditCard, Archive, Bell, Settings } from 'lucide-react';
+import { User, Mail, Phone, Building, Award, Hash, Edit, CreditCard, Archive, Bell, Settings, Camera, Loader2 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
 import { showPaymentTestTools } from '../config/env';
@@ -19,6 +19,7 @@ import { toast } from 'react-toastify';
 import { txAmount } from '../utils/amount';
 import { asApiList } from '../utils/apiList';
 import type { Notification } from '../types';
+import { isPlaceholderEmail } from '../utils/placeholderEmail';
 
 type ProfileTab = 'profile' | 'payments' | 'notifications' | 'settings';
 
@@ -48,7 +49,9 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const Profile: React.FC = () => {
-    const { user, logout } = useAuth();
+    const { user, logout, setAvatarUrl } = useAuth();
+    const avatarInputRef = useRef<HTMLInputElement>(null);
+    const [avatarUploading, setAvatarUploading] = useState(false);
     const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
     const { theme, setTheme } = useTheme();
     const { lang, setLang } = useT();
@@ -128,7 +131,7 @@ const Profile: React.FC = () => {
                     first_name: userData.first_name,
                     last_name: userData.last_name,
                     patronymic: userData.patronymic || '',
-                    email: userData.email,
+                    email: isPlaceholderEmail(userData.email) ? '' : userData.email,
                     phone: userData.phone,
                     affiliation: userData.affiliation,
                     orcid_id: userData.orcid_id || '',
@@ -153,6 +156,45 @@ const Profile: React.FC = () => {
         }));
     };
 
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+            toast.error('Faqat JPG, PNG yoki WEBP rasm yuklang.');
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("Rasm hajmi 5 MB dan oshmasligi kerak.");
+            return;
+        }
+        setAvatarUploading(true);
+        try {
+            const updated = await apiService.auth.uploadAvatar(file);
+            setProfile((prev: any) => (prev ? { ...prev, avatar_url: updated.avatar_url } : prev));
+            setAvatarUrl(updated.avatar_url || '');
+            toast.success('Profil rasmi yangilandi');
+        } catch (err: any) {
+            toast.error(err?.message || 'Rasmni yuklashda xatolik');
+        } finally {
+            setAvatarUploading(false);
+        }
+    };
+
+    const handleAvatarDelete = async () => {
+        setAvatarUploading(true);
+        try {
+            await apiService.auth.deleteAvatar();
+            setProfile((prev: any) => (prev ? { ...prev, avatar_url: null } : prev));
+            setAvatarUrl('');
+            toast.success("Profil rasmi o'chirildi");
+        } catch (err: any) {
+            toast.error(err?.message || "Rasmni o'chirishda xatolik");
+        } finally {
+            setAvatarUploading(false);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const orcid = normalizeOrcid(formData.orcid_id || '');
@@ -162,7 +204,10 @@ const Profile: React.FC = () => {
         }
         setOrcidError('');
         try {
-            const updatedProfile = await apiService.auth.updateProfile({ ...formData, orcid_id: orcid });
+            // Email bo'sh qoldirilsa yuborilmaydi — bazadagi vaqtinchalik email saqlanadi (maydon majburiy/unikal)
+            const { email, ...rest } = formData;
+            const payload = email.trim() ? { ...rest, email: email.trim(), orcid_id: orcid } : { ...rest, orcid_id: orcid };
+            const updatedProfile = await apiService.auth.updateProfile(payload);
             const userData = updatedProfile.data || updatedProfile;
             setProfile(userData);
             setIsEditing(false);
@@ -503,15 +548,35 @@ const Profile: React.FC = () => {
                                     <User className="h-16 w-16 text-slate-900" />
                                 </div>
                             )}
-                            <button className="absolute bottom-2 right-2 p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors">
-                                <Edit className="h-4 w-4 text-slate-900" />
+                            {/* Avval onClick yo'q edi — tugma hech narsa qilmasdi */}
+                            <button
+                                type="button"
+                                onClick={() => avatarInputRef.current?.click()}
+                                disabled={avatarUploading}
+                                title="Rasmni o'zgartirish"
+                                aria-label="Rasmni o'zgartirish"
+                                className="absolute bottom-1 right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-[var(--editorial-primary)] text-white shadow-md transition hover:brightness-110 disabled:opacity-70"
+                            >
+                                {avatarUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                             </button>
+                            <input
+                                ref={avatarInputRef}
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                className="hidden"
+                                onChange={handleAvatarChange}
+                            />
                         </div>
                         <div className="mt-4 text-center">
                             <h2 className="text-xl font-bold text-slate-900">
                                 {profile.first_name} {profile.last_name} {profile.patronymic}
                             </h2>
                             <p className="text-slate-500">{roleNames[profile.role] || profile.role}</p>
+                            {profile.avatar_url && (
+                                <button type="button" onClick={handleAvatarDelete} disabled={avatarUploading} className="mt-2 text-xs text-red-700 hover:underline disabled:opacity-60">
+                                    Rasmni o'chirish
+                                </button>
+                            )}
                         </div>
                     </div>
                     
@@ -575,7 +640,7 @@ const Profile: React.FC = () => {
                                             value={formData.email}
                                             onChange={handleInputChange}
                                             className="w-full"
-                                            required
+                                            placeholder="email@misol.uz (ixtiyoriy)"
                                         />
                                     </div>
                                     <div className="md:col-span-2">
@@ -649,6 +714,8 @@ const Profile: React.FC = () => {
                                         </div>
                                     </div>
                                     
+                                    {/* Ro'yxatdan o'tishda email kiritilmasa server vaqtinchalik ...@temp.phoenix.uz yaratadi — uni ko'rsatmaymiz */}
+                                    {!isPlaceholderEmail(profile.email) && (
                                     <div className="flex items-center p-3 bg-slate-100/70 rounded-lg min-w-0">
                                         <Mail className="h-5 w-5 text-emerald-800 mr-3 shrink-0" />
                                         <div className="min-w-0">
@@ -656,6 +723,7 @@ const Profile: React.FC = () => {
                                             <p className="text-slate-900 break-words [overflow-wrap:anywhere]">{profile.email}</p>
                                         </div>
                                     </div>
+                                    )}
                                     
                                     <div className="flex items-center p-3 bg-slate-100/70 rounded-lg min-w-0">
                                         <Phone className="h-5 w-5 text-purple-400 mr-3 shrink-0" />

@@ -363,7 +363,7 @@ const AuthorPublications: React.FC = () => {
                   placeholder={t("Sarlavha, mualliflar, kalit so'zlar...")}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pinm-field w-full pl-10"
+                  className="pinm-field w-full !pl-10"
                 />
               </div>
             </div>

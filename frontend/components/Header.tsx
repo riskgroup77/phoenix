@@ -19,17 +19,18 @@ type HeaderProps = {
 
 /** Katta ekranda (lg) panelda ko'rinadigan asosiy havolalar soni; xl da ko'proq */
 const VISIBLE_LG = 3;
-const VISIBLE_XL = 4;
-/** Menyu uchun taxminiy joy (px): lg (1024) va xl (1280) ekranlarda, «Boshqa» tugmasidan tashqari */
+const VISIBLE_XL = 5;
+/** Menyu uchun taxminiy joy (px): lg (1024) va xl (1280) ekranlarda, «Boshqa» tugmasidan tashqari (xl da u ixcham — faqat ikonka) */
 const NAV_BUDGET_LG = 420;
-const NAV_BUDGET_XL = 610;
+const NAV_BUDGET_XL = 670;
 
 /** Uzun yorliqlar (masalan taqrizchi menyusi) «Boshqa» tugmasini siqib chiqarmasligi uchun nechta band sig'ishini hisoblaydi */
 function fitCount(labels: string[], budget: number, max: number): number {
   let used = 0;
   let n = 0;
   for (const label of labels) {
-    const w = 32 + label.length * 7.6;
+    // Kirill harflari lotinchadan ~25% kengroq — aks holda ru/uz-kirill menyusi qidiruv ustiga chiqardi
+    const w = 32 + [...label].reduce((sum, ch) => sum + (/[\u0400-\u04FF]/.test(ch) ? 9.6 : 7.6), 0);
     if (n >= max || used + w > budget) break;
     used += w;
     n += 1;
@@ -163,9 +164,12 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               className="milliy-nav-link inline-flex"
               aria-haspopup="menu"
               aria-expanded={isMoreOpen}
+              aria-label={t('Boshqa')}
+              title={t('Boshqa')}
             >
               <MoreHorizontal className="w-4 h-4" aria-hidden />
-              {t('Boshqa')}
+              {/* 2xl dan tor ekranda faqat ikonka — ~67px bo'shab, «Xizmatlar» kabi 5-band sig'adi */}
+              <span className="hidden 2xl:inline">{t('Boshqa')}</span>
               <ChevronDown className="w-4 h-4" aria-hidden />
             </button>
             {isMoreOpen && (

@@ -200,7 +200,7 @@ const TablePage: React.FC<{ data: NashrHisobotData }> = ({ data }) => (
 
 const NashrHisobotCertificate: React.FC<{ data: NashrHisobotData }> = ({ data }) => {
     return (
-        <div className="space-y-8" id="nashr-hisobot">
+        <div data-paper className="space-y-8" id="nashr-hisobot">
             <CoverPage data={data} />
             <div className="page-break-before">
                 <TablePage data={data} />
