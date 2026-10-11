@@ -7,6 +7,7 @@ import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useAuth } from '../contexts/AuthContext';
 import { useT } from '../i18n/LanguageContext';
 import { Role } from '../types';
+import BrandMark from '../components/BrandMark';
 
 /** 404 — sahifa topilmadi. Kirgan foydalanuvchi o'z paneliga, mehmon bosh sahifaga qaytadi. */
 const NotFound: React.FC = () => {
@@ -38,7 +39,7 @@ const NotFound: React.FC = () => {
         </div>
         <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-8 py-16 flex flex-col gap-6">
           <Link to={home} className="milliy-brand self-start">
-            <span className="milliy-brand-mark" aria-hidden="true">P</span>
+            <BrandMark />
             <span className="flex flex-col">
               <span className="milliy-brand-title">Phoenix</span>
               <span className="milliy-brand-sub">{t('Ilmiy nashrlar markazi')}</span>

@@ -21,6 +21,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { apiService } from '../services/apiService';
 import { useT } from '../i18n/LanguageContext';
 import { formatUzDate } from '../utils/uzDate';
+import BrandMark from '../components/BrandMark';
 
 type PublicJournal = {
   id: string;
@@ -118,7 +119,7 @@ const Landing: React.FC = () => {
         </div>
         <div className="milliy-topbar-inner">
           <Link to="/" className="milliy-brand">
-            <span className="milliy-brand-mark" aria-hidden="true">P</span>
+            <BrandMark />
             <span className="hidden sm:flex flex-col min-w-0">
               <span className="milliy-brand-title">Phoenix</span>
               <span className="milliy-brand-sub">{t('Ilmiy nashrlar markazi')}</span>

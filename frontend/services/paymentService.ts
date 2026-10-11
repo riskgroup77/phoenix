@@ -1,6 +1,6 @@
 // paymentService.ts
 // Barcha to'lovlar Click orqali (Ilmiyfaoliyat.uz — bir xil payment sahifa va callback).
-// createTransactionAndPay + redirectToPaymentPage → #/payment/click (QR + tugma).
+// createTransactionAndPay + redirectToPaymentPage → to'g'ridan-to'g'ri Click; qaytish #/payment/click.
 
 import { apiService } from './apiService';
 
@@ -141,16 +141,27 @@ class PaymentService {
   }
 
   /**
-   * Redirect user to our payment page (with QR code + button).
-   * Use this so user can scan QR with phone or click to open Click in browser.
+   * To'lov: oraliq sahifasiz to'g'ridan-to'g'ri Click (my.click.uz) ochiladi.
+   * To'lovdan keyin Click return_url orqali #/payment/click ga qaytaradi — u yerda natija ko'rinadi.
+   * Havolani olib bo'lmasa — ichki sahifa (QR + tugma + xato matni) zaxira sifatida ochiladi.
    */
-  redirectToPaymentPage(transactionId: string): void {
+  async redirectToPaymentPage(transactionId: string): Promise<void> {
     if (!transactionId) {
       console.error('Transaction ID is not available');
       throw new Error('To\'lov ID topilmadi');
     }
-    const hash = `#/payment/click?transaction_id=${encodeURIComponent(transactionId)}`;
-    window.location.hash = hash;
+    const fallback = `#/payment/click?transaction_id=${encodeURIComponent(transactionId)}`;
+    try {
+      const response = await apiService.payments.processPayment(transactionId, 'click');
+      const url = response?.payment_url;
+      if (typeof url === 'string' && /^https:\/\//.test(url)) {
+        window.location.assign(url);
+        return;
+      }
+    } catch (error) {
+      console.error('Click payment URL olinmadi:', error);
+    }
+    window.location.hash = fallback;
   }
 
   /**

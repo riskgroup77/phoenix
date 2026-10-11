@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Menu, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, Menu, Sparkles, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
 import { useT } from '../i18n/LanguageContext';
@@ -13,6 +13,7 @@ import AiSidebar from '../components/ai/AiSidebar';
 import AiChat from '../components/ai/AiChat';
 import AiWorkspacePanel from '../components/ai/AiWorkspacePanel';
 import { AiAction, AiConversation, AiMessage, PanelTarget } from '../components/ai/types';
+import BrandMark from '../components/BrandMark';
 
 const STARTERS = [
   'Maqolamni jurnalga yuborish',
@@ -215,23 +216,29 @@ const AiWorkspace: React.FC = () => {
         >
           <Menu className="h-5 w-5" aria-hidden />
         </button>
+        {/* Orqaga yo'l aniq ko'rinsin: avval faqat o'ngda kichik «Klassik ko'rinish» (mobilda yashirin) bor edi */}
+        <button
+          type="button"
+          onClick={goClassic}
+          aria-label={t('Boshqaruv paneli')}
+          title={t('Boshqaruv paneli')}
+          className="milliy-band-btn !w-auto gap-2 px-2.5 text-sm font-semibold"
+        >
+          <ArrowLeft className="h-5 w-5" aria-hidden />
+          <span className="hidden md:inline">{t('Boshqaruv paneli')}</span>
+        </button>
+        <span className="mx-1 hidden h-6 w-px bg-white/20 sm:block" aria-hidden />
         <Link to="/ai" className="flex items-center gap-2 font-extrabold" aria-label="Phoenix AI">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[#1f3f8f]">P</span>
+          <BrandMark className="!h-8 !w-8" />
           <span className="hidden sm:inline">Phoenix</span>
         </Link>
-        <span className="flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold">
-          <Sparkles className="h-3.5 w-3.5" aria-hidden /> {t('AI yordamchi')}
+        <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold" title={t('AI yordamchi')}>
+          <Sparkles className="h-3.5 w-3.5" aria-hidden /> <span className="hidden sm:inline">{t('AI yordamchi')}</span>
         </span>
         <div className="ml-auto flex items-center gap-1">
-          <LanguageSwitcher />
-          <ThemeToggle />
-          <button
-            type="button"
-            onClick={goClassic}
-            className="hidden h-9 items-center rounded-lg px-3 text-sm text-[#dbe4ff] hover:bg-white/10 md:inline-flex"
-          >
-            {t("Klassik ko'rinish")}
-          </button>
+          {/* band — ko'k fonga mos (asosiy header bilan bir xil) */}
+          <LanguageSwitcher variant="band" />
+          <ThemeToggle variant="band" />
         </div>
       </header>
 

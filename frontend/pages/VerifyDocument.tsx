@@ -4,6 +4,7 @@ import Card from '../components/ui/Card';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { API_V1_BASE_URL } from '../config/apiBase';
 import { useT } from '../i18n/LanguageContext';
+import BrandMark from '../components/BrandMark';
 
 type VerifyResponse = {
   valid: boolean;
@@ -71,7 +72,7 @@ const VerifyDocument: React.FC = () => {
   return (
     <div className="min-h-screen bg-[var(--editorial-bg)] flex flex-col items-center justify-center gap-5 p-4">
       <a href="/#/" className="flex items-center gap-2.5 text-[var(--editorial-text)] no-underline">
-        <span className="w-9 h-9 rounded-[10px] bg-[#1f3f8f] text-white flex items-center justify-center font-extrabold">P</span>
+        <BrandMark />
         <span className="flex flex-col leading-tight">
           <span className="font-extrabold">{t('Phoenix')}</span>
           <span className="text-xs text-[var(--editorial-muted)]">{t('Ilmiy nashrlar markazi · hujjatni tekshirish')}</span>

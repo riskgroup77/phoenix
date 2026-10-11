@@ -28,7 +28,7 @@ const LanguageSwitcher: React.FC<{ variant?: 'default' | 'band' }> = ({ variant 
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
-        className={`${variant === 'band' ? 'milliy-band-btn' : 'editorial-icon-btn'} !w-auto px-2.5 gap-1.5 text-sm font-semibold`}
+        className={`${variant === 'band' ? 'milliy-band-btn' : 'editorial-icon-btn'} inline-flex items-center whitespace-nowrap !w-auto px-2.5 gap-1.5 text-sm font-semibold`}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('Tilni tanlash')}

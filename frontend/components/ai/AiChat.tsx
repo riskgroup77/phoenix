@@ -145,7 +145,7 @@ const AiChat: React.FC<Props> = ({
       </div>
 
       {quick.length > 0 && !sending && (
-        <div className="flex gap-2 overflow-x-auto px-4 pb-2 sm:px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="list" aria-label={t('Tez takliflar')}>
+        <div className="flex gap-2 overflow-x-auto px-4 pb-2 sm:px-5 md:flex-wrap md:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="list" aria-label={t('Tez takliflar')}>
           {quick.map((s) => (
             <button
               key={s}
@@ -202,7 +202,7 @@ const AiChat: React.FC<Props> = ({
             }}
             maxLength={2000}
             placeholder={t("Masalan: maqolamni antiplagiatdan o'tkaz")}
-            className="input-bare max-h-40 min-h-[40px] flex-1 resize-none bg-transparent px-1 py-2 text-[15px] text-[var(--editorial-text)] outline-none"
+            className="input-bare max-h-40 min-h-[40px] min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-[15px] placeholder:overflow-hidden placeholder:text-ellipsis placeholder:whitespace-nowrap text-[var(--editorial-text)] outline-none"
           />
           <button
             type="submit"

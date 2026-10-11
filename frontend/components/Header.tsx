@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
-import { LogOut, Bell, Menu, ChevronDown, MoreHorizontal, HelpCircle, Search } from 'lucide-react';
+import { LogOut, Bell, Menu, ChevronDown, MoreHorizontal, HelpCircle, Search, UserCircle, Settings } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import LanguageSwitcher from './LanguageSwitcher';
 import { OPEN_SEARCH_EVENT } from './CommandPalette';
@@ -11,6 +11,7 @@ import { Notification, Role } from '../types';
 import { roleNames, sidebarNavByRole, type NavItem } from '../config/navConfig';
 import { SUPPORT_EMAIL } from '../config/env';
 import { isNavItemActive } from '../utils/navActive';
+import BrandMark from './BrandMark';
 
 type HeaderProps = {
   onMenuClick?: () => void;
@@ -132,7 +133,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         </div>
 
         <Link to={user.role === Role.Operator ? '/operator-dashboard' : '/dashboard'} className="milliy-brand">
-          <span className="milliy-brand-mark" aria-hidden="true">P</span>
+          <BrandMark />
           <span className="hidden sm:flex flex-col min-w-0">
             <span className="milliy-brand-title">Phoenix</span>
             <span className="milliy-brand-sub">{t('Ilmiy nashrlar markazi')}</span>
@@ -264,11 +265,14 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               <ChevronDown className="w-4 h-4 hidden min-[1700px]:block" aria-hidden />
             </button>
             {isUserOpen && (
-              <div className="editorial-dropdown absolute right-0 mt-2 w-52 py-1 z-[70]">
-                <Link to="/profile?tab=profile" className="editorial-dropdown-item">
+              <div className="editorial-dropdown absolute right-0 mt-2 w-56 py-2 z-[70]">
+                {/* «Boshqa» menyusi bilan bir xil: ikonka + matn bir qatorda */}
+                <Link to="/profile?tab=profile" className="editorial-dropdown-item !flex items-center gap-3">
+                  <UserCircle className="w-4 h-4 shrink-0" strokeWidth={2} aria-hidden />
                   {t('Profil')}
                 </Link>
-                <Link to="/profile?tab=settings" className="editorial-dropdown-item">
+                <Link to="/profile?tab=settings" className="editorial-dropdown-item !flex items-center gap-3">
+                  <Settings className="w-4 h-4 shrink-0" strokeWidth={2} aria-hidden />
                   {t('Sozlamalar')}
                 </Link>
                 <div className="sm:hidden px-2 py-1">
@@ -280,9 +284,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                     setIsUserOpen(false);
                     logout();
                   }}
-                  className="editorial-dropdown-item w-full text-left text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2"
+                  className="editorial-dropdown-item !flex w-full items-center gap-3 text-left text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 border-t border-[var(--editorial-border)] mt-1 pt-2"
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-4 h-4 shrink-0" strokeWidth={2} aria-hidden />
                   {t('Chiqish')}
                 </button>
               </div>

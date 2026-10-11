@@ -5,6 +5,7 @@ import GirihPattern from './GirihPattern';
 import ThemeToggle from './ThemeToggle';
 import LanguageSwitcher from './LanguageSwitcher';
 import { useT } from '../i18n/LanguageContext';
+import BrandMark from './BrandMark';
 
 const FEATURES = [
   "Maqola yuborish va holatini kuzatish",
@@ -20,7 +21,7 @@ const AuthLayout: React.FC<{ children: React.ReactNode; title: string }> = ({ ch
       <aside className="milliy-auth-aside">
         <GirihPattern opacity={0.12} />
         <Link to="/" className="milliy-brand">
-          <span className="milliy-brand-mark" aria-hidden="true">P</span>
+          <BrandMark />
           <span className="flex flex-col">
             <span className="milliy-brand-title">Phoenix</span>
             <span className="milliy-brand-sub">{t('Ilmiy nashrlar markazi')}</span>
