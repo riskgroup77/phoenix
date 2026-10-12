@@ -273,6 +273,13 @@ const SubmitArticle: React.FC = () => {
       if (!formData.keywords.trim()) {
         newErrors.keywords = 'Kalit so\'zlarni kiriting';
       }
+    } else if (step === 4) {
+      // Ism yozilib ID/telefon/email bo'sh qolsa hammuallif jimgina tashlab yuborilardi
+      formData.coAuthors.forEach((c, i) => {
+        if (c.name.trim() && !c.identifier.trim()) {
+          newErrors[`coAuthor_${i}`] = "Hammuallifning telefon raqami, emaili yoki ID sini kiriting (yoki qatorni o'chiring)";
+        }
+      });
     }
 
     setErrors(newErrors);
@@ -396,6 +403,10 @@ const SubmitArticle: React.FC = () => {
       setCurrentStep(3);
       return;
     }
+    if (!validateStep(4)) {
+      setCurrentStep(4);
+      return;
+    }
 
     const selectedJournal = journals.find((j) => j.id === formData.journalId);
     const isPrePayment = (selectedJournal?.payment_model || 'pre-payment') === 'pre-payment';
@@ -502,16 +513,18 @@ const SubmitArticle: React.FC = () => {
   };
 
   const removeCoAuthor = (index: number) => {
-    setFormData({
-      ...formData,
-      coAuthors: formData.coAuthors.filter((_, i) => i !== index)
-    });
+    setFormData((prev) => ({ ...prev, coAuthors: prev.coAuthors.filter((_, i) => i !== index) }));
+    // qatorlar siljiydi — eski xato matnlari boshqa qatorga o'tib qolmasin
+    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !k.startsWith('coAuthor_'))));
   };
 
   const updateCoAuthor = (index: number, field: 'name' | 'identifier', value: string) => {
-    const updated = [...formData.coAuthors];
-    updated[index][field] = value;
-    setFormData({ ...formData, coAuthors: updated });
+    // obyektni joyida o'zgartirmaymiz (avval state mutatsiya qilinardi)
+    setFormData((prev) => ({
+      ...prev,
+      coAuthors: prev.coAuthors.map((c, i) => (i === index ? { ...c, [field]: value } : c)),
+    }));
+    setErrors((e) => ({ ...e, [`coAuthor_${index}`]: '' }));
   };
 
   return (
@@ -843,8 +856,11 @@ const SubmitArticle: React.FC = () => {
                     value={coAuthor.identifier}
                     onChange={(e) => updateCoAuthor(index, 'identifier', e.target.value)}
                     className="w-full px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500"
-                    placeholder="User ID yoki email yoki telefon"
+                    placeholder="Telefon (90 123 45 67), email yoki ID"
                   />
+                  {errors[`coAuthor_${index}`] && (
+                    <p className="mt-1 text-xs text-red-700">{errors[`coAuthor_${index}`]}</p>
+                  )}
                 </div>
                 <Button
                   onClick={() => removeCoAuthor(index)}
@@ -859,6 +875,9 @@ const SubmitArticle: React.FC = () => {
             <Button onClick={addCoAuthor} variant="secondary" className="w-full">
               + Hammuallif qo'shish
             </Button>
+            <p className="text-xs text-slate-500">
+              Hammuallif platformada ro'yxatdan o'tgan telefon raqami yoki emailini kiriting — maqola uning kabinetida ham ko'rinadi.
+            </p>
           </div>
         )}
 

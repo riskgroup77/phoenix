@@ -548,9 +548,26 @@ class ArticleSerializer(serializers.ModelSerializer):
         return items
 
 
+class JSONListOfDictsField(serializers.ListField):
+    """Fayl bilan yuborilganda (multipart) ro'yxat JSON satr bo'lib keladi: '[{"name": ..}]'.
+    Avval bu "Expected a dictionary ... got str" bilan rad etilardi — hammuallif qo'shilsa maqola yaratilmas edi."""
+
+    def to_internal_value(self, data):
+        if isinstance(data, list) and len(data) == 1 and isinstance(data[0], str):
+            data = data[0]
+        if isinstance(data, str):
+            if not data.strip():
+                return []
+            try:
+                data = json.loads(data)
+            except ValueError:
+                raise serializers.ValidationError("Hammualliflar ro'yxati noto'g'ri formatda.")
+        return super().to_internal_value(data)
+
+
 class CreateArticleSerializer(serializers.ModelSerializer):
     journal = JournalPKField(queryset=Journal.objects.all())
-    co_author_contacts = serializers.ListField(
+    co_author_contacts = JSONListOfDictsField(
         child=serializers.DictField(),
         required=False,
         allow_empty=True,
@@ -630,21 +647,31 @@ class CreateArticleSerializer(serializers.ModelSerializer):
         return normalized
 
     def _resolve_co_author_user(self, entry):
+        import uuid as uuid_module
+        from apps.users.phone_verification import normalize_phone
+
         identifier = entry.get('identifier', '')
         email = entry.get('email', '')
         phone = entry.get('phone', '')
 
         if identifier:
-            user_by_id = User.objects.filter(id=identifier).first()
+            # id=<telefon/email> UUID maydonida ValidationError (500) berardi — faqat haqiqiy UUID bo'yicha qidiramiz
+            try:
+                user_by_id = User.objects.filter(id=uuid_module.UUID(identifier)).first()
+            except ValueError:
+                user_by_id = None
             if user_by_id:
                 return user_by_id
             if '@' in identifier:
                 user_by_email = User.objects.filter(email__iexact=identifier).first()
                 if user_by_email:
                     return user_by_email
-            user_by_phone = User.objects.filter(phone=identifier).first()
-            if user_by_phone:
-                return user_by_phone
+            # "922222222", "+998 92 222 22 22" → 998922222222 (login bilan bir xil normallashtirish)
+            digits = normalize_phone(identifier)
+            if len(digits) >= 9:
+                user_by_phone = User.objects.filter(phone=digits).first()
+                if user_by_phone:
+                    return user_by_phone
 
         if email:
             user_by_email = User.objects.filter(email__iexact=email).first()
@@ -652,7 +679,7 @@ class CreateArticleSerializer(serializers.ModelSerializer):
                 return user_by_email
 
         if phone:
-            user_by_phone = User.objects.filter(phone=phone).first()
+            user_by_phone = User.objects.filter(phone=normalize_phone(phone)).first()
             if user_by_phone:
                 return user_by_phone
         return None
