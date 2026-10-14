@@ -444,6 +444,17 @@ GEMINI_API_KEY = (
 GEMINI_MODEL = (os.getenv('GEMINI_MODEL') or 'gemini-2.5-flash').strip()
 GEMINI_MAX_OUTPUT_TOKENS = int(os.getenv('GEMINI_MAX_OUTPUT_TOKENS', '8192'))
 GEMINI_PLAGIARISM_INPUT_CHARS = int(os.getenv('GEMINI_PLAGIARISM_INPUT_CHARS', '25000'))
+
+# Claude (Anthropic) — kalit faqat serverdagi backend/.env da (GitHubga yozmang).
+# Kalit bo'lsa barcha AI vazifalar (muallif AI yordamchisi, UDK aniqlash, antiplagiat tahlili) Claude orqali ishlaydi.
+ANTHROPIC_API_KEY = (os.getenv('ANTHROPIC_API_KEY') or '').strip()
+ANTHROPIC_MODEL = (os.getenv('ANTHROPIC_MODEL') or 'claude-opus-5-5').strip()
+# Fikrlash chuqurligi: low | medium | high | xhigh | max — yuqorisi aniqroq, lekin sekinroq va qimmatroq
+ANTHROPIC_EFFORT = (os.getenv('ANTHROPIC_EFFORT') or 'low').strip().lower()
+ANTHROPIC_MAX_TOKENS = int(os.getenv('ANTHROPIC_MAX_TOKENS', '16000'))
+ANTHROPIC_TIMEOUT = float(os.getenv('ANTHROPIC_TIMEOUT', '120'))
+# auto — ANTHROPIC_API_KEY bo'lsa Claude, bo'lmasa Gemini; anthropic | gemini — faqat shu provayder
+AI_PROVIDER = (os.getenv('AI_PROVIDER') or 'auto').strip().lower()
 # Antiplagiat: suniy intellektsiz algoritmik rejim (default). True bo'lsa Gemini ham qo'shiladi.
 ANTIPLAGIAT_USE_AI = os.getenv('ANTIPLAGIAT_USE_AI', 'false').lower() in ('1', 'true', 'yes', 'on')
 

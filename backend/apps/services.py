@@ -1,6 +1,7 @@
 """
-Gemini AI Service for Phoenix Scientific Platform
-Integrates with Google Gemini API for various AI tasks
+AI Service for Phoenix Scientific Platform.
+Barcha LLM chaqiruvlari GeminiService._generate_text orqali o'tadi: ANTHROPIC_API_KEY bo'lsa Claude,
+bo'lmasa Google Gemini (AI_PROVIDER bilan majburlash mumkin). Sinf nomi tarixiy — chaqiruvchilar o'zgarmaydi.
 """
 
 try:
@@ -23,6 +24,24 @@ import json
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Claude Opus 5.5 xavfsizlik klassifikatori so'rovni rad etsa, API o'zi tavsiya etilgan modelda qayta ishlaydi
+CLAUDE_FALLBACK_BETA = 'server-side-fallback-2026-07-01'
+CLAUDE_EFFORTS = ('low', 'medium', 'high', 'xhigh', 'max')
+
+
+def ai_provider() -> str | None:
+    """Faol LLM provayderi: 'anthropic', 'gemini' yoki None (kalit yo'q)."""
+    choice = (getattr(settings, 'AI_PROVIDER', 'auto') or 'auto').lower()
+    has_claude = bool((getattr(settings, 'ANTHROPIC_API_KEY', '') or '').strip())
+    has_gemini = bool((getattr(settings, 'GEMINI_API_KEY', '') or '').strip())
+    if choice == 'anthropic':
+        return 'anthropic' if has_claude else None
+    if choice == 'gemini':
+        return 'gemini' if has_gemini else None
+    if has_claude:
+        return 'anthropic'
+    return 'gemini' if has_gemini else None
 
 
 def _parse_json_from_llm_text(result_text: str):
@@ -159,29 +178,96 @@ def extract_plain_text_from_file(file_path: str) -> str:
 
 
 class GeminiService:
-    """Service for Gemini AI integration"""
-    
+    """AI xizmati: Claude (ANTHROPIC_API_KEY) yoki Gemini (GEMINI_API_KEY) — qarang ai_provider()."""
+
     def __init__(self):
+        self.provider = ai_provider()
         self.api_key = (getattr(settings, "GEMINI_API_KEY", "") or "").strip()
         self.model_name = (getattr(settings, "GEMINI_MODEL", None) or "gemini-2.5-flash").strip() or "gemini-2.5-flash"
         self.max_output_tokens = int(getattr(settings, "GEMINI_MAX_OUTPUT_TOKENS", 8192) or 8192)
         self.plagiarism_input_chars = int(getattr(settings, "GEMINI_PLAGIARISM_INPUT_CHARS", 12000) or 12000)
-        if not self.api_key:
-            logger.warning("GEMINI_API_KEY is not set; Gemini deep analysis will be skipped (heuristic-only)")
+        self.claude_model = (getattr(settings, "ANTHROPIC_MODEL", "") or "claude-opus-5-5").strip()
+        self._claude = None
+        if self.provider is None:
+            logger.warning("AI kaliti yo'q (ANTHROPIC_API_KEY / GEMINI_API_KEY) — AI tahlil o'tkazib yuboriladi (faqat heuristic)")
+        self.client = None
+        self.model = None
+        if self.provider != "gemini":
+            return
         if USE_NEW_GENAI:
-            self.client = genai.Client(api_key=self.api_key) if self.api_key else None
-            self.model = None
+            self.client = genai.Client(api_key=self.api_key)
         else:
-            self.client = None
-            if self.api_key:
-                genai.configure(api_key=self.api_key)
-                self.model = genai.GenerativeModel(self.model_name)
-            else:
-                self.model = None
+            genai.configure(api_key=self.api_key)
+            self.model = genai.GenerativeModel(self.model_name)
+
+    @property
+    def available(self) -> bool:
+        return self.provider is not None
+
+    @property
+    def active_model(self) -> str | None:
+        """Hisobotlarda ko'rsatiladigan model nomi."""
+        if self.provider == "anthropic":
+            return self.claude_model
+        return self.model_name if self.provider == "gemini" else None
+
+    def _claude_client(self):
+        if self._claude is None:
+            import anthropic
+
+            self._claude = anthropic.Anthropic(
+                api_key=settings.ANTHROPIC_API_KEY,
+                timeout=float(getattr(settings, "ANTHROPIC_TIMEOUT", 120)),
+                max_retries=2,
+            )
+        return self._claude
+
+    def _claude_text(self, prompt: str) -> str | None:
+        """Claude Messages API — bitta foydalanuvchi xabari, javob matni (yoki None)."""
+        import anthropic
+
+        effort = (getattr(settings, "ANTHROPIC_EFFORT", "low") or "low").lower()
+        if effort not in CLAUDE_EFFORTS:
+            effort = "low"
+        try:
+            response = self._claude_client().beta.messages.create(
+                model=self.claude_model,
+                max_tokens=int(getattr(settings, "ANTHROPIC_MAX_TOKENS", 16000)),
+                betas=[CLAUDE_FALLBACK_BETA],
+                fallbacks="default",
+                output_config={"effort": effort},
+                messages=[{"role": "user", "content": prompt}],
+            )
+        except anthropic.AuthenticationError:
+            logger.error("Claude: ANTHROPIC_API_KEY yaroqsiz yoki o'chirilgan")
+            return None
+        except anthropic.PermissionDeniedError as e:
+            logger.error("Claude: kalitga ruxsat yo'q (%s)", e.message)
+            return None
+        except anthropic.RateLimitError:
+            logger.warning("Claude: so'rovlar limiti (429) — keyinroq qayta urinib ko'ring")
+            return None
+        except anthropic.APIStatusError as e:
+            logger.error("Claude API xatosi %s: %s (request_id=%s)", e.status_code, e.message, e.response.headers.get("request-id"))
+            return None
+        except anthropic.APIConnectionError as e:
+            logger.error("Claude: ulanib bo'lmadi (%s)", e)
+            return None
+
+        if response.stop_reason == "refusal":
+            category = getattr(response.stop_details, "category", None) if response.stop_details else None
+            logger.warning("Claude so'rovni rad etdi (category=%s, request_id=%s)", category, response._request_id)
+            return None
+        if response.stop_reason == "max_tokens":
+            logger.warning("Claude javobi ANTHROPIC_MAX_TOKENS da kesildi (request_id=%s)", response._request_id)
+        text = "".join(block.text for block in response.content if block.type == "text").strip()
+        return text or None
 
     def _generate_text(self, prompt: str) -> str | None:
-        """Bitta LLM chaqiruvi — ikkala SDK uchun."""
-        if not self.api_key:
+        """Bitta LLM chaqiruvi — Claude yoki Gemini (ikkala Gemini SDK uchun)."""
+        if self.provider == "anthropic":
+            return self._claude_text(prompt)
+        if self.provider != "gemini":
             return None
         try:
             if USE_NEW_GENAI:
@@ -565,7 +651,7 @@ class GeminiService:
 
     def _gemini_deep_analysis(self, text, sections):
         """Run deep Gemini AI analysis with professional prompt."""
-        if not self.api_key:
+        if not self.available:
             return None
         lim = max(4000, min(int(self.plagiarism_input_chars), 100_000))
         sample = (text or '')[:lim]
@@ -677,7 +763,7 @@ IMPORTANT: For "sources", do a deep analysis: identify specific phrases or sente
                 })
             confidence = 85
             analysis_mode = 'hybrid'
-            llm_model = self.model_name
+            llm_model = self.active_model
             disclaimer_uz = (
                 'Natija lokal heuristic va LLM (Gemini) tahlili aralashmasi; rasmiy plagiat/AI qidiruvi o‘rnini bosmaydi. '
                 'Yakuniy qaror inson eksperti uchun yo‘riqnoma sifatida qabul qilinsin.'
@@ -701,8 +787,8 @@ IMPORTANT: For "sources", do a deep analysis: identify specific phrases or sente
             analysis_mode = 'heuristic_only'
             llm_model = None
             disclaimer_uz = (
-                'GEMINI_API_KEY yo‘q yoki LLM javob bermadi — faqat lokal heuristic tahlil ishlatildi. '
-                'Aniqroq baho uchun serverda Gemini kalitini sozlang.'
+                'AI kaliti (ANTHROPIC_API_KEY / GEMINI_API_KEY) yo‘q yoki LLM javob bermadi — faqat lokal heuristic '
+                'tahlil ishlatildi. Aniqroq baho uchun serverda AI kalitini sozlang.'
             )
 
         plag = max(0, min(100, plag))

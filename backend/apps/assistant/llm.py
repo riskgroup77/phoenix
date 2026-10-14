@@ -49,7 +49,9 @@ article_sample: language(O'zbek|Rus|Ingliz), articleType(Maqola|Tezis), topic, p
 def llm_enabled() -> bool:
     if not getattr(settings, 'ASSISTANT_LLM_ENABLED', True):
         return False
-    return bool((getattr(settings, 'GEMINI_API_KEY', '') or '').strip())
+    from apps.services import ai_provider
+
+    return ai_provider() is not None
 
 
 def _quota_ok(user) -> bool:

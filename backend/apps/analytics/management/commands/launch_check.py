@@ -42,6 +42,7 @@ class Command(BaseCommand):
             self.check_monitoring,
             self.check_phone_verification,
             self.check_payments,
+            self.check_ai,
             self.check_legal,
             self.check_antiplag_vectors,
             self.check_data_location,
@@ -125,6 +126,18 @@ class Command(BaseCommand):
             self.add(FAIL, 'Sizib chiqqan kalit', f'{k} — ochiq GitHub tarixidagi qiymat hali ishlatilmoqda', fixes[k])
         if not leaked:
             self.add(OK, 'Sizib chiqqan kalitlar', 'Click, Gemini, DB paroli, bot tokeni — ochiq tarixdagilardan farqli')
+
+    def check_ai(self):
+        from apps.services import ai_provider
+
+        provider = ai_provider()
+        if provider == 'anthropic':
+            self.add(OK, 'AI (LLM)', f"Claude — {settings.ANTHROPIC_MODEL}, effort={settings.ANTHROPIC_EFFORT}")
+        elif provider == 'gemini':
+            self.add(OK, 'AI (LLM)', f"Gemini — {settings.GEMINI_MODEL}")
+        else:
+            self.add(WARN, 'AI (LLM)', "Kalit yo'q — AI yordamchi faqat qoidalar bilan, antiplagiat/UDK AI tahlilisiz ishlaydi",
+                     '.env: ANTHROPIC_API_KEY=... (Claude) yoki GEMINI_API_KEY=..., keyin backendni qayta ishga tushiring')
 
     def check_https_cookies(self):
         if settings.DEBUG:

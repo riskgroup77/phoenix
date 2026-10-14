@@ -86,6 +86,7 @@ serverdagi joriy kalit sizib chiqqanlardan biri bo'lsa FAIL beradi (`config/leak
 
 - [ ] Click secret key (Click merchant kabineti → server `.env`)
 - [ ] Gemini API kalitlari (Google AI Studio / Cloud Console — eskisini o'chiring)
+- [ ] Claude API kaliti (console.anthropic.com → API Keys) — chatga, kodga yoki git'ga tushgan bo'lsa o'chirib, yangisini yarating
 - [ ] PostgreSQL paroli (`ALTER USER phoenix WITH PASSWORD '...'` + `.env` dagi `DB_PASSWORD`)
 - [ ] **Telegram bot tokeni** (@BotFather → `/revoke`, yangi token `.env` ga)
 - [ ] **Django `SECRET_KEY`** (barcha sessiyalar va imzoli havolalar bekor bo'ladi — bu kerakli)
@@ -262,7 +263,24 @@ Muallif kirgach AI ish maydoniga tushadi (`Klassik ko'rinish` tugmasi eski panel
   to'ldiradi; narx, to'lov va tekshiruvlar odatdagi sahifa/API orqali, muallif tasdiqlaganda bajariladi.
 - **Fayl**: chatga tashlangan fayl serverda saqlanmaydi — matni o'qiladi (sarlavha, annotatsiya, kalit so'zlar, so'zlar soni) va o'chiriladi;
   asl fayl brauzerdan formaga beriladi.
-- **Tushunish**: bepul qoidalar (uz lotin/kirill, ru, en). Gemini (`GEMINI_API_KEY`) bo'lsa faqat qoidalar tushunmagan yoki erkin matndan
+- **Tushunish**: bepul qoidalar (uz lotin/kirill, ru, en). AI kaliti (Claude `ANTHROPIC_API_KEY` yoki Gemini `GEMINI_API_KEY`) bo'lsa faqat qoidalar tushunmagan yoki erkin matndan
   maydon olish kerak bo'lganda chaqiriladi; `ASSISTANT_LLM_ENABLED=false` bilan o'chiriladi, `ASSISTANT_LLM_DAILY_LIMIT` (standart 60) —
   bitta muallif uchun kunlik chaqiruvlar.
 - `SUPPORT_PHONE`, `SUPPORT_EMAIL` — yordamchi operator haqida so'ralganda ko'rsatadigan kontaktlar.
+
+## 13. Claude API (AI provayderi)
+Barcha AI chaqiruvlari bitta joydan o'tadi (`apps/services.py` → `GeminiService._generate_text`): muallif AI yordamchisi,
+UDK kodini aniqlash, annotatsiya/kalit so'zlar va (`ANTIPLAGIAT_USE_AI=true` bo'lsa) antiplagiat AI tahlili.
+`ANTHROPIC_API_KEY` bo'lsa Claude ishlatiladi, bo'lmasa Gemini; `AI_PROVIDER=anthropic|gemini` bilan majburlash mumkin.
+
+Kalitni ulash (serverda):
+```bash
+nano /phonix/backend/.env          # ANTHROPIC_API_KEY=sk-ant-... qatorini qo'shing (qo'shtirnoqsiz)
+sudo systemctl restart phoenix-backend phoenix-celery
+cd /phonix/backend && venv/bin/python manage.py check_ai   # haqiqiy so'rov bilan tekshiradi
+```
+- `ANTHROPIC_MODEL` (standart `claude-opus-5-5`), `ANTHROPIC_EFFORT` (standart `low`: `low|medium|high|xhigh|max`),
+  `ANTHROPIC_MAX_TOKENS` (16000), `ANTHROPIC_TIMEOUT` (120 s).
+- Xavfsizlik klassifikatori so'rovni rad etsa, API uni o'zi tavsiya etilgan modelda qayta ishlaydi (`fallbacks: "default"`).
+- Xarajat: Claude Opus 5.5 — 1M kiruvchi token $4, 1M chiquvchi $20. Muallif yordamchisi uchun kunlik limit `ASSISTANT_LLM_DAILY_LIMIT`.
+- Xatolar: `journalctl -u phoenix-backend | grep Claude` (yaroqsiz kalit, 429 limit, ulanish).

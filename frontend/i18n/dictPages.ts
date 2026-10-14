@@ -133,7 +133,7 @@ export const PAGE_ROWS: [string, string, string][] = [
   ["Bu belgilar olib tashlanib, tekshiruv asl (ko'rinadigan) matn bo'yicha o'tkazildi.", "Эти символы удалены, проверка проведена по исходному (видимому) тексту.", "These characters were removed and the check was run on the original (visible) text."],
   ["Adabiyotlar ro'yxati ({excluded_bibliography_chars} belgi) tekshiruvdan va foiz hisobidan chiqarildi.", "Список литературы ({excluded_bibliography_chars} символов) исключён из проверки и расчёта процента.", "The bibliography ({excluded_bibliography_chars} characters) was excluded from the check and the percentage."],
   ["Tahlil rejimi:", "Режим анализа:", "Analysis mode:"],
-  ["lokal heuristic + Gemini (LLM)", "локальная эвристика + Gemini (LLM)", "local heuristics + Gemini (LLM)"],
+  ["lokal heuristic + AI (LLM)", "локальная эвристика + ИИ (LLM)", "local heuristics + AI (LLM)"],
   ["faqat lokal heuristic (API kaliti yo‘q yoki LLM xato)", "только локальная эвристика (нет API-ключа или ошибка LLM)", "local heuristics only (no API key or LLM error)"],
   ["matn yetarli emas", "недостаточно текста", "not enough text"],
   ["Plagiat", "Плагиат", "Plagiarism"],

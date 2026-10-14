@@ -36,6 +36,8 @@ opensearch-py>=2.4.0,<3.0.0
 sentence-transformers>=3.0.0,<4.0.0
 # google-generativeai qo'llab-quvvatlanmaydi — yangi SDK (apps/services.py ikkalasini ham qo'llaydi)
 google-genai>=1.0.0,<2.0.0
+# Claude (Anthropic) — ANTHROPIC_API_KEY bo'lsa barcha AI vazifalar shu orqali (apps/services.py)
+anthropic>=1.13.0,<2.0.0
 zeep>=4.3.0,<5.0.0
 
 # Validation

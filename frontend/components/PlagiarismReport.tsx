@@ -265,7 +265,7 @@ const PlagiarismReport: React.FC<Props> = ({ plagiarismPercentage, aiContentPerc
             <p className="text-xs text-amber-950 mb-2 font-medium">
               {t('Tahlil rejimi:')}{' '}
               {report.analysis_mode === 'hybrid'
-                ? t('lokal heuristic + Gemini (LLM)')
+                ? t('lokal heuristic + AI (LLM)')
                 : report.analysis_mode === 'heuristic_only'
                   ? t('faqat lokal heuristic (API kaliti yo‘q yoki LLM xato)')
                   : report.analysis_mode === 'insufficient_text'
