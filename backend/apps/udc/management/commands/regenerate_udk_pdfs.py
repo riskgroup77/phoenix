@@ -1,9 +1,10 @@
 """
-PDF'siz qolgan UDK ma'lumotnomalari uchun PDF yaratish.
+UDK ma'lumotnomalari uchun PDF yaratish.
 (Oldin udk_request_complete xatosi tufayli UDK so'rovlari PDF'siz yakunlangan.)
 
-    python manage.py regenerate_udk_pdfs           # nechta ekanini ko'rsatadi
-    python manage.py regenerate_udk_pdfs --apply   # PDF'larni yaratadi
+    python manage.py regenerate_udk_pdfs                 # PDF'siz nechta ekanini ko'rsatadi
+    python manage.py regenerate_udk_pdfs --apply         # PDF'siz qolganlarini yaratadi
+    python manage.py regenerate_udk_pdfs --all --apply   # hammasini yangi dizaynda qayta yaratadi
 """
 from django.core.management.base import BaseCommand
 from django.db.models import Q
@@ -13,19 +14,24 @@ from apps.udc.pdf_generator import save_certificate_pdf
 
 
 class Command(BaseCommand):
-    help = "PDF fayli yo'q UDK ma'lumotnomalari uchun PDF yaratadi."
+    help = "UDK ma'lumotnomalari uchun PDF yaratadi (standart: faqat PDF'siz qolganlar)."
 
     def add_arguments(self, parser):
         parser.add_argument('--apply', action='store_true')
+        parser.add_argument('--all', action='store_true', help="Mavjud PDF'larni ham qayta yaratish (yangi shablon)")
 
     def handle(self, *args, **options):
-        missing = UDKCertificate.objects.filter(Q(certificate_path='') | Q(certificate_path__isnull=True))
-        self.stdout.write(f"PDF'siz ma'lumotnomalar: {missing.count()} ta")
+        if options['all']:
+            qs = UDKCertificate.objects.all()
+            self.stdout.write(f"Barcha ma'lumotnomalar: {qs.count()} ta")
+        else:
+            qs = UDKCertificate.objects.filter(Q(certificate_path='') | Q(certificate_path__isnull=True))
+            self.stdout.write(f"PDF'siz ma'lumotnomalar: {qs.count()} ta")
         if not options['apply']:
-            self.stdout.write("Yaratish uchun: python manage.py regenerate_udk_pdfs --apply")
+            self.stdout.write("Yaratish uchun: python manage.py regenerate_udk_pdfs [--all] --apply")
             return
         ok = failed = 0
-        for cert in missing.select_related('user'):
+        for cert in qs.select_related('user'):
             try:
                 save_certificate_pdf(cert)
                 ok += 1

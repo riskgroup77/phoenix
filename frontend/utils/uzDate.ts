@@ -16,6 +16,15 @@ export function formatUzDate(value?: string | number | Date | null, withYear = f
   return withYear ? `${base}, ${d.getFullYear()}` : base;
 }
 
+/** "14.10.2026" — hujjatlardagi sana (backend PDF bilan bir xil format) */
+export function formatDocDate(value?: string | number | Date | null): string {
+  if (value === null || value === undefined || value === '') return '';
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+}
+
 /** "11-oktabr, 2026 21:59" — brauzer locale'iga bog'liq bo'lmagan sana va vaqt */
 export function formatUzDateTime(value?: string | number | Date | null): string {
   const date = formatUzDate(value, true);

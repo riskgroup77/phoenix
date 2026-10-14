@@ -1,145 +1,112 @@
 """
-UDK HAQIDA MA'LUMOTNOMA — 2-rasmadagi professional dizayn:
-fon rang, burchaklarda diagonal shakllar, ikki rangli sarlavha, vertikal chiziq, QR tasdiqlash.
+UDK HAQIDA MA'LUMOTNOMA — asl dizayn (assets/udk_template/udk_malumotnoma.jpg) ustiga qiymatlar yoziladi.
+Koordinatalar: assets/udk_template/layout.json (frontend/constants/udkTemplateLayout.ts bilan sinxron).
 """
+from __future__ import annotations
+
+import json
 import logging
-import os
-import tempfile
-from io import BytesIO
 from datetime import date
-from django.conf import settings
+from functools import lru_cache
+from io import BytesIO
+from pathlib import Path
+from typing import Any
+
+from apps.articles.antiplagiat_template_render import _fit_pixels, _font, _hex_to_rgb, _text_w, _wrap_pixels
 
 logger = logging.getLogger(__name__)
 
-COLOR_DARK = '#1a365d'
-COLOR_MID = '#2c5282'
-COLOR_TEAL = '#0d9488'
-COLOR_LIGHT_TEAL = '#5eead4'
-COLOR_LIGHT = '#e0f2f1'
-COLOR_BG = '#f1f5f9'
-COLOR_TEXT = '#1e293b'
+ASSETS_DIR = Path(__file__).resolve().parent.parent.parent / 'assets' / 'udk_template'
+# Shablon 2000px — matn chop etishda tiniq chiqishi uchun 2 barobar kattalikda chiziladi
+RENDER_SCALE = 2
 
 
-def _make_qr_image(verification_url: str, size_mm: float = 26):
-    """QR kod PNG — vaqtincha faylga yoziladi. Returns (path, cleanup_func) yoki (None, None)."""
-    try:
-        import qrcode
-        qr = qrcode.QRCode(version=1, box_size=5, border=2)
-        qr.add_data(verification_url)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color='black', back_color='white')
-        fd, path = tempfile.mkstemp(suffix='.png')
-        try:
-            img.save(path, format='PNG')
-            return path, (lambda: os.unlink(path) if os.path.isfile(path) else None)
-        except Exception:
-            os.unlink(path)
-            return None, None
-    except Exception as e:
-        logger.warning("QR code generation failed: %s", e)
-        return None, None
+@lru_cache(maxsize=1)
+def _layout() -> dict[str, Any]:
+    return json.loads((ASSETS_DIR / 'layout.json').read_text(encoding='utf-8'))
 
 
-def _draw_reference_design(canvas, doc):
-    """Referens: fon, yuqori o'ng/pastki chap diagonal shakllar, emblem, dafna, Phoenix logo, vertikal chiziq."""
-    from reportlab.lib.units import mm
-    from reportlab.lib.pagesizes import landscape, A4
-    from reportlab.lib import colors
+def _draw_value(draw, text: str, spec: dict[str, Any], s: float) -> None:
+    text = ' '.join(str(text or '').split())
+    if not text:
+        return
+    x, y = spec['x'] * s, spec['y'] * s
+    max_w = int(spec['max_width'] * s)
+    color = _hex_to_rgb(spec['color'])
+    bold = bool(spec.get('bold'))
 
-    pw, ph = landscape(A4)
-    m = 18 * mm
-    dark = colors.HexColor(COLOR_DARK)
-    teal = colors.HexColor(COLOR_TEAL)
-    light_teal = colors.HexColor(COLOR_LIGHT_TEAL)
-    light = colors.HexColor(COLOR_LIGHT)
-    bg = colors.HexColor(COLOR_BG)
+    if spec.get('multiline'):
+        font = _font(int(spec['size'] * s), bold=bold)
+        lines = _wrap_pixels(draw, text, font, max_w)
+        max_lines = int(spec.get('max_lines') or 3)
+        if len(lines) > max_lines:
+            lines = lines[:max_lines]
+            lines[-1] = _fit_pixels(draw, lines[-1] + ' …', font, max_w)
+        for i, line in enumerate(lines):
+            draw.text((x, y + i * spec['line_height'] * s), line, fill=color, font=font, anchor='ls')
+        return
 
-    canvas.saveState()
-    # 1. Butun sahifa yengil kulrang fon
-    canvas.setFillColor(bg)
-    canvas.rect(0, 0, pw, ph, fill=1, stroke=0)
+    # Bir qator: avval min_size gacha kichraytiramiz (yorliqlar oralig'i 50px — qatorlar ustma-ust tushmasin)
+    size = int(spec['size'] * s)
+    min_size = int(spec.get('min_size', spec['size'] * 0.8) * s)
+    font = _font(size, bold=bold)
+    while size > min_size and _text_w(draw, text, font) > max_w:
+        size -= 2
+        font = _font(size, bold=bold)
+    wrap = spec.get('wrap')
+    if _text_w(draw, text, font) <= max_w or not wrap:
+        draw.text((x, y), _fit_pixels(draw, text, font, max_w), fill=color, font=font, anchor='ls')
+        return
 
-    # 2. Yuqori o'ng burchak: diagonal paralellogramlar (bir nechta qatlam)
-    canvas.setFillColor(light)
-    canvas.translate(pw - 52 * mm, ph - 22 * mm)
-    canvas.rotate(-22)
-    canvas.rect(0, 0, 38 * mm, 14 * mm, fill=1, stroke=0)
-    canvas.rotate(22)
-    canvas.translate(-(pw - 52 * mm), -(ph - 22 * mm))
-    canvas.setFillColor(teal)
-    canvas.translate(pw - 45 * mm, ph - 30 * mm)
-    canvas.rotate(-18)
-    canvas.rect(0, 0, 32 * mm, 11 * mm, fill=1, stroke=0)
-    canvas.rotate(18)
-    canvas.translate(-(pw - 45 * mm), -(ph - 30 * mm))
-    canvas.setFillColor(dark)
-    canvas.translate(pw - 38 * mm, ph - 38 * mm)
-    canvas.rotate(-14)
-    canvas.rect(0, 0, 26 * mm, 9 * mm, fill=1, stroke=0)
-    canvas.rotate(14)
-    canvas.translate(-(pw - 38 * mm), -(ph - 38 * mm))
+    # Uzun ish nomi: ikki qatorga sig'guncha shrift kichrayadi; oxirgi qator — yorliq qatori atrofida
+    max_lines = wrap['max_lines']
+    for wrap_size in wrap['sizes']:
+        font = _font(int(wrap_size * s), bold=bold)
+        all_lines = _wrap_pixels(draw, text, font, max_w)
+        if len(all_lines) <= max_lines:
+            break
+    lines = all_lines[:max_lines]
+    if len(all_lines) > max_lines:
+        lines[-1] = _fit_pixels(draw, lines[-1] + ' …', font, max_w)
+    if len(lines) == 1:
+        draw.text((x, y), lines[0], fill=color, font=font, anchor='ls')
+        return
+    line_h = wrap_size * 1.15
+    for i, line in enumerate(lines):
+        ly = wrap['last_y'] - (len(lines) - 1 - i) * line_h
+        draw.text((x, ly * s), line, fill=color, font=font, anchor='ls')
 
-    # 3. Pastki chap burchak: diagonal shakllar
-    canvas.setFillColor(light_teal)
-    canvas.translate(12 * mm, 20 * mm)
-    canvas.rotate(28)
-    canvas.rect(0, 0, 42 * mm, 15 * mm, fill=1, stroke=0)
-    canvas.rotate(-28)
-    canvas.translate(-12 * mm, -20 * mm)
-    canvas.setFillColor(teal)
-    canvas.translate(20 * mm, 28 * mm)
-    canvas.rotate(22)
-    canvas.rect(0, 0, 35 * mm, 12 * mm, fill=1, stroke=0)
-    canvas.rotate(-22)
-    canvas.translate(-20 * mm, -28 * mm)
-    canvas.setFillColor(light)
-    canvas.translate(28 * mm, 36 * mm)
-    canvas.rotate(16)
-    canvas.rect(0, 0, 28 * mm, 10 * mm, fill=1, stroke=0)
-    canvas.rotate(-16)
-    canvas.translate(-28 * mm, -36 * mm)
 
-    # 4. Yuqori o'ng: dumaloq emblem (halqalar + qush silueti)
-    cx, cy = pw - 28 * mm, ph - 28 * mm
-    canvas.setFillColor(light_teal)
-    canvas.setStrokeColor(teal)
-    canvas.setLineWidth(0.5)
-    canvas.circle(cx, cy, 14 * mm, fill=1, stroke=1)
-    canvas.setFillColor(teal)
-    canvas.circle(cx, cy, 11 * mm, fill=1, stroke=0)
-    canvas.setFillColor(light_teal)
-    canvas.circle(cx, cy, 8 * mm, fill=1, stroke=0)
-    # Qush: bosh (ellips) + tanasi (ellips) — teal fon ustida
-    canvas.setFillColor(colors.HexColor('#0d9488'))
-    canvas.saveState()
-    canvas.translate(cx, cy)
-    canvas.rotate(-25)
-    canvas.ellipse(-4 * mm, -2.5 * mm, 4 * mm, 2.5 * mm, fill=1, stroke=0)
-    canvas.ellipse(-6 * mm, -3 * mm, 2 * mm, 3 * mm, fill=1, stroke=0)
-    canvas.restoreState()
+def _paste_qr(img, verification_url: str, spec: dict[str, Any], s: float) -> None:
+    import qrcode
+    from PIL import Image
 
-    # 5. Pastki chap: dafna gulchambar (teal yoylar)
-    canvas.setStrokeColor(teal)
-    canvas.setLineWidth(2.5)
-    canvas.setFillColor(colors.white)
-    lx, ly = 32 * mm, 38 * mm
-    canvas.ellipse(lx - 14 * mm, ly - 9 * mm, lx + 14 * mm, ly + 9 * mm, fill=0, stroke=1)
-    canvas.ellipse(lx - 10 * mm, ly - 11 * mm, lx + 10 * mm, ly + 11 * mm, fill=0, stroke=1)
+    qr = qrcode.QRCode(box_size=10, border=1)
+    qr.add_data(verification_url)
+    qr.make(fit=True)
+    side = int(spec['size'] * s)
+    # NEAREST — QR kataklari xira bo'lmasin (skanerlash ishonchli)
+    qr_img = qr.make_image(fill_color='#17306f', back_color='white').convert('RGB').resize(
+        (side, side), Image.Resampling.NEAREST
+    )
+    img.paste(qr_img, (int(spec['center_x'] * s - side / 2), int(spec['center_y'] * s - side / 2)))
 
-    # 6. Pastki o'r: Phoenix logo (teal qush silueti)
-    px, py = pw / 2, 32 * mm
-    canvas.setFillColor(teal)
-    canvas.translate(px, py)
-    canvas.ellipse(-6 * mm, -4 * mm, 6 * mm, 4 * mm, fill=1, stroke=0)
-    canvas.ellipse(-8 * mm, -2 * mm, 0, 4 * mm, fill=1, stroke=0)
-    canvas.ellipse(0, -2 * mm, 8 * mm, 4 * mm, fill=1, stroke=0)
-    canvas.translate(-px, -py)
 
-    # 7. Kontent zonasida vertikal teal chiziq
-    canvas.setStrokeColor(teal)
-    canvas.setLineWidth(1.5)
-    canvas.line(m + 26 * mm, 55 * mm, m + 26 * mm, ph - 50 * mm)
-    canvas.restoreState()
+def render_udk_certificate(values: dict[str, str], verification_url: str = '', scale: float = RENDER_SCALE):
+    """Shablon + qiymatlar → PIL rasm (RGB)."""
+    from PIL import Image, ImageDraw
+
+    layout = _layout()
+    w, h = layout['size']
+    img = Image.open(ASSETS_DIR / layout['image']).convert('RGB')
+    if scale != 1:
+        img = img.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
+    draw = ImageDraw.Draw(img)
+    for key, spec in layout['fields'].items():
+        _draw_value(draw, values.get(key, ''), spec, scale)
+    if verification_url:
+        _paste_qr(img, verification_url, layout['qr'], scale)
+    return img
 
 
 def generate_udk_certificate_pdf(
@@ -151,176 +118,45 @@ def generate_udk_certificate_pdf(
     document_date: str = None,
     verification_url: str = '',
 ) -> BytesIO:
-    """UDK HAQIDA MA'LUMOTNOMA — 2-rasmadagi dizayn."""
-    try:
-        from reportlab.lib.pagesizes import A4, landscape
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import mm
-        from reportlab.platypus import (
-            SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-            Image as RLImage,
-        )
-        from reportlab.lib import colors
-    except ImportError as e:
-        logger.error("reportlab not installed: %s", e)
-        raise RuntimeError("reportlab is required for UDK certificate generation")
+    """UDK HAQIDA MA'LUMOTNOMA — A4 albom PDF (to'liq sahifa shablon)."""
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfgen import canvas
 
-    if not document_date:
-        document_date = date.today().strftime('%d.%m.%Y')
+    img = render_udk_certificate(
+        {
+            'document_number': document_number or '—',
+            'document_date': document_date or date.today().strftime('%d.%m.%Y'),
+            'author': author_name or '—',
+            'title': article_title or '—',
+            'udk_code': udk_code or '—',
+            'udk_description': udk_description or '',
+        },
+        verification_url=verification_url or 'https://ilmiyfaoliyat.uz',
+    )
+    jpeg = BytesIO()
+    img.save(jpeg, format='JPEG', quality=90, optimize=True)
+    jpeg.seek(0)
+
     buffer = BytesIO()
-    margin = 18 * mm
     pw, ph = landscape(A4)
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=landscape(A4),
-        rightMargin=margin,
-        leftMargin=margin,
-        topMargin=16 * mm,
-        bottomMargin=16 * mm,
-    )
-    styles = getSampleStyleSheet()
-    dark = colors.HexColor(COLOR_DARK)
-    teal = colors.HexColor(COLOR_TEAL)
-    mid = colors.HexColor(COLOR_MID)
-    text = colors.HexColor(COLOR_TEXT)
-
-    # Label — teal (2-rasmadagi chap ustun rangi)
-    label_style = ParagraphStyle(
-        name='Label', parent=styles['Normal'], fontSize=10, textColor=teal,
-        fontName='Helvetica-Bold', spaceAfter=2,
-    )
-    value_style = ParagraphStyle(
-        name='Value', parent=styles['Normal'], fontSize=10, textColor=text,
-        spaceAfter=6, leftIndent=0,
-    )
-    # Sarlavha: "UDK HAQIDA" teal, "MA'LUMOTNOMA" qora ko'k
-    title_teal = ParagraphStyle(
-        name='TitleTeal', parent=styles['Heading1'], fontSize=16, textColor=teal,
-        fontName='Helvetica-Bold', alignment=1, spaceAfter=0,
-    )
-    title_dark = ParagraphStyle(
-        name='TitleDark', parent=styles['Heading1'], fontSize=16, textColor=dark,
-        fontName='Helvetica-Bold', alignment=1, spaceAfter=10 * mm,
-    )
-    small_style = ParagraphStyle(
-        name='Small', parent=styles['Normal'], fontSize=8, textColor=mid, alignment=0,
-    )
-
-    story = []
-
-    # Yuqori teal chiziq (2-rasmadagi yuqori band)
-    band = Table(
-        [[Paragraph('', ParagraphStyle('E', parent=styles['Normal'], fontSize=1))]],
-        colWidths=[pw - 2 * margin],
-        rowHeights=[5 * mm],
-    )
-    band.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), teal),
-        ('BOX', (0, 0), (-1, -1), 0, colors.white),
-    ]))
-    story.append(band)
-    story.append(Spacer(1, 5 * mm))
-
-    # HUJJAT RAQAMI (chap), HUJJAT SANASI (o'ng) — qora ko'k
-    header_style = ParagraphStyle('Header', parent=styles['Normal'], fontSize=9, textColor=dark, fontName='Helvetica-Bold')
-    header_row = [
-        Paragraph(f'HUJJAT RAQAMI: {document_number or "—"}', header_style),
-        Paragraph(f'HUJJAT SANASI: {document_date}', header_style),
-    ]
-    t_header = Table([header_row], colWidths=[85 * mm, 85 * mm])
-    t_header.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
-    ]))
-    story.append(t_header)
-    story.append(Spacer(1, 6 * mm))
-
-    # Ikki rangli sarlavha: UDK HAQIDA (teal) + MA'LUMOTNOMA (qora ko'k)
-    story.append(Paragraph("UDK HAQIDA", title_teal))
-    story.append(Paragraph("MA'LUMOTNOMA", title_dark))
-
-    # Asosiy kontent: chapda label (teal), o'ngda qiymat; vertikal chiziq canvas da
-    web_site = getattr(settings, 'FRONTEND_BASE_URL', 'https://ilmiyfaoliyat.uz').replace('http://', '').replace('https://', '').rstrip('/') or 'www.ilmiyfaoliyat.uz'
-    udk_desc_text = (udk_description or '').strip().replace('&', '&amp;')[:220]
-    if not udk_desc_text:
-        udk_desc_text = '—'
-    rows = [
-        [Paragraph('MUALLIF', label_style), Paragraph((author_name or '—').replace('&', '&amp;'), value_style)],
-        [Paragraph('ISH NOMI', label_style), Paragraph((article_title or '—').replace('&', '&amp;')[:200], value_style)],
-        [Paragraph('UDK RAQAMI', label_style), Paragraph(f'<b>{udk_code or "—"}</b>', value_style)],
-        [Paragraph('', label_style), Paragraph(udk_desc_text, small_style)],
-        [Paragraph('WEB-SAYT', label_style), Paragraph(web_site, value_style)],
-    ]
-    t_content = Table(rows, colWidths=[26 * mm, 98 * mm])
-    t_content.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('LEFTPADDING', (0, 0), (0, -1), 0),
-        ('RIGHTPADDING', (0, 0), (0, -1), 8),
-        ('LINEAFTER', (0, 0), (0, -1), 2, teal),
-        ('TOPPADDING', (1, 3), (1, 3), 2),
-    ]))
-    story.append(t_content)
-    story.append(Spacer(1, 12 * mm))
-
-    # Pastki qism: chapda "dafna" emblem (teal doira), QR, matn; o'ngda Phoenix Nashriyoti
-    qr_cleanup = None
-    qr_path, qr_cleanup = _make_qr_image(verification_url or 'https://ilmiyfaoliyat.uz')
-    qr_flowable = None
-    if qr_path and os.path.isfile(qr_path):
-        try:
-            qr_flowable = RLImage(qr_path, width=24 * mm, height=24 * mm)
-        except Exception as e:
-            logger.warning("QR Image load failed: %s", e)
-    if qr_flowable is None:
-        qr_flowable = Paragraph('<i>QR</i>', small_style)
-
-    verify_text = Paragraph(
-        '<b>TEKSHIRISH UCHUN QR KODDAN FOYDALANING</b><br/>'
-        '<font size="8">Ma\'lumotnoma haqiqiyligini tekshirish uchun telefon yoki planshetda QR kodni skanerlang.</font>',
-        ParagraphStyle(name='V', parent=small_style, fontSize=9, textColor=teal, alignment=0),
-    )
-    t_footer = Table(
-        [
-            [qr_flowable, verify_text, Paragraph('Phoenix<br/><font size="9" color="#0d9488">NASHRIYOTI</font>', ParagraphStyle('P', parent=small_style, alignment=1))],
-        ],
-        colWidths=[24 * mm, 75 * mm, 45 * mm],
-        rowHeights=[28 * mm],
-    )
-    t_footer.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (0, 0), (0, 0), 'CENTER'),
-        ('ALIGN', (2, 0), (2, 0), 'CENTER'),
-        ('LEFTPADDING', (1, 0), (1, 0), 10),
-    ]))
-    story.append(t_footer)
-    story.append(Spacer(1, 8 * mm))
-
-    story.append(Paragraph(
-        "Ushbu ma'lumotnoma asar mavzusiga mos UDK raqamini tasdiqlaydi. Phoenix Ilmiy Nashrlar Markazi platformasi tomonidan berilgan.",
-        ParagraphStyle(name='F', parent=small_style, fontSize=8, alignment=1, textColor=mid),
-    ))
-    story.append(Paragraph("© Phoenix Ilmiy Nashrlar Markazi", ParagraphStyle(name='F2', parent=small_style, fontSize=8, alignment=1, textColor=dark)))
-
-    # Har sahifada (birinchi ham) referens dizayn: fon, diagonal shakllar, emblem, dafna, logo
-    from reportlab.pdfgen import canvas as pdfgen_canvas
-    class _CertCanvas(pdfgen_canvas.Canvas):
-        def _startPage(self):
-            super()._startPage()
-            _draw_reference_design(self, None)
-    doc.build(story, canvasmaker=_CertCanvas)
-    if qr_cleanup:
-        try:
-            qr_cleanup()
-        except Exception:
-            pass
+    c = canvas.Canvas(buffer, pagesize=(pw, ph))
+    c.setTitle("UDK haqida ma'lumotnoma")
+    c.setAuthor('Phoenix nashriyoti — ilmiyfaoliyat.uz')
+    c.drawImage(ImageReader(jpeg), 0, 0, width=pw, height=ph)
+    c.showPage()
+    c.save()
     buffer.seek(0)
     return buffer
 
 
-def save_certificate_pdf(cert) -> None:
-    """UDKCertificate uchun PDF yaratib, certificate_path ga saqlaydi."""
-    from datetime import date
+def certificate_document_number(cert) -> str:
+    """Standalone ma'lumotnoma raqami — /verify/UDK-000123 va sayt ko'rinishi bilan bir xil."""
+    return f'UDK-{cert.id:06d}'
 
+
+def save_certificate_pdf(cert) -> None:
+    """UDKCertificate uchun PDF yaratib, certificate_path ga saqlaydi (eski fayl o'rniga)."""
     from django.conf import settings
     from django.core.files.base import ContentFile
 
@@ -331,8 +167,10 @@ def save_certificate_pdf(cert) -> None:
         author_name=cert.author_name or (cert.user.get_full_name() if cert.user_id else ''),
         udk_code=cert.udk_code,
         udk_description=cert.udk_description or '',
-        document_number=str(cert.id),
+        document_number=certificate_document_number(cert),
         document_date=doc_date,
         verification_url=f"{frontend_base}/#/udk-verify?id={cert.id}",
     )
+    if cert.certificate_path:
+        cert.certificate_path.delete(save=False)
     cert.certificate_path.save(f"udk_certificate_{cert.id}.pdf", ContentFile(buf.read()), save=True)

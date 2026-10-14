@@ -1,0 +1,17 @@
+{
+  "_comment": "udk_malumotnoma.jpg ustidagi qiymatlar. Koordinatalar asl rasm pikselida (2000x1414); y — tayanch chizig'i (yorliq bilan bir chiziqda). frontend/constants/udkTemplateLayout.ts bilan sinxron saqlang.",
+  "image": "udk_malumotnoma.jpg",
+  "size": [2000, 1414],
+  "fields": {
+    "document_number": {"x": 405, "y": 84, "size": 36, "color": "#094ba6", "max_width": 300, "bold": true},
+    "document_date": {"x": 1060, "y": 84, "size": 36, "color": "#094ba6", "max_width": 190, "bold": true},
+    "author": {"x": 719, "y": 564, "size": 36, "color": "#0d2f6e", "max_width": 700, "bold": true},
+    "title": {
+      "x": 719, "y": 614, "size": 30, "min_size": 24, "color": "#0d2f6e", "max_width": 760,
+      "wrap": {"sizes": [22, 20, 18], "max_lines": 2, "last_y": 626}
+    },
+    "udk_code": {"x": 719, "y": 664, "size": 38, "color": "#094ba6", "max_width": 700, "bold": true},
+    "udk_description": {"x": 719, "y": 772, "size": 22, "color": "#11697f", "max_width": 690, "multiline": true, "line_height": 28, "max_lines": 3}
+  },
+  "qr": {"center_x": 552, "center_y": 1105, "size": 190}
+}

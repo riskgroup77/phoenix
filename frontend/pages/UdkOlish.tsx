@@ -10,6 +10,7 @@ import { Library, Loader2, FileCheck, FileText, Upload, Download, Printer, Eye, 
 import { toast } from 'react-toastify';
 import UDKCertificate, { UDKCertificateData } from '../components/UDKCertificate';
 import { useT } from '../i18n/LanguageContext';
+import { formatDocDate } from '../utils/uzDate';
 
 interface StandaloneCertificate {
   id: number;
@@ -207,7 +208,7 @@ const UdkOlish: React.FC = () => {
   const handleViewCertificate = (cert: StandaloneCertificate) => {
     const certData: UDKCertificateData = {
       certificateNumber: `UDK-${cert.id.toString().padStart(6, '0')}`,
-      issueDate: cert.created_at ? new Date(cert.created_at).toLocaleDateString('uz-UZ') : new Date().toLocaleDateString('uz-UZ'),
+      issueDate: formatDocDate(cert.created_at || new Date()),
       author: (cert as any).author_name || user?.lastName + ' ' + user?.firstName || 'Noma\'lum',
       workTitle: cert.title,
       udkCode: cert.udk_code,

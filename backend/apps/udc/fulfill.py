@@ -57,7 +57,7 @@ def _do_article_udk(transaction, article, extra, udk_code, udk_description, gemi
             author_name=author_name,
             udk_code=udk_code,
             udk_description=udk_description,
-            document_number=str(article.id),
+            document_number=f'UDK-{str(article.id)[:8].upper()}',  # to'liq UUID sarlavhaga sig'maydi
             document_date=date.today().strftime('%d.%m.%Y'),
             verification_url=verification_url,
         )
@@ -81,11 +81,11 @@ def _do_article_udk(transaction, article, extra, udk_code, udk_description, gemi
 
 def _do_standalone_udk(transaction, extra, gemini, udc_services):
     from .models import UDKCertificate
-    from .pdf_generator import generate_udk_certificate_pdf
+    from .pdf_generator import certificate_document_number, generate_udk_certificate_pdf
     from django.core.files.base import ContentFile
     from apps.notifications.models import Notification
 
-    title = (extra.get('title') or '').strip()[:500]
+    title =(extra.get('title') or '').strip()[:500]
     abstract = (extra.get('abstract') or '').strip()[:15000]
     if not title:
         logger.warning(f"Standalone UDK transaction {transaction.id} has no title")
@@ -115,7 +115,7 @@ def _do_standalone_udk(transaction, extra, gemini, udc_services):
             author_name=author_name,
             udk_code=udk_code,
             udk_description=udk_description,
-            document_number=str(cert.id),
+            document_number=certificate_document_number(cert),
             document_date=date.today().strftime('%d.%m.%Y'),
             verification_url=verification_url,
         )
