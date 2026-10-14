@@ -3,12 +3,12 @@ import os
 import tempfile
 from django.conf import settings
 from django.utils import timezone
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status, serializers
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.permissions import AllowAny
 from config.permissions import SuperAdminWriteAuthenticatedRead
 
 from . import services
@@ -522,12 +522,20 @@ def udc_search(request):
     return Response({'items': items})
 
 
+class _UdkVerifyThrottle(AnonRateThrottle):
+    """QR tekshiruvi ochiq — ketma-ket id larni terib chiqishni sekinlatamiz (/articles/verify/ bilan bir xil)."""
+    rate = '30/minute'
+
+
 @api_view(['GET'])
+@permission_classes([AllowAny])
+@throttle_classes([_UdkVerifyThrottle])
 def udk_verify(request):
     """
     Ma'lumotnoma haqiqiyligini tekshirish (QR orqali ochiladi). Auth kerak emas.
     ?id=<certificate_id> — standalone; ?article_id=<uuid> — maqola.
     """
+    from django.core.exceptions import ValidationError
     from .models import UDKCertificate
     cert_id = request.query_params.get('id')
     article_id = request.query_params.get('article_id')
@@ -549,7 +557,7 @@ def udk_verify(request):
         from apps.articles.models import Article
         try:
             article = Article.objects.get(id=article_id)
-        except (Article.DoesNotExist, ValueError):
+        except (Article.DoesNotExist, ValueError, ValidationError):  # UUID bo'lmagan qiymat — 500 emas, 404
             return Response({'valid': False, 'detail': 'Ma\'lumotnoma topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
         if not article.udk_code:
             return Response({'valid': False, 'detail': 'Ushbu maqolada UDK ma\'lumotnomasi yo\'q.'}, status=status.HTTP_404_NOT_FOUND)
