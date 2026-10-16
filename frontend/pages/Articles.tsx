@@ -17,6 +17,10 @@ import { isStandalonePlagiarismArticle } from '../utils/antiplagiatFromArticle';
 import { ArticleApiResponse, TranslationRequestApiResponse, JournalApiResponse, getArticleJournalId } from './articles/types';
 import { journalAdminTabsBase, authorArticleTabs, convertToArticleType, BOOK_ORDERS_TAB } from './articles/helpers';
 import { isBookTitle } from '../utils/articleAuthorWorkflow';
+
+/** Taqrizchining o'z taqrizi hali tugamagan (taklif / qabul qilingan / yozilmoqda) */
+const ACTIVE_REVIEW = new Set(['pending', 'accepted', 'in_progress']);
+const isActiveReview = (a: { my_review_status?: string | null }) => ACTIVE_REVIEW.has(String(a.my_review_status || ''));
 import ArticleItem from './articles/ArticleItem';
 import TranslationItem from './articles/TranslationItem';
 import { useT } from '../i18n/LanguageContext';
@@ -61,7 +65,9 @@ const Articles: React.FC = () => {
     // Different tabs for different roles
     // FIX: Explicitly type the array to allow a union of statuses and avoid type errors.
     const reviewerTabs: { id: string; label: string; statuses: (ArticleStatus | TranslationStatus)[] }[] = [
-        { id: 'reviews', label: 'Maqola Taqrizlari', statuses: [ArticleStatus.QabulQilingan] },
+        // Faol — taqrizchining o'z taqrizi kutilmoqda/yozilmoqda; yakunlangan — alohida (avval hammasi bitta ro'yxatda edi)
+        { id: 'reviews', label: 'Faol taqrizlar', statuses: [ArticleStatus.QabulQilingan] },
+        { id: 'reviews-done', label: 'Yakunlangan taqrizlar', statuses: [] },
         { id: 'translations', label: 'Tarjimalar', statuses: [TranslationStatus.Yangi, TranslationStatus.Jarayonda] },
     ];
     // Bosh admin / operator: kitob buyurtmalari alohida tabda (avval taqrizchilarda edi — ularda amal yo'q,
@@ -138,11 +144,11 @@ const Articles: React.FC = () => {
             if (activeTab === 'translations') {
                 return [];
             }
-            if (activeTab === 'reviews') {
-                // Backend taqrizchiga faqat o'ziga tayinlangan maqolalarni beradi — holat bo'yicha qo'shimcha filtr
-                // kerak emas (aks holda taqriz yozilgan maqola keyingi bosqichga o'tganda ro'yxatdan yo'qolardi)
+            if (activeTab === 'reviews' || activeTab === 'reviews-done') {
+                // Backend taqrizchiga faqat o'ziga tayinlangan maqolalarni beradi; my_review_status — o'z taqrizi holati
+                const wantActive = activeTab === 'reviews';
                 return articles
-                    .filter((a) => !isBookTitle(a.title))
+                    .filter((a) => !isBookTitle(a.title) && isActiveReview(a) === wantActive)
                     .sort((a, b) => (b.fast_track ? 1 : 0) - (a.fast_track ? 1 : 0));
             }
             return [];
@@ -222,8 +228,9 @@ const Articles: React.FC = () => {
                     }
                     return false;
                 }).length;
-            } else if (tab.id === 'reviews') {
-                count = articles.filter((a) => !isBookTitle(a.title)).length;
+            } else if (tab.id === 'reviews' || tab.id === 'reviews-done') {
+                const wantActive = tab.id === 'reviews';
+                count = articles.filter((a) => !isBookTitle(a.title) && isActiveReview(a) === wantActive).length;
             } else if (tab.statuses) {
                 count = articles.filter((a) =>
                     (tab.statuses as ArticleStatus[]).includes(a.status as ArticleStatus)
@@ -343,7 +350,7 @@ const Articles: React.FC = () => {
         if (tab) {
             if (authorArticleTabs.some((t) => t.id === tab)) {
                 setActiveTab(tab);
-            } else if (reviewerTabs.some((t) => t.id === tab) || tab === BOOK_ORDERS_TAB.id) {
+            } else if (reviewerTabs.some((t) => t.id === tab) || journalAdminTabsBase.some((t) => t.id === tab) || tab === BOOK_ORDERS_TAB.id) {
                 setActiveTab(tab);
             }
         }

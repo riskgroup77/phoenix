@@ -77,6 +77,10 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Maqola yoki taqrizchi topilmadi.'}, status=status.HTTP_400_BAD_REQUEST)
         if not self._can_manage_article(article):
             return Response({'error': 'Taqrizchi tayinlash huquqingiz yo\'q.'}, status=status.HTTP_403_FORBIDDEN)
+        from apps.articles.workflow import is_book_submission
+
+        if is_book_submission(article):
+            return Response({'error': "Kitob buyurtmasiga taqrizchi tayinlanmaydi."}, status=status.HTTP_400_BAD_REQUEST)
         # Faqat faol (kutilayotgan / jarayondagi) taqriz takrorlanmasin. Yakunlangan yoki rad etilgan bo'lsa —
         # yangi bosqich: muallif tuzatgan maqolani o'sha taqrizchi qayta ko'rib chiqishi mumkin.
         existing = PeerReview.objects.filter(

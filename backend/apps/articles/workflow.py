@@ -48,6 +48,9 @@ def allowed_staff_transitions(article, *, super_admin: bool) -> frozenset[str]:
         # To'lanmagan kitob buyurtmasi faqat to'lov (yoki bosh admin) orqali chiqadi
         if current == 'Draft':
             return SUPER_ADMIN_EXTRA['Draft'] if super_admin else frozenset()
+        # Yetkazilgan buyurtma — yakuniy holat (avval uni "Rad etish" yoki orqaga qaytarish mumkin edi)
+        if current == 'Delivered':
+            return frozenset()
         # To'lovdan keyin kitob "QabulQilingan" bo'ladi (repair_book_publication) — BOOK_STATUSES da yo'q edi,
         # shuning uchun hech kimda tugma chiqmay buyurtma qotib qolardi. Ishlab chiqarish bosqichlari istalgan
         # (BOOK_STATUSES dan tashqari) holatdan ochiq.

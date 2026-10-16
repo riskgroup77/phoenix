@@ -44,7 +44,8 @@ class Article(models.Model):
         related_name='coauthored_articles',
         blank=True,
     )
-    journal = models.ForeignKey('journals.Journal', on_delete=models.CASCADE, related_name='articles')
+    # PROTECT: jurnal o'chirilsa maqolalar (nashr etilgan, pullik) zanjir bo'ylab o'chib ketardi
+    journal = models.ForeignKey('journals.Journal', on_delete=models.PROTECT, related_name='articles')
     issue = models.ForeignKey('journals.Issue', on_delete=models.SET_NULL, null=True, blank=True, related_name='articles')
     doi = models.CharField(max_length=100, blank=True)
     submission_date = models.DateTimeField(auto_now_add=True)

@@ -9,3 +9,7 @@ export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
 export function formatMaxUploadLabel(): string {
   return `${MAX_UPLOAD_MB}MB`;
 }
+
+/** Oddiy hujjat (jurnal maqolasi, tarjima, UDK/DOI fayli) chegarasi — backend DEFAULT_MAX_MB bilan bir xil */
+export const DEFAULT_UPLOAD_MB = 25;
+export const DEFAULT_UPLOAD_BYTES = DEFAULT_UPLOAD_MB * 1024 * 1024;

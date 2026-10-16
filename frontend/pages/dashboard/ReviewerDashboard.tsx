@@ -69,7 +69,11 @@ const ReviewerDashboard: React.FC<Props> = ({
     };
   }, []);
 
-  const forReview = articles.filter((a) => a.status === 'QabulQilingan' && !String(a.title || '').trim().toUpperCase().startsWith('[KITOB]'));
+  // "Faol taqrizlar" ro'yxati bilan bir xil hisob: o'z taqrizi hali tugamagan maqolalar
+  const forReview = articles.filter(
+    (a) => ['pending', 'accepted', 'in_progress'].includes(String((a as { my_review_status?: string }).my_review_status || '')) &&
+      !String(a.title || '').trim().toUpperCase().startsWith('[KITOB]'),
+  );
   const doiOpen = doiRequests.filter((r) => r.status === 'submitted');
   const udkOpen = udkRequests.filter((r) => r.status === 'submitted');
   const trOpen = translationRequests.filter((x) => x.status === 'Yangi' || x.status === 'Jarayonda');

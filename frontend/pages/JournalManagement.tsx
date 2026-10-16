@@ -485,7 +485,10 @@ const JournalManagement: React.FC = () => {
                                 </div>
                                 <div className="flex items-center space-x-2 mt-3 sm:mt-0">
                                     <button onClick={() => handleOpenModal(journal)} className="text-[var(--editorial-primary)] hover:opacity-80 p-2 rounded-md transition-colors" aria-label={t('Tahrirlash')}><Edit size={18}/></button>
-                                    <button onClick={() => handleDeleteClick(journal)} className="text-red-700 hover:opacity-80 p-2 rounded-md transition-colors" aria-label={t("O'chirish")}><Trash2 size={18}/></button>
+                                    {/* Ichki (kitob buyurtmalari) jurnali o'chirilmaydi */}
+                                    {!(journal as any).is_internal && (
+                                        <button onClick={() => handleDeleteClick(journal)} className="text-red-700 hover:opacity-80 p-2 rounded-md transition-colors" aria-label={t("O'chirish")}><Trash2 size={18}/></button>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -692,12 +695,25 @@ const JournalManagement: React.FC = () => {
                                 <p className="text-slate-500 text-sm">{t("Jurnalni o'chirish")}</p>
                             </div>
                         </div>
-                        <p className="text-slate-600 mb-6">
-                            {t('Haqiqatan ham')} <strong className="text-slate-900">{deletingJournal.name}</strong> {t("jurnalini o'chirmoqchimisiz? Bu harakatni bekor qilib bo'lmaydi.")}
-                        </p>
+                        {/* Maqolasi bor jurnal o'chirilmaydi (server ham rad etadi) — avval maqolalar arxivi bilan o'chib ketardi */}
+                        {Number((deletingJournal as any).articles_count || 0) > 0 ? (
+                            <p className="text-red-800 bg-red-50 rounded-lg p-3 mb-6 text-sm">
+                                {t("Bu jurnalda {count} ta maqola bor — uni o'chirib bo'lmaydi: nashr etilgan va to'langan maqolalar arxivi yo'qoladi.", { count: Number((deletingJournal as any).articles_count) })}
+                            </p>
+                        ) : (
+                            <p className="text-slate-600 mb-6">
+                                {t('Haqiqatan ham')} <strong className="text-slate-900">{deletingJournal.name}</strong> {t("jurnalini o'chirmoqchimisiz? Bu harakatni bekor qilib bo'lmaydi.")}
+                            </p>
+                        )}
                         <div className="flex justify-end gap-4 mt-8">
                             <Button variant="secondary" onClick={() => setDeletingJournal(null)}>{t('Bekor qilish')}</Button>
-                            <Button variant="danger" onClick={confirmDelete}>{t("O'chirish")}</Button>
+                            <Button
+                                variant="danger"
+                                onClick={confirmDelete}
+                                disabled={Number((deletingJournal as any).articles_count || 0) > 0}
+                            >
+                                {t("O'chirish")}
+                            </Button>
                         </div>
                     </Card>
                 </div>

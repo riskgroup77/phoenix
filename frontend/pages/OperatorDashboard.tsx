@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { toast } from 'react-toastify';
-import Button from '../components/ui/Button';
+import Button, { ButtonLink } from '../components/ui/Button';
 import { Link } from 'react-router-dom';
 import { useT } from '../i18n/LanguageContext';
 
@@ -171,12 +171,10 @@ const OperatorDashboard: React.FC = () => {
               <RefreshCw className="h-4 w-4" />
               {t('Yangilash')}
             </Button>
-            <Link to="/profile">
-              <Button variant="primary">
-                <Settings className="h-4 w-4" />
-                {t('Sozlamalar')}
-              </Button>
-            </Link>
+            <ButtonLink to="/profile" variant="primary">
+              <Settings className="h-4 w-4" />
+              {t('Sozlamalar')}
+            </ButtonLink>
           </div>
         </div>
 
@@ -282,11 +280,9 @@ const OperatorDashboard: React.FC = () => {
             <MessageSquare className="h-5 w-5 text-violet-800" />
             {t('Muallif chatlari (oxirgi xabarlar)')}
           </h3>
-          <Link to="/articles">
-            <Button variant="secondary" className="!px-4 !py-2 text-sm">
-              {t('Barcha maqolalar')}
-            </Button>
-          </Link>
+          <ButtonLink to="/articles" variant="secondary" className="!px-4 !py-2 text-sm">
+            {t('Barcha maqolalar')}
+          </ButtonLink>
         </div>
         <p className="mb-4 text-sm font-medium text-slate-800">
           {t('Har bir maqola alohida yozishma. Muallif yozganida barcha operatorlarga bildirishnoma boradi.')}

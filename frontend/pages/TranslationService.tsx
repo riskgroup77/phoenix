@@ -10,6 +10,7 @@ import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
 import { toast } from 'react-toastify';
 import { useT } from '../i18n/LanguageContext';
+import { DEFAULT_UPLOAD_BYTES, DEFAULT_UPLOAD_MB } from '../constants/upload';
 
 interface FileAnalysis {
   wordCount: number;
@@ -82,6 +83,12 @@ const TranslationService: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
+      // Server chegarasi bilan bir xil (avval sahifada "MAX. 10MB" deyilar, tekshiruv esa yo'q edi)
+      if (selectedFile.size > DEFAULT_UPLOAD_BYTES) {
+        toast.error(t('Fayl hajmi {mb} MB dan oshmasligi kerak.', { mb: DEFAULT_UPLOAD_MB }));
+        e.target.value = '';
+        return;
+      }
       setFile(selectedFile);
       setAnalysisResult(null);
       setTranslationRequestId(null);
@@ -271,7 +278,7 @@ const TranslationService: React.FC = () => {
                     <span className="font-semibold">{t('Fayl tanlash')}</span> {t('yoki olib keling')}
                   </p>
                   <p className="text-xs text-slate-500">
-                    DOC, DOCX, PDF (MAX. 10MB)
+                    DOC, DOCX, PDF (MAX. {DEFAULT_UPLOAD_MB}MB)
                   </p>
                   {file && (
                     <p className="mt-2 text-sm text-emerald-800 flex items-center">

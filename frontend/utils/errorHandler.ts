@@ -8,7 +8,7 @@ import { API_V1_BASE_URL } from '../config/apiBase';
 export interface ApiError {
   status?: number;
   message?: string;
-  detail?: string;
+  detail?: string | string[];
   error?: string;
   error_note?: string;
   non_field_errors?: string[];
@@ -33,15 +33,24 @@ export function getErrorMessage(error: any): string {
       return apiError.non_field_errors[0];
     }
     
-    // Check for detail
+    // Check for detail (DRF ba'zan ro'yxat qaytaradi: ["xabar"] — avval qavslar bilan ko'rsatilardi)
     if (apiError.detail) {
-      return typeof apiError.detail === 'string' ? apiError.detail : JSON.stringify(apiError.detail);
+      if (typeof apiError.detail === 'string') return apiError.detail;
+      if (Array.isArray(apiError.detail)) return apiError.detail.map(String).join(' ');
+      return JSON.stringify(apiError.detail);
     }
-    
-    // DRF validation errors: { field_name: ["msg1", "msg2"], ... }
+
+    // Asosiy xabar ("error") qo'shimcha belgilardan oldin: avval {"error": "...", "reason_required": true}
+    // javobida foydalanuvchiga "reason_required: true" chiqardi
+    if (typeof apiError.error === 'string' && apiError.error) {
+      return apiError.error;
+    }
+
+    // DRF validation errors: { field_name: ["msg1", "msg2"], ... } — faqat matnli qiymatlar (bayroq/raqam emas)
     if (typeof apiError === 'object' && apiError !== null && !Array.isArray(apiError)) {
       const fieldParts = Object.entries(apiError)
         .filter(([k]) => !['detail', 'message', 'error', 'error_note', 'non_field_errors'].includes(k))
+        .filter(([, v]) => typeof v === 'string' || (Array.isArray(v) && v.every((x) => typeof x === 'string')))
         .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`);
       if (fieldParts.length > 0) return fieldParts.join('; ');
     }

@@ -34,7 +34,8 @@ const JournalAdminDashboard: React.FC<Props> = ({ userId, firstName, articles, j
     return !!jid && managedIds.has(jid);
   });
   const by = (...statuses: string[]) => mine.filter((a) => statuses.includes(a.status));
-  const newOnes = by('Yangi', 'WithEditor');
+  // Ta'riflar "Maqolalar" tablari va muharrir paneli bilan bir xil: Yangi kelganlar = faqat "Yangi"
+  const newOnes = by('Yangi');
   const accepted = by('Accepted');
   const toPublish = by('NashrgaYuborilgan');
   const revision = by('Revision');
@@ -112,7 +113,7 @@ const JournalAdminDashboard: React.FC<Props> = ({ userId, firstName, articles, j
             {managed.map((j) => {
               const jid = String(j.id).toLowerCase();
               const jArticles = mine.filter((a) => getArticleJournalIdFromApi(a).toLowerCase() === jid);
-              const jNew = jArticles.filter((a) => a.status === 'Yangi' || a.status === 'WithEditor').length;
+              const jNew = jArticles.filter((a) => a.status === 'Yangi').length;
               const jPub = jArticles.filter((a) => a.status === 'Published').length;
               return (
                 <div key={j.id} className="milliy-journal-card">

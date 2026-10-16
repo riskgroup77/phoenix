@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
+import Button, { ButtonLink } from '../components/ui/Button';
 import { apiService } from '../services/apiService';
 import { Download, Loader2, BookOpen } from 'lucide-react';
 import { useT } from '../i18n/LanguageContext';
@@ -62,9 +62,7 @@ const PublicCollectionShare: React.FC = () => {
         <Card title={t("To'plam topilmadi")}>
           <p className="text-red-800">{error || t("To'plam topilmadi.")}</p>
           <div className="mt-5">
-            <Link to="/login">
-              <Button>{t('Kirish sahifasiga o‘tish')}</Button>
-            </Link>
+            <ButtonLink to="/login">{t('Kirish sahifasiga o‘tish')}</ButtonLink>
           </div>
         </Card>
       </div>

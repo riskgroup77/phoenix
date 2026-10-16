@@ -207,6 +207,31 @@ def _allowed_transitions(context, article) -> list[str]:
     return allowed_transitions_for(user, article)
 
 
+def _my_review_status_map(context):
+    """
+    Taqrizchi uchun: maqola → o'zining eng so'nggi taqriz holati (pending / accepted / in_progress / completed).
+    Ro'yxat "Faol" va "Yakunlangan" ga ajratiladi — avval barcha tayinlangan maqolalar bitta ro'yxatda (34 ta)
+    chiqib, bosh sahifadagi "6 ta taqrizda" bilan mos kelmasdi. Bir so'rovda bir marta hisoblanadi.
+    """
+    if not context:
+        return None
+    if '_my_review_status_map' in context:
+        return context['_my_review_status_map']
+    user = _viewer(context)
+    result = None
+    if user is not None and (getattr(user, 'role', '') or '').lower() == 'reviewer':
+        from apps.reviews.models import PeerReview
+
+        result = {}
+        for article_id, status in (
+            PeerReview.objects.filter(reviewer=user).exclude(status='declined')
+            .order_by('assigned_at').values_list('article_id', 'status')
+        ):
+            result[article_id] = status
+    context['_my_review_status_map'] = result
+    return result
+
+
 def anonymize_author(data: dict, article) -> dict:
     for key in _AUTHOR_IDENTITY_KEYS:
         if key in data:
@@ -346,6 +371,9 @@ class ArticleListSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data['allowed_transitions'] = _allowed_transitions(self.context, instance)
         data['needs_publication_payment'] = _needs_publication_payment(self.context, instance)
+        status_map = _my_review_status_map(self.context)
+        if status_map is not None:
+            data['my_review_status'] = status_map.get(instance.pk)
         if hide_author_from_viewer(self.context, instance):
             anonymize_author(data, instance)
         return data

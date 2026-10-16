@@ -23,6 +23,18 @@ class JournalCategoryViewSet(viewsets.ModelViewSet):
         # Optimize query
         return JournalCategory.objects.prefetch_related('journals').all()
 
+    def destroy(self, request, *args, **kwargs):
+        # Rukn o'chirilsa uning jurnallari (va ular orqali maqolalar) zanjir bo'ylab o'chardi — endi jurnali bor
+        # rukn o'chirilmaydi (maqolalar Article.journal PROTECT bilan ham himoyalangan)
+        category = self.get_object()
+        count = category.journals.count()
+        if count:
+            return Response(
+                {'error': f"Bu ruknda {count} ta jurnal bor — avval jurnallarni boshqa ruknga o'tkazing."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return super().destroy(request, *args, **kwargs)
+
 
 class JournalViewSet(viewsets.ModelViewSet):
     queryset = Journal.objects.all()
@@ -92,6 +104,26 @@ class JournalViewSet(viewsets.ModelViewSet):
             return Response(
                 {'error': 'Siz jurnalni o\'chirish huquqiga ega emassiz'},
                 status=status.HTTP_403_FORBIDDEN
+            )
+        journal = self.get_object()
+        if journal.is_internal:
+            return Response(
+                {'error': "Ichki (kitob buyurtmalari) jurnalini o'chirib bo'lmaydi."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # Avval jurnal bilan birga uning barcha maqolalari (nashr etilgan, pullik), taqrizlari va fayllari
+        # zanjir bo'ylab o'chib ketardi. Endi maqolasi bor jurnal o'chirilmaydi (model ham PROTECT).
+        count = journal.articles.count()
+        if count:
+            return Response(
+                {
+                    'error': (
+                        f"Jurnalda {count} ta maqola bor — uni o'chirib bo'lmaydi (nashr etilgan va to'langan "
+                        "maqolalar arxivi yo'qolardi)."
+                    ),
+                    'articles_count': count,
+                },
+                status=status.HTTP_409_CONFLICT,
             )
         return super().destroy(request, *args, **kwargs)
 

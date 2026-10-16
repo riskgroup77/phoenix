@@ -43,10 +43,15 @@ class JournalSerializer(serializers.ModelSerializer):
     issues = IssueSerializer(many=True, read_only=True)
     additional_document_config = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
+    # Bosh admin o'chirishdan oldin ko'radi: maqolasi bor jurnalni o'chirib bo'lmaydi
+    articles_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Journal
         fields = '__all__'
+
+    def get_articles_count(self, obj):
+        return obj.articles.count()
     
     def get_image_url(self, obj):
         if not obj.image_url:

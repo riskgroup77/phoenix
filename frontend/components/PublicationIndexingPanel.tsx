@@ -18,7 +18,7 @@ type Props = { articleId: string; doi?: string; canManage: boolean };
  */
 const PublicationIndexingPanel: React.FC<Props> = ({ articleId, doi, canManage }) => {
   const { t } = useT();
-  const [info, setInfo] = useState<{ configured: boolean; doi: string; suggested_doi: string } | null>(null);
+  const [info, setInfo] = useState<{ configured: boolean; doi: string; suggested_doi: string; available?: boolean; reason?: string } | null>(null);
   const [busy, setBusy] = useState<'xml' | 'deposit' | null>(null);
   const url = scholarPageUrl(articleId);
 
@@ -99,7 +99,15 @@ const PublicationIndexingPanel: React.FC<Props> = ({ articleId, doi, canManage }
         </p>
       )}
 
-      {canManage && (
+      {canManage && info?.available === false && (
+        // Masalan, namuna (demo) maqola — DOI berilmaydi; tugmalar ko'rsatilmaydi (avval bosilganda xato chiqardi)
+        <div className="flex flex-col gap-1 pt-3 border-t border-[var(--editorial-border)]">
+          <p className="m-0 text-sm font-bold">Crossref</p>
+          <p className="m-0 text-xs text-[var(--editorial-muted)]">{info.reason}</p>
+        </div>
+      )}
+
+      {canManage && info && info.available !== false && (
         <div className="flex flex-col gap-2 pt-3 border-t border-[var(--editorial-border)]">
           <p className="m-0 text-sm font-bold">Crossref</p>
           <p className="m-0 text-xs text-[var(--editorial-muted)]">

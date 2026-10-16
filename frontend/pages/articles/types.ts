@@ -4,6 +4,8 @@ import { ArticleStatus, TranslationStatus } from '../../types';
 // Type for the API response which has different field names
 export interface ArticleApiResponse {
     id: string;
+    /** Taqrizchi uchun: o'z taqrizining holati (pending / accepted / in_progress / completed) */
+    my_review_status?: string | null;
     title: string;
     abstract: string;
     keywords: string[];

@@ -411,11 +411,15 @@ class UserArchiveTests(QaBase):
         self.assertTrue(Article.objects.filter(pk=self.article.pk).exists())
 
     def test_journal_deletion_keeps_transactions(self):
+        from django.db.models import ProtectedError
+
         tx = Transaction.objects.create(user=self.author, article=self.article, amount=Decimal('50000'),
                                         service_type='publication_fee', status='completed')
-        self.journal.delete()
+        # Maqolasi bor jurnal umuman o'chirilmaydi (Article.journal PROTECT) — maqola ham, to'lov bog'lanishi ham saqlanadi
+        with self.assertRaises(ProtectedError):
+            self.journal.delete()
         tx.refresh_from_db()
-        self.assertIsNone(tx.article_id)
+        self.assertEqual(tx.article_id, self.article.id)
 
 
 class TelegramBotSessionTests(QaBase):

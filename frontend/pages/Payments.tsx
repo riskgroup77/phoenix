@@ -62,7 +62,7 @@ const Payments: React.FC = () => {
 
   useEffect(() => {
     let alive = true;
-    Promise.all([apiService.payments.listTransactions(), apiService.payments.summary()])
+    Promise.all([apiService.payments.listMyTransactions(), apiService.payments.summary()])
       .then(([list, sum]) => {
         if (!alive) return;
         setItems(asList(list));

@@ -1001,6 +1001,8 @@ export const apiService = {
   // Payments
   payments: {
     listTransactions: () => fetchAllPages('/payments/transactions/'),
+    /** Faqat joriy foydalanuvchining to'lovlari (To'lovlarim) — xodim rolida ham */
+    listMyTransactions: () => fetchAllPages('/payments/transactions/?mine=1'),
 
     getTransactions: () => apiFetch('/payments/transactions/'),
 

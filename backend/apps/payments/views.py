@@ -47,6 +47,10 @@ class TransactionViewSet(viewsets.ModelViewSet):
             'article', 'article__journal', 'user', 'translation_request'
         )
         role = getattr(self.request.user, 'role', None)
+        # "To'lovlarim" sahifasi (?mine=1) — har qanday rolda faqat o'z to'lovlari. Avval operator / moliyachi /
+        # bosh admin u yerda platformadagi barcha to'lovlarni (boshqalarnikiga "To'lash" tugmasi bilan) ko'rardi.
+        if str(self.request.query_params.get('mine', '')).lower() in ('1', 'true', 'yes'):
+            return base.filter(user=self.request.user).order_by('-created_at')
         if role == 'super_admin' or role == 'accountant' or self.request.user.is_superuser:
             return base.order_by('-created_at')
         if role == 'operator' and self.request.method in ('GET', 'HEAD', 'OPTIONS'):

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
+import Button, { ButtonLink } from '../components/ui/Button';
 import { apiService } from '../services/apiService';
 import { BookOpen, Download, ExternalLink, Loader2 } from 'lucide-react';
 import { useT } from '../i18n/LanguageContext';
@@ -75,9 +75,7 @@ const PublicArticleShare: React.FC = () => {
         <Card title={t('Maqola topilmadi')}>
           <p className="text-red-800">{error || t('Maqola topilmadi.')}</p>
           <div className="mt-5">
-            <Link to="/login">
-              <Button>{t('Kirish sahifasiga o‘tish')}</Button>
-            </Link>
+            <ButtonLink to="/login">{t('Kirish sahifasiga o‘tish')}</ButtonLink>
           </div>
         </Card>
       </div>
@@ -169,11 +167,9 @@ const PublicArticleShare: React.FC = () => {
           </div>
 
           <div className="pt-2">
-            <Link to="/login">
-              <Button>
-                <BookOpen className="mr-2 h-4 w-4" /> {t('Platformaga kirish')}
-              </Button>
-            </Link>
+            <ButtonLink to="/login">
+              <BookOpen className="mr-2 h-4 w-4" /> {t('Platformaga kirish')}
+            </ButtonLink>
           </div>
           </div>
         </Card>

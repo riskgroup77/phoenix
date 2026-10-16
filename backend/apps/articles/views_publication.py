@@ -287,11 +287,17 @@ class ArticlePublicationActionsMixin:
         from config.demo import is_demo_article
 
         if is_demo_article(article):
-            return Response({'detail': "Namuna (demo) maqola uchun DOI berilmaydi."}, status=status.HTTP_400_BAD_REQUEST)
+            reason = "Namuna (demo) maqola uchun DOI berilmaydi."
+            if request.method == 'GET' and request.query_params.get('info'):
+                # Ma'lumot so'rovi xato emas: panel "mavjud emas" deb ko'rsatadi (avval har sahifa ochilishida
+                # 400 qaytib, konsolda xato chiqardi va "Depozit XML" bosilganda xato xabari ko'rinardi)
+                return Response({'available': False, 'reason': reason, 'configured': False, 'doi': '', 'suggested_doi': ''})
+            return Response({'detail': reason}, status=status.HTTP_400_BAD_REQUEST)
 
         if request.method == 'GET':
             if request.query_params.get('info'):
                 return Response({
+                    'available': True,
                     'configured': crossref_configured(),
                     'doi': normalized_doi(article),
                     'suggested_doi': suggested_doi(article),

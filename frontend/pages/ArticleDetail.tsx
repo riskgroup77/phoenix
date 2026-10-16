@@ -10,6 +10,7 @@ import { Check, X, Award, UploadCloud, BookOpen, Download, Edit, Send, GitCommit
 import PlagiarismReport, { PlagiarismReportData } from '../components/PlagiarismReport';
 import QabulCertificate, { QabulCertificateData } from '../components/QabulCertificate';
 import { apiService } from '../services/apiService';
+import { paymentService } from '../services/paymentService';
 import { toast } from 'react-toastify';
 import { getAuthorWorkflowStepsFromStatus, getAuthorWorkflowProgressPercent } from '../utils/articleAuthorWorkflow';
 import AuthorOperatorChat from '../components/AuthorOperatorChat';
@@ -21,6 +22,7 @@ import ArticleReviewsPanel from '../components/ArticleReviewsPanel';
 import AntiplagiatHighlightView from '../components/AntiplagiatHighlightView';
 import { buildAntiplagiatViewFromArticle } from '../utils/antiplagiatFromArticle';
 import { useT } from '../i18n/LanguageContext';
+import { REASON_MIN_LENGTH } from '../utils/statusReason';
 import { formatUzDate, formatUzDateTime } from '../utils/uzDate';
 
 // Type for the API response which has different field names
@@ -56,6 +58,8 @@ interface ArticleApiResponse {
     allowed_transitions?: string[];
     /** Rad etilgan maqola egasiga: nashr to'lovi va qaytarish holati */
     publication_payment?: PublicationPayment | null;
+    /** Muallif: qoralama nashr to'lovini kutyapti */
+    needs_publication_payment?: boolean;
 }
 
 type PublicationPayment = {
@@ -65,6 +69,35 @@ type PublicationPayment = {
     refund_requested_at: string | null;
     refunded_at: string | null;
     refund_note: string;
+};
+
+const PublicationPayCard: React.FC<{ articleId: string }> = ({ articleId }) => {
+    const [paying, setPaying] = useState(false);
+    const pay = async () => {
+        setPaying(true);
+        try {
+            const result = await paymentService.createTransactionAndPay(0, 'UZS', 'publication_fee', articleId);
+            if (result?.transaction_id) {
+                await paymentService.redirectToPaymentPage(result.transaction_id);
+                return;
+            }
+            toast.error(result?.error || "To'lovni boshlab bo'lmadi.");
+        } catch (err: any) {
+            toast.error(err?.message || "To'lovni boshlab bo'lmadi.");
+        } finally {
+            setPaying(false);
+        }
+    };
+    return (
+        <Card title="Nashr to'lovi">
+            <p className="text-sm text-slate-600 mb-3">
+                Maqola saqlangan, lekin nashr to'lovi hali qilinmagan. To'lovdan so'ng maqola tahririyatga yuboriladi.
+            </p>
+            <Button onClick={pay} disabled={paying} className="w-full flex items-center justify-center gap-2">
+                <Send size={16} /> {paying ? 'Yo\'naltirilmoqda...' : "To'lovni tugatish"}
+            </Button>
+        </Card>
+    );
 };
 
 const RefundCard: React.FC<{ payment: PublicationPayment; onChanged: () => void }> = ({ payment, onChanged }) => {
@@ -172,6 +205,7 @@ const ArticleDetail: React.FC = () => {
     const [article, setArticle] = useState<ArticleApiResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [notAccessible, setNotAccessible] = useState(false);
     const [activityLogs, setActivityLogs] = useState<ActivityLogEvent[]>([]);
     const [showCertificate, setShowCertificate] = useState(false);
     const [certificateData, setCertificateData] = useState<QabulCertificateData | null>(null);
@@ -185,6 +219,7 @@ const ArticleDetail: React.FC = () => {
     const [revisionReason, setRevisionReason] = useState('');
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
+    const [reasonSubmitting, setReasonSubmitting] = useState(false);
     const [resubmitFile, setResubmitFile] = useState<File | null>(null);
     const [resubmitting, setResubmitting] = useState(false);
 
@@ -195,6 +230,7 @@ const ArticleDetail: React.FC = () => {
             try {
                 setLoading(true);
                 setError(null);
+                setNotAccessible(false);
                 
                 // Fetch article data
                 const articleResponse = await apiService.articles.get(id);
@@ -221,7 +257,13 @@ const ArticleDetail: React.FC = () => {
                 });
             } catch (err: any) {
                 console.error('Failed to fetch article data:', err);
-                setError('Maqola ma\'lumotlarini yuklashda xatolik yuz berdi.');
+                // 404/403 — maqola yo'q yoki bu rol uni ko'ra olmaydi (masalan, boshqa jurnal maqolasi): avval umumiy
+                // "xatolik yuz berdi" + "Qayta urinish" chiqardi, qayta urinish esa hech narsani o'zgartirmasdi
+                if (err?.status === 404 || err?.status === 403) {
+                    setNotAccessible(true);
+                } else {
+                    setError('Maqola ma\'lumotlarini yuklashda xatolik yuz berdi.');
+                }
             } finally {
                 setLoading(false);
             }
@@ -262,28 +304,39 @@ const ArticleDetail: React.FC = () => {
         }
     };
 
-    const handleRevisionSubmit = async () => {
-        const trimmed = revisionReason.trim();
-        if (!trimmed) {
-            toast.error('Tahrirga qaytarish sababini yozing.');
+    /**
+     * Sababli holat o'zgarishi (tahrirga qaytarish / rad etish). Oyna faqat muvaffaqiyatdan keyin yopiladi:
+     * avval oyna darhol yopilib, server rad etsa (masalan, sabab 5 belgidan qisqa) yozilgan matn yo'qolar va
+     * faqat umumiy "xatolik" chiqardi.
+     */
+    const submitReasonedStatus = async (status: ArticleStatus, reason: string, onDone: () => void, successText: string) => {
+        const trimmed = reason.trim();
+        if (trimmed.length < REASON_MIN_LENGTH) {
+            toast.error(`Sababni batafsilroq yozing (kamida ${REASON_MIN_LENGTH} ta belgi).`);
             return;
         }
         if (!id) return;
-        setShowRevisionModal(false);
+        setReasonSubmitting(true);
         try {
-            await apiService.articles.updateStatus(id, ArticleStatus.Revision, trimmed);
-            toast.success('Maqola tahrirga qaytarildi. Muallifga bildirishnoma yuborildi.');
-            setRevisionReason('');
+            await apiService.articles.updateStatus(id, status, trimmed);
+            toast.success(successText);
+            onDone();
             const articleResponse = await apiService.articles.get(id);
             const articleData = articleResponse.data || articleResponse;
             setArticle(articleData);
-            const logs = Array.isArray(articleData.activity_logs) ? articleData.activity_logs : [];
-            setActivityLogs(logs);
-        } catch (err) {
-            console.error('Failed to send revision:', err);
-            toast.error('Tahrirga qaytarishda xatolik.');
+            setActivityLogs(Array.isArray(articleData.activity_logs) ? articleData.activity_logs : []);
+        } catch (err: any) {
+            toast.error(err?.message || "Holatni o'zgartirib bo'lmadi.");
+        } finally {
+            setReasonSubmitting(false);
         }
     };
+
+    const handleRevisionSubmit = () =>
+        submitReasonedStatus(ArticleStatus.Revision, revisionReason, () => {
+            setShowRevisionModal(false);
+            setRevisionReason('');
+        }, 'Maqola tahrirga qaytarildi. Muallifga bildirishnoma yuborildi.');
 
     /** Tahrirga qaytarilgan maqola: tuzatilgan fayl (ixtiyoriy) + Revision → Yangi */
     const handleResubmit = async () => {
@@ -318,28 +371,11 @@ const ArticleDetail: React.FC = () => {
         }
     };
 
-    const handleRejectSubmit = async () => {
-        const trimmed = rejectReason.trim();
-        if (!trimmed) {
-            toast.error('Rad etish sababini yozing.');
-            return;
-        }
-        if (!id) return;
-        setShowRejectModal(false);
-        try {
-            await apiService.articles.updateStatus(id, ArticleStatus.Rejected, trimmed);
-            toast.success('Maqola rad etildi. Muallifga bildirishnoma yuborildi.');
+    const handleRejectSubmit = () =>
+        submitReasonedStatus(ArticleStatus.Rejected, rejectReason, () => {
+            setShowRejectModal(false);
             setRejectReason('');
-            const articleResponse = await apiService.articles.get(id);
-            const articleData = articleResponse.data || articleResponse;
-            setArticle(articleData);
-            const logs = Array.isArray(articleData.activity_logs) ? articleData.activity_logs : [];
-            setActivityLogs(logs);
-        } catch (err) {
-            console.error('Failed to reject article:', err);
-            toast.error('Rad etishda xatolik.');
-        }
-    };
+        }, 'Maqola rad etildi. Muallifga bildirishnoma yuborildi.');
 
     const handleCompletePublication = async () => {
         if (!id || !publicationCertificateFile) {
@@ -412,6 +448,17 @@ const ArticleDetail: React.FC = () => {
 
     if (loading) {
         return <PageSkeleton />;
+    }
+
+    if (notAccessible) {
+        return (
+            <Card title="Maqola topilmadi">
+                <p className="text-slate-600">
+                    Maqola topilmadi yoki uni ko'rish huquqingiz yo'q (masalan, u boshqa jurnalga tegishli yoki sizga tayinlanmagan).
+                </p>
+                <Button onClick={() => navigate('/articles')} className="mt-4">Maqolalar ro'yxatiga</Button>
+            </Card>
+        );
     }
 
     if (error) {
@@ -546,10 +593,13 @@ const ArticleDetail: React.FC = () => {
                     </Card>
 
                     {/* Taqriz jarayoni: muharrir tayinlaydi, taqrizchi yozadi, muallif natijani ko'radi */}
-                    <ArticleReviewsPanel
-                        articleId={article.id}
-                        canManage={user?.role === Role.JournalAdmin || user?.role === Role.SuperAdmin}
-                    />
+                    {/* Kitob buyurtmasi taqrizdan o'tmaydi — taqrizchi tayinlash bloki ko'rsatilmaydi */}
+                    {!isBookOrder && (
+                        <ArticleReviewsPanel
+                            articleId={article.id}
+                            canManage={user?.role === Role.JournalAdmin || user?.role === Role.SuperAdmin}
+                        />
+                    )}
 
                     {/* Plagiarism Report — faqat jurnal admin / super admin uchun (muallifda ko'rinmasin) */}
                     {showPlagiarismForAdmin && (
@@ -721,6 +771,10 @@ const ArticleDetail: React.FC = () => {
                     {article.status === ArticleStatus.Rejected && article.publication_payment && (
                         <RefundCard payment={article.publication_payment} onChanged={reloadArticle} />
                     )}
+
+                    {/* To'lanmagan qoralama: to'lovni shu sahifadan tugatish (avval tugma faqat "Maqolalarim" ro'yxatida
+                        bor edi). Kutilayotgan to'lov bo'lsa server o'shani qaytaradi — yangi to'lov yaratilmaydi. */}
+                    {article.needs_publication_payment && <PublicationPayCard articleId={article.id} />}
 
                     {/* Activity log */}
                     <Card title="Faoliyat jurnali">
@@ -954,12 +1008,15 @@ const ArticleDetail: React.FC = () => {
                                 rows={4}
                                 className="w-full rounded-lg bg-white/55 border border-slate-200 text-slate-900 placeholder-slate-400 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                             />
+                            {revisionReason.trim().length > 0 && revisionReason.trim().length < REASON_MIN_LENGTH && (
+                                <p className="text-xs text-amber-800 mt-1">Kamida {REASON_MIN_LENGTH} ta belgi yozing.</p>
+                            )}
                         </div>
                         <div className="p-4 border-t border-slate-200 flex gap-3 justify-end">
                             <Button onClick={() => { setShowRevisionModal(false); setRevisionReason(''); }} variant="secondary">
                                 Bekor qilish
                             </Button>
-                            <Button onClick={handleRevisionSubmit} variant="primary" disabled={!revisionReason.trim()}>
+                            <Button onClick={handleRevisionSubmit} variant="primary" disabled={revisionReason.trim().length < REASON_MIN_LENGTH || reasonSubmitting}>
                                 Yuborish
                             </Button>
                         </div>
@@ -983,12 +1040,15 @@ const ArticleDetail: React.FC = () => {
                                 rows={4}
                                 className="w-full rounded-lg bg-white/55 border border-slate-200 text-slate-900 placeholder-slate-400 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                             />
+                            {rejectReason.trim().length > 0 && rejectReason.trim().length < REASON_MIN_LENGTH && (
+                                <p className="text-xs text-amber-800 mt-1">Kamida {REASON_MIN_LENGTH} ta belgi yozing.</p>
+                            )}
                         </div>
                         <div className="p-4 border-t border-slate-200 flex gap-3 justify-end">
                             <Button onClick={() => { setShowRejectModal(false); setRejectReason(''); }} variant="secondary">
                                 Bekor qilish
                             </Button>
-                            <Button onClick={handleRejectSubmit} variant="danger" disabled={!rejectReason.trim()}>
+                            <Button onClick={handleRejectSubmit} variant="danger" disabled={rejectReason.trim().length < REASON_MIN_LENGTH || reasonSubmitting}>
                                 Yuborish
                             </Button>
                         </div>

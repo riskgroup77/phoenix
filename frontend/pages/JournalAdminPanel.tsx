@@ -8,7 +8,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import EditorialTabs from '../components/EditorialTabs';
-import { Search, Edit3, Eye, FileText, CheckCircle, XCircle, Clock, Users, FileEdit, BookOpen, TrendingUp } from 'lucide-react';
+import { Search, Eye, FileText, CheckCircle, XCircle, Clock, Users, FileEdit, BookOpen, TrendingUp } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { formatUzDate } from '../utils/uzDate';
 import { getArticleJournalIdFromApi } from '../utils/articleIds';
@@ -165,9 +165,6 @@ const JournalAdminPanel: React.FC = () => {
         );
     }
     
-    const handleEditArticle = (articleId: string) => {
-        navigate(`/articles/${articleId}`); // For now, just view the article, we'll implement a proper edit later
-    };
     
     const handleViewArticle = (articleId: string) => {
         navigate(`/articles/${articleId}`);
@@ -205,12 +202,12 @@ const JournalAdminPanel: React.FC = () => {
                 <div className="editorial-card text-center">
                     <Clock className="h-7 w-7 mx-auto text-[var(--editorial-primary)] mb-2" />
                     <p className="font-serif text-2xl font-bold text-[var(--editorial-text)] tabular-nums">{tabCounts.pending}</p>
-                    <p className="text-sm text-[var(--editorial-muted)] mt-1">{t('Nashrni kutmoqda')}</p>
+                    <p className="text-sm text-[var(--editorial-muted)] mt-1">{t("Ko'rib chiqilmoqda")}</p>
                 </div>
                 <div className="editorial-card text-center">
                     <BookOpen className="h-7 w-7 mx-auto text-[var(--editorial-teal)] mb-2" />
                     <p className="font-serif text-2xl font-bold text-[var(--editorial-text)] tabular-nums">{tabCounts.all}</p>
-                    <p className="text-sm text-[var(--editorial-muted)] mt-1">{t('Jami nashrlar')}</p>
+                    <p className="text-sm text-[var(--editorial-muted)] mt-1">{t('Jami maqolalar')}</p>
                 </div>
             </div>
 
@@ -218,7 +215,7 @@ const JournalAdminPanel: React.FC = () => {
                 <EditorialTabs
                     tabs={[
                         { id: 'new', label: 'Yangi Kelganlar', count: tabCounts.new },
-                        { id: 'pending', label: 'Nashrni kutmoqda', count: tabCounts.pending },
+                        { id: 'pending', label: "Ko'rib chiqilmoqda", count: tabCounts.pending },
                         { id: 'all', label: 'Barcha Maqolalar', count: tabCounts.all },
                     ]}
                     activeId={activeTab}
@@ -291,13 +288,7 @@ const JournalAdminPanel: React.FC = () => {
                                                     <Eye className="h-4 w-4 text-blue-800" />
                                                 </button>
                                                 
-                                                <button 
-                                                    onClick={() => handleEditArticle(article.id)}
-                                                    className="p-2 rounded-md hover:bg-white/10 transition-colors"
-                                                    title={t('Tahrirlash')}
-                                                >
-                                                    <Edit3 className="h-4 w-4 text-yellow-800" />
-                                                </button>
+                                                {/* "Tahrirlash" tugmasi olib tashlandi: u faqat "Ko'rish" bilan bir xil sahifani ochardi */}
                                                 
                                                 {((article as any).allowed_transitions ?? []).includes(ArticleStatus.Accepted) && (
                                                     <button 

@@ -27,6 +27,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Maqola / kitob yubora olmaydigan xizmat rollari (frontend App.tsx SUBMITTER_ROLES bilan mos)
+NON_SUBMITTER_ROLES = frozenset({'journal_admin', 'operator', 'accountant'})
+
 
 class ArticleViewSet(
     ArticleAntiplagiatActionsMixin,
@@ -219,6 +222,18 @@ class ArticleViewSet(
     def create(self, request, *args, **kwargs):
         """Oldindan to'lovli jurnal: yaroqli to'lov bo'lmasa maqola Draft (to'lov kutilmoqda) bo'lib yaratiladi."""
         # Avval tekshiruv (sahifalar soni fayldan aniqlanadi), so'ng to'lov holatiga qarab Draft/Yangi
+        # Rol tekshiruvi forma tekshiruvidan oldin: aks holda xizmat roli tushunarsiz "maydon xatosi" (400) olardi
+        title_raw = str(request.data.get('title') or '').strip()
+        keywords_raw = str(request.data.get('keywords') or '').lower()
+        is_antiplag_doc = title_raw.lower().startswith('plagiarism check') or '"plagiarism"' in keywords_raw \
+            or "'plagiarism'" in keywords_raw or keywords_raw.strip() == 'plagiarism'
+        if self._user_role() in NON_SUBMITTER_ROLES and not is_antiplag_doc:
+            # Xizmat hisoblari (muharrir, operator, moliyachi) maqola/kitob yubormaydi — avval "Maqola yuborish"
+            # sahifasi ularga ham ochiq edi (muharrir o'z jurnaliga maqola yuborishi manfaatlar to'qnashuvi)
+            return Response(
+                {'detail': "Bu rol maqola yoki kitob yubora olmaydi. Muallif hisobidan foydalaning."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         book_journal = None

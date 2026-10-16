@@ -143,8 +143,12 @@ def overview(request):
 
     # ---- Maqolalar oqimi (bosh admin, jurnal admini)
     if role in ('super_admin', 'journal_admin'):
-        articles = Article.objects.exclude(_standalone_q()).exclude(status='Draft')
-        journals = Journal.objects.all()
+        # Kitob buyurtmalari va ularning ichki jurnali maqolalar oqimi statistikasiga kirmaydi
+        articles = (
+            Article.objects.exclude(_standalone_q()).exclude(status='Draft')
+            .exclude(title__istartswith='[KITOB]').exclude(journal__is_internal=True)
+        )
+        journals = Journal.objects.filter(is_internal=False)
         if role == 'journal_admin':
             articles = articles.filter(journal__journal_admin=request.user)
             journals = journals.filter(journal_admin=request.user)

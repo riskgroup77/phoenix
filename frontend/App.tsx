@@ -16,6 +16,10 @@ import { homePathFor } from './utils/authorUi';
 // Bosh sahifa va kirish — darhol (birinchi ekran); qolgan sahifalar alohida chunk bo'lib kerak bo'lganda yuklanadi.
 import Landing from './pages/Landing';
 import Login from './pages/LoginSimple';
+
+/** Maqola / kitob yuborishi mumkin bo'lgan rollar (backend ArticleViewSet.create bilan bir xil) */
+const SUBMITTER_ROLES = [Role.Author, Role.Reviewer, Role.SuperAdmin];
+
 const Dashboard = lazyPage(() => import('./pages/Dashboard'));
 const Articles = lazyPage(() => import('./pages/Articles'));
 const SubmitArticle = lazyPage(() => import('./pages/SubmitArticle'));
@@ -150,8 +154,9 @@ const AppContent: React.FC = () => {
                     <Route path="published-articles" element={<RoleRoute allowedRoles={[Role.JournalAdmin, Role.SuperAdmin]}><PublishedArticles /></RoleRoute>} />
                     <Route path="my-collections" element={<MyCollections />} />
                     <Route path="my-translations" element={<MyTranslations />} />
-                    <Route path="submit" element={<SubmitArticle />} />
-                    <Route path="submit-book" element={<SubmitBook />} />
+                    {/* Maqola / kitob yuborish — muallif, taqrizchi (olim) va bosh admin; xizmat hisoblari (muharrir, operator, moliyachi) emas */}
+                    <Route path="submit" element={<RoleRoute allowedRoles={SUBMITTER_ROLES}><SubmitArticle /></RoleRoute>} />
+                    <Route path="submit-book" element={<RoleRoute allowedRoles={SUBMITTER_ROLES}><SubmitBook /></RoleRoute>} />
                     <Route path="users" element={<RoleRoute allowedRoles={[Role.SuperAdmin]}><UserManagement /></RoleRoute>} />
                     <Route path="journal-management" element={<RoleRoute allowedRoles={[Role.SuperAdmin]}><JournalManagement /></RoleRoute>} />
                     <Route path="journal-admin-panel" element={<RoleRoute allowedRoles={[Role.JournalAdmin]}><JournalAdminPanel /></RoleRoute>} />

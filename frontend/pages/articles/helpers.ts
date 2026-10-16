@@ -24,7 +24,8 @@ export const journalAdminTabsBase = [
     { id: 'with-editor', label: 'Redaktorda', statuses: [ArticleStatus.WithEditor] },
     { id: 'in-review', label: 'Tekshiruvda', statuses: [ArticleStatus.QabulQilingan] },
     { id: 'plagiarism-review', label: 'Antiplagiat (bosh admin)', statuses: [ArticleStatus.PlagiarismReview] },
-    { id: 'ready', label: 'Nashrga Tayyorlar', statuses: [ArticleStatus.NashrgaYuborilgan] },
+    // Qabul qilingan maqola ham nashrga tayyor (sertifikat bilan yakunlanadi) — avval u hech bir tabda yo'q edi
+    { id: 'ready', label: 'Nashrga Tayyorlar', statuses: [ArticleStatus.Accepted, ArticleStatus.NashrgaYuborilgan] },
     { id: 'published', label: 'Nashr etilgan', statuses: [ArticleStatus.Published] },
     { id: 'all', label: 'Barcha Maqolalar', statuses: [] },
 ];

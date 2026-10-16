@@ -125,6 +125,19 @@ class UserSerializer(serializers.ModelSerializer):
             # Taqrizchi statistikasi tizim tomonidan hisoblanadi — o'zi "yaxshilay" olmaydi
             for key in self.SYSTEM_STATS_FIELDS:
                 validated_data.pop(key, None)
+        if not is_super_admin:
+            from config.demo import is_demo_user
+
+            if is_demo_user(instance):
+                # Demo (namuna) hisob paroli hammaga ochiq: avval kirgan har kim emailni oddiy domenga o'zgartirib,
+                # hisobni "haqiqiy"ga aylantira olardi (tushum, antiplagiat korpusi, telefon tasdiqlash chetlab
+                # o'tilardi), parol/telefonni almashtirib boshqalarni demo'dan chiqarib qo'yardi.
+                locked = [f for f in ('email', 'phone', 'password') if f in validated_data
+                          and validated_data[f] != getattr(instance, f, None)]
+                if locked:
+                    raise serializers.ValidationError(
+                        {f: "Namuna (demo) hisobda bu maydonni o'zgartirib bo'lmaydi." for f in locked}
+                    )
         password = validated_data.pop('password', None)
         if password and not is_super_admin:
             # O'z parolini o'zgartirish: joriy parol shart (ochiq qolgan sessiyadan parolni almashtirib bo'lmasin)
