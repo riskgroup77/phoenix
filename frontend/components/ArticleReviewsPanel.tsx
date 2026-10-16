@@ -36,6 +36,8 @@ type Review = {
   rating: number;
   deadline: string | null;
   completed_at: string | null;
+  /** Taqriz bosqichi: muallif tahrirdan keyin qayta yuborgan har safar +1 */
+  round_number?: number;
 };
 
 type Specialist = {
@@ -46,6 +48,8 @@ type Specialist = {
   reviews_completed: number;
   active_reviews: number;
   already_assigned: boolean;
+  /** Shu maqolaning avvalgi bosqichida taqriz yozgan — tuzatishlarni qayta ko'rib chiqishga tanlash mumkin */
+  reviewed_before?: boolean;
 };
 
 const STATUS_LABELS: Record<Review['status'], string> = {
@@ -301,6 +305,7 @@ const AssignReviewer: React.FC<{ articleId: string; onAssigned: () => void }> = 
         {available.map((s) => (
           <option key={s.id} value={s.id}>
             {s.full_name}
+            {s.reviewed_before ? ' (avvalgi bosqichda taqriz yozgan)' : ''}
             {s.specializations?.length ? ` — ${s.specializations.slice(0, 3).join(', ')}` : ''}
             {` · faol: ${s.active_reviews}, bajargan: ${s.reviews_completed}`}
           </option>
@@ -376,7 +381,10 @@ const ArticleReviewsPanel: React.FC<{ articleId: string; canManage: boolean }> =
           {visible.map((r) => (
             <div key={r.id} className="rounded-lg border border-[var(--editorial-border)] p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-medium text-sm">{r.reviewer_name}</span>
+                <span className="font-medium text-sm">
+                  {r.reviewer_name}
+                  {(r.round_number ?? 1) > 1 && <span className="ml-2 text-xs text-slate-500">{r.round_number}-bosqich</span>}
+                </span>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_TONES[r.status]}`}>{STATUS_LABELS[r.status]}</span>
               </div>
               {canManage && (

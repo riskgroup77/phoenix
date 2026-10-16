@@ -1,6 +1,6 @@
 """Maqola namunasi va DOI so'rovlari: narx, yaratish, ro'yxat."""
 from rest_framework import viewsets, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from config.upload_validation import validate_document
@@ -14,6 +14,7 @@ from .models import (
 from .serializers import DoiRequestSerializer, ArticleSampleRequestSerializer
 from apps.notifications.models import Notification
 from apps.payments.models import Transaction
+from django.db import transaction as db_transaction
 from django.utils import timezone
 import logging
 
@@ -224,13 +225,89 @@ class DoiRequestViewSet(viewsets.ModelViewSet):
 
 
 class ArticleSampleRequestViewSet(viewsets.ReadOnlyModelViewSet):
-    """Maqola namuna so'rovlari: taqrizchi barchani ko'radi, muallif o'zini."""
+    """
+    Maqola namuna so'rovlari: muallif o'zinikini, taqrizchi bo'sh (submitted) va o'zi olganlarini ko'radi.
+    Bajarish: taqrizchi "ishga oladi" (take), tayyor namunani yuklaydi (complete) — muallifga bildirishnoma.
+    Avval viewset faqat o'qish uchun edi: muallif to'lardi, lekin natijani yetkazish imkoni yo'q edi.
+    """
     permission_classes = [IsAuthenticated]
     serializer_class = ArticleSampleRequestSerializer
-    http_method_names = ['get', 'head', 'options']
+    http_method_names = ['get', 'post', 'head', 'options']
 
     def get_queryset(self):
+        from django.db.models import Q
+
         role = getattr(self.request.user, 'role', None) or 'author'
-        if role in ('reviewer', 'super_admin', 'operator'):  # viewset faqat o'qish uchun
-            return ArticleSampleRequest.objects.select_related('user').order_by('-created_at')
-        return ArticleSampleRequest.objects.filter(user=self.request.user).order_by('-created_at')
+        qs = ArticleSampleRequest.objects.select_related('user', 'reviewer').order_by('-created_at')
+        if role in ('super_admin', 'operator'):
+            return qs
+        if role == 'reviewer':
+            return qs.filter(Q(status='submitted') | Q(reviewer=self.request.user))
+        return qs.filter(user=self.request.user)
+
+    def _staff_check(self, request):
+        role = getattr(request.user, 'role', None)
+        if role not in ('reviewer', 'super_admin'):
+            return Response({'detail': "Faqat taqrizchi namuna so'rovini bajaradi."}, status=status.HTTP_403_FORBIDDEN)
+        return None
+
+    @action(detail=True, methods=['post'])
+    def take(self, request, pk=None):
+        """Taqrizchi so'rovni o'ziga oladi (submitted → in_progress)."""
+        denied = self._staff_check(request)
+        if denied:
+            return denied
+        with db_transaction.atomic():
+            obj = ArticleSampleRequest.objects.select_for_update().get(pk=self.get_object().pk)
+            if obj.status != 'submitted':
+                return Response({'detail': "So'rov allaqachon ishga olingan yoki bajarilgan."}, status=status.HTTP_400_BAD_REQUEST)
+            obj.status = 'in_progress'
+            obj.reviewer = request.user
+            obj.taken_at = timezone.now()
+            obj.save(update_fields=['status', 'reviewer', 'taken_at'])
+        try:
+            Notification.notify(
+                user=obj.user,
+                title="Maqola namunasi tayyorlanmoqda",
+                message=f'"{obj.topic[:80]}" mavzusidagi namuna so\'rovingiz mutaxassis tomonidan ishga olindi.',
+                notification_type='article',
+                link='/article-sample-requests',
+                metadata={'article_sample_request_id': str(obj.id)},
+            )
+        except Exception as e:
+            logger.warning('Sample take notify failed: %s', e)
+        return Response(self.get_serializer(obj).data)
+
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        """Tayyor namuna faylini yuklash (in_progress → completed), muallifga bildirishnoma."""
+        denied = self._staff_check(request)
+        if denied:
+            return denied
+        obj = self.get_object()
+        is_super = getattr(request.user, 'role', None) == 'super_admin'
+        if obj.status == 'completed':
+            return Response({'detail': "So'rov allaqachon bajarilgan."}, status=status.HTTP_400_BAD_REQUEST)
+        if obj.status != 'in_progress' or (obj.reviewer_id != request.user.id and not is_super):
+            return Response({'detail': "Avval so'rovni ishga oling (faqat olgan mutaxassis yakunlaydi)."}, status=status.HTTP_400_BAD_REQUEST)
+        file_obj = request.FILES.get('result_file')
+        if not file_obj:
+            return Response({'detail': 'Tayyor namuna fayli (DOC/DOCX/PDF) yuklanishi shart.'}, status=status.HTTP_400_BAD_REQUEST)
+        validate_document(file_obj, field='result_file')
+        obj.result_file = file_obj
+        obj.reviewer_note = (request.data.get('reviewer_note') or '').strip()[:5000]
+        obj.status = 'completed'
+        obj.completed_at = timezone.now()
+        obj.save(update_fields=['result_file', 'reviewer_note', 'status', 'completed_at'])
+        try:
+            Notification.notify(
+                user=obj.user,
+                title='Maqola namunasi tayyor',
+                message=f'"{obj.topic[:80]}" mavzusidagi maqola namunasi tayyor. Uni "Maqola namuna so\'rovlari" bo\'limidan yuklab oling.',
+                notification_type='article',
+                link='/article-sample-requests',
+                metadata={'article_sample_request_id': str(obj.id)},
+            )
+        except Exception as e:
+            logger.warning('Sample complete notify failed: %s', e)
+        return Response(self.get_serializer(obj).data)

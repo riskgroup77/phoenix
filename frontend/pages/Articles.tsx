@@ -15,7 +15,8 @@ import { apiService } from '../services/apiService';
 import { toast } from 'react-toastify';
 import { isStandalonePlagiarismArticle } from '../utils/antiplagiatFromArticle';
 import { ArticleApiResponse, TranslationRequestApiResponse, JournalApiResponse, getArticleJournalId } from './articles/types';
-import { journalAdminTabsBase, authorArticleTabs, convertToArticleType } from './articles/helpers';
+import { journalAdminTabsBase, authorArticleTabs, convertToArticleType, BOOK_ORDERS_TAB } from './articles/helpers';
+import { isBookTitle } from '../utils/articleAuthorWorkflow';
 import ArticleItem from './articles/ArticleItem';
 import TranslationItem from './articles/TranslationItem';
 import { useT } from '../i18n/LanguageContext';
@@ -62,9 +63,20 @@ const Articles: React.FC = () => {
     const reviewerTabs: { id: string; label: string; statuses: (ArticleStatus | TranslationStatus)[] }[] = [
         { id: 'reviews', label: 'Maqola Taqrizlari', statuses: [ArticleStatus.QabulQilingan] },
         { id: 'translations', label: 'Tarjimalar', statuses: [TranslationStatus.Yangi, TranslationStatus.Jarayonda] },
-        { id: 'book-orders', label: 'Kitob nashr', statuses: [ArticleStatus.QabulQilingan, ArticleStatus.Yangi, ArticleStatus.ContractProcessing] },
     ];
-    const journalAdminTabs = journalAdminTabsBase;
+    // Bosh admin / operator: kitob buyurtmalari alohida tabda (avval taqrizchilarda edi — ularda amal yo'q,
+    // buyurtmada esa muallif manzili va telefoni bor). Jurnal muharririga kitoblar umuman ko'rinmaydi.
+    const showBookTab = isSuperAdminUser || isOperator;
+    const journalAdminTabs = useMemo(
+        () => (showBookTab ? [...journalAdminTabsBase.slice(0, -1), BOOK_ORDERS_TAB, ...journalAdminTabsBase.slice(-1)] : journalAdminTabsBase),
+        [showBookTab],
+    );
+    /** Tab bo'yicha filtr: kitob tabi — faqat kitoblar; holat tablari — kitoblarsiz; "Barchasi" — hammasi */
+    const matchesStaffTab = (tab: { id: string; statuses?: (ArticleStatus | TranslationStatus)[] }, a: ArticleApiResponse) => {
+        if (tab.id === 'all') return true;
+        if (tab.id === BOOK_ORDERS_TAB.id) return isBookTitle(a.title);
+        return !isBookTitle(a.title) && !!tab.statuses && (tab.statuses as ArticleStatus[]).includes(a.status as ArticleStatus);
+    };
 
     let title = "Maqolalar";
     switch (userRole) {
@@ -106,17 +118,11 @@ const Articles: React.FC = () => {
                 return statusMatch;
             }).sort((a, b) => (b.fast_track ? 1 : 0) - (a.fast_track ? 1 : 0));
         }
-        if (isSuperAdminUser) {
-            const selectedTab = journalAdminTabs.find(t => t.id === activeTab);
-            if (!selectedTab) return articles;
-            return articles.filter(a => selectedTab.id === 'all' || (selectedTab.statuses && selectedTab.statuses.includes(a.status as ArticleStatus)))
-                .sort((a, b) => (b.fast_track ? 1 : 0) - (a.fast_track ? 1 : 0));
-        }
-        if (isOperator) {
+        if (isSuperAdminUser || isOperator) {
             const selectedTab = journalAdminTabs.find(t => t.id === activeTab);
             if (!selectedTab) return articles;
             return articles
-                .filter(a => selectedTab.id === 'all' || (selectedTab.statuses && selectedTab.statuses.includes(a.status as ArticleStatus)))
+                .filter((a) => matchesStaffTab(selectedTab, a))
                 .sort((a, b) => (b.fast_track ? 1 : 0) - (a.fast_track ? 1 : 0));
         }
         if (userRole === Role.Author || userRole === 'author') {
@@ -132,18 +138,11 @@ const Articles: React.FC = () => {
             if (activeTab === 'translations') {
                 return [];
             }
-            if (activeTab === 'book-orders') {
-                return articles
-                    .filter((a) => (a.title || '').trim().toUpperCase().startsWith('[KITOB]'))
-                    .sort((a, b) => (b.fast_track ? 1 : 0) - (a.fast_track ? 1 : 0));
-            }
             if (activeTab === 'reviews') {
+                // Backend taqrizchiga faqat o'ziga tayinlangan maqolalarni beradi — holat bo'yicha qo'shimcha filtr
+                // kerak emas (aks holda taqriz yozilgan maqola keyingi bosqichga o'tganda ro'yxatdan yo'qolardi)
                 return articles
-                    .filter(
-                        (a) =>
-                            a.status === ArticleStatus.QabulQilingan &&
-                            !(a.title || '').trim().toUpperCase().startsWith('[KITOB]')
-                    )
+                    .filter((a) => !isBookTitle(a.title))
                     .sort((a, b) => (b.fast_track ? 1 : 0) - (a.fast_track ? 1 : 0));
             }
             return [];
@@ -223,16 +222,8 @@ const Articles: React.FC = () => {
                     }
                     return false;
                 }).length;
-            } else if (tab.id === 'book-orders') {
-                count = articles.filter((a) =>
-                    (a.title || '').trim().toUpperCase().startsWith('[KITOB]')
-                ).length;
             } else if (tab.id === 'reviews') {
-                count = articles.filter(
-                    (a) =>
-                        a.status === ArticleStatus.QabulQilingan &&
-                        !(a.title || '').trim().toUpperCase().startsWith('[KITOB]')
-                ).length;
+                count = articles.filter((a) => !isBookTitle(a.title)).length;
             } else if (tab.statuses) {
                 count = articles.filter((a) =>
                     (tab.statuses as ArticleStatus[]).includes(a.status as ArticleStatus)
@@ -262,20 +253,19 @@ const Articles: React.FC = () => {
     }, [articles, articlesForJournalFilter, journalAdminTabs, isJournalAdmin]);
 
     const superAdminTabCounts = useMemo(() => {
-        return journalAdminTabs.map(tab => {
-            const count = tab.id === 'all'
-                ? articles.length
-                : articles.filter(a => tab.statuses && (tab.statuses as ArticleStatus[]).includes(a.status)).length;
-            return { id: tab.id, count };
-        });
+        return journalAdminTabs.map(tab => ({ id: tab.id, count: articles.filter((a) => matchesStaffTab(tab, a)).length }));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [articles, journalAdminTabs]);
 
     const authorTabCounts = useMemo(() => {
+        // Ro'yxatda ko'rinmaydigan mustaqil antiplagiat hujjatlari sanalmaydi (avval "Barchasi" ularni ham
+        // qo'shib, bosh sahifadagi sondan farq qilardi)
+        const listed = articles.filter((a) => !isStandalonePlagiarismArticle(a));
         return authorArticleTabs.map(tab => {
             const count =
                 tab.id === 'all'
-                    ? articles.length
-                    : articles.filter(a => tab.statuses.includes(a.status as ArticleStatus)).length;
+                    ? listed.length
+                    : listed.filter(a => tab.statuses.includes(a.status as ArticleStatus)).length;
             return { id: tab.id, count };
         });
     }, [articles]);
@@ -353,7 +343,7 @@ const Articles: React.FC = () => {
         if (tab) {
             if (authorArticleTabs.some((t) => t.id === tab)) {
                 setActiveTab(tab);
-            } else if (reviewerTabs.some((t) => t.id === tab)) {
+            } else if (reviewerTabs.some((t) => t.id === tab) || tab === BOOK_ORDERS_TAB.id) {
                 setActiveTab(tab);
             }
         }

@@ -13,7 +13,7 @@ class PeerReviewSerializer(serializers.ModelSerializer):
         # Natija (holat, ballar, tavsiya, matn) faqat taqrizchining o'zi submit_review orqali yozadi —
         # avval muharrir umumiy PUT bilan "yakunlangan" taqriz yaratishi yoki natijani o'zgartirishi mumkin edi
         read_only_fields = (
-            'id', 'assigned_at', 'reviewer', 'status', 'completed_at', 'rating', 'recommendation',
+            'id', 'assigned_at', 'reviewer', 'status', 'completed_at', 'rating', 'recommendation', 'round_number',
             'review_content', 'strengths', 'weaknesses', 'comments_to_author', 'comments_to_editor',
             'originality_score', 'methodology_score', 'clarity_score', 'significance_score', 'references_score',
         )

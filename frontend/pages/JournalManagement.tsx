@@ -9,6 +9,7 @@ import { Edit, Trash2, PlusCircle, X, Check, UploadCloud } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { useT } from '../i18n/LanguageContext';
 
+import { personFullName } from '../utils/personName';
 /** Form may hold number | undefined; avoid comparing number to '' for tsc */
 function optionalJournalPercent(v: unknown): number | null {
     if (v === undefined || v === null || v === '') return null;
@@ -473,7 +474,7 @@ const JournalManagement: React.FC = () => {
                                     <div>
                                         <h4 className="font-serif font-semibold text-lg text-[var(--editorial-text)]">{journal.name}</h4>
                                         <p className="text-sm text-[var(--editorial-muted)]">
-                                            {t('Admin:')} {admin ? `${admin.firstName || admin.first_name} ${admin.lastName || admin.last_name}` : t('Tayinlanmagan')}
+                                            {t('Admin:')} {admin ? personFullName(admin) : t('Tayinlanmagan')}
                                             <span className="mx-2">•</span>
                                             {t('Kategoriya:')} <span className="font-medium text-[var(--editorial-primary)]">{category?.name || t("Noma'lum")}</span>
                                             <span className="mx-2">•</span>
@@ -551,7 +552,7 @@ const JournalManagement: React.FC = () => {
                                     <select name="journalAdminId" value={formData.journalAdminId} onChange={handleInputChange} className="w-full" required>
                                         <option value="" disabled>{t('Adminni tanlang')}</option>
                                         {journalAdmins.map(admin => (
-                                            <option key={admin.id} value={admin.id}>{admin.firstName || admin.first_name} {admin.lastName || admin.last_name}</option>
+                                            <option key={admin.id} value={admin.id}>{personFullName(admin)}</option>
                                         ))}
                                     </select>
                                 </div>

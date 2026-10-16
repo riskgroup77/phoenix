@@ -57,7 +57,10 @@ class Journal(models.Model):
     ai_content_max_percent = models.FloatField(null=True, blank=True)
     # Originalilik: maqola originalilik % bu qiymatdan kichik bo'lsa rad. Null = tekshiruv o'chiq.
     originality_min_percent = models.FloatField(null=True, blank=True)
-    
+    # Ichki (texnik) jurnal: kitob nashri buyurtmalari shu yerga biriktiriladi. Katalogda, mualliflar
+    # ro'yxatida va qidiruvda ko'rinmaydi; egasi — bosh admin (apps/journals/internal.py).
+    is_internal = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

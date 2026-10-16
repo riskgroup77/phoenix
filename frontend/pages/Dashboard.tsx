@@ -10,6 +10,7 @@ import { formatUzDate } from '../utils/uzDate';
 import { FileText, CheckCircle, Shield, Upload, Bell, CreditCard, Bot } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { txAmount } from '../utils/amount';
+import { isStandalonePlagiarismArticle } from '../utils/antiplagiatFromArticle';
 import { useT } from '../i18n/LanguageContext';
 import ReviewerDashboard from './dashboard/ReviewerDashboard';
 import JournalAdminDashboard from './dashboard/JournalAdminDashboard';
@@ -161,7 +162,9 @@ const Dashboard: React.FC = () => {
 
     const renderAuthorDashboard = () => {
         const validArticles = Array.isArray(articles) ? articles : [];
-        const myArticles = validArticles.filter((a: any) => a.author === user.id);
+        // "Maqolalarim" bilan bir xil hisob: o'zi va hammualliflik maqolalari (/articles/mine/), mustaqil
+        // antiplagiat hujjatlarisiz. Avval hammualliflik tushib qolib, ro'yxatdagi "Barchasi" bilan farq qilardi.
+        const myArticles = validArticles.filter((a: any) => !isStandalonePlagiarismArticle(a));
         const recentArticles = [...myArticles]
             .sort((a: any, b: any) => new Date(b.submission_date || 0).getTime() - new Date(a.submission_date || 0).getTime())
             .slice(0, 5);

@@ -11,6 +11,8 @@ import json
 from django.http import JsonResponse
 from django.views import View
 import logging
+from django.db import transaction as db_transaction
+from django.utils import timezone
 
 from .models import Transaction
 from .serializers import TransactionSerializer, CreateTransactionSerializer
@@ -71,6 +73,34 @@ class TransactionViewSet(viewsets.ModelViewSet):
             status=status.HTTP_405_METHOD_NOT_ALLOWED,
         )
     
+    @staticmethod
+    def _reuse_pending(user, data):
+        """
+        Shu maqola / tarjima uchun kutilayotgan to'lov bo'lsa — yangisini yaratmasdan o'shani qaytaradi.
+        Avval har "To'lash" bosilganda yangi pending tranzaksiya paydo bo'lardi (to'lovlar ro'yxati to'lib ketardi,
+        eski Click havolalari ham ochiq qolardi). Summa o'zgargan bo'lsa (narx/sahifa) eskisi bekor qilinadi.
+        """
+        article = data.get('article')
+        translation_request = data.get('translation_request')
+        if article is None and translation_request is None:
+            return None
+        pending = Transaction.objects.filter(
+            user=user,
+            service_type=data.get('service_type'),
+            article=article,
+            translation_request=translation_request,
+            status='pending',
+        ).order_by('-created_at')
+        keep = None
+        for tx in pending:
+            if keep is None and tx.amount == data.get('amount'):
+                keep = tx
+                continue
+            tx.status = 'cancelled'
+            tx.error_note = (tx.error_note or "Yangi to'lov bilan almashtirildi")[:500]
+            tx.save(update_fields=['status', 'error_note'])
+        return keep
+
     def create(self, request, *args, **kwargs):
         """Override create to return full transaction data including ID"""
         from apps.users.phone_verification import verification_required_message
@@ -80,6 +110,12 @@ class TransactionViewSet(viewsets.ModelViewSet):
             return Response({'detail': blocked}, status=status.HTTP_403_FORBIDDEN)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        reused = self._reuse_pending(request.user, serializer.validated_data)
+        if reused is not None:
+            return Response(
+                TransactionSerializer(reused, context=self.get_serializer_context()).data,
+                status=status.HTTP_200_OK,
+            )
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         
@@ -88,6 +124,96 @@ class TransactionViewSet(viewsets.ModelViewSet):
         full_serializer = TransactionSerializer(transaction, context=self.get_serializer_context())
         return Response(full_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
+    @action(detail=True, methods=['post'])
+    def request_refund(self, request, pk=None):
+        """
+        Muallif: rad etilgan maqolaning nashr to'lovini qaytarishni so'raydi — moliyachi va bosh adminlarga xabar.
+        Avval rad etilgan to'langan maqola uchun hech qanday yo'l yo'q edi (na qaytarish, na qayta yuborish).
+        """
+        tx = self.get_object()
+        if tx.user_id != request.user.id:
+            return Response({'detail': "Faqat to'lov egasi qaytarishni so'raydi."}, status=status.HTTP_403_FORBIDDEN)
+        if tx.status != 'completed' or tx.service_type != 'publication_fee' or not tx.article_id:
+            return Response({'detail': "Faqat nashr to'lovini qaytarishni so'rash mumkin."}, status=status.HTTP_400_BAD_REQUEST)
+        if tx.article.status != 'Rejected':
+            return Response({'detail': "Qaytarishni faqat rad etilgan maqola uchun so'rash mumkin."}, status=status.HTTP_400_BAD_REQUEST)
+        if tx.refund_requested_at:
+            return Response({'detail': "Qaytarish so'rovi allaqachon yuborilgan."}, status=status.HTTP_400_BAD_REQUEST)
+        tx.refund_requested_at = timezone.now()
+        tx.refund_reason = (request.data.get('reason') or '').strip()[:2000]
+        tx.save(update_fields=['refund_requested_at', 'refund_reason'])
+        from django.contrib.auth import get_user_model
+
+        from apps.notifications.models import Notification
+
+        for staff in get_user_model().objects.filter(role__in=('accountant', 'super_admin'), is_active=True):
+            try:
+                Notification.notify(
+                    user=staff,
+                    title="To'lovni qaytarish so'rovi",
+                    message=(
+                        f'{request.user.get_full_name() or request.user.phone}: "{tx.article.title[:80]}" rad etilgan — '
+                        f"{int(tx.amount):,} so'm qaytarish so'raldi.".replace(',', ' ')
+                    ),
+                    notification_type='payment',
+                    link='/financials',
+                    metadata={'transaction_id': str(tx.id)},
+                )
+            except Exception as exc:
+                logger.warning('refund request notify failed: %s', exc)
+        return Response(TransactionSerializer(tx, context=self.get_serializer_context()).data)
+
+    @action(detail=True, methods=['post'])
+    def mark_refunded(self, request, pk=None):
+        """Moliyachi / bosh admin: pul Click kabinetida qaytarilgach belgilaydi (tushumdan chiqadi), muallifga xabar."""
+        role = getattr(request.user, 'role', None)
+        if role not in ('accountant', 'super_admin') and not request.user.is_superuser:
+            return Response({'detail': "Faqat moliyachi yoki bosh admin."}, status=status.HTTP_403_FORBIDDEN)
+        tx = self.get_object()
+        if tx.status != 'completed':
+            return Response({'detail': "Faqat yakunlangan to'lovni qaytarilgan deb belgilash mumkin."}, status=status.HTTP_400_BAD_REQUEST)
+        note = (request.data.get('note') or '').strip()
+        via_click = str(request.data.get('via_click', '')).lower() in ('1', 'true', 'yes')
+        if via_click:
+            # Click Merchant API orqali avtomatik qaytarish; Click rad etsa holat o'zgarmaydi (qo'lda qaytarish qoladi)
+            from .refunds import ClickRefundError, reverse_click_payment
+
+            with db_transaction.atomic():
+                tx = Transaction.objects.select_for_update().get(pk=tx.pk)
+                if tx.status != 'completed':
+                    return Response({'detail': "To'lov allaqachon qaytarilgan."}, status=status.HTTP_400_BAD_REQUEST)
+                try:
+                    reversal = reverse_click_payment(tx)
+                except ClickRefundError as exc:
+                    return Response({'detail': str(exc), 'click_rejected': True}, status=status.HTTP_502_BAD_GATEWAY)
+                note = f"Click orqali avtomatik qaytarildi (Click to'lov raqami {reversal['payment_id']}). {note}".strip()
+                tx.extra_data = {**(tx.extra_data or {}), 'click_reversal': reversal['response']}
+                tx.status = 'refunded'
+                tx.refunded_at = timezone.now()
+                tx.refund_note = note[:2000]
+                tx.save(update_fields=['status', 'refunded_at', 'refund_note', 'extra_data'])
+        else:
+            if len(note) < 5:
+                return Response({'detail': "Izoh yozing (masalan: Click kabinetida qaytarildi, sana)."}, status=status.HTTP_400_BAD_REQUEST)
+            tx.status = 'refunded'
+            tx.refunded_at = timezone.now()
+            tx.refund_note = note[:2000]
+            tx.save(update_fields=['status', 'refunded_at', 'refund_note'])
+        from apps.notifications.models import Notification
+
+        try:
+            Notification.notify(
+                user=tx.user,
+                title="To'lov qaytarildi",
+                message=f"{int(tx.amount):,} so'm qaytarildi. {note[:200]}".replace(',', ' ', 1),
+                notification_type='payment',
+                link='/payments',
+                metadata={'transaction_id': str(tx.id)},
+            )
+        except Exception as exc:
+            logger.warning('refund notify failed: %s', exc)
+        return Response(TransactionSerializer(tx, context=self.get_serializer_context()).data)
+
     @action(detail=True, methods=['get'])
     def receipt(self, request, pk=None):
         """To'lov cheki (PDF). Faqat yakunlangan to'lov; egasi, bosh admin yoki buxgalter."""

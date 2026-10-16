@@ -45,8 +45,12 @@ def allowed_staff_transitions(article, *, super_admin: bool) -> frozenset[str]:
     """Jurnal admini / bosh admin uchun hozirgi holatdan o'tish mumkin bo'lgan holatlar."""
     current = article.status
     if is_book_submission(article):
-        if current not in BOOK_STATUSES:
-            return SUPER_ADMIN_EXTRA.get(current, frozenset()) if super_admin else frozenset()
+        # To'lanmagan kitob buyurtmasi faqat to'lov (yoki bosh admin) orqali chiqadi
+        if current == 'Draft':
+            return SUPER_ADMIN_EXTRA['Draft'] if super_admin else frozenset()
+        # To'lovdan keyin kitob "QabulQilingan" bo'ladi (repair_book_publication) — BOOK_STATUSES da yo'q edi,
+        # shuning uchun hech kimda tugma chiqmay buyurtma qotib qolardi. Ishlab chiqarish bosqichlari istalgan
+        # (BOOK_STATUSES dan tashqari) holatdan ochiq.
         allowed = BOOK_STATUSES - {current, 'Yangi'}
         if super_admin and current == 'Rejected':
             allowed = allowed | {'Yangi'}

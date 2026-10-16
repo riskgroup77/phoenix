@@ -16,6 +16,7 @@ import { getAuthorWorkflowStageLabel } from '../utils/articleAuthorWorkflow';
 import { isStandalonePlagiarismArticle } from '../utils/antiplagiatFromArticle';
 import { useT } from '../i18n/LanguageContext';
 
+import { personFullName } from '../utils/personName';
 type SectionTab = 'platform' | 'samples' | 'external';
 
 interface PlatformArticle {
@@ -412,7 +413,7 @@ const AuthorPublications: React.FC = () => {
                   <option value="">{t('Barcha mualliflar')}</option>
                   {allAuthors.map(author => (
                     <option key={author.id} value={author.id}>
-                      {author.first_name} {author.last_name}
+                      {personFullName(author)}
                     </option>
                   ))}
                 </select>

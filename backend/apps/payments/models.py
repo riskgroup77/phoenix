@@ -24,6 +24,8 @@ class Transaction(models.Model):
         ('completed', 'Completed'),
         ('failed', 'Failed'),
         ('cancelled', 'Cancelled'),
+        # Pul muallifga qaytarilgan (Click kabinetida qo'lda) — tushumga kirmaydi
+        ('refunded', 'Refunded'),
     )
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -59,6 +61,11 @@ class Transaction(models.Model):
     extra_data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    # Qaytarish: muallif so'raydi (rad etilgan maqola), moliyachi / bosh admin qaytarilganini belgilaydi
+    refund_requested_at = models.DateTimeField(null=True, blank=True)
+    refund_reason = models.TextField(blank=True, default='')
+    refunded_at = models.DateTimeField(null=True, blank=True)
+    refund_note = models.TextField(blank=True, default='')
     
     objects = models.Manager()  # Default manager
     

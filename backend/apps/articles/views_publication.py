@@ -3,9 +3,9 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Article, ActivityLog
-from .serializers import ArticleSerializer
+from .serializers import ArticleSerializer, status_change_text
 from apps.notifications.models import Notification
-from .views_antiplagiat import _check_plagiarism_thresholds
+from .views_antiplagiat import _check_plagiarism_thresholds, start_plagiarism_check
 from config.upload_validation import validate_upload
 from .workflow import THRESHOLD_CHECKED_TARGETS, allowed_staff_transitions, is_book_submission
 import logging
@@ -13,6 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 CERTIFICATE_EXTENSIONS = frozenset({'.pdf', '.jpg', '.jpeg', '.png'})
+REASON_REQUIRED_STATUSES = frozenset({'Rejected', 'Revision'})
 
 
 class ArticlePublicationActionsMixin:
@@ -89,6 +90,14 @@ class ArticlePublicationActionsMixin:
                     {'error': msg, 'allowed_statuses': sorted(allowed), 'allowed_hint': hint},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            # Rad etish / tahrirga qaytarish sababsiz bo'lmasin: muallif nima qilishini bilishi kerak.
+            # Avval "Maqolalar" ro'yxatidagi menyu sabab so'ramasdi, server ham majburiy qilmasdi.
+            if new_status in REASON_REQUIRED_STATUSES and len((request.data.get('reason') or '').strip()) < 5:
+                what = 'Rad etish' if new_status == 'Rejected' else 'Tahrirga qaytarish'
+                return Response(
+                    {'error': f'{what} sababini yozing (kamida 5 ta belgi) — u muallifga yuboriladi.', 'reason_required': True},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         final_status = new_status
         # Antiplagiat chegarasi: jurnal admini "Qabul qilish" yoki "Nashrga yuborish" qilganda (kitobdan tashqari).
         # Bosh admin qarori (PlagiarismReview dan) qayta tekshirilmaydi.
@@ -99,6 +108,31 @@ class ArticlePublicationActionsMixin:
         ):
             article.journal.refresh_from_db()
             decision, reason = _check_plagiarism_thresholds(article)
+            if decision == 'unchecked':
+                # Tekshirilmagan maqola endi "originallik 0%" deb bosh admin qaroriga ketmaydi: tahririyat
+                # tekshiruvi (to'lovsiz) shu yerning o'zida boshlanadi, natija tayyor bo'lgach qaror qayta bosiladi.
+                from apps.articles.plagiarism_check_service import get_plagiarism_check_status
+
+                check = get_plagiarism_check_status(article)
+                if check.get('status') != 'processing':
+                    try:
+                        start_plagiarism_check(article, request.user)
+                    except Exception as exc:
+                        logger.warning('editorial plagiarism check start failed %s: %s', article.pk, exc)
+                        return Response(
+                            {'error': f"{reason} Tekshiruvni boshlab bo'lmadi: {exc}"},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        )
+                return Response(
+                    {
+                        'error': (
+                            f"{reason} Antiplagiat tekshiruvi boshlandi — natija tayyor bo'lgach "
+                            '(odatda 1–3 daqiqa) shu tugmani qayta bosing.'
+                        ),
+                        'plagiarism_check': 'started',
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
             if decision == 'reject':
                 final_status = 'Rejected'
                 article.status = final_status
@@ -114,7 +148,10 @@ class ArticlePublicationActionsMixin:
                     Notification.notify(
                         user=article.author,
                         title='Maqola rad etildi',
-                        message=f'"{article.title}" jurnal talablariga ko\'ra rad etildi: plagiat, AI kontent yoki originalilik chegarasiga mos kelmadi.',
+                        message=(
+                            f'"{article.title}" jurnal talablariga ko\'ra rad etildi: plagiat, AI kontent yoki originalilik '
+                            "chegarasiga mos kelmadi. Nashr to'lovi bo'lsa, qaytarishni maqola sahifasidan so'rashingiz mumkin."
+                        ),
                         notification_type='plagiarism',
                         link=f'/articles/{article.id}',
                         metadata={'article_id': str(article.id), 'reason': reason},
@@ -183,7 +220,7 @@ class ArticlePublicationActionsMixin:
         ActivityLog.objects.create(
             article=article,
             user=request.user,
-            action=f'Status changed from {old_status} to {final_status}',
+            action=status_change_text(old_status, final_status),
             details=reason_text
         )
 
@@ -208,6 +245,10 @@ class ArticlePublicationActionsMixin:
                 notif_message += f' Sabab: {reason_text}'
             else:
                 notif_message += ' Batafsil maqola sahifasidagi izohni ko\'ring.'
+            from apps.payments.models import Transaction
+
+            if Transaction.objects.filter(article=article, service_type='publication_fee', status='completed').exists():
+                notif_message += " Nashr to'lovini qaytarishni maqola sahifasidan so'rashingiz mumkin."
         else:
             notif_title = 'Maqola holati yangilandi'
             notif_message = f'"{article.title}" maqolangiz holati "{new_label}" ga o\'zgartirildi.'

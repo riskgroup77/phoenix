@@ -102,7 +102,9 @@ def _notify_recipients(article, *, notif_title: str, message: str, stage: str) -
         _notify(admin, notif_title, f'{base_msg} {message}')
 
     journal_admin = getattr(journal, 'journal_admin', None) if journal else None
-    if journal_admin and getattr(journal_admin, 'is_active', True):
+    # Jurnal muharririga to'lanmagan qoralama haqida xabar yuborilmaydi (har qoralama uchun shovqin edi) —
+    # u maqolani to'lovdan keyin "Yangi maqola yuborildi" bildirishnomasi bilan oladi.
+    if journal_admin and getattr(journal_admin, 'is_active', True) and stage != 'draft_payment':
         _notify(journal_admin, notif_title, f'{base_msg} {message}')
 
     for staff in User.objects.filter(role__in=STAFF_ROLES_NOTIFY - {'super_admin', 'journal_admin'}, is_active=True):
@@ -142,7 +144,7 @@ def notify_article_draft_pending_payment(article) -> None:
     _log_submission_activity(
         article,
         action="Maqola qoralama (to'lov kutilmoqda)",
-        details='Bosh admin, jurnal admin va operatorlarga yuborildi.',
+        details="Bosh admin va operatorlarga yuborildi (jurnal muharririga — to'lovdan keyin).",
     )
     _notify_recipients(
         article,

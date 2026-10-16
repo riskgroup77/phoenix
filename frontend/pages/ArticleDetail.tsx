@@ -5,7 +5,7 @@ import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
-import { Role, ArticleStatus, ActivityLogEvent } from '../types';
+import { Role, ArticleStatus, ActivityLogEvent, ARTICLE_STATUS_LABELS } from '../types';
 import { Check, X, Award, UploadCloud, BookOpen, Download, Edit, Send, GitCommit, UserCheck, FileCheck2, BookUp, XCircle, Clock, FileInput, CheckCircle, Shield, Bot, ExternalLink, Printer, Eye, FileText, Inbox, RefreshCw } from 'lucide-react';
 import PlagiarismReport, { PlagiarismReportData } from '../components/PlagiarismReport';
 import QabulCertificate, { QabulCertificateData } from '../components/QabulCertificate';
@@ -54,9 +54,99 @@ interface ArticleApiResponse {
     certificate_download_link?: string;
     /** Joriy foydalanuvchi o'tkaza oladigan holatlar (backend workflow.py) */
     allowed_transitions?: string[];
+    /** Rad etilgan maqola egasiga: nashr to'lovi va qaytarish holati */
+    publication_payment?: PublicationPayment | null;
 }
 
+type PublicationPayment = {
+    transaction_id: string;
+    amount: number;
+    status: 'completed' | 'refunded';
+    refund_requested_at: string | null;
+    refunded_at: string | null;
+    refund_note: string;
+};
+
+const RefundCard: React.FC<{ payment: PublicationPayment; onChanged: () => void }> = ({ payment, onChanged }) => {
+    const [reason, setReason] = useState('');
+    const [sending, setSending] = useState(false);
+    const amount = `${Math.round(payment.amount).toLocaleString('ru-RU').replace(/,/g, ' ')} so'm`;
+
+    const submit = async () => {
+        setSending(true);
+        try {
+            await apiService.payments.requestRefund(payment.transaction_id, reason.trim());
+            toast.success("Qaytarish so'rovi yuborildi. Moliya bo'limi ko'rib chiqadi va natija haqida xabar beradi.");
+            onChanged();
+        } catch (err: any) {
+            toast.error(err?.message || "So'rovni yuborib bo'lmadi.");
+        } finally {
+            setSending(false);
+        }
+    };
+
+    return (
+        <Card title="Nashr to'lovi">
+            {payment.status === 'refunded' ? (
+                <div className="space-y-1 text-sm text-slate-600">
+                    <p className="font-medium text-emerald-800">{amount} qaytarildi{payment.refunded_at ? ` · ${formatUzDate(payment.refunded_at, true)}` : ''}.</p>
+                    {payment.refund_note && <p className="whitespace-pre-wrap">{payment.refund_note}</p>}
+                </div>
+            ) : payment.refund_requested_at ? (
+                <p className="text-sm text-slate-600">
+                    {amount} qaytarish so'rovi {formatUzDate(payment.refund_requested_at, true)} da yuborilgan — moliya bo'limi ko'rib chiqmoqda.
+                </p>
+            ) : (
+                <div className="space-y-2">
+                    <p className="text-sm text-slate-600">Maqola rad etildi. To'langan {amount} ni qaytarishni so'rashingiz mumkin.</p>
+                    <textarea
+                        className="w-full rounded-lg border border-[var(--editorial-border)] px-3 py-2 text-sm"
+                        rows={2}
+                        placeholder="Izoh (ixtiyoriy): karta / bog'lanish uchun qulay vaqt"
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                    />
+                    <Button onClick={submit} disabled={sending} variant="secondary" className="w-full flex items-center justify-center gap-2">
+                        <RefreshCw size={16} /> {sending ? 'Yuborilmoqda...' : "To'lovni qaytarishni so'rash"}
+                    </Button>
+                </div>
+            )}
+        </Card>
+    );
+};
+
 /** Tahririyat qaror tugmalari — ko'rsatilishi backend `allowed_transitions` ga bog'liq */
+/**
+ * Tahrirga qaytarish / rad etish sababi: holat tarixidagi oxirgi shu holatga o'tish izohi (status_timeline).
+ * Faoliyat jurnali matni endi o'zbekcha (avval "Status changed from X to Revision" ichidan qidirilardi).
+ */
+const findStatusReason = (
+    timeline: TimelineEntry[] | undefined,
+    logs: ActivityLogEvent[],
+    status: ArticleStatus,
+): { details: string; timestamp?: string } | undefined => {
+    const fromTimeline = [...(timeline ?? [])]
+        .reverse()
+        .find((e) => e.kind !== 'payment' && e.to_status === status && (e.comment || '').trim());
+    if (fromTimeline) return { details: fromTimeline.comment || '', timestamp: fromTimeline.date };
+    const log = logs.find((l) => l.action && l.action.includes(status) && (l.details || '').trim());
+    return log ? { details: log.details || '', timestamp: log.timestamp } : undefined;
+};
+
+/** "Qabul haqida ma'lumotnoma" beriladigan holatlar va uni ko'radigan xodimlar */
+const ACCEPTED_STATUSES = new Set<string>([ArticleStatus.Accepted, ArticleStatus.NashrgaYuborilgan, ArticleStatus.Published]);
+const CERTIFICATE_STAFF_ROLES = new Set(['super_admin', 'journal_admin', 'operator']);
+
+/** Kitob buyurtmasi bosqichlari — ishlab chiqarish tartibida (backend ro'yxati alifbo bo'yicha keladi) */
+const BOOK_STAGE_ORDER = [
+    'ContractProcessing', 'IsbnProcessing', 'AuthorDataVerified', 'PaymentCompleted', 'SentToPrint',
+    'Printing', 'Ready', 'Packaging', 'Shipping', 'Delivered', 'ProcessPaused',
+];
+const stageOrder = (s: string) => {
+    const i = BOOK_STAGE_ORDER.indexOf(s);
+    return i === -1 ? BOOK_STAGE_ORDER.length : i;
+};
+
 const STAFF_ACTIONS: {
     status: ArticleStatus;
     label: string;
@@ -216,6 +306,18 @@ const ArticleDetail: React.FC = () => {
         }
     };
 
+    const reloadArticle = async () => {
+        if (!id) return;
+        try {
+            const articleResponse = await apiService.articles.get(id);
+            const articleData = articleResponse.data || articleResponse;
+            setArticle(articleData);
+            setActivityLogs(Array.isArray(articleData.activity_logs) ? articleData.activity_logs : []);
+        } catch {
+            /* sahifa eski ma'lumot bilan qoladi */
+        }
+    };
+
     const handleRejectSubmit = async () => {
         const trimmed = rejectReason.trim();
         if (!trimmed) {
@@ -338,31 +440,44 @@ const ArticleDetail: React.FC = () => {
             'QabulQilingan': { text: 'Ko\'rib chiqilmoqda', color: 'bg-yellow-500/20 text-yellow-900', icon: CheckCircle },
             'WritingInProgress': { text: 'Tuzatish kiritilmoqda', color: 'bg-cyan-500/20 text-cyan-900', icon: Edit },
             'NashrgaYuborilgan': { text: 'Nashrga tayyorlanmoqda', color: 'bg-purple-500/20 text-purple-900', icon: Send },
-            'PlagiarismReview': { text: 'Antiplagiat ko\'rib chiqish (bosh admin qarori)', color: 'bg-amber-500/20 text-amber-900', icon: Edit },
+            // Muallifga kim qaror qilishi emas, umumiy holat; tahririyatga — bosh admin qarori kutilayotgani
+            'PlagiarismReview': {
+                text: user?.role === Role.Author ? 'Antiplagiat natijasi ko\'rib chiqilmoqda' : 'Antiplagiat ko\'rib chiqish (bosh admin qarori)',
+                color: 'bg-amber-500/20 text-amber-900',
+                icon: Edit,
+            },
             'Revision': { text: 'To\'ldirish talab qilinadi', color: 'bg-orange-500/20 text-orange-900', icon: Edit },
             'Accepted': { text: 'Qabul qilindi', color: 'bg-teal-500/20 text-teal-900', icon: Check },
             'Published': { text: 'Nashr etildi', color: 'bg-green-500/20 text-emerald-900', icon: BookOpen },
             'Rejected': { text: 'Jarayon to\'xtatildi', color: 'bg-red-500/20 text-red-800', icon: XCircle },
         };
-        return map[status] || { text: status, color: 'bg-gray-500/20 text-slate-600', icon: FileText };
+        return map[status] || { text: ARTICLE_STATUS_LABELS[status] || status, color: 'bg-gray-500/20 text-slate-600', icon: FileText };
     };
 
     const statusData = getStatusDisplayData(article.status);
     const allowedTransitions = new Set<string>(article.allowed_transitions ?? []);
+    const isBookOrder = (article.title || '').trim().toUpperCase().startsWith('[KITOB]');
+    const canShowAcceptanceCertificate =
+        !isBookOrder &&
+        ACCEPTED_STATUSES.has(article.status) &&
+        (String(article.author) === String(user?.id) || CERTIFICATE_STAFF_ROLES.has(String(user?.role || '').toLowerCase()));
+    const extraTransitions = [...allowedTransitions]
+        .filter((s) => s !== ArticleStatus.Published && !STAFF_ACTIONS.some((a) => a.status === s))
+        .sort((a, b) => stageOrder(a) - stageOrder(b));
     const StatusIcon = statusData.icon;
     const viewerRoleNorm =
         typeof user?.role === 'string' ? user.role.toLowerCase() : String(user?.role ?? '');
     const showPlagiarismForAdmin =
         viewerRoleNorm === 'journal_admin' || viewerRoleNorm === 'super_admin';
     const apiWorkflowSteps = Array.isArray(article.workflow_steps) ? article.workflow_steps : [];
-    const fallbackSteps = getAuthorWorkflowStepsFromStatus(article.status);
+    const fallbackSteps = getAuthorWorkflowStepsFromStatus(article.status, isBookOrder);
     const workflowSteps = apiWorkflowSteps.length > 0 ? apiWorkflowSteps : fallbackSteps;
     const workflowProgress =
         apiWorkflowSteps.length > 0
             ? Math.round(
                   (apiWorkflowSteps.filter((s) => s.done || s.current).length / apiWorkflowSteps.length) * 100
               )
-            : getAuthorWorkflowProgressPercent(article.status);
+            : getAuthorWorkflowProgressPercent(article.status, isBookOrder);
     const statusTimeline = Array.isArray(article.status_timeline) ? article.status_timeline : [];
 
     return (
@@ -571,9 +686,7 @@ const ArticleDetail: React.FC = () => {
 
                     {/* Tahrirga qaytarish sababi — muallif uchun */}
                     {article.status === ArticleStatus.Revision && (() => {
-                        const revisionLog = activityLogs.find(
-                            (l) => l.action && l.action.includes('Revision') && (l.details || '').trim()
-                        );
+                        const revisionLog = findStatusReason(article.status_timeline, activityLogs, ArticleStatus.Revision);
                         const reason = revisionLog?.details?.trim();
                         return reason ? (
                             <Card title="Tahrirga qaytarish sababi">
@@ -589,9 +702,7 @@ const ArticleDetail: React.FC = () => {
 
                     {/* Rad etish sababi — muallif uchun */}
                     {article.status === ArticleStatus.Rejected && (() => {
-                        const rejectLog = activityLogs.find(
-                            (l) => l.action && l.action.includes('Rejected') && (l.details || '').trim()
-                        );
+                        const rejectLog = findStatusReason(article.status_timeline, activityLogs, ArticleStatus.Rejected);
                         const reason = rejectLog?.details?.trim();
                         return reason ? (
                             <Card title="Rad etish sababi">
@@ -604,6 +715,12 @@ const ArticleDetail: React.FC = () => {
                             </Card>
                         ) : null;
                     })()}
+
+                    {/* Rad etilgan to'langan maqola: nashr to'lovini qaytarishni so'rash (backend publication_payment
+                        faqat maqola egasiga keladi). Avval na qaytarish, na qayta yuborish yo'li bor edi. */}
+                    {article.status === ArticleStatus.Rejected && article.publication_payment && (
+                        <RefundCard payment={article.publication_payment} onChanged={reloadArticle} />
+                    )}
 
                     {/* Activity log */}
                     <Card title="Faoliyat jurnali">
@@ -638,10 +755,13 @@ const ArticleDetail: React.FC = () => {
                     {/* Management actions */}
                     <Card title="Boshqaruv">
                         <div className="space-y-3">
-                            {/* Qabul ma'lumotnomasi tugmasi - barcha foydalanuvchilar uchun */}
-                            <Button onClick={() => setShowCertificate(true)} variant="secondary" className="w-full flex items-center justify-center gap-2">
-                                <Award size={18} /> Qabul ma'lumotnomasi
-                            </Button>
+                            {/* Qabul ma'lumotnomasi: faqat maqola qabul qilingandan keyin, muallif va tahririyatga. Avval har
+                                qanday holatda (qoralama, rad etilgan) va har qanday rolga (taqrizchi, moliyachi) chiqardi. */}
+                            {canShowAcceptanceCertificate && (
+                                <Button onClick={() => setShowCertificate(true)} variant="secondary" className="w-full flex items-center justify-center gap-2">
+                                    <Award size={18} /> Qabul ma'lumotnomasi
+                                </Button>
+                            )}
                             
                             {/* Avval /submit/:id ga olib borardi — bunday sahifa yo'q (404), muallif qayta yubora olmasdi */}
                             {user?.role === Role.Author && article.status === ArticleStatus.Revision && (
@@ -679,6 +799,28 @@ const ArticleDetail: React.FC = () => {
                                     <a.icon size={18} /> {a.label}
                                 </Button>
                             ))}
+                            {/* Kitob buyurtmasi: bosmaxona bosqichlari (Shartnoma, ISBN, Bosmaga berildi...) — tugmalar
+                                ro'yxatida yo'q holatlar. Avval to'langan kitob uchun hech qanday boshqaruv chiqmasdi. */}
+                            {user?.role !== Role.Author && extraTransitions.length > 0 && (
+                                <label className="block text-sm font-medium text-slate-700">
+                                    {isBookOrder ? 'Kitob buyurtmasi bosqichi' : 'Boshqa holat'}
+                                    <select
+                                        className="mt-1 block w-full rounded-lg border border-[var(--editorial-border)] bg-white px-3 py-2 text-sm"
+                                        value=""
+                                        onChange={(e) => {
+                                            const next = e.target.value as ArticleStatus;
+                                            if (next && window.confirm(`Holat: "${ARTICLE_STATUS_LABELS[next] || next}". Tasdiqlaysizmi?`)) {
+                                                handleStatusUpdate(next);
+                                            }
+                                        }}
+                                    >
+                                        <option value="">— bosqichni tanlang —</option>
+                                        {extraTransitions.map((s) => (
+                                            <option key={s} value={s}>{ARTICLE_STATUS_LABELS[s] || s}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                            )}
                         </div>
                     </Card>
 

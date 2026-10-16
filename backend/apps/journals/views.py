@@ -40,6 +40,9 @@ class JournalViewSet(viewsets.ModelViewSet):
         role = getattr(self.request.user, 'role', None) if self.request.user.is_authenticated else None
         if isinstance(role, str):
             role = role.strip().lower()
+        if role != 'super_admin' and not getattr(self.request.user, 'is_superuser', False):
+            # Ichki (kitob buyurtmalari) jurnali katalogda va maqola yuborish ro'yxatida ko'rinmaydi
+            base = base.filter(is_internal=False)
         if role == 'journal_admin':
             return base.filter(journal_admin=self.request.user)
         # Demo (namuna) jurnallar haqiqiy mualliflar ro'yxatida ko'rinmaydi — ularga maqola yuborib pul to'lamasin

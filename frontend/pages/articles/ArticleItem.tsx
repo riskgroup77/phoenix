@@ -6,13 +6,14 @@ import { ArticleStatus, Role } from '../../types';
 import { Rocket, ChevronDown, Check, Filter, Share2 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { PlagiarismBadges } from '../../components/PlagiarismReport';
-import { getAuthorWorkflowStepsFromStatus, getAuthorWorkflowStageLabel } from '../../utils/articleAuthorWorkflow';
+import { getAuthorWorkflowStepsFromStatus, getAuthorWorkflowStageLabel, isBookTitle } from '../../utils/articleAuthorWorkflow';
 import { apiService } from '../../services/apiService';
 import { paymentService } from '../../services/paymentService';
 import { toast } from 'react-toastify';
 import { ArticleApiResponse } from './types';
 import { getStatusDisplayData } from './helpers';
 import { useT } from '../../i18n/LanguageContext';
+import { askStatusReason } from '../../utils/statusReason';
 
 const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, isJournalAdmin?: boolean, userId?: string, journalIds?: string[], onStatusUpdate?: () => void }> = ({ 
     article, 
@@ -35,12 +36,13 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
     const isAuthor = (userId || user?.id) === article.author;
     const isAuthorRole =
         user?.role === Role.Author || String(user?.role ?? '').toLowerCase() === 'author';
-    const authorWorkflowSteps = isAuthor && isAuthorRole ? getAuthorWorkflowStepsFromStatus(currentStatus) : [];
-    const authorStageHint = isAuthor && isAuthorRole ? getAuthorWorkflowStageLabel(currentStatus) : '';
+    const authorWorkflowSteps = isAuthor && isAuthorRole ? getAuthorWorkflowStepsFromStatus(currentStatus, isBookTitle(article.title)) : [];
+    const authorStageHint = isAuthor && isAuthorRole ? getAuthorWorkflowStageLabel(currentStatus, isBookTitle(article.title)) : '';
     const viewerRoleNorm =
         typeof user?.role === 'string' ? user.role.toLowerCase() : String(user?.role ?? '');
+    // Kitob buyurtmasi antiplagiatdan o'tmaydi — "Tekshirilmagan" belgisi chalg'itardi
     const showPlagiarismBadges =
-        viewerRoleNorm === 'journal_admin' || viewerRoleNorm === 'super_admin';
+        (viewerRoleNorm === 'journal_admin' || viewerRoleNorm === 'super_admin') && !isBookTitle(article.title);
 
     const handleShare = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -57,9 +59,12 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
         if (!canUpdateStatus) return;
         
         if (!newStatus) return;
+        // Rad etish / tahrirga qaytarish — sabab muallifga yuboriladi (avval bu menyu sabab so'ramasdi)
+        const reason = askStatusReason(String(newStatus));
+        if (reason === null) return;
         try {
             setIsUpdating(true);
-            const res: any = await apiService.articles.updateStatus(article.id, String(newStatus));
+            const res: any = await apiService.articles.updateStatus(article.id, String(newStatus), reason);
             // Server antiplagiat chegarasiga qarab boshqa holat qo'yishi mumkin (Rad etilgan / bosh admin qarori)
             setCurrentStatus((res?.new_status as ArticleStatus) || newStatus);
             setIsStatusDropdownOpen(false);

@@ -19,7 +19,7 @@ export const journalAdminTabsBase = [
     {
         id: 'new',
         label: 'Yangi kelganlar',
-        statuses: [ArticleStatus.Yangi, ArticleStatus.Draft],
+        statuses: [ArticleStatus.Yangi],
     },
     { id: 'with-editor', label: 'Redaktorda', statuses: [ArticleStatus.WithEditor] },
     { id: 'in-review', label: 'Tekshiruvda', statuses: [ArticleStatus.QabulQilingan] },
@@ -98,3 +98,6 @@ export const getStatusDisplayData = (status: ArticleStatus | TranslationStatus):
     const label = ARTICLE_STATUS_LABELS[status as string] || (status as string);
     return { text: label, color: 'bg-gray-500/20 text-slate-600' };
 };
+
+/** Bosh admin / operator: kitob nashri buyurtmalari (filtri sarlavha bo'yicha — Articles.tsx matchesStaffTab) */
+export const BOOK_ORDERS_TAB = { id: 'book-orders', label: 'Kitob buyurtmalari', statuses: [] as ArticleStatus[] };

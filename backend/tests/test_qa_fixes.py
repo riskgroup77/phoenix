@@ -182,7 +182,8 @@ class StatusTransitionTests(QaBase):
         self.article.save()
         for target in ('Accepted', 'Published', 'Yangi'):
             with self.subTest(target=target):
-                self.assertEqual(self.set_status(self.journal_admin, target).status_code, 400)
+                # To'lanmagan qoralama muharrirga umuman ko'rinmaydi (404) — holatini ham o'zgartira olmaydi
+                self.assertIn(self.set_status(self.journal_admin, target).status_code, (400, 404))
         self.article.refresh_from_db()
         self.assertEqual(self.article.status, 'Draft')
 

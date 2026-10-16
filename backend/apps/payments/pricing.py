@@ -208,4 +208,35 @@ def resolve_transaction_price(*, user, service_type, article, translation_reques
 
     if amount <= 0:
         raise serializers.ValidationError({'amount': 'Bu xizmat uchun to\'lov talab qilinmaydi (narx 0).'})
+    _ensure_not_already_paid(service_type, article, translation_request)
     return amount, clean_extra
+
+
+# Bir xizmat uchun ikkinchi marta to'lov olinmasin: avval to'langan maqolaga ham yangi nashr to'lovi yaratilib,
+# to'latib yuborilardi (UI tugmani yashirardi, lekin eski havola / ikkinchi oyna orqali mumkin edi).
+_ALREADY_PAID_MESSAGES = {
+    'publication_fee': "Bu maqola uchun nashr to'lovi allaqachon qilingan.",
+    'language_editing': "Bu hujjat uchun antiplagiat to'lovi allaqachon qilingan — natijani tekshiruv sahifasida ko'ring.",
+    'book_publication': "Bu kitob buyurtmasi uchun to'lov allaqachon qilingan.",
+    'translation': "Bu tarjima so'rovi uchun to'lov allaqachon qilingan.",
+}
+
+
+def _ensure_not_already_paid(service_type, article, translation_request):
+    from .models import Transaction
+
+    message = _ALREADY_PAID_MESSAGES.get(service_type)
+    if not message:
+        return
+    if service_type == 'translation':
+        if translation_request is None:
+            return
+        paid = Transaction.objects.filter(
+            translation_request=translation_request, service_type=service_type, status='completed'
+        )
+    else:
+        if article is None:
+            return
+        paid = Transaction.objects.filter(article=article, service_type=service_type, status='completed')
+    if paid.exists():
+        raise serializers.ValidationError({'detail': message})

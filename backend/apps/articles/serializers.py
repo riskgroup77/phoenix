@@ -1,4 +1,5 @@
 import json
+import re
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from .models import Article, ArticleVersion, ActivityLog, DoiRequest, ArticleSampleRequest, ArticleOperatorMessage
@@ -235,20 +236,91 @@ class ArticleVersionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+_LEGACY_STATUS_LOG_RE = re.compile(r'^Status changed from (\S+) to (\S+)$')
+_PLAGIARISM_LOG_RE = re.compile(r'^Plagiarism: ([\d.]+)%, Originality: ([\d.]+)%(?: \(deep module scan, (\d+) sources\))?')
+AUTHOR_PLAGIARISM_REVIEW_LABEL = "Antiplagiat natijasi ko'rib chiqilmoqda"
+_STAFF_ROLES = ('super_admin', 'journal_admin', 'reviewer', 'operator', 'accountant')
+_ROLE_TITLES = {
+    'super_admin': 'Bosh muharrir',
+    'journal_admin': 'Jurnal muharriri',
+    'reviewer': 'Taqrizchi',
+    'operator': 'Operator',
+    'accountant': 'Moliya bo\'limi',
+}
+# Muallifga ko'rsatilmaydigan ichki yozuvlar (bosh admin qarori, chegara hisob-kitobi)
+_INTERNAL_LOG_PREFIXES = ("Status: Antiplagiat ko'rib chiqish",)
+
+
+_STAFF_PLAGIARISM_REVIEW_LABEL = dict(Article.STATUS_CHOICES)['PlagiarismReview']
+
+
+def status_change_text(old_status: str, new_status: str) -> str:
+    """Faoliyat jurnali uchun o'zbekcha matn (avval inglizcha 'Status changed from X to Y' yozilardi)."""
+    labels = dict(Article.STATUS_CHOICES)
+    return f'Holat: "{labels.get(old_status, old_status)}" → "{labels.get(new_status, new_status)}"'
+
+
+def _viewer(context):
+    request = context.get('request') if context else None
+    return getattr(request, 'user', None)
+
+
+def viewer_is_staff(context) -> bool:
+    user = _viewer(context)
+    if not user or not getattr(user, 'is_authenticated', False):
+        return False
+    return user.is_superuser or (getattr(user, 'role', '') or '').lower() in _STAFF_ROLES
+
+
 class ActivityLogSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = ActivityLog
         fields = '__all__'
-    
+
     def get_user_name(self, obj):
         if not obj.user:
-            return 'System'
+            return 'Tizim'
+        if not viewer_is_staff(self.context) and obj.user_id != getattr(_viewer(self.context), 'id', None):
+            # Muallifga xodim ismi emas, vazifasi (taqriz anonimligi)
+            return _ROLE_TITLES.get((getattr(obj.user, 'role', '') or '').lower(), 'Tahririyat')
         try:
-            return getattr(obj.user, 'get_full_name', lambda: str(obj.user))() or 'System'
+            return getattr(obj.user, 'get_full_name', lambda: str(obj.user))() or 'Tizim'
         except Exception:
-            return 'System'
+            return 'Tizim'
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        match = _LEGACY_STATUS_LOG_RE.match(data.get('action') or '')
+        if match:
+            data['action'] = status_change_text(match.group(1), match.group(2))
+        elif data.get('action') == 'Plagiarism check completed':
+            # Bazadagi matn o'zgarmaydi (vaqt chizig'i shu kalit bo'yicha qidiradi) — faqat ko'rsatish o'zbekcha
+            data['action'] = 'Antiplagiat tekshiruvi yakunlandi'
+            details = _PLAGIARISM_LOG_RE.match(data.get('details') or '')
+            if details:
+                data['details'] = (
+                    f'Plagiat: {details.group(1)}%, originallik: {details.group(2)}%'
+                    + (f' ({details.group(3)} ta manba)' if details.group(3) else '')
+                )
+        if not viewer_is_staff(self.context) and data.get('action'):
+            # Holat o'zgarishi yozuvida ham muallifga "(bosh admin qarori)" emas, umumiy nom
+            data['action'] = data['action'].replace(_STAFF_PLAGIARISM_REVIEW_LABEL, AUTHOR_PLAGIARISM_REVIEW_LABEL)
+        return data
+
+
+class ActivityLogListSerializer(serializers.ListSerializer):
+    """Muallifga ichki yozuvlar (antiplagiat bosh admin qarori tafsilotlari) ko'rsatilmaydi."""
+
+    def to_representation(self, data):
+        items = super().to_representation(data)
+        if viewer_is_staff(self.context):
+            return items
+        return [i for i in items if not str(i.get('action') or '').startswith(_INTERNAL_LOG_PREFIXES)]
+
+
+ActivityLogSerializer.Meta.list_serializer_class = ActivityLogListSerializer
 
 
 class ArticleListSerializer(serializers.ModelSerializer):
@@ -345,6 +417,33 @@ class ArticleSerializer(serializers.ModelSerializer):
     workflow_stage = serializers.SerializerMethodField()
     workflow_steps = serializers.SerializerMethodField()
     status_timeline = serializers.SerializerMethodField()
+    publication_payment = serializers.SerializerMethodField()
+
+    def get_publication_payment(self, obj):
+        """
+        Muallifga: rad etilgan maqolaning nashr to'lovi va qaytarish holati (qaytarishni so'rash tugmasi uchun).
+        Faqat maqola egasiga; boshqa rollarga — None.
+        """
+        user = _viewer(self.context)
+        if not user or obj.author_id != getattr(user, 'id', None) or obj.status != 'Rejected':
+            return None
+        from apps.payments.models import Transaction
+
+        tx = (
+            Transaction.objects.filter(article_id=obj.pk, service_type='publication_fee', status__in=('completed', 'refunded'))
+            .order_by('-created_at')
+            .first()
+        )
+        if tx is None:
+            return None
+        return {
+            'transaction_id': str(tx.id),
+            'amount': float(tx.amount),
+            'status': tx.status,
+            'refund_requested_at': tx.refund_requested_at,
+            'refunded_at': tx.refunded_at,
+            'refund_note': tx.refund_note if tx.status == 'refunded' else '',
+        }
 
     # Muallif PATCH orqali faqat antiplagiat sozlamalarini yuborishi mumkin (savePlagiarismConfig).
     PLAGIARISM_CONFIG_KEYS = (
@@ -473,6 +572,13 @@ class ArticleSerializer(serializers.ModelSerializer):
         return (obj.title or '').strip().startswith('[KITOB]')
 
     def _status_labels(self):
+        labels = self._base_status_labels()
+        if not viewer_is_staff(self.context):
+            # Muallifga kim qaror qilishi (bosh admin) emas, umumiy holat ko'rsatiladi
+            labels['PlagiarismReview'] = AUTHOR_PLAGIARISM_REVIEW_LABEL
+        return labels
+
+    def _base_status_labels(self):
         return {
             'Draft': "Qoralama (to'lov kutilmoqda)",
             'Yangi': 'Yangi topshirildi',
@@ -499,13 +605,28 @@ class ArticleSerializer(serializers.ModelSerializer):
             'ProcessPaused': 'Jarayon to‘xtatildi',
         }
 
+    # Kitob buyurtmasi o'z bosqichlariga ega. Avval jurnal maqolasi bosqichlari ("Tekshiruv", "Muharrirlik")
+    # ishlatilib, "Shartnoma" bosqichidagi kitob "Tekshiruv 40%" deb ko'rinardi.
+    BOOK_STEPS = ["To'lov", 'Shartnoma va ISBN', 'Bosmaxona', 'Tayyorlash', 'Yetkazish']
+    BOOK_STAGE_INDEX = {
+        'Draft': 0,
+        'Yangi': 1, 'QabulQilingan': 1, 'ContractProcessing': 1, 'IsbnProcessing': 1,
+        'AuthorDataVerified': 1, 'PaymentCompleted': 1, 'ProcessPaused': 1,
+        'SentToPrint': 2, 'Printing': 2,
+        'Ready': 3, 'Packaging': 3,
+        'Shipping': 4,
+        'Delivered': 5,  # hammasi bajarilgan
+        'Rejected': 1,
+    }
+
     def _workflow_steps_by_type(self, is_book):
-        article_steps = ['Topshirildi', 'Tekshiruv', 'Muharrirlik', 'Nashr']
-        if not is_book:
-            return article_steps
-        return article_steps + ['Yetkazish']
+        if is_book:
+            return list(self.BOOK_STEPS)
+        return ['Topshirildi', 'Tekshiruv', 'Muharrirlik', 'Nashr']
 
     def _stage_index_by_status(self, status_value, is_book):
+        if is_book:
+            return self.BOOK_STAGE_INDEX.get(status_value, 1)
         common_map = {
             'Draft': 0,
             'Yangi': 0,
@@ -514,27 +635,12 @@ class ArticleSerializer(serializers.ModelSerializer):
             'QabulQilingan': 2,
             'WritingInProgress': 2,
             'Accepted': 2,
+            'PlagiarismReview': 2,
             'NashrgaYuborilgan': 3,
-            'Published': 3,
+            'Published': 4,  # hammasi bajarilgan
             'Rejected': 3,
             'ProcessPaused': 3,
         }
-
-        if is_book:
-            book_map = {
-                'ContractProcessing': 1,
-                'IsbnProcessing': 1,
-                'AuthorDataVerified': 1,
-                'PaymentCompleted': 1,
-                'SentToPrint': 3,
-                'Printing': 3,
-                'Ready': 3,
-                'Packaging': 4,
-                'Shipping': 4,
-                'Delivered': 4,
-            }
-            common_map.update(book_map)
-
         return common_map.get(status_value, 0)
 
     def get_status_label(self, obj):
@@ -597,6 +703,10 @@ class ArticleSerializer(serializers.ModelSerializer):
         role = (getattr(user, 'role', '') or '').lower()
         return role in ('super_admin', 'journal_admin', 'reviewer', 'operator', 'accountant') or user.is_superuser
 
+    def _viewer_is_reviewer(self):
+        user = _viewer(self.context)
+        return (getattr(user, 'role', '') or '').lower() == 'reviewer'
+
     def _responsible_label(self, actor, actor_role, obj, staff_view):
         if actor is None:
             return 'Tizim'
@@ -620,15 +730,17 @@ class ArticleSerializer(serializers.ModelSerializer):
 
         events = list(obj.status_events.select_related('actor').all())
         for ev in events:
+            internal = not staff_view and ev.to_status == 'PlagiarismReview'
             items.append({
                 'kind': 'status',
-                'status': status_labels.get(ev.to_status, ev.to_status),
+                # Muallifga bosh admin qarori va chegara hisob-kitobi emas — umumiy holat ko'rsatiladi
+                'status': "Antiplagiat natijasi tahririyatda ko'rib chiqilmoqda" if internal else status_labels.get(ev.to_status, ev.to_status),
                 'to_status': ev.to_status,
                 'from_status': ev.from_status,
                 'date': ev.created_at,
-                'comment': ev.note or '',
+                'comment': '' if internal else (ev.note or ''),
                 'responsible': self._responsible_label(ev.actor, ev.actor_role, obj, staff_view),
-                'hint': self.STATUS_HINTS.get(ev.to_status, ''),
+                'hint': "Tahririyat qarori bilan maqola keyingi bosqichga o'tadi." if internal else self.STATUS_HINTS.get(ev.to_status, ''),
                 'tone': self.STATUS_TONES.get(ev.to_status, 'info'),
             })
 
@@ -658,7 +770,8 @@ class ArticleSerializer(serializers.ModelSerializer):
                     'to_status': '',
                     'from_status': '',
                     'date': tx.completed_at or tx.created_at,
-                    'comment': f"{int(tx.amount):,} so'm".replace(',', ' '),
+                    # Taqrizchiga to'lov summasi ko'rsatilmaydi (taqriz to'lovdan mustaqil bo'lishi kerak)
+                    'comment': '' if self._viewer_is_reviewer() else f"{int(tx.amount):,} so'm".replace(',', ' '),
                     'responsible': 'Tizim',
                     'hint': '',
                     'tone': 'success',
@@ -1004,17 +1117,40 @@ class DoiRequestSerializer(serializers.ModelSerializer):
 class ArticleSampleRequestSerializer(serializers.ModelSerializer):
     """Maqola namuna so'rovi: taqrizchi barcha submitted ni ko'radi, muallif o'zini."""
     author_short = serializers.SerializerMethodField()
+    result_file_url = serializers.SerializerMethodField()
+    taken_by_me = serializers.SerializerMethodField()
+    reviewer_name = serializers.SerializerMethodField()
 
     class Meta:
         model = ArticleSampleRequest
         fields = (
             'id', 'author_first_name', 'author_last_name', 'author_short',
             'requirements', 'pages', 'topic', 'quality_level', 'amount', 'status', 'created_at',
+            'reviewer_note', 'result_file_url', 'taken_at', 'completed_at', 'taken_by_me', 'reviewer_name',
         )
         read_only_fields = fields
 
     def get_author_short(self, obj):
         return f"{obj.author_last_name} {obj.author_first_name}"
+
+    def get_result_file_url(self, obj):
+        if not obj.result_file:
+            return None
+        request = self.context.get('request')
+        url = obj.result_file.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_taken_by_me(self, obj):
+        request = self.context.get('request')
+        return bool(request and obj.reviewer_id and obj.reviewer_id == request.user.id)
+
+    def get_reviewer_name(self, obj):
+        # Muallifga bajaruvchi ismi ko'rsatilmaydi (taqrizchilar anonim), xodimlarga — ko'rsatiladi
+        request = self.context.get('request')
+        role = (getattr(getattr(request, 'user', None), 'role', '') or '').lower()
+        if not obj.reviewer_id or role not in ('reviewer', 'super_admin', 'operator'):
+            return None
+        return obj.reviewer.get_full_name() or obj.reviewer.phone
 
 
 class ArticleOperatorMessageSerializer(serializers.ModelSerializer):

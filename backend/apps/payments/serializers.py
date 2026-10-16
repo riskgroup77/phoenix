@@ -18,6 +18,7 @@ class TransactionSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = (
             'id', 'created_at', 'completed_at', 'user', 'status',
+            'refund_requested_at', 'refund_reason', 'refunded_at', 'refund_note',
             'click_trans_id', 'click_paydoc_id', 'merchant_trans_id', 'click_service_id',
             'payme_trans_id', 'payme_time', 'payment_provider', 'error_note', 'receipt_path',
         )

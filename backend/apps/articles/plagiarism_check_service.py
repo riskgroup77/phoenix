@@ -172,6 +172,33 @@ def _index_private_check_later(article, file_path, text_content) -> None:
         logger.warning('private check index schedule failed %s: %s', article.pk, exc)
 
 
+def _notify_editor_check_done(article, user, plagiarism, ai_content, originality) -> None:
+    """
+    Tahririyat tekshiruvi (muharrir "Qabul qilish"ni bosganda yoki o'zi boshlaganda) tugadi — boshlagan xodimga
+    xabar: endi qarorni qayta bosish mumkin. Avval xabar kelmasdi, muharrir natijani o'zi kuzatib turishi kerak edi.
+    Muallif o'zi to'lab tekshirtirganda (run_auto_plagiarism_check) unga alohida xabar boriladi.
+    """
+    role = (getattr(user, 'role', '') or '').lower()
+    if role not in ('journal_admin', 'super_admin') or user.pk == article.author_id:
+        return
+    try:
+        from apps.notifications.models import Notification
+
+        Notification.notify(
+            user=user,
+            title='Antiplagiat natijasi tayyor',
+            message=(
+                f'"{(article.title or "")[:100]}": plagiat {float(plagiarism or 0):.1f}%, AI {float(ai_content or 0):.1f}%, '
+                f'originallik {float(originality or 0):.1f}%. Endi maqola bo\'yicha qarorni davom ettirishingiz mumkin.'
+            ),
+            notification_type='plagiarism',
+            link=f'/articles/{article.id}',
+            metadata={'article_id': str(article.id)},
+        )
+    except Exception as exc:
+        logger.warning('editor plagiarism notify failed %s: %s', article.pk, exc)
+
+
 def run_plagiarism_check(
     article,
     user,
@@ -352,6 +379,8 @@ def run_plagiarism_check(
                 f'Originality: {originality}% (deep module scan, {result_report.get("sources_count", 0)} sources)'
             ),
         )
+
+        _notify_editor_check_done(article, user, plagiarism_percentage, ai_content_percentage, originality)
 
         if getattr(settings, 'ANTIPLAG_INDEX_PRIVATE_CHECKS', False):
             _index_private_check_later(article, file_path, None if file_path else text_content)

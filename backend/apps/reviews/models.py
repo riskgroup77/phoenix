@@ -53,7 +53,10 @@ class PeerReview(models.Model):
     assigned_at = models.DateTimeField(auto_now_add=True)
     deadline = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
-    
+    # Taqriz bosqichi: muallif tahrirdan keyin qayta yuborgan har safar +1 (o'sha taqrizchi tuzatishlarni
+    # qayta ko'rib chiqishi mumkin — avval bir maqolaga bir taqrizchi faqat bir marta tayinlanardi)
+    round_number = models.PositiveSmallIntegerField(default=1)
+
     class Meta:
         ordering = ['-assigned_at']
     

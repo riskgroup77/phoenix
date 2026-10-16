@@ -15,6 +15,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+
+ACTIVE_REVIEW_STATUSES = ('pending', 'accepted', 'in_progress')
+
+
+def review_round_for(article) -> int:
+    """Taqriz bosqichi: 1 + muallif tahrirdan keyin necha marta qayta yuborgan (Revision → Yangi)."""
+    from apps.articles.models import ArticleStatusEvent
+
+    return 1 + ArticleStatusEvent.objects.filter(article=article, from_status='Revision', to_status='Yangi').count()
+
+
 class PeerReviewViewSet(viewsets.ModelViewSet):
     queryset = PeerReview.objects.select_related('article', 'reviewer').all()
     serializer_class = PeerReviewSerializer
@@ -66,10 +77,14 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Maqola yoki taqrizchi topilmadi.'}, status=status.HTTP_400_BAD_REQUEST)
         if not self._can_manage_article(article):
             return Response({'error': 'Taqrizchi tayinlash huquqingiz yo\'q.'}, status=status.HTTP_403_FORBIDDEN)
-        existing = PeerReview.objects.filter(reviewer=reviewer, article=article).first()
+        # Faqat faol (kutilayotgan / jarayondagi) taqriz takrorlanmasin. Yakunlangan yoki rad etilgan bo'lsa —
+        # yangi bosqich: muallif tuzatgan maqolani o'sha taqrizchi qayta ko'rib chiqishi mumkin.
+        existing = PeerReview.objects.filter(
+            reviewer=reviewer, article=article, status__in=ACTIVE_REVIEW_STATUSES
+        ).first()
         if existing:
             return Response({
-                'error': 'Bu mutaxassis allaqachon ushbu maqolaga tayinlangan',
+                'error': 'Bu mutaxassisda ushbu maqola bo\'yicha yakunlanmagan taqriz bor',
                 'existing_review_id': str(existing.id),
             }, status=status.HTTP_400_BAD_REQUEST)
         serializer = self.get_serializer(data=request.data)
@@ -101,7 +116,7 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
             review.save(update_fields=['deadline'])
 
     def perform_create(self, serializer, reviewer=None):
-        review = serializer.save(reviewer=reviewer)
+        review = serializer.save(reviewer=reviewer, round_number=review_round_for(serializer.validated_data['article']))
         self._apply_default_deadline(review)
 
         # Notify reviewer if assigned by admin
@@ -275,8 +290,11 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
             try:
                 import uuid
 
+                # Eng so'nggi taqriz holati (bir taqrizchida bir necha bosqich bo'lishi mumkin)
                 assigned = dict(
-                    PeerReview.objects.filter(article_id=uuid.UUID(str(article_id))).values_list('reviewer_id', 'status')
+                    PeerReview.objects.filter(article_id=uuid.UUID(str(article_id)))
+                    .order_by('assigned_at')
+                    .values_list('reviewer_id', 'status')
                 )
             except ValueError:
                 assigned = {}
@@ -299,7 +317,9 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
                 'average_review_time': reviewer.average_review_time,
                 'acceptance_rate': reviewer.acceptance_rate,
                 'active_reviews': active_load.get(reviewer.id, 0),
-                'already_assigned': reviewer.id in assigned,
+                # Faqat faol taqriz bo'lsa qayta tayinlab bo'lmaydi; yakunlagan taqrizchi keyingi bosqichga tanlanadi
+                'already_assigned': assigned.get(reviewer.id) in ACTIVE_REVIEW_STATUSES,
+                'reviewed_before': assigned.get(reviewer.id) == 'completed',
                 'assigned_status': assigned.get(reviewer.id),
                 'match_score': self._calculate_match_score(reviewer, specializations) if specializations else min(reviewer.reviews_completed, 20),
             })
@@ -368,7 +388,8 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
                 # Check if already assigned (PREVENT DUPLICATE)
                 existing = PeerReview.objects.filter(
                     article=article,
-                    reviewer=reviewer
+                    reviewer=reviewer,
+                    status__in=ACTIVE_REVIEW_STATUSES,
                 ).first()
                 
                 if existing:
@@ -383,6 +404,7 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
                 review = PeerReview.objects.create(
                     article=article,
                     reviewer=reviewer,
+                    round_number=review_round_for(article),
                     status='pending',
                     assigned_at=timezone.now()
                 )

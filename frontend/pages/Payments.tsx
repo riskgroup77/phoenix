@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { CheckCircle, Clock, CreditCard, Download, Receipt, Search, Wallet, XCircle } from 'lucide-react';
+import { CheckCircle, Clock, CreditCard, Download, Receipt, RotateCcw, Search, Wallet, XCircle } from 'lucide-react';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import EmptyState from '../components/EmptyState';
 import { ListSkeleton, Skeleton } from '../components/ui/Skeleton';
@@ -14,7 +14,7 @@ import { txAmount } from '../utils/amount';
 type Tx = {
   id: string;
   amount: string | number;
-  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'refunded';
   service_type: string;
   service_label?: string;
   receipt_number?: string;
@@ -42,6 +42,7 @@ const STATUS_BADGE: Record<string, { label: string; cls: string; icon: React.Ele
   pending: { label: 'Kutilmoqda', cls: 'pinm-badge pinm-badge--info', icon: Clock },
   failed: { label: 'Muvaffaqiyatsiz', cls: 'pinm-badge pinm-badge--danger', icon: XCircle },
   cancelled: { label: 'Bekor qilingan', cls: 'pinm-badge pinm-badge--danger', icon: XCircle },
+  refunded: { label: 'Qaytarilgan', cls: 'pinm-badge pinm-badge--info', icon: RotateCcw },
 };
 
 const money = (v: number) => Math.round(v).toLocaleString('ru-RU').replace(/,/g, ' ');

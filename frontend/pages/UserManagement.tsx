@@ -11,6 +11,7 @@ import { toast } from 'react-toastify';
 import { useT } from '../i18n/LanguageContext';
 import { displayEmail } from '../utils/placeholderEmail';
 
+import { personFullName } from '../utils/personName';
 const UserManagement: React.FC = () => {
     const { t: tr } = useT();
     const { user } = useAuth();
@@ -432,7 +433,7 @@ const UserManagement: React.FC = () => {
                                             </div>
                                             <div className="ml-4">
                                                 <div className="text-sm font-medium text-slate-900">
-                                                    {user.first_name} {user.last_name}
+                                                    {personFullName(user)}
                                                     {user.is_active === false && (
                                                         <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-500/15 text-slate-700">Faolsiz</span>
                                                     )}
@@ -618,7 +619,7 @@ const UserManagement: React.FC = () => {
             {/* View User Modal – ma'lumotlar, statistika, faoliyat tarixi */}
             {viewUser && (
                 <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-                    <Card className="w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col" title={`${viewUser.first_name} ${viewUser.last_name} – faoliyati`}>
+                    <Card className="w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col" title={`${personFullName(viewUser)} – faoliyati`}>
                         <button type="button" onClick={handleCloseView} className="absolute top-4 right-4 text-slate-500 hover:text-slate-900 z-10">
                             <X size={24} />
                         </button>
@@ -822,7 +823,7 @@ const UserManagement: React.FC = () => {
                             <X size={24} />
                         </button>
                         <p className="text-slate-600 mb-4">
-                            <strong className="text-slate-900">{userToDelete.first_name} {userToDelete.last_name}</strong> hisobi faolsizlantiriladi: tizimga kira olmaydi, maqolalari va to'lov tarixi saqlanadi. Tasdiqlash uchun o'z parolingizni kiriting.
+                            <strong className="text-slate-900">{personFullName(userToDelete)}</strong> hisobi faolsizlantiriladi: tizimga kira olmaydi, maqolalari va to'lov tarixi saqlanadi. Tasdiqlash uchun o'z parolingizni kiriting.
                         </p>
                         <form onSubmit={handleDeleteConfirm} className="space-y-4">
                             <div>

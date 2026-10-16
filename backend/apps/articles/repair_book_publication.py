@@ -28,9 +28,11 @@ def _debug_log(hypothesis_id: str, location: str, message: str, data: dict | Non
 
 
 def _pick_journal():
+    # Avval tizimdagi "birinchi" jurnal olinardi — uning muharriri kitob buyurtmalarini (manzil, telefon) ko'rardi
+    from apps.journals.internal import get_book_orders_journal
     from apps.journals.models import Journal
 
-    return Journal.objects.order_by('created_at').first()
+    return get_book_orders_journal() or Journal.objects.order_by('created_at').first()
 
 
 def _build_book_abstract(extra: dict, transaction) -> str:
@@ -139,23 +141,28 @@ def fulfill_book_publication(transaction):
 
         User = get_user_model()
         title_short = title[:120]
-        for rev in User.objects.filter(role='reviewer', is_active=True)[:30]:
+        # Buyurtmani bosh admin boshqaradi (bosqichlar), operator mijoz bilan bog'lanadi. Avval 30 tagacha
+        # taqrizchiga yuborilardi — ularda kitob uchun hech qanday amal yo'q, buyurtmada esa manzil va telefon bor.
+        for staff in User.objects.filter(role__in=('super_admin', 'operator'), is_active=True):
             Notification.notify(
-                user=rev,
+                user=staff,
                 title='Yangi kitob nashr buyurtmasi',
-                message=f'"{title_short}" — kitob nashr buyurtmasi. Taqrizchilar panelida ko\'ring.',
+                message=(
+                    f'"{title_short}" — kitob nashr buyurtmasi (to\'lov tasdiqlandi). '
+                    'Bosqichlarini maqola sahifasida yuriting.'
+                ),
                 notification_type='article',
-                link='/articles?tab=book-orders',
+                link=f'/articles/{article.id}',
                 metadata={'article_id': str(article.id), 'kind': 'book_publication'},
             )
         _debug_log(
             'H5-fix',
             'fulfill_book_publication',
-            'reviewers notified',
+            'staff notified',
             {'article_id': str(article.id)},
         )
     except Exception as exc:
-        logger.warning('book_publication notify reviewers failed: %s', exc)
+        logger.warning('book_publication notify staff failed: %s', exc)
 
 
 def repair_book_publications_for_user(user):

@@ -10,29 +10,61 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _journal_thresholds(journal):
+    if journal is None:
+        return None, None, None
+    return (
+        getattr(journal, 'plagiarism_max_percent', None),
+        getattr(journal, 'ai_content_max_percent', None),
+        getattr(journal, 'originality_min_percent', None),
+    )
+
+
+def has_super_admin_plagiarism_decision(article) -> bool:
+    """
+    Bosh admin "Antiplagiat ko'rib chiqish" dan maqolani qabul qilgan/nashrga yuborganmi (oxirgi tekshiruvdan keyin).
+    Avval muharrir keyingi bosqichga o'tkazganda chegara qayta tekshirilib, maqola yana bosh admin qaroriga
+    qaytardi — bosh admin bir maqola uchun ikki marta qaror qilishi kerak edi.
+    """
+    from .models import ArticleStatusEvent
+
+    qs = ArticleStatusEvent.objects.filter(
+        article=article,
+        from_status='PlagiarismReview',
+        to_status__in=('Accepted', 'NashrgaYuborilgan'),
+        actor_role='super_admin',
+    )
+    if article.plagiarism_checked_at:
+        qs = qs.filter(created_at__gte=article.plagiarism_checked_at)
+    return qs.exists()
+
+
 def _check_plagiarism_thresholds(article):
     """
     Jurnal belgilangan limitlar bo'yicha tekshiruv.
-    Returns: ('accept' | 'reject' | 'review', reason_message).
-    - accept: barcha talablar bajarilgan, nashrga yuborish mumkin.
+    Returns: ('accept' | 'reject' | 'review' | 'unchecked', reason_message).
+    - accept: barcha talablar bajarilgan (yoki jurnalda chegara yo'q / bosh admin allaqachon qaror qilgan).
     - reject: uchala talab ham bajarilmagan, avtomatik rad.
     - review: 1 yoki 2 ta bajarilmagan — bosh admin qaror qiladi.
+    - unchecked: jurnalda chegara bor, lekin maqola antiplagiatdan o'tmagan. Avval tekshirilmagan maqola
+      "originallik 0%" deb hisoblanib, har doim bosh admin qaroriga ketardi (chalg'ituvchi xabar bilan).
     """
-    journal = article.journal
-    if journal is None:
-        return 'accept', ''
-    pmax = getattr(journal, 'plagiarism_max_percent', None)
-    amax = getattr(journal, 'ai_content_max_percent', None)
-    omin = getattr(journal, 'originality_min_percent', None)
+    pmax, amax, omin = _journal_thresholds(article.journal)
     if pmax is None and amax is None and omin is None:
         return 'accept', ''
-    plag = getattr(article, 'plagiarism_percentage', 0) or 0
-    ai = getattr(article, 'ai_content_percentage', 0) or 0
-    orig = getattr(article, 'originality_percentage', None)
-    if orig is None and article.plagiarism_checked_at:
-        orig = max(0, 100 - plag)
-    elif orig is None:
-        orig = max(0, 100 - plag)
+    if has_super_admin_plagiarism_decision(article):
+        return 'accept', ''
+    if not article.plagiarism_checked_at:
+        limits = [
+            label for value, label in (
+                (pmax, f'plagiat ≤ {pmax}%'), (amax, f'AI ≤ {amax}%'), (omin, f'originallik ≥ {omin}%'),
+            ) if value is not None
+        ]
+        return 'unchecked', f"Maqola hali antiplagiat tekshiruvidan o'tmagan. Jurnal talabi: {', '.join(limits)}."
+    plag = float(article.plagiarism_percentage or 0)
+    ai = float(article.ai_content_percentage or 0)
+    orig = article.originality_percentage
+    orig = float(orig) if orig is not None else max(0.0, 100.0 - plag)
     pass_plag = (pmax is None or plag <= pmax)
     pass_ai = (amax is None or ai <= amax)
     pass_orig = (omin is None or orig >= omin)
@@ -46,9 +78,42 @@ def _check_plagiarism_thresholds(article):
             f'Originalilik: {orig:.1f}% (min {omin}%). Uchala talab bajarilmadi.'
         )
     return 'review', (
-        f'Plagiat: {plag:.1f}% (limit {pmax or "-"}), AI: {ai:.1f}% (limit {amax or "-"}), '
-        f'Originalilik: {orig:.1f}% (min {omin or "-"}). Bosh administrator qarori kerak.'
+        f'Plagiat: {plag:.1f}% (limit {pmax if pmax is not None else "-"}), '
+        f'AI: {ai:.1f}% (limit {amax if amax is not None else "-"}), '
+        f'Originalilik: {orig:.1f}% (min {omin if omin is not None else "-"}). Bosh administrator qarori kerak.'
     )
+
+
+def start_plagiarism_check(article, user, enabled_modules=None) -> None:
+    """Antiplagiat tekshiruvini fonda boshlash (Celery, worker bo'lmasa thread)."""
+    import threading
+
+    from apps.articles.plagiarism_check_service import mark_plagiarism_processing, run_plagiarism_check
+    from apps.articles.tasks import enqueue_plagiarism_check
+
+    article_pk = str(article.id)
+    user_pk = str(user.id)
+    mark_plagiarism_processing(article, enabled_modules)
+    if enqueue_plagiarism_check(article_pk, user_pk, enabled_modules=enabled_modules, force=True):
+        return
+
+    def _run_bg():
+        from django.contrib.auth import get_user_model
+
+        from apps.articles.models import Article
+
+        User = get_user_model()
+        try:
+            run_plagiarism_check(
+                Article.objects.get(pk=article_pk),
+                User.objects.get(pk=user_pk),
+                force=True,
+                enabled_modules=enabled_modules,
+            )
+        except Exception as bg_err:
+            logger.error('[CHECK_PLAGE] background check failed: %s', bg_err, exc_info=True)
+
+    threading.Thread(target=_run_bg, daemon=True, name=f'plagiarism-api-{article_pk[:8]}').start()
 
 
 class ArticleAntiplagiatActionsMixin:
@@ -104,7 +169,8 @@ class ArticleAntiplagiatActionsMixin:
             service_type='language_editing'
         ).exists()
         logger.info(f"[CHECK_PLAGE] Has paid transaction: {has_paid}, role: {request.user.role}")
-        if not has_paid and request.user.role not in ('super_admin',):
+        editorial_check = request.user.role == 'journal_admin' and article.author_id != request.user.id
+        if not has_paid and not editorial_check and request.user.role not in ('super_admin',):
             return Response(
                 {'error': 'Antiplagiat tekshiruvi uchun to\'lov talab qilinadi. Iltimos, avval to\'lovni amalga oshiring.'},
                 status=status.HTTP_402_PAYMENT_REQUIRED
@@ -118,13 +184,7 @@ class ArticleAntiplagiatActionsMixin:
             )
 
         try:
-            import threading
-
-            from apps.articles.plagiarism_check_service import (
-                get_plagiarism_check_status,
-                mark_plagiarism_processing,
-                run_plagiarism_check,
-            )
+            from apps.articles.plagiarism_check_service import get_plagiarism_check_status
 
             force = str(request.data.get('force', '')).lower() in ('1', 'true', 'yes')
             enabled_modules = request.data.get('enabled_modules')
@@ -162,42 +222,7 @@ class ArticleAntiplagiatActionsMixin:
                     'cached': True,
                 })
 
-            article_pk = str(article.id)
-            user_pk = str(request.user.id)
-            mark_plagiarism_processing(article, enabled_modules)
-
-            from apps.articles.tasks import enqueue_plagiarism_check
-
-            if not enqueue_plagiarism_check(
-                article_pk,
-                user_pk,
-                enabled_modules=enabled_modules,
-                force=True,
-            ):
-
-                def _run_bg():
-                    from django.contrib.auth import get_user_model
-
-                    from apps.articles.models import Article
-
-                    User = get_user_model()
-                    try:
-                        art = Article.objects.get(pk=article_pk)
-                        usr = User.objects.get(pk=user_pk)
-                        run_plagiarism_check(
-                            art,
-                            usr,
-                            force=True,
-                            enabled_modules=enabled_modules,
-                        )
-                    except Exception as bg_err:
-                        logger.error('[CHECK_PLAGE] background check failed: %s', bg_err, exc_info=True)
-
-                threading.Thread(
-                    target=_run_bg,
-                    daemon=True,
-                    name=f'plagiarism-api-{article_pk[:8]}',
-                ).start()
+            start_plagiarism_check(article, request.user, enabled_modules)
 
             return Response(
                 {

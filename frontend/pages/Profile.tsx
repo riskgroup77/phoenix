@@ -21,6 +21,7 @@ import { asApiList } from '../utils/apiList';
 import type { Notification } from '../types';
 import { isPlaceholderEmail } from '../utils/placeholderEmail';
 
+import { personFullName } from '../utils/personName';
 type ProfileTab = 'profile' | 'payments' | 'notifications' | 'settings';
 
 const PROFILE_TABS: { id: ProfileTab; label: string; icon: typeof User }[] = [
@@ -569,7 +570,7 @@ const Profile: React.FC = () => {
                         </div>
                         <div className="mt-4 text-center">
                             <h2 className="text-xl font-bold text-slate-900">
-                                {profile.first_name} {profile.last_name} {profile.patronymic}
+                                {personFullName(profile)}
                             </h2>
                             <p className="text-slate-500">{roleNames[profile.role] || profile.role}</p>
                             {profile.avatar_url && (
@@ -711,7 +712,7 @@ const Profile: React.FC = () => {
                                         <User className="h-5 w-5 text-blue-800 mr-3 shrink-0" />
                                         <div className="min-w-0">
                                             <p className="text-sm text-slate-500">To'liq ism</p>
-                                            <p className="text-slate-900 break-words [overflow-wrap:anywhere]">{profile.first_name} {profile.last_name} {profile.patronymic}</p>
+                                            <p className="text-slate-900 break-words [overflow-wrap:anywhere]">{personFullName(profile)}</p>
                                         </div>
                                     </div>
                                     

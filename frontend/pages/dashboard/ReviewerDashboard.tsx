@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { AlertTriangle, BookOpen, Bot, Clock, ExternalLink, FileText, Inbox, Languages, Library, Rocket } from 'lucide-react';
+import { AlertTriangle, Bot, Clock, ExternalLink, FileText, Inbox, Languages, Library, Rocket } from 'lucide-react';
 import { DashboardHero, DueChip, SectionHead, StatRow, StatTile, TodoCard, greeting, type TodoItem } from '../../components/dashboard/DashboardParts';
 import EmptyState from '../../components/EmptyState';
 import { ListSkeleton } from '../../components/ui/Skeleton';
@@ -70,9 +70,6 @@ const ReviewerDashboard: React.FC<Props> = ({
   }, []);
 
   const forReview = articles.filter((a) => a.status === 'QabulQilingan' && !String(a.title || '').trim().toUpperCase().startsWith('[KITOB]'));
-  const bookOrders = articles.filter(
-    (a) => String(a.title || '').trim().toUpperCase().startsWith('[KITOB]') && a.status !== 'Published' && a.status !== 'Rejected',
-  );
   const doiOpen = doiRequests.filter((r) => r.status === 'submitted');
   const udkOpen = udkRequests.filter((r) => r.status === 'submitted');
   const trOpen = translationRequests.filter((x) => x.status === 'Yangi' || x.status === 'Jarayonda');
@@ -105,7 +102,7 @@ const ReviewerDashboard: React.FC<Props> = ({
     { key: 'udk', icon: Library, title: t("UDK so'rovlari"), count: udkOpen.length, to: '/udk-requests', tone: overdueOf('udk') ? 'warning' : 'info' },
     { key: 'tr', icon: Languages, title: t('Tarjima buyurtmalari'), count: trOpen.length, to: '/articles?tab=translations' },
     { key: 'sample', icon: FileText, title: t('Maqola namuna buyurtmalari'), count: sampleOpen.length, to: '/article-sample-requests' },
-    { key: 'books', icon: BookOpen, title: t('Kitob nashr buyurtmalari'), count: bookOrders.length, to: '/articles?tab=book-orders' },
+    // Kitob buyurtmalari endi bosh admin va operatorda (taqrizchida ular uchun amal yo'q edi)
   ];
 
   const saveDoi = async (id: string) => {

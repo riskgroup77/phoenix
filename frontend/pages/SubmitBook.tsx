@@ -313,10 +313,10 @@ const SubmitBook: React.FC = () => {
     const submitBookAfterPayment = useCallback(
         async (linkedArticleId: string) => {
             addNotification({
-                message: `"${title.substring(0, 40)}..." kitob buyurtmasi taqrizchiga yuborildi.`,
+                message: `"${title.substring(0, 40)}..." kitob buyurtmasi nashriyotga yuborildi.`,
                 link: `/articles/${linkedArticleId}`,
             });
-            toast.success(t("To'lov tasdiqlandi. Buyurtma taqrizchilar paneliga yuborildi."));
+            toast.success(t("To'lov tasdiqlandi. Buyurtma nashriyotga yuborildi — bosqichlarini «Maqolalarim» bo'limida kuzating."));
         },
         [addNotification, title]
     );

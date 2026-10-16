@@ -8,7 +8,9 @@ import { apiService } from '../services/apiService';
 import { txAmount } from '../utils/amount';
 import { useT } from '../i18n/LanguageContext';
 import { formatUzDate } from '../utils/uzDate';
+import { toast } from 'react-toastify';
 
+import { personFullName } from '../utils/personName';
 const Financials: React.FC = () => {
     const { t: tr } = useT();
     const { user } = useAuth();
@@ -20,6 +22,8 @@ const Financials: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [users, setUsers] = useState<any[]>([]);
+    const canRefund = user?.role === 'accountant' || user?.role === 'super_admin';
+    const [refundingId, setRefundingId] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchTransactions = async () => {
@@ -75,7 +79,7 @@ const Financials: React.FC = () => {
             result = result.filter(t => {
                 // Check user name
                 const user = users.find(u => u.id === t.user);
-                const userName = (t.user_name || (user ? `${user.first_name} ${user.last_name}` : '')).toLowerCase();
+                const userName = (t.user_name || personFullName(user)).toLowerCase();
                 
                 return userName.includes(query) ||
                     t.service_type?.toLowerCase().includes(query) ||
@@ -137,6 +141,45 @@ const Financials: React.FC = () => {
         'completed': 'bg-green-500/20 text-emerald-900',
         'failed': 'bg-red-500/20 text-red-800',
         'cancelled': 'bg-gray-500/20 text-slate-600',
+        'refunded': 'bg-sky-500/20 text-sky-900',
+    };
+
+    // Rad etilgan maqola to'lovini qaytarish: muallif so'raydi, moliyachi Click kabinetida qaytarib shu yerda belgilaydi
+    const refundRequests = transactions.filter((t) => t.status === 'completed' && t.refund_requested_at);
+    /** Click to'lovi bo'lsa — Merchant API orqali avtomatik qaytarish mumkin (Click rad etsa — qo'lda) */
+    const canClickRefund = (tx: any) => tx.payment_provider === 'click' || !!(tx.click_trans_id || tx.click_paydoc_id);
+
+    const markRefunded = async (tx: any, viaClick: boolean) => {
+        let note = '';
+        if (viaClick) {
+            if (!window.confirm(tr("{amount} so'm Click orqali muallif kartasiga qaytarilsinmi? Bu amalni bekor qilib bo'lmaydi.", { amount: Number(tx.amount || 0).toLocaleString() }))) {
+                return;
+            }
+        } else {
+            const input = window.prompt(
+                tr("Qaytarish izohi (masalan: Click kabinetida qaytarildi, sana). Muallifga yuboriladi:"),
+            );
+            if (input === null) return;
+            note = input.trim();
+            if (note.length < 5) {
+                toast.error(tr('Izoh yozing (kamida 5 ta belgi).'));
+                return;
+            }
+        }
+        setRefundingId(tx.id);
+        try {
+            const updated = await apiService.payments.markRefunded(tx.id, note, viaClick);
+            setTransactions((prev) => prev.map((t) => (t.id === tx.id ? { ...t, ...updated } : t)));
+            toast.success(
+                viaClick
+                    ? tr("Click orqali qaytarildi. Muallifga xabar yuborildi.")
+                    : tr("To'lov qaytarilgan deb belgilandi. Muallifga xabar yuborildi."),
+            );
+        } catch (err: any) {
+            toast.error(err?.message || tr("Belgilab bo'lmadi."));
+        } finally {
+            setRefundingId(null);
+        }
     };
 
     const handleExport = () => {
@@ -146,7 +189,7 @@ const Financials: React.FC = () => {
             headers.join(','),
             ...filteredTransactions.map(t => {
                 const user = users.find(u => u.id === t.user);
-                const userName = t.user_name || (user ? `${user.first_name} ${user.last_name}` : 'Noma\'lum foydalanuvchi');
+                const userName = t.user_name || personFullName(user, 'Noma\'lum foydalanuvchi');
                 const service = serviceTypeNames[t.service_type] || t.service_type || 'Noma\'lum';
                 const ctx = transactionContext(t);
                 const amount = `${txAmount(t.amount) >= 0 ? '+' : ''}${txAmount(t.amount)}`;
@@ -233,6 +276,11 @@ const Financials: React.FC = () => {
                 title={tr('Moliyaviy tranzaksiyalar')}
                 subtitle={tr('Platforma tushum, chiqim va tranzaksiyalar tarixi.')}
             />
+            {refundRequests.length > 0 && (
+                <div className="editorial-card p-4 border-amber-300 bg-amber-50/60 text-sm text-amber-900">
+                    {tr("{count} ta to'lovni qaytarish so'rovi kutmoqda — jadvalda «Qaytarish so'ralgan» belgisi bilan.", { count: refundRequests.length })}
+                </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="editorial-card p-5">
                     <div className="flex items-center gap-3">
@@ -374,11 +422,13 @@ const Financials: React.FC = () => {
                                 filteredTransactions.map(transaction => {
                                     const user = users.find(u => u.id === transaction.user);
                                     // API har to'lov bilan user_name beradi (foydalanuvchilar ro'yxati sahifalangan bo'lishi mumkin)
-                                    const userName = transaction.user_name || (user ? `${user.first_name} ${user.last_name}` : 'Noma\'lum foydalanuvchi');
+                                    const userName = transaction.user_name || personFullName(user, 'Noma\'lum foydalanuvchi');
                                     const isCompleted = transaction.status === 'completed';
                                     const isFailed = transaction.status === 'failed' || transaction.status === 'cancelled';
-                                    const amountPrefix = isFailed ? '' : '+';
-                                    const amountColor = isCompleted ? 'text-emerald-800' : isFailed ? 'text-red-700' : 'text-yellow-800';
+                                    const isRefunded = transaction.status === 'refunded';
+                                    // Qaytarilgan to'lov tushum emas — "+" belgisisiz, alohida rangda
+                                    const amountPrefix = isFailed ? '' : isRefunded ? '↩ ' : '+';
+                                    const amountColor = isCompleted ? 'text-emerald-800' : isFailed ? 'text-red-700' : isRefunded ? 'text-sky-800 line-through' : 'text-yellow-800';
                                     const ctx = transactionContext(transaction);
                                     return (
                                         <tr key={transaction.id} className="hover:bg-[rgba(31,63,143,0.03)] transition-colors">
@@ -409,8 +459,35 @@ const Financials: React.FC = () => {
                                             </td>
                                             <td className="px-4 py-4 text-sm">
                                                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[transaction.status] || 'bg-gray-500/20 text-slate-600'}`}>
-                                                    {transaction.status === 'completed' ? tr('Tugallangan') : transaction.status === 'failed' ? tr('Bekor qilindi') : transaction.status === 'cancelled' ? tr('Bekor qilindi') : transaction.status === 'pending' ? tr('Kutilmoqda') : transaction.status}
+                                                    {transaction.status === 'completed' ? tr('Tugallangan') : transaction.status === 'failed' ? tr('Bekor qilindi') : transaction.status === 'cancelled' ? tr('Bekor qilindi') : transaction.status === 'pending' ? tr('Kutilmoqda') : transaction.status === 'refunded' ? tr('Qaytarildi') : transaction.status}
                                                 </span>
+                                                {transaction.status === 'completed' && transaction.refund_requested_at && (
+                                                    <div className="mt-1 space-y-1">
+                                                        <p className="text-xs text-amber-800" title={transaction.refund_reason || ''}>{tr("Qaytarish so'ralgan")}</p>
+                                                        {canRefund && (
+                                                            <div className="flex flex-col items-start gap-0.5">
+                                                                {canClickRefund(transaction) && (
+                                                                    <button
+                                                                        type="button"
+                                                                        disabled={refundingId === transaction.id}
+                                                                        onClick={() => markRefunded(transaction, true)}
+                                                                        className="text-xs font-semibold text-[var(--editorial-primary)] hover:underline disabled:opacity-50"
+                                                                    >
+                                                                        {refundingId === transaction.id ? tr('Qaytarilmoqda…') : tr('Click orqali qaytarish')}
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={refundingId === transaction.id}
+                                                                    onClick={() => markRefunded(transaction, false)}
+                                                                    className="text-xs font-medium text-slate-600 hover:underline disabled:opacity-50"
+                                                                >
+                                                                    {tr('Qaytarildi deb belgilash')}
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                                 {isFailed && (transaction.error_note || '') && (
                                                     <p className="text-xs text-red-800/90 mt-1 max-w-xs truncate" title={transaction.error_note}>{tr('Sabab: {error_note}', { error_note: transaction.error_note })}</p>
                                                 )}

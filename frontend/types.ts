@@ -36,7 +36,8 @@ export const ARTICLE_STATUS_LABELS: Record<string, string> = {
   [ArticleStatus.QabulQilingan]: 'Qabul Qilingan',
   [ArticleStatus.WritingInProgress]: 'Yozish jarayonida',
   [ArticleStatus.NashrgaYuborilgan]: 'Nashrga Yuborilgan',
-  [ArticleStatus.PlagiarismReview]: 'Antiplagiat ko\'rib chiqish (bosh admin)',
+  // Umumiy (muallif ham ko'radi) — kim qaror qilishi xodimlar panelidagi tabda ko'rsatiladi
+  [ArticleStatus.PlagiarismReview]: 'Antiplagiat natijasi ko\'rib chiqilmoqda',
   [ArticleStatus.Revision]: 'Tahrirga qaytarilgan',
   [ArticleStatus.Accepted]: 'Qabul qilingan',
   [ArticleStatus.Rejected]: 'Rad etilgan',
@@ -45,6 +46,14 @@ export const ARTICLE_STATUS_LABELS: Record<string, string> = {
   [ArticleStatus.IsbnProcessing]: 'ISBN olinmoqda',
   [ArticleStatus.AuthorDataVerified]: 'Muallif ma\'lumotlari tasdiqlandi',
   [ArticleStatus.PaymentCompleted]: 'To\'lov jarayoni yakunlandi',
+  // Kitob buyurtmasi: bosmaxona bosqichlari (backend Article.STATUS_CHOICES)
+  SentToPrint: 'Bosmaga berildi',
+  Printing: 'Chop etilmoqda',
+  Ready: 'Tayyor',
+  Packaging: 'Qadoqlanmoqda',
+  Shipping: 'Yuborilmoqda (pochta)',
+  Delivered: 'Yetkazildi',
+  ProcessPaused: 'Jarayon to\'xtatildi',
 };
 
 export enum TranslationStatus {

@@ -320,7 +320,7 @@ def global_search(request):
 
     journal_rows = [
         {'id': str(j.id), 'name': j.name, 'issn': j.issn, 'link': f'/articles?journal={j.id}' if role in ('super_admin', 'journal_admin') else '/browse'}
-        for j in Journal.objects.filter(Q(name__icontains=q) | Q(issn__icontains=q)).order_by('name')[:6]
+        for j in Journal.objects.filter(is_internal=False).filter(Q(name__icontains=q) | Q(issn__icontains=q)).order_by('name')[:6]
     ]
 
     user_rows = []
@@ -363,7 +363,7 @@ def public_overview(request):
     pub_counts = {row['journal_id']: row['cnt'] for row in published.values('journal_id').annotate(cnt=Count('id'))}
 
     journals = []
-    for j in Journal.objects.select_related('category').order_by('name')[:60]:
+    for j in Journal.objects.filter(is_internal=False).select_related('category').order_by('name')[:60]:
         image = ''
         try:
             if j.image_url:

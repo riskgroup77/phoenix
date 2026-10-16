@@ -71,6 +71,7 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
     tools: [
       { to: '/my-collections', icon: Archive, label: "To'plamlarim" },
       { to: '/my-translations', icon: Languages, label: 'Tarjimalarim' },
+      { to: '/article-sample-requests', icon: FilePlus, label: 'Maqola namunalarim' },
       { to: '/arxiv', icon: FolderArchive, label: 'Arxiv hujjatlar' },
       { to: '/author-publications', icon: BookOpen, label: 'Muallif nashrlari' },
     ],
@@ -85,9 +86,10 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
       { to: '/dashboard', icon: LayoutDashboard, label: 'Ishchi stol' },
       { to: '/articles', icon: FileText, label: 'Taqrizga kelganlar' },
       { to: '/articles?tab=translations', icon: Languages, label: 'Tarjima buyurtmalari' },
-      { to: '/articles?tab=book-orders', icon: BookOpen, label: 'Kitob nashr buyurtmalari' },
       { to: '/doi-requests', icon: Bot, label: "DOI so'rovlari" },
       { to: '/udk-requests', icon: Library, label: "UDK so'rovlari" },
+      // Avval taqrizchi menyusida yo'q edi — namuna so'rovlari faqat bildirishnoma havolasi orqali ochilardi
+      { to: '/article-sample-requests', icon: FilePlus, label: "Maqola namuna so'rovlari" },
     ],
     account: [
       { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
@@ -120,6 +122,7 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
     tools: [
       { to: '/analytics', icon: BarChart3, label: 'Analitika' },
       { to: '/financials', icon: TrendingUp, label: 'Moliya' },
+      { to: '/articles?tab=book-orders', icon: BookOpen, label: 'Kitob buyurtmalari' },
       { to: '/author-publications', icon: BookOpen, label: 'Muallif nashrlari' },
       { to: '/article-sample-requests', icon: FileText, label: 'Maqola namuna' },
       { to: '/doi-requests', icon: Bot, label: "DOI so'rovlari" },
@@ -137,6 +140,7 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
       { to: '/doi-requests', icon: Bot, label: "DOI so'rovlari" },
       { to: '/udk-requests', icon: Library, label: "UDK so'rovlari" },
       { to: '/article-sample-requests', icon: FilePlus, label: 'Maqola namuna' },
+      { to: '/articles?tab=book-orders', icon: BookOpen, label: 'Kitob buyurtmalari' },
     ],
     account: [
       { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
@@ -167,7 +171,6 @@ export const bottomNavByRole: Partial<Record<Role, NavItem[]>> = {
     { to: '/dashboard', icon: LayoutDashboard, label: 'Stol' },
     { to: '/articles', icon: FileText, label: 'Taqriz' },
     { to: '/articles?tab=translations', icon: Languages, label: 'Tarjima' },
-    { to: '/articles?tab=book-orders', icon: BookOpen, label: 'Kitob' },
     { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
   ],
   [Role.JournalAdmin]: [

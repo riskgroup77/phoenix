@@ -124,6 +124,9 @@ class ArticleViewSet(
                     | Q(plagiarism_report__is_standalone=False)
                 )
                 .exclude(title__istartswith='plagiarism check')
+                # To'lanmagan qoralama — tahririyat ishi emas: avval muharrirning "Yangi kelganlar" ro'yxatini
+                # to'ldirardi. Maqola to'lovdan keyin "Yangi" bo'lib muharrirga ko'rinadi (bildirishnoma bilan).
+                .exclude(status='Draft')
             )
         elif role == 'author':
             return base_queryset.filter(
@@ -132,9 +135,14 @@ class ArticleViewSet(
         elif role == 'reviewer':
             # Ko'rib chiqilayotgan maqolalar + o'ziga taqriz tayinlangan maqolalar (holatidan qat'i nazar):
             # avval tayinlangan maqola boshqa holatda bo'lsa, bildirishnomadagi havola 404 berardi
-            return base_queryset.filter(
-                Q(status='QabulQilingan') | Q(peer_reviews__reviewer=self.request.user)
-            ).distinct()
+            # Taklifni rad etgan taqrizchi maqolani (va qo'lyozmani) boshqa ko'rmaydi — avval rad etgandan keyin
+            # ham ochib, faylini yuklab olaverardi.
+            from apps.reviews.models import PeerReview
+
+            # Faqat o'ziga tayinlangan maqolalar. Avval "Taqrizda" holatidagi BARCHA jurnallar maqolalari va
+            # kitob buyurtmalari (muallif manzili, telefoni bilan) hamma taqrizchilarga ochiq edi.
+            engaged = PeerReview.objects.filter(reviewer=self.request.user).exclude(status='declined').values('article_id')
+            return base_queryset.filter(pk__in=engaged).distinct()
         elif role == 'operator':
             return base_queryset.all()
         elif role == 'accountant':
@@ -213,9 +221,24 @@ class ArticleViewSet(
         # Avval tekshiruv (sahifalar soni fayldan aniqlanadi), so'ng to'lov holatiga qarab Draft/Yangi
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        book_journal = None
+        if (serializer.validated_data.get('title') or '').strip().upper().startswith('[KITOB]'):
+            # Kitob buyurtmasi jurnal maqolasi emas: frontend ro'yxatdagi birinchi jurnalni yuborardi va o'sha
+            # jurnal muharriri buyurtmani (manzil, telefon) ko'rardi. Endi ichki kitob jurnali; kitob to'lovi
+            # (book_publication) tasdiqlanguncha — qoralama.
+            from apps.journals.internal import get_book_orders_journal
+
+            book_journal = get_book_orders_journal()
+            if book_journal is not None:
+                serializer.validated_data['journal'] = book_journal
         journal = serializer.validated_data.get('journal')
+        if book_journal is None and getattr(journal, 'is_internal', False):
+            return Response({'journal': ["Bu jurnalga maqola yuborib bo'lmaydi."]}, status=status.HTTP_400_BAD_REQUEST)
         page_count = serializer.validated_data.get('page_count')
-        awaiting_payment = self._resolve_awaiting_publication_payment(request, journal, page_count)
+        awaiting_payment = (
+            True if book_journal is not None
+            else self._resolve_awaiting_publication_payment(request, journal, page_count)
+        )
         serializer.context['awaiting_publication_payment'] = awaiting_payment
         title_val = (serializer.validated_data.get('title') or '').strip()
         kw_list = serializer.validated_data.get('keywords') or []

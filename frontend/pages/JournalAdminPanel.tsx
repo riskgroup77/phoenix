@@ -13,6 +13,7 @@ import { apiService } from '../services/apiService';
 import { formatUzDate } from '../utils/uzDate';
 import { getArticleJournalIdFromApi } from '../utils/articleIds';
 import { useT } from '../i18n/LanguageContext';
+import { askStatusReason } from '../utils/statusReason';
 
 interface JournalAdminPanelProps {}
 
@@ -107,7 +108,7 @@ const JournalAdminPanel: React.FC = () => {
         if (activeTab === 'new') {
             filtered = articles.filter(
                 (article) =>
-                    article.status === ArticleStatus.Yangi || article.status === ArticleStatus.Draft
+                    article.status === ArticleStatus.Yangi
             );
         } else if (activeTab === 'pending') {
             filtered = articles.filter(article => 
@@ -133,7 +134,7 @@ const JournalAdminPanel: React.FC = () => {
     const tabCounts = useMemo(() => {
         return {
             new: articles.filter(
-                (a) => a.status === ArticleStatus.Yangi || a.status === ArticleStatus.Draft
+                (a) => a.status === ArticleStatus.Yangi
             ).length,
             pending: articles.filter(a => 
                 a.status === ArticleStatus.WithEditor || 
@@ -173,17 +174,9 @@ const JournalAdminPanel: React.FC = () => {
     };
     
     const handleUpdateStatus = async (articleId: string, newStatus: ArticleStatus) => {
-        let reason: string | undefined;
-        if (newStatus === ArticleStatus.Rejected) {
-            // Muallif bildirishnomada sababni ko'radi — sababsiz rad etilmasin
-            const input = window.prompt("Rad etish sababi (muallifga yuboriladi):");
-            if (input === null) return;
-            reason = input.trim();
-            if (!reason) {
-                toast.error("Rad etish sababini yozing.");
-                return;
-            }
-        }
+        // Muallif bildirishnomada sababni ko'radi — sababsiz rad etilmasin / tahrirga qaytarilmasin
+        const reason = askStatusReason(newStatus);
+        if (reason === null) return;
         try {
             const res: any = await apiService.articles.updateStatus(articleId, newStatus, reason);
             // Server antiplagiat chegarasiga qarab boshqa holat qo'yishi mumkin

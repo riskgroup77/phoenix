@@ -808,6 +808,15 @@ export const apiService = {
   /** Maqola namuna so'rovlari (taqrizchi: barcha, muallif: o'zini) */
   articleSample: {
     list: () => fetchAllPages('/articles/article-sample/requests/'),
+    /** Taqrizchi so'rovni ishga oladi */
+    take: (id: string) => apiFetch(`/articles/article-sample/requests/${id}/take/`, { method: 'POST' }),
+    /** Tayyor namuna faylini yuklash — muallifga bildirishnoma boradi */
+    complete: (id: string, file: File, note: string) => {
+      const fd = new FormData();
+      fd.append('result_file', file);
+      fd.append('reviewer_note', note);
+      return apiUpload(`/articles/article-sample/requests/${id}/complete/`, fd);
+    },
   },
 
   // Journals
@@ -996,6 +1005,15 @@ export const apiService = {
     getTransactions: () => apiFetch('/payments/transactions/'),
 
     getTransaction: (id: string) => apiFetch(`/payments/transactions/${id}/`),
+    /** Muallif: rad etilgan maqolaning nashr to'lovini qaytarishni so'rash */
+    requestRefund: (id: string, reason: string) =>
+      apiFetch(`/payments/transactions/${id}/request_refund/`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    /** Moliyachi / bosh admin: pul qaytarilganini belgilash */
+    markRefunded: (id: string, note: string, viaClick = false) =>
+      apiFetch(`/payments/transactions/${id}/mark_refunded/`, {
+        method: 'POST',
+        body: JSON.stringify({ note, via_click: viaClick }),
+      }),
 
     createTransaction: (transactionData: any) =>
       apiFetch('/payments/transactions/', {
