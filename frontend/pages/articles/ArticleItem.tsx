@@ -56,59 +56,54 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
     const handleStatusUpdate = async (newStatus: ArticleStatus) => {
         if (!canUpdateStatus) return;
         
+        if (!newStatus) return;
         try {
             setIsUpdating(true);
-            console.log('Updating status to:', newStatus); // Debug log
-            console.log('Sending status update request with status:', newStatus, 'type:', typeof newStatus);
-            
-            // Validate that newStatus is not null/undefined
-            if (!newStatus) {
-                console.error('Status is null or undefined, cannot update');
-                return;
-            }
-            
-            // Ensure the status is properly formatted as a string
-            const statusString = String(newStatus);
-            console.log('Formatted status string:', statusString);
-            
-            await apiService.articles.updateStatus(article.id, statusString);
-            console.log('Status update request completed');
-            setCurrentStatus(newStatus);
+            const res: any = await apiService.articles.updateStatus(article.id, String(newStatus));
+            // Server antiplagiat chegarasiga qarab boshqa holat qo'yishi mumkin (Rad etilgan / bosh admin qarori)
+            setCurrentStatus((res?.new_status as ArticleStatus) || newStatus);
             setIsStatusDropdownOpen(false);
             if (onStatusUpdate) {
                 onStatusUpdate();
             }
-        } catch (error) {
-            console.error('Failed to update article status:', error);
-            // Show error message to user
+        } catch (error: any) {
+            toast.error(error?.message || "Holatni o'zgartirib bo'lmadi.");
         } finally {
             setIsUpdating(false);
         }
     };
 
-    // Define available status options based on current status
-    const getAvailableStatusOptions = () => {
-        // Common statuses that can be changed to
-        const allStatuses = [
-            ArticleStatus.Draft,
-            ArticleStatus.Yangi,
-            ArticleStatus.WithEditor,
-            ArticleStatus.QabulQilingan,
-            ArticleStatus.Revision,
-            ArticleStatus.Accepted,
-            ArticleStatus.Published,
-            ArticleStatus.Rejected,
-            ArticleStatus.NashrgaYuborilgan,
-            ArticleStatus.WritingInProgress
-        ];
-        
-
-        
-        // Filter based on user role or other logic if needed
-        return allStatuses;
-    };
+    // Faqat backend ruxsat bergan o'tishlar (apps/articles/workflow.py). Avval barcha holatlar ko'rsatilardi —
+    // to'lanmagan qoralamani "Nashr etilgan" qilish mumkin edi. "Nashr etilgan" — faqat sertifikat bilan.
+    const getAvailableStatusOptions = (): ArticleStatus[] =>
+        (article.allowed_transitions ?? []).filter((s) => s !== ArticleStatus.Published) as ArticleStatus[];
 
     const pendingTxId = article.pending_payment_transaction_id;
+    const [isPaying, setIsPaying] = useState(false);
+
+    /**
+     * Kutilayotgan to'lov bo'lsa — o'sha (Click); bo'lmasa (avvalgisi bekor qilingan / xato) — yangi nashr to'lovi.
+     * Summani server hisoblaydi (jurnal narxi × fayldan aniqlangan sahifalar soni).
+     */
+    const startPublicationPayment = async () => {
+        setIsPaying(true);
+        try {
+            if (pendingTxId) {
+                await paymentService.redirectToPaymentPage(pendingTxId);
+                return;
+            }
+            const result = await paymentService.createTransactionAndPay(0, 'UZS', 'publication_fee', article.id);
+            if (result?.transaction_id) {
+                await paymentService.redirectToPaymentPage(result.transaction_id);
+                return;
+            }
+            toast.error(result?.error || "To'lovni boshlab bo'lmadi.");
+        } catch (err: any) {
+            toast.error(err?.message || "To'lovni boshlab bo'lmadi.");
+        } finally {
+            setIsPaying(false);
+        }
+    };
 
     return (
         <div 
@@ -137,7 +132,7 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                                     <Share2 size={16} />
                                 </button>
                             )}
-                            {canUpdateStatus && (
+                            {canUpdateStatus && getAvailableStatusOptions().length > 0 && (
                                 <div className="relative">
                                     <button 
                                         onClick={(e) => {
@@ -181,7 +176,7 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                 </div>
             </div>
             <p className="text-sm text-slate-500 mt-2 line-clamp-2">{article.abstract}</p>
-            {isAuthor && currentStatus === ArticleStatus.Draft && pendingTxId && (
+            {isAuthor && currentStatus === ArticleStatus.Draft && (pendingTxId || article.needs_publication_payment) && (
                 <div
                     className="mt-3 p-3 rounded-lg bg-amber-500/15 border border-amber-500/30"
                     onClick={(e) => e.stopPropagation()}
@@ -193,12 +188,13 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                         type="button"
                         variant="secondary"
                         className="w-full sm:w-auto"
+                        disabled={isPaying}
                         onClick={(e) => {
                             e.stopPropagation();
-                            paymentService.redirectToPaymentPage(pendingTxId);
+                            startPublicationPayment();
                         }}
                     >
-                        {t("To'lovni tugatish")}
+                        {isPaying ? '...' : t("To'lovni tugatish")}
                     </Button>
                 </div>
             )}

@@ -2,7 +2,11 @@ from decimal import Decimal
 
 from rest_framework import serializers
 from apps.payments.models import Transaction
+from config.upload_validation import DOCUMENT_EXTENSIONS, validate_upload
 from .models import TranslationRequest
+
+# Tarjima uchun oddiy matn fayli ham qabul qilinadi (text/plain, nosniff bilan beriladi — xavfsiz)
+TRANSLATION_EXTENSIONS = DOCUMENT_EXTENSIONS | {'.txt'}
 
 
 def _cost_requires_payment(cost) -> bool:
@@ -51,6 +55,12 @@ class TranslationRequestSerializer(serializers.ModelSerializer):
             'payment_pending',
             'payment_status_label',
         )
+
+    def validate_source_file_path(self, value):
+        return validate_upload(value, allowed=TRANSLATION_EXTENSIONS, field='source_file_path')
+
+    def validate_translated_file_path(self, value):
+        return validate_upload(value, allowed=TRANSLATION_EXTENSIONS, field='translated_file_path')
 
     def validate(self, attrs):
         """

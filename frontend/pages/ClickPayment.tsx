@@ -8,8 +8,10 @@ import { apiService } from '../services/apiService';
 import { toast } from 'react-toastify';
 import { shouldAutoOpenClickPayment } from '../utils/device';
 import { useT } from '../i18n/LanguageContext';
+import { PAYMENT_POLL_INTERVAL_MS, paymentDestination } from '../utils/paymentReturn';
 
-const POLL_INTERVAL_MS = 3000;
+// Holatni tekshirish oralig'i: 3000 ms → 1500 ms (utils/paymentReturn.ts)
+const POLL_INTERVAL_MS = PAYMENT_POLL_INTERVAL_MS;
 const POLL_MAX_MS = 15 * 60 * 1000;
 
 const SERVICE_TYPE_LABELS: Record<string, string> = {
@@ -76,8 +78,7 @@ const ClickPayment: React.FC = () => {
 
     const confirmedToastShown = useRef(false);
     const pollStartedAt = useRef<number | null>(null);
-    const archiveRedirectScheduled = useRef(false);
-    const plagiarismRedirectScheduled = useRef(false);
+    const returnScheduled = useRef(false);
 
     const isMobilePaymentUi = shouldAutoOpenClickPayment();
     const useMobileAutoFlow = isMobilePaymentUi && !noAutoRedirect;
@@ -225,22 +226,13 @@ const ClickPayment: React.FC = () => {
         };
     }, [transactionId, isPaymentCompleted, isPaymentFailed, status, refreshTransaction]);
 
+    // To'lov tasdiqlangach — kutmasdan xizmat sahifasiga (avval 3,5 s / 1,5 s kutilardi); natija toast'da
     useEffect(() => {
-        if (!isPaymentCompleted || transaction?.service_type !== 'publication_fee') return;
-        if (archiveRedirectScheduled.current) return;
-        archiveRedirectScheduled.current = true;
+        if (!isPaymentCompleted || !transaction || returnScheduled.current) return;
+        returnScheduled.current = true;
         sessionStorage.removeItem('phonix_submit_article_pending');
-        const timer = window.setTimeout(() => navigate('/arxiv'), 3500);
-        return () => window.clearTimeout(timer);
-    }, [isPaymentCompleted, transaction?.service_type, navigate]);
-
-    useEffect(() => {
-        if (!isPaymentCompleted || transaction?.service_type !== 'language_editing') return;
-        if (plagiarismRedirectScheduled.current) return;
-        plagiarismRedirectScheduled.current = true;
-        const timer = window.setTimeout(() => navigate('/plagiarism-check?payment_return=1&transaction_id=' + encodeURIComponent(transactionId || '')), 1500); // to'lovdan keyin upload sahifasida avtomatik tekshiruv
-        return () => window.clearTimeout(timer);
-    }, [isPaymentCompleted, transaction?.service_type, navigate, transactionId]);
+        navigate(paymentDestination(transaction), { replace: true });
+    }, [isPaymentCompleted, transaction, navigate]);
 
     const handlePayment = () => {
         if (!paymentUrl) return;

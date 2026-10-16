@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
 from config.permissions import SuperAdminWriteAuthenticatedRead, SuperAdminWritePublicRead
+from config.upload_validation import validate_document
 from django_filters.rest_framework import DjangoFilterBackend
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError
@@ -48,30 +49,45 @@ class JournalViewSet(viewsets.ModelViewSet):
             return base.exclude(demo_q('journal_admin__'))
         return base.all()
     
+    # Jurnal admini o'zgartira olmaydigan maydonlar: narx/to'lov modeli (tushumga ta'sir qiladi), jurnal egasi,
+    # nomi/ISSN (Crossref va indekslash identifikatori), rukn. Bularni faqat bosh admin o'zgartiradi.
+    OWNER_PROTECTED_FIELDS = frozenset({
+        'journal_admin', 'category', 'name', 'issn',
+        'payment_model', 'pricing_type', 'publication_fee', 'price_per_page',
+    })
+
     def create(self, request, *args, **kwargs):
-        # Only super_admin and journal_admin can create journals
-        if request.user.role not in ['super_admin', 'journal_admin']:
+        # Jurnal yaratish — faqat bosh admin (avval jurnal admini ham yaratib, egasini istalgan odamga qo'ya olardi)
+        if request.user.role != 'super_admin':
             return Response(
-                {'error': 'Siz jurnal yaratish huquqiga egasiz'},
+                {'error': 'Jurnalni faqat bosh administrator yarata oladi.'},
                 status=status.HTTP_403_FORBIDDEN
             )
         return super().create(request, *args, **kwargs)
-    
+
     def update(self, request, *args, **kwargs):
         # Only super_admin and journal owner can update
         journal = self.get_object()
-        if request.user.role != 'super_admin' and journal.journal_admin != request.user:
-            return Response(
-                {'error': 'Siz bu jurnalni yangilash huquqiga egasiz'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        if request.user.role != 'super_admin':
+            if journal.journal_admin != request.user:
+                return Response(
+                    {'error': 'Siz bu jurnalni yangilash huquqiga ega emassiz'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            protected = sorted(self.OWNER_PROTECTED_FIELDS & set(request.data.keys()))
+            if protected:
+                return Response(
+                    {'error': 'Narx, to\'lov modeli, jurnal nomi/ISSN va egasini faqat bosh administrator o\'zgartiradi.',
+                     'fields': protected},
+                    status=status.HTTP_403_FORBIDDEN
+                )
         return super().update(request, *args, **kwargs)
-    
+
     def destroy(self, request, *args, **kwargs):
         # Only super_admin can delete journals
         if request.user.role != 'super_admin':
             return Response(
-                {'error': 'Siz jurnalni o\'chirish huquqiga egasiz'},
+                {'error': 'Siz jurnalni o\'chirish huquqiga ega emassiz'},
                 status=status.HTTP_403_FORBIDDEN
             )
         return super().destroy(request, *args, **kwargs)
@@ -94,6 +110,8 @@ class IssueViewSet(viewsets.ModelViewSet):
     
     def _assign_articles_to_issue(self, issue, article_ids):
         """Set issue on published articles of this journal; clear issue for others in this issue."""
+        if article_ids is None:
+            return
         if not isinstance(article_ids, list):
             article_ids = []
         article_ids = [a for a in article_ids if a]
@@ -108,6 +126,7 @@ class IssueViewSet(viewsets.ModelViewSet):
         """Save uploaded collection file (PDF/DOC) to issue if present in request.FILES."""
         f = request.FILES.get('collection_file') if hasattr(request, 'FILES') else None
         if f:
+            validate_document(f, field='collection_file')
             issue.collection_file = f
             issue.save(update_fields=['collection_file'])
 
@@ -125,7 +144,10 @@ class IssueViewSet(viewsets.ModelViewSet):
                 return v[0]
             return v
         articles_raw = get_val(data, 'articles')
-        if isinstance(articles_raw, str):
+        if not (hasattr(data, '__contains__') and 'articles' in data):
+            # Ro'yxat yuborilmagan — sondagi maqolalar o'zgarmaydi (avval hammasi sondan chiqarib yuborilardi)
+            article_ids = None
+        elif isinstance(articles_raw, str):
             try:
                 article_ids = json.loads(articles_raw or '[]')
             except Exception:
@@ -155,7 +177,7 @@ class IssueViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         if request.user.role not in ['super_admin', 'journal_admin']:
             return Response(
-                {'error': 'Siz jurnal sonini yaratish huquqiga egasiz'},
+                {'error': 'Siz jurnal sonini yaratish huquqiga ega emassiz'},
                 status=status.HTTP_403_FORBIDDEN
             )
         source = request.POST if request.content_type and 'multipart' in request.content_type and request.POST else request.data
@@ -196,11 +218,19 @@ class IssueViewSet(viewsets.ModelViewSet):
         issue = self.get_object()
         if request.user.role != 'super_admin' and issue.journal.journal_admin != request.user:
             return Response(
-                {'error': 'Siz bu jurnal sonini yangilash huquqiga egasiz'},
+                {'error': 'Siz bu jurnal sonini yangilash huquqiga ega emassiz'},
                 status=status.HTTP_403_FORBIDDEN
             )
         source = request.POST if request.content_type and 'multipart' in request.content_type and request.POST else request.data
         serializer_data, article_ids = self._issue_serializer_data(source)
+        new_journal = serializer_data.get('journal')
+        if new_journal not in (None, '') and str(new_journal) != str(issue.journal_id):
+            # Sonni boshqa jurnalga ko'chirib bo'lmaydi: avval faqat eski jurnal egaligi tekshirilib, son va unga
+            # biriktiriladigan maqolalar begona jurnalga o'tib ketardi
+            return Response(
+                {'error': 'Jurnal sonini boshqa jurnalga ko\'chirib bo\'lmaydi.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         partial = kwargs.pop('partial', False)
         serializer = self.get_serializer(issue, data=serializer_data, partial=partial)
         serializer.is_valid(raise_exception=True)
@@ -214,7 +244,7 @@ class IssueViewSet(viewsets.ModelViewSet):
         issue = self.get_object()
         if request.user.role != 'super_admin' and issue.journal.journal_admin != request.user:
             return Response(
-                {'error': 'Siz jurnal sonini o\'chirish huquqiga egasiz'},
+                {'error': 'Siz jurnal sonini o\'chirish huquqiga ega emassiz'},
                 status=status.HTTP_403_FORBIDDEN
             )
         return super().destroy(request, *args, **kwargs)

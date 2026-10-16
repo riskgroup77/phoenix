@@ -6,9 +6,13 @@ from .models import Article, ActivityLog
 from .serializers import ArticleSerializer
 from apps.notifications.models import Notification
 from .views_antiplagiat import _check_plagiarism_thresholds
+from config.upload_validation import validate_upload
+from .workflow import THRESHOLD_CHECKED_TARGETS, allowed_staff_transitions, is_book_submission
 import logging
 
 logger = logging.getLogger(__name__)
+
+CERTIFICATE_EXTENSIONS = frozenset({'.pdf', '.jpg', '.jpeg', '.png'})
 
 
 class ArticlePublicationActionsMixin:
@@ -68,9 +72,31 @@ class ArticlePublicationActionsMixin:
             )
         
         old_status = article.status
+        is_staff_change = self._is_super_admin() or request.user.role == 'journal_admin'
+        if is_staff_change:
+            allowed = allowed_staff_transitions(article, super_admin=self._is_super_admin())
+            if new_status not in allowed:
+                labels = dict(Article.STATUS_CHOICES)
+                hint = ', '.join(labels.get(s, s) for s in sorted(allowed)) or "yo'q"
+                if new_status == 'Published':
+                    msg = 'Maqola faqat "Nashrni yakunlash" (sertifikat yuklash) orqali nashr etiladi.'
+                elif old_status == 'Draft':
+                    msg = "Qoralama to'lov tasdiqlangandan keyin tahririyatga o'tadi — holatini qo'lda o'zgartirib bo'lmaydi."
+                else:
+                    old_label, new_label = labels.get(old_status, old_status), labels.get(new_status, new_status)
+                    msg = f'"{old_label}" holatidan "{new_label}" ga o\'tib bo\'lmaydi.'
+                return Response(
+                    {'error': msg, 'allowed_statuses': sorted(allowed), 'allowed_hint': hint},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         final_status = new_status
-        # Antiplagiat tekshiruvi faqat jurnal admin "Nashrga yuborilgan" qilganda. Bosh admin qabul qilsa qayta tekshirilmaydi.
-        if new_status == 'NashrgaYuborilgan' and getattr(request.user, 'role', None) != 'super_admin':
+        # Antiplagiat chegarasi: jurnal admini "Qabul qilish" yoki "Nashrga yuborish" qilganda (kitobdan tashqari).
+        # Bosh admin qarori (PlagiarismReview dan) qayta tekshirilmaydi.
+        if (
+            new_status in THRESHOLD_CHECKED_TARGETS
+            and not self._is_super_admin()
+            and not is_book_submission(article)
+        ):
             article.journal.refresh_from_db()
             decision, reason = _check_plagiarism_thresholds(article)
             if decision == 'reject':
@@ -81,7 +107,7 @@ class ArticlePublicationActionsMixin:
                 ActivityLog.objects.create(
                     article=article,
                     user=request.user,
-                    action='Status: NashrgaYuborilgan → Rejected (antipiagiat talablar bajarilmadi)',
+                    action=f'Status: {old_status} → Rejected (antiplagiat talablari bajarilmadi)',
                     details=reason or 'Plagiat / AI / originalilik bo\'yicha jurnal talablariga mos kelmadi.'
                 )
                 try:
@@ -273,12 +299,12 @@ class ArticlePublicationActionsMixin:
                 )
         else:
             return Response(
-                {'error': 'Siz bu maqolani nashr qilish huquqiga egasiz'},
+                {'error': 'Siz bu maqolani nashr qilish huquqiga ega emassiz'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        if article.status != 'Accepted':
+        if article.status not in ('Accepted', 'NashrgaYuborilgan'):
             return Response(
-                {'error': 'Faqat "Qabul qilingan" holatidagi maqolani nashr qilish mumkin'},
+                {'error': 'Faqat "Qabul qilingan" yoki "Nashrga yuborilgan" holatidagi maqolani nashr qilish mumkin'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         certificate_file = request.FILES.get('certificate')
@@ -298,6 +324,7 @@ class ArticlePublicationActionsMixin:
                 {'error': 'Sertifikat faqat PDF yoki JPG (yoki PNG) formatida bo\'lishi kerak'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        validate_upload(certificate_file, allowed=CERTIFICATE_EXTENSIONS, field='certificate')
         issue_id = request.data.get('issue_id') or request.POST.get('issue_id')
         if issue_id:
             from apps.journals.models import Issue
@@ -387,6 +414,7 @@ class ArticlePublicationActionsMixin:
                     {'error': 'Sertifikat faqat PDF yoki JPG (PNG) formatida bo\'lishi kerak'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+            validate_upload(certificate_file, allowed=CERTIFICATE_EXTENSIONS, field='certificate')
             article.publication_certificate_path = certificate_file
         if publication_url:
             article.publication_url = publication_url[:500]

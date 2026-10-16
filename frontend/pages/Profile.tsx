@@ -625,7 +625,8 @@ const Profile: React.FC = () => {
                                             <input
                                                 type="tel"
                                                 name="phone"
-                                                value={formData.phone?.replace('+998', '')}
+                                                // Bazada 998XXXXXXXXX — "+998" prefiksi yonida qayta ko'rinmasin (server raqamni o'zi normallashtiradi)
+                                                value={formData.phone?.replace(/^\+?998(?=\d{9}$)/, '')}
                                                 onChange={handleInputChange}
                                                 className="flex-1 min-w-0 block w-full rounded-none rounded-r-md"
                                                 required

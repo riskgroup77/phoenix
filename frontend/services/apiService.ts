@@ -71,24 +71,6 @@ export async function refreshAccessTokenFromApi(): Promise<boolean> {
   return refreshInFlight;
 }
 
-/** Build user-visible message from API 400 body (detail string or DRF field errors object). */
-function formatApiErrorMessage(error: Record<string, unknown>, status: number): string {
-  const detail = error.detail;
-  if (typeof detail === 'string' && detail) return detail;
-  if (typeof detail === 'object' && detail !== null) {
-    const parts = Object.entries(detail as Record<string, unknown>).map(([k, v]) =>
-      `${k}: ${Array.isArray(v) ? v.join(', ') : String(v)}`
-    );
-    if (parts.length) return parts.join('; ');
-  }
-  // DRF returns { "field": ["msg"] } without "detail"
-  const fieldParts = Object.entries(error)
-    .filter(([k]) => k !== 'detail' && k !== 'message')
-    .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : String(v)}`);
-  if (fieldParts.length) return fieldParts.join('; ');
-  return (error.message as string) || `API request failed with status ${status}`;
-}
-
 // Base fetch with authentication
 export const apiFetch = async (
   endpoint: string,
@@ -287,6 +269,40 @@ export const downloadAuthed = async (endpoint: string, filename: string): Promis
   window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
 };
 
+/** Sahifalash havolasi (`next` — to'liq URL) → apiFetch endpointi */
+function nextEndpoint(next: string): string {
+  const i = next.indexOf('/api/v1');
+  return i >= 0 ? next.slice(i + '/api/v1'.length) : next;
+}
+
+/**
+ * DRF sahifalangan ro'yxatni TO'LIQ yig'adi (`next` bo'yicha, har sahifada 200 tadan).
+ * Avval ro'yxatlar faqat birinchi 20 ta yozuvni olardi: "Moliya" jami tushumi, foydalanuvchilar, jurnallar
+ * (21-jurnal tanlansa maqola to'lovsiz qoralamada qotib qolardi), son tarkibi va boshqalar noto'g'ri edi.
+ * Sahifalanmagan (massiv) javob ham qabul qilinadi.
+ */
+// Qaytish turi `any`: chaqiruvchilar eski `{ results }` va massiv javoblarni ham qo'llaydi
+export async function fetchAllPages<T = any>(endpoint: string, maxPages = 100): Promise<any> {
+  const sep = endpoint.includes('?') ? '&' : '?';
+  let url: string | null = /[?&]page_size=/.test(endpoint) ? endpoint : `${endpoint}${sep}page_size=200`;
+  const out: T[] = [];
+  for (let i = 0; url && i < maxPages; i += 1) {
+    const data = await apiFetch(url);
+    if (Array.isArray(data)) return data as T[];
+    out.push(...((data?.results ?? []) as T[]));
+    url = data?.next ? nextEndpoint(String(data.next)) : null;
+  }
+  return out;
+}
+
+/**
+ * Fayl (multipart) yuboradigan so'rovlar uchun: apiFetch bilan bir xil autentifikatsiya — cookie, CSRF sarlavhasi
+ * va 401 da tokenni yangilash. Avval xom fetch ishlatilardi: productionda (cookie rejimi) sahifa yangilangandan
+ * keyin access token xotirada bo'lmagani va cookie yuborilmagani uchun maqola/kitob/DOI yuborish 401 berardi.
+ */
+export const apiUpload = (endpoint: string, formData: FormData, method: 'POST' | 'PATCH' | 'PUT' = 'POST') =>
+  apiFetch(endpoint, { method, body: formData });
+
 // API Service
 export const apiService = {
   // Authentication
@@ -405,12 +421,8 @@ export const apiService = {
   // Users
   users: {
     /** @param params masalan { role: 'journal_admin' } — DRF sahifalashda barcha jurnal adminlarni olish uchun */
-    list: (params?: Record<string, string>) => {
-      if (!params || Object.keys(params).length === 0) {
-        return apiFetch('/auth/');
-      }
-      return apiFetch(`/auth/?${new URLSearchParams(params)}`);
-    },
+    list: (params?: Record<string, string>) =>
+      fetchAllPages(params && Object.keys(params).length ? `/auth/?${new URLSearchParams(params)}` : '/auth/'),
 
     get: (id: string) => apiFetch(`/auth/${id}/`),
 
@@ -426,9 +438,18 @@ export const apiService = {
         body: JSON.stringify(userData),
       }),
 
-    delete: (id: string) =>
+    /** Faolsizlantirilgan hisobni qayta faollashtirish (faqat bosh admin) */
+    setActive: (id: string, isActive: boolean) =>
+      apiFetch(`/auth/${id}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_active: isActive }),
+      }),
+
+    /** Hisobni faolsizlantirish (arxivlash) — tasdiq: bosh adminning o'z paroli */
+    delete: (id: string, password: string) =>
       apiFetch(`/auth/${id}/`, {
         method: 'DELETE',
+        body: JSON.stringify({ password }),
       }),
 
     /** User activity, stats and history (super_admin only). */
@@ -477,12 +498,8 @@ export const apiService = {
         body: JSON.stringify(data),
       }),
 
-    list: (params?: Record<string, string>) => {
-      if (!params || Object.keys(params).length === 0) {
-        return apiFetch('/articles/');
-      }
-      return apiFetch(`/articles/?${new URLSearchParams(params)}`);
-    },
+    list: (params?: Record<string, string>) =>
+      fetchAllPages(params && Object.keys(params).length ? `/articles/?${new URLSearchParams(params)}` : '/articles/'),
 
     /** Muallifning barcha maqolalari (Draft/Yangi) — paginatsiya muammosiz */
     mine: () => apiFetch('/articles/mine/'),
@@ -554,6 +571,13 @@ export const apiService = {
     /** Joriy sozlamalarda haqiqatan tekshiriladigan antiplagiat modullari */
     antiplagiatModules: () => apiFetch('/articles/antiplagiat-modules/'),
 
+    /** Fayldagi sahifalar soni — server narxni aynan shu bo'yicha oladi */
+    pageCount: (file: File): Promise<{ pages: number | null; detected: boolean }> => {
+      const form = new FormData();
+      form.append('file', file);
+      return apiUpload('/articles/page-count/', form);
+    },
+
     /** Muallif maqolalar ro'yxati PDF — QR uchun imzoli to'g'ridan-to'g'ri PDF havolasi */
     getAuthorMalumotnomaSignedUrl: () =>
       apiFetch('/articles/reports/author-malumotnoma-signed-url/'),
@@ -597,57 +621,13 @@ export const apiService = {
           formData.append('additional_document_path', files.additionalFile);
         }
         
-        const token = getToken();
-        const headers: HeadersInit = {};
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        // Don't set Content-Type header for FormData, let browser set it
-        delete (headers as any)['Content-Type'];
-        
-        const response = await fetch(`${API_BASE_URL}/articles/`, {
-          method: 'POST',
-          headers,
-          body: formData,
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          let error: Record<string, unknown>;
-          try {
-            error = JSON.parse(errorText) as Record<string, unknown>;
-          } catch {
-            if (errorText.includes('<!DOCTYPE html>') || errorText.includes('<html')) {
-              const errorMatch = errorText.match(/<pre class="exception_value">(.*?)<\/pre>/s);
-              error = {
-                detail: errorMatch
-                  ? errorMatch[1].trim().slice(0, 500)
-                  : `Server xatosi (${response.status})`,
-              };
-            } else {
-              error = { detail: errorText || 'Unknown error' };
-            }
-          }
-          const drfMsg = formatDrfValidationErrors(error);
-          const fallback =
-            (typeof error.detail === 'string' ? error.detail : null) ||
-            (typeof error.message === 'string' ? error.message : null);
-          const apiError: Error & { status?: number; response?: unknown } = new Error(
-            drfMsg || fallback || `API request failed with status ${response.status}`
-          );
-          apiError.status = response.status;
-          apiError.response = error;
-          throw apiError;
-        }
-        
-        const text = await response.text();
-        if (!text) return {};
-        
         try {
-          return JSON.parse(text);
-        } catch (e) {
-          throw new Error('Invalid response format');
+          return await apiUpload('/articles/', formData);
+        } catch (err: any) {
+          // Maydon xatolarini o'qiladigan ko'rinishda ("Fayl: ...") ko'rsatish
+          const drfMsg = err?.response ? formatDrfValidationErrors(err.response) : '';
+          if (drfMsg) err.message = drfMsg;
+          throw err;
         }
       } else {
         // Regular JSON request
@@ -697,40 +677,7 @@ export const apiService = {
           formData.append('additional_document_path', files.additionalFile);
         }
         
-        const token = getToken();
-        const headers: HeadersInit = {};
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        // Don't set Content-Type header for FormData, let browser set it
-        delete (headers as any)['Content-Type'];
-        
-        const response = await fetch(`${API_BASE_URL}/articles/${id}/`, {
-          method: 'PUT',
-          headers,
-          body: formData,
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          let error;
-          try {
-            error = JSON.parse(errorText);
-          } catch (e) {
-            error = { detail: errorText || 'Unknown error' };
-          }
-          throw new Error(error.detail || error.message || `API request failed with status ${response.status}`);
-        }
-        
-        const text = await response.text();
-        if (!text) return {};
-        
-        try {
-          return JSON.parse(text);
-        } catch (e) {
-          throw new Error('Invalid response format');
-        }
+        return apiUpload(`/articles/${id}/`, formData, 'PUT');
       } else {
         // Regular JSON request
         return apiFetch(`/articles/${id}/`, {
@@ -821,55 +768,17 @@ export const apiService = {
 
     /** Nashr qilish: sertifikat yuklash, status Published, muallifga bildirishnoma */
     completePublication: (id: string, formData: FormData) =>
-      fetch(`${API_BASE_URL}/articles/${id}/complete_publication/`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${getToken()}` },
-        body: formData,
-      }).then(async (r) => {
-        const text = await r.text();
-        if (!r.ok) {
-          let err: { error?: string; detail?: string } = {};
-          try {
-            err = JSON.parse(text);
-          } catch {
-            err = { detail: text };
-          }
-          throw Object.assign(
-            new Error((err as any).error || (err as any).detail || 'Xatolik'),
-            { status: r.status, response: err }
-          );
-        }
-        return text ? JSON.parse(text) : {};
-      }),
+      apiUpload(`/articles/${id}/complete_publication/`, formData),
 
     /** Nashr etilgan maqola: havola va/yoki sertifikat, muallifga bildirishnoma */
     sendPublicationDelivery: (id: string, formData: FormData) =>
-      fetch(`${API_BASE_URL}/articles/${id}/send_publication_delivery/`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${getToken()}` },
-        body: formData,
-      }).then(async (r) => {
-        const text = await r.text();
-        if (!r.ok) {
-          let err: { error?: string; detail?: string } = {};
-          try {
-            err = JSON.parse(text);
-          } catch {
-            err = { detail: text };
-          }
-          throw Object.assign(
-            new Error((err as any).error || (err as any).detail || 'Xatolik'),
-            { status: r.status, response: err }
-          );
-        }
-        return text ? JSON.parse(text) : {};
-      }),
+      apiUpload(`/articles/${id}/send_publication_delivery/`, formData),
 
     /** DOI so'rovlari ro'yxati (operator uchun) */
-    getDoiRequests: () => apiFetch('/articles/doi/requests/'),
+    getDoiRequests: () => fetchAllPages('/articles/doi/requests/'),
 
     /** Maqola namuna so'rovlari ro'yxati (operator uchun) */
-    getArticleSampleRequests: () => apiFetch('/articles/article-sample/requests/'),
+    getArticleSampleRequests: () => fetchAllPages('/articles/article-sample/requests/'),
 
     /** Muallif ↔ operator chat: oxirgi faol yozishmalar (faqat operator) */
     getOperatorChatInbox: () => apiFetch('/articles/operator-chat-inbox/'),
@@ -887,25 +796,8 @@ export const apiService = {
   // DOI raqami olish
   doi: {
     price: () => apiFetch('/articles/doi/price/'),
-    request: (formData: FormData) =>
-      fetch(`${API_BASE_URL}/articles/doi/request/`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${getToken()}` },
-        body: formData,
-      }).then(async (r) => {
-        const text = await r.text();
-        if (!r.ok) {
-          let err: any;
-          try {
-            err = JSON.parse(text);
-          } catch {
-            err = { detail: text };
-          }
-          throw Object.assign(new Error(err.detail || 'Xatolik'), { status: r.status, response: err });
-        }
-        return text ? JSON.parse(text) : {};
-      }),
-    list: () => apiFetch('/articles/doi/requests/'),
+    request: (formData: FormData) => apiUpload('/articles/doi/request/', formData),
+    list: () => fetchAllPages('/articles/doi/requests/'),
     updateLink: (id: string, doi_link: string) =>
       apiFetch(`/articles/doi/requests/${id}/`, {
         method: 'PATCH',
@@ -915,7 +807,7 @@ export const apiService = {
 
   /** Maqola namuna so'rovlari (taqrizchi: barcha, muallif: o'zini) */
   articleSample: {
-    list: () => apiFetch('/articles/article-sample/requests/'),
+    list: () => fetchAllPages('/articles/article-sample/requests/'),
   },
 
   // Journals
@@ -927,7 +819,8 @@ export const apiService = {
       if (opts?.pageSize != null) params.set('page_size', String(opts.pageSize));
       if (opts?.page != null) params.set('page', String(opts.page));
       const qs = params.toString();
-      return apiFetch(qs ? `/journals/journals/?${qs}` : '/journals/journals/');
+      // Sahifa so'ralmasa — barcha jurnallar (avval faqat 20 tasi kelardi)
+      return qs ? apiFetch(`/journals/journals/?${qs}`) : fetchAllPages('/journals/journals/');
     },
     
     get: (id: string) => apiFetch(`/journals/journals/${id}/`),
@@ -956,40 +849,7 @@ export const apiService = {
         // Add the image file
         formData.append('image_url', imageFile);
         
-        const token = getToken();
-        const headers: HeadersInit = {};
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        // Don't set Content-Type header for FormData, let browser set it
-        delete (headers as any)['Content-Type'];
-        
-        const response = await fetch(`${API_BASE_URL}/journals/journals/`, {
-          method: 'POST',
-          headers,
-          body: formData,
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          let error;
-          try {
-            error = JSON.parse(errorText);
-          } catch (e) {
-            error = { detail: errorText || 'Unknown error' };
-          }
-          throw new Error(error.detail || error.message || `API request failed with status ${response.status}`);
-        }
-        
-        const text = await response.text();
-        if (!text) return {};
-        
-        try {
-          return JSON.parse(text);
-        } catch (e) {
-          throw new Error('Invalid response format');
-        }
+        return apiUpload(`/journals/journals/`, formData);
       } else {
         // Regular JSON request
         return apiFetch('/journals/journals/', {
@@ -1027,40 +887,7 @@ export const apiService = {
         // Add the image file
         formData.append('image_url', imageFile);
         
-        const token = getToken();
-        const headers: HeadersInit = {};
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        // Don't set Content-Type header for FormData, let browser set it
-        delete (headers as any)['Content-Type'];
-        
-        const response = await fetch(`${API_BASE_URL}/journals/journals/${id}/`, {
-          method: 'PUT',
-          headers,
-          body: formData,
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          let error;
-          try {
-            error = JSON.parse(errorText);
-          } catch (e) {
-            error = { detail: errorText || 'Unknown error' };
-          }
-          throw new Error(error.detail || error.message || `API request failed with status ${response.status}`);
-        }
-        
-        const text = await response.text();
-        if (!text) return {};
-        
-        try {
-          return JSON.parse(text);
-        } catch (e) {
-          throw new Error('Invalid response format');
-        }
+        return apiUpload(`/journals/journals/${id}/`, formData, 'PUT');
       } else {
         // Regular JSON request
         return apiFetch(`/journals/journals/${id}/`, {
@@ -1086,7 +913,7 @@ export const apiService = {
         method: 'DELETE',
       }),
     
-    listIssues: () => apiFetch('/journals/issues/'),
+    listIssues: () => fetchAllPages('/journals/issues/'),
     /** Public issue data for share link (no auth required). */
     getPublicIssue: (id: string) => apiFetch(`/journals/issues/${id}/public/`),
     
@@ -1113,41 +940,7 @@ export const apiService = {
         // Add the collection file
         formData.append('collection_file', collectionFile);
         
-        const token = getToken();
-        const headers: HeadersInit = {};
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        // Don't set Content-Type header for FormData, let browser set it
-        delete (headers as any)['Content-Type'];
-        
-        const response = await fetch(`${API_BASE_URL}/journals/issues/`, {
-          method: 'POST',
-          headers,
-          body: formData,
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          let error: Record<string, unknown>;
-          try {
-            error = JSON.parse(errorText) as Record<string, unknown>;
-          } catch (e) {
-            error = { detail: errorText || 'Unknown error' };
-          }
-          const message = formatApiErrorMessage(error, response.status);
-          throw new Error(message);
-        }
-        
-        const text = await response.text();
-        if (!text) return {};
-        
-        try {
-          return JSON.parse(text);
-        } catch (e) {
-          throw new Error('Invalid response format');
-        }
+        return apiUpload(`/journals/issues/`, formData);
       } else {
         // Regular JSON request
         return apiFetch('/journals/issues/', {
@@ -1180,40 +973,7 @@ export const apiService = {
         // Add the collection file
         formData.append('collection_file', collectionFile);
         
-        const token = getToken();
-        const headers: HeadersInit = {};
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        // Don't set Content-Type header for FormData, let browser set it
-        delete (headers as any)['Content-Type'];
-        
-        const response = await fetch(`${API_BASE_URL}/journals/issues/${id}/`, {
-          method: 'PUT',
-          headers,
-          body: formData,
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          let error: Record<string, unknown>;
-          try {
-            error = JSON.parse(errorText) as Record<string, unknown>;
-          } catch (e) {
-            error = { detail: errorText || 'Unknown error' };
-          }
-          throw new Error(formatApiErrorMessage(error, response.status));
-        }
-        
-        const text = await response.text();
-        if (!text) return {};
-        
-        try {
-          return JSON.parse(text);
-        } catch (e) {
-          throw new Error('Invalid response format');
-        }
+        return apiUpload(`/journals/issues/${id}/`, formData, 'PUT');
       } else {
         // Regular JSON request
         return apiFetch(`/journals/issues/${id}/`, {
@@ -1231,7 +991,7 @@ export const apiService = {
 
   // Payments
   payments: {
-    listTransactions: () => apiFetch('/payments/transactions/'),
+    listTransactions: () => fetchAllPages('/payments/transactions/'),
 
     getTransactions: () => apiFetch('/payments/transactions/'),
 
@@ -1325,20 +1085,8 @@ export const apiService = {
     },
     myCertificates: () => apiFetch('/udc/my-certificates/'),
     /** Standalone UDK ma'lumotnomani yuklab olish (auth bilan). */
-    downloadCertificate: async (id: number): Promise<void> => {
-      const token = getToken();
-      const res = await fetch(`${API_BASE_URL}/udc/certificates/${id}/download/`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error('Yuklab olishda xatolik');
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `udk_malumotnoma_${id}.pdf`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    },
+    downloadCertificate: (id: number): Promise<void> =>
+      downloadAuthed(`/udc/certificates/${id}/download/`, `udk_malumotnoma_${id}.pdf`),
     // UDK Request endpoints (DOI kabi workflow)
     /** UDK so'rovlari ro'yxati - taqrizchi barcha, muallif faqat o'zini */
     requests: {
@@ -1403,7 +1151,7 @@ export const apiService = {
 
   // Translations
   translations: {
-    list: () => apiFetch('/translations/'),
+    list: () => fetchAllPages('/translations/'),
 
     get: (id: string) => apiFetch(`/translations/${id}/`),
 
@@ -1473,7 +1221,18 @@ export const apiService = {
 
   // Reviews
   reviews: {
-    list: () => apiFetch('/reviews/'),
+    list: () => fetchAllPages('/reviews/'),
+
+    /** Bitta maqola taqrizlari (rolga qarab: muharrir — hammasi, taqrizchi — o'ziniki, muallif — o'z maqolasi) */
+    listForArticle: (articleId: string) =>
+      fetchAllPages<any>(`/reviews/?article=${encodeURIComponent(articleId)}`),
+
+    /** Taqrizchi tanlash: faol taqrizchilar, moslik va bandlik bo'yicha saralangan */
+    findSpecialists: (params: { article?: string; q?: string; specializations?: string }) => {
+      const qs = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => { if (v) qs.set(k, v); });
+      return apiFetch(`/reviews/find-specialists/?${qs}`);
+    },
 
     get: (id: string) => apiFetch(`/reviews/${id}/`),
 
@@ -1497,8 +1256,11 @@ export const apiService = {
     acceptReview: (id: string) =>
       apiFetch(`/reviews/${id}/accept_review/`, { method: 'POST' }),
 
-    declineReview: (id: string) =>
-      apiFetch(`/reviews/${id}/decline_review/`, { method: 'POST' }),
+    declineReview: (id: string, reason?: string) =>
+      apiFetch(`/reviews/${id}/decline_review/`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason || '' }),
+      }),
 
     submitReview: (id: string, reviewData: any) =>
       apiFetch(`/reviews/${id}/submit_review/`, {
@@ -1507,20 +1269,8 @@ export const apiService = {
       }),
 
     /** Taqriz natijasini matn sifatida yuklab olish (backend: GET review-document) */
-    downloadReviewDocument: async (id: string): Promise<void> => {
-      const token = getToken();
-      const res = await fetch(`${API_BASE_URL}/reviews/${id}/review-document/`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error('Taqriz hujjatini yuklab bo\'lmadi');
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `taqriz_${id}.txt`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    },
+    downloadReviewDocument: (id: string): Promise<void> =>
+      downloadAuthed(`/reviews/${id}/review-document/`, `taqriz_${id}.txt`),
   },
 
   // Notifications
@@ -1542,33 +1292,14 @@ export const apiService = {
 
   // File upload helper
   uploadFile: async (endpoint: string, file: File, additionalData?: any) => {
-    const token = getToken();
     const formData = new FormData();
     formData.append('file', file);
-
     if (additionalData) {
       Object.keys(additionalData).forEach(key => {
         formData.append(key, additionalData[key]);
       });
     }
-
-    const headers: HeadersInit = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
-      throw new Error(error.detail || 'File upload failed');
-    }
-
-    return response.json();
+    return apiUpload(endpoint, formData);
   },
 
   // Get media URL

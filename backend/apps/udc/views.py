@@ -10,9 +10,14 @@ from rest_framework import status, serializers
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.viewsets import ModelViewSet
 from config.permissions import SuperAdminWriteAuthenticatedRead
+from config.upload_validation import validate_document
 
 from . import services
-from .models import UdkRequest, UDKCertificate, UDK_REQUEST_STATUS_SUBMITTED, UDK_REQUEST_STATUS_COMPLETED, ServicePrice
+from .models import (
+    UdkRequest, UDKCertificate, ServicePrice,
+    UDK_REQUEST_STATUS_PENDING_PAYMENT, UDK_REQUEST_STATUS_SUBMITTED,
+    UDK_REQUEST_STATUS_COMPLETED, UDK_REQUEST_STATUS_REJECTED,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -116,10 +121,12 @@ def udk_request_create(request):
         return Response({'detail': 'Annotatsiya majburiy.'}, status=status.HTTP_400_BAD_REQUEST)
     
     uploaded_file = request.FILES.get('file') if request.FILES else None
-    
+    if uploaded_file:
+        validate_document(uploaded_file)
+
     udk_payment_enabled = getattr(settings, 'UDK_PAYMENT_ENABLED', True)
     amount = 0 if not udk_payment_enabled else services.get_udk_service_amount()
-    
+
     # UdkRequest yaratish
     udk_req = UdkRequest.objects.create(
         user=request.user,
@@ -181,13 +188,20 @@ def udk_request_list(request):
     
     if role in ['reviewer', 'super_admin', 'operator']:
         # Taqrizchi barcha so'rovlarni ko'radi; operator — kuzatish uchun (o'zgartira olmaydi)
-        qs = UdkRequest.objects.all().order_by('-created_at')[:100]
+        qs = UdkRequest.objects.all().order_by('-created_at')[:1000]  # avval 100 — eng eski (eng kechikkan) so'rovlar ko'rinmay qolardi
     else:
         # Muallif faqat o'zini ko'radi
         qs = UdkRequest.objects.filter(user=user).order_by('-created_at')[:50]
     
     serializer = UdkRequestSerializer(qs, many=True, context={'request': request})
     return Response(serializer.data)
+
+
+_UDK_NOT_ACTIONABLE = {
+    UDK_REQUEST_STATUS_PENDING_PAYMENT: "So'rov hali to'lanmagan — to'lovdan keyin taqrizchiga keladi.",
+    UDK_REQUEST_STATUS_COMPLETED: "Bu so'rov allaqachon yakunlangan.",
+    UDK_REQUEST_STATUS_REJECTED: "Bu so'rov rad etilgan.",
+}
 
 
 @api_view(['PATCH'])
@@ -207,8 +221,13 @@ def udk_request_complete(request, pk):
     except UdkRequest.DoesNotExist:
         return Response({'detail': 'UDK so\'rovi topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
     
-    if udk_req.status == UDK_REQUEST_STATUS_COMPLETED:
-        return Response({'detail': 'Bu so\'rov allaqachon yakunlangan.'}, status=status.HTTP_400_BAD_REQUEST)
+    if udk_req.status != UDK_REQUEST_STATUS_SUBMITTED:
+        # Faqat to'langan (taqrizchiga yuborilgan) so'rov: avval to'lanmagan so'rovga bepul sertifikat
+        # berish, rad etilganni yakunlash yoki qayta-qayta rad etish mumkin edi
+        return Response(
+            {'detail': _UDK_NOT_ACTIONABLE.get(udk_req.status, "Bu so'rov ustida amal bajarib bo'lmaydi.")},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     
     data = request.data if hasattr(request, 'data') else request.POST.dict()
     udk_code = (data.get('udk_code') or '').strip()
@@ -267,8 +286,13 @@ def udk_request_reject(request, pk):
     except UdkRequest.DoesNotExist:
         return Response({'detail': 'UDK so\'rovi topilmadi.'}, status=status.HTTP_404_NOT_FOUND)
     
-    if udk_req.status == UDK_REQUEST_STATUS_COMPLETED:
-        return Response({'detail': 'Bu so\'rov allaqachon yakunlangan.'}, status=status.HTTP_400_BAD_REQUEST)
+    if udk_req.status != UDK_REQUEST_STATUS_SUBMITTED:
+        # Faqat to'langan (taqrizchiga yuborilgan) so'rov: avval to'lanmagan so'rovga bepul sertifikat
+        # berish, rad etilganni yakunlash yoki qayta-qayta rad etish mumkin edi
+        return Response(
+            {'detail': _UDK_NOT_ACTIONABLE.get(udk_req.status, "Bu so'rov ustida amal bajarib bo'lmaydi.")},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     
     data = request.data if hasattr(request, 'data') else request.POST.dict()
     reject_reason = (data.get('reject_reason') or '').strip()
@@ -291,43 +315,49 @@ def _notify_reviewers_udk_request(udk_req):
         
         reviewers = User.objects.filter(role__in=['reviewer', 'super_admin'], is_active=True)
         for reviewer in reviewers:
-            Notification.objects.create(
+            # Modelda `type` maydoni yo'q (notification_type) — avval TypeError jimgina yutilib, xabar ketmasdi
+            Notification.notify(
                 user=reviewer,
                 title="Yangi UDK so'rovi",
                 message=f"Yangi UDK so'rovi keldi: {udk_req.title[:50]}... — {udk_req.author_last_name} {udk_req.author_first_name}",
-                type='udk_request',
+                notification_type='system',
+                link='/udk-requests',
+                metadata={'udk_request_id': str(udk_req.id)},
             )
-        print(f"[UDK] Notified {reviewers.count()} reviewers about UDK request {udk_req.id}")
-    except Exception as e:
-        print(f"[UDK] Failed to notify reviewers: {e}")
+    except Exception:
+        logger.exception("[UDK] Taqrizchilarga bildirishnoma yuborilmadi (so'rov %s)", udk_req.id)
 
 
 def _notify_author_udk_completed(udk_req, cert):
     """Muallifga UDK tayyor bo'lgani haqida xabar yuborish."""
     try:
         from apps.notifications.models import Notification
-        Notification.objects.create(
+        Notification.notify(
             user=udk_req.user,
             title="UDK ma'lumotnoma tayyor",
             message=f"Sizning \"{udk_req.title[:40]}...\" uchun UDK ma'lumotnomasi tayyor. UDK: {udk_req.udk_code}. 'UDK Olish' bo'limidan yuklab oling.",
-            type='udk_completed',
+            notification_type='system',
+            link='/udk-olish',
+            metadata={'udk_request_id': str(udk_req.id), 'certificate_id': getattr(cert, 'id', None)},
         )
-    except Exception as e:
-        print(f"[UDK] Failed to notify author: {e}")
+    except Exception:
+        logger.exception("[UDK] Muallifga bildirishnoma yuborilmadi (so'rov %s)", udk_req.id)
 
 
 def _notify_author_udk_rejected(udk_req):
     """Muallifga UDK rad etilgani haqida xabar yuborish."""
     try:
         from apps.notifications.models import Notification
-        Notification.objects.create(
+        Notification.notify(
             user=udk_req.user,
             title="UDK so'rovi rad etildi",
             message=f"Sizning \"{udk_req.title[:40]}...\" uchun UDK so'rovi rad etildi. Sabab: {udk_req.reject_reason or 'Ko\'rsatilmagan'}",
-            type='udk_rejected',
+            notification_type='system',
+            link='/udk-olish',
+            metadata={'udk_request_id': str(udk_req.id)},
         )
-    except Exception as e:
-        print(f"[UDK] Failed to notify author about rejection: {e}")
+    except Exception:
+        logger.exception("[UDK] Muallifga rad etish xabari yuborilmadi (so'rov %s)", udk_req.id)
 
 
 def _get_request_data(request):
@@ -428,6 +458,7 @@ def udc_request_document(request):
                 {'detail': f'Faqat PDF, DOC yoki DOCX qabul qilinadi. Sizning fayl: {suffix}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        validate_document(uploaded_file)
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
                 for chunk in uploaded_file.chunks():

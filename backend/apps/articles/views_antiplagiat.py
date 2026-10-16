@@ -92,7 +92,7 @@ class ArticleAntiplagiatActionsMixin:
                     )
             else:
                 return Response(
-                    {'error': 'Siz bu maqolani tekshirish huquqiga egasiz'},
+                    {'error': 'Siz bu maqolani tekshirish huquqiga ega emassiz'},
                     status=status.HTTP_403_FORBIDDEN
                 )
         
@@ -142,8 +142,10 @@ class ArticleAntiplagiatActionsMixin:
                     status=status.HTTP_202_ACCEPTED,
                 )
 
+            # Bitta to'lov — bitta tekshiruv: natija tayyor bo'lsa, qayta ishga tushirish (force) faqat bosh admin uchun.
+            # Avval frontend har doim force yuborardi — muallif faylni almashtirib cheksiz tekshirtira olardi.
             if (
-                not force
+                (not force or not self._is_super_admin())
                 and article.plagiarism_checked_at
                 and article.plagiarism_percentage is not None
                 and status_now.get('status') != 'failed'

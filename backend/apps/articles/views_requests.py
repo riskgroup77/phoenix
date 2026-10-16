@@ -3,6 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from config.upload_validation import validate_document
 from .models import (
     ArticleSampleRequest,
     DoiRequest,
@@ -138,6 +139,7 @@ def doi_request_create(request):
     name = (file_obj.name or '').lower()
     if not any(name.endswith(ext) for ext in allowed):
         return Response({'detail': 'Faqat DOC, DOCX yoki PDF fayllar qabul qilinadi.'}, status=status.HTTP_400_BAD_REQUEST)
+    validate_document(file_obj)
 
     from apps.udc.services import get_service_amount
     amount = int(get_service_amount('doi_request', 100000))

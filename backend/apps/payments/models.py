@@ -27,9 +27,11 @@ class Transaction(models.Model):
     )
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='transactions')
-    article = models.ForeignKey('articles.Article', on_delete=models.CASCADE, null=True, blank=True, related_name='transactions')
-    translation_request = models.ForeignKey('translations.TranslationRequest', on_delete=models.CASCADE, null=True, blank=True, related_name='transactions')
+    # Moliyaviy yozuv hech qachon zanjir bo'ylab o'chmasin: foydalanuvchini o'chirib bo'lmaydi (faolsizlantiriladi),
+    # maqola/tarjima o'chsa — to'lov saqlanadi, faqat bog'lanish uziladi
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='transactions')
+    article = models.ForeignKey('articles.Article', on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
+    translation_request = models.ForeignKey('translations.TranslationRequest', on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
     
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=3, default='UZS')

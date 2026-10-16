@@ -300,9 +300,17 @@ fi
 NGINX_MEDIA_SNIPPET="${DEPLOY_DIR}/infrastructure/nginx/snippets/phoenix-media.conf"
 if [ -f "${NGINX_MEDIA_SNIPPET}" ] && [ -d /etc/nginx ]; then
     sudo_cmd mkdir -p /etc/nginx/snippets
-    sudo_cmd install -m 644 "${NGINX_MEDIA_SNIPPET}" /etc/nginx/snippets/phoenix-media.conf
+    # Eski snippet zaxirasi: yangisi nginx -t dan o'tmasa qaytariladi (aks holda keyingi restartda nginx to'xtaydi)
+    SNIPPET_TARGET=/etc/nginx/snippets/phoenix-media.conf
+    if [ -f "${SNIPPET_TARGET}" ]; then sudo_cmd cp -a "${SNIPPET_TARGET}" "${SNIPPET_TARGET}.bak"; fi
+    sudo_cmd install -m 644 "${NGINX_MEDIA_SNIPPET}" "${SNIPPET_TARGET}"
     if grep -qs "phoenix-media.conf" /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf 2>/dev/null; then
-        sudo_cmd nginx -t 2>/dev/null && sudo_cmd systemctl reload nginx 2>/dev/null || true
+        if sudo_cmd nginx -t 2>/dev/null; then
+            sudo_cmd systemctl reload nginx 2>/dev/null || true
+        else
+            echo "   ❌ Yangi media snippeti nginx -t dan o'tmadi — eski snippet qaytarildi"
+            if [ -f "${SNIPPET_TARGET}.bak" ]; then sudo_cmd cp -a "${SNIPPET_TARGET}.bak" "${SNIPPET_TARGET}"; fi
+        fi
         # Nginx internal joy tayyor — fayllarni nginx bersin (Django oqimini band qilmasin)
         if [ -f "${DEPLOY_DIR}/backend/.env" ] && ! grep -q "^MEDIA_ACCEL_REDIRECT=" "${DEPLOY_DIR}/backend/.env"; then
             echo "MEDIA_ACCEL_REDIRECT=true" >> "${DEPLOY_DIR}/backend/.env"

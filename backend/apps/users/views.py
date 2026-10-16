@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -17,9 +19,10 @@ from apps.journals.models import Journal
 from apps.translations.models import TranslationRequest
 from apps.reviews.models import PeerReview
 from .serializers import (
-    UserSerializer, RegisterSerializer, LoginSerializer, UserProfileSerializer
+    UserSerializer, RegisterSerializer, LoginSerializer, UserProfileSerializer, UserDirectorySerializer
 )
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -32,6 +35,15 @@ class UserViewSet(viewsets.ModelViewSet):
         requester = getattr(self.request.user, 'role', None)
         if requester in ('super_admin', 'accountant', 'journal_admin'):
             qs = User.objects.all().order_by('-date_joined')
+            if requester == 'journal_admin':
+                # Jurnal admini faqat o'z jurnallaridagi maqolalar mualliflarini ko'radi (platformaning hammasini emas)
+                from django.db.models import Q
+
+                qs = qs.filter(
+                    Q(articles__journal__journal_admin=self.request.user)
+                    | Q(coauthored_articles__journal__journal_admin=self.request.user)
+                    | Q(pk=self.request.user.pk)
+                ).distinct()
             role_param = self.request.query_params.get('role')
             if role_param:
                 qs = qs.filter(role=role_param)
@@ -60,13 +72,41 @@ class UserViewSet(viewsets.ModelViewSet):
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
+        """
+        "O'chirish" = hisobni faolsizlantirish (arxivlash). Avval haqiqiy o'chirish CASCADE bilan foydalanuvchining
+        maqolalari, jurnallari (va undagi barcha mualliflar maqolalari) va TO'LOVLARINI ham o'chirib yuborardi —
+        moliyaviy hisobot buzilardi. Tasdiqlash: bosh adminning o'z paroli (avval frontendda ochiq "8406" edi).
+        """
         if getattr(request.user, 'role', None) != 'super_admin':
             return Response({'detail': 'Faqat bosh administrator foydalanuvchini o\'chira oladi.'}, status=status.HTTP_403_FORBIDDEN)
-        return super().destroy(request, *args, **kwargs)
+        target = self.get_object()
+        if target.pk == request.user.pk:
+            return Response({'detail': 'O\'z hisobingizni o\'chira olmaysiz.'}, status=status.HTTP_400_BAD_REQUEST)
+        confirm = (request.data.get('password') if hasattr(request, 'data') else '') or ''
+        if not request.user.check_password(confirm):
+            return Response({'detail': 'Tasdiqlash uchun o\'z parolingizni to\'g\'ri kiriting.'}, status=status.HTTP_403_FORBIDDEN)
+        if target.is_active:
+            target.is_active = False
+            target.save(update_fields=['is_active'])
+            # Faol sessiyalar (refresh tokenlar) bekor qilinadi
+            try:
+                from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+
+                for tok in OutstandingToken.objects.filter(user=target):
+                    BlacklistedToken.objects.get_or_create(token=tok)
+            except Exception:
+                logger.warning('User %s tokenlari bekor qilinmadi', target.pk, exc_info=True)
+        return Response({
+            'archived': True,
+            'detail': 'Hisob faolsizlantirildi: kira olmaydi, maqola va to\'lov tarixi saqlanib qoladi.',
+        })
 
     def get_serializer_class(self):
         if self.action == 'profile':
             return UserProfileSerializer
+        if self.action == 'list' and getattr(self.request.user, 'role', None) != 'super_admin':
+            # Buxgalter / jurnal admini: telefon, email, Telegram ko'rinmaydi
+            return UserDirectorySerializer
         return UserSerializer
     
     def get_serializer_context(self):

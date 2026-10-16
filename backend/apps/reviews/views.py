@@ -4,8 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.http import HttpResponse
-from django.db.models import Q, Count, Avg
-from django.core.cache import cache
+from django.db.models import Count
 from django.core.exceptions import ValidationError as DjangoValidationError
 from .models import PeerReview
 from .serializers import PeerReviewSerializer
@@ -38,6 +37,14 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
         user = self.request.user
         role = self._role()
         qs = PeerReview.objects.select_related('article', 'article__journal', 'reviewer').order_by('-assigned_at')
+        article_id = self.request.query_params.get('article')
+        if article_id:
+            try:
+                import uuid
+
+                qs = qs.filter(article_id=uuid.UUID(str(article_id)))
+            except ValueError:
+                return qs.none()
         if role == 'super_admin' or user.is_superuser:
             return qs
         if role == 'journal_admin':
@@ -83,8 +90,8 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Taqrizni o\'chirish huquqingiz yo\'q.'}, status=status.HTTP_403_FORBIDDEN)
         return super().destroy(request, *args, **kwargs)
 
-    def perform_create(self, serializer, reviewer=None):
-        review = serializer.save(reviewer=reviewer)
+    @staticmethod
+    def _apply_default_deadline(review):
         if review.deadline is None:
             # Muddat ko'rsatilmasa — standart SLA (settings.REVIEW_SLA_DAYS['peer_review'])
             from datetime import timedelta
@@ -92,6 +99,10 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
 
             review.deadline = review.assigned_at + timedelta(days=sla_days('peer_review'))
             review.save(update_fields=['deadline'])
+
+    def perform_create(self, serializer, reviewer=None):
+        review = serializer.save(reviewer=reviewer)
+        self._apply_default_deadline(review)
 
         # Notify reviewer if assigned by admin
         if review.reviewer != self.request.user:
@@ -130,6 +141,8 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
         
         if review.status == 'completed':
             return Response({'error': "Yakunlangan taqrizni rad etib bo'lmaydi."}, status=status.HTTP_400_BAD_REQUEST)
+        if review.status == 'declined':
+            return Response({'error': 'Bu taqriz allaqachon rad etilgan.'}, status=status.HTTP_400_BAD_REQUEST)
         reason = str(request.data.get('reason', '') or '')[:1000]
         review.status = 'declined'
         review.save(update_fields=['status'])
@@ -141,8 +154,9 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
                     user=review.article.journal.journal_admin,
                     title='Taqriz rad etildi',
                     message=f'{review.reviewer.get_full_name()} "{review.article.title}" maqolasini taqrizlashni rad etdi. Sabab: {reason or "Belgilanmagan"}',
-                    notification_type='review_declined',
+                    notification_type='system',
                     link=f'/articles/{review.article.id}',
+                    metadata={'review_id': str(review.id), 'article_id': str(review.article.id)},
                 )
         except Exception as e:
             logger.warning(f"Failed to send decline notification: {e}")
@@ -244,78 +258,58 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='find-specialists')
     def find_specialists(self, request):
         """
-        FAST specialist finding - 2-3x optimized
-        Filter reviewers by disease/specialization with caching
+        Taqrizchi tanlash uchun faol taqrizchilar ro'yxati, mutaxassislikka moslik bo'yicha saralangan.
+        ?specializations=a,b (ixtiyoriy) — bo'sh bo'lsa hammasi tajriba bo'yicha; ?article=<id> — o'sha maqolaga
+        allaqachon tayinlanganlar belgilanadi.
+        Avval JSONField'da mavjud bo'lmagan `__overlap` ishlatilib hech kim topilmas, telefon/email ham qaytardi.
         """
         if self._role() not in ('super_admin', 'journal_admin') and not request.user.is_superuser:
             return Response({'error': "Huquq yo'q."}, status=status.HTTP_403_FORBIDDEN)
-        specializations = request.query_params.get('specializations', '').split(',')
-        specializations = [s.strip() for s in specializations if s.strip()]
-        
-        if not specializations:
-            return Response({
-                'error': 'Specializations required',
-                'message': 'Kasallik yoki mutaxassislik turini kiriting'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Cache for fast retrieval
-        cache_key = f'specialists_{":".join(sorted(specializations))}'
-        cached_result = cache.get(cache_key)
-        
-        if cached_result:
-            logger.info(f"✅ CACHE HIT: Specialists for {specializations}")
-            return Response(cached_result)
-        
-        logger.info(f"🔍 Searching specialists for: {specializations}")
-        
-        # OPTIMIZED: Single query with JSONField overlap
-        reviewers = User.objects.filter(
-            role='reviewer',
-            is_active=True,
-            specializations__overlap=specializations
-        ).order_by('-reviews_completed', '-acceptance_rate')[:50]
-        
-        # Fallback: If no exact match, search partial
-        if not reviewers:
-            logger.info("⚠️ No exact match, searching partial matches...")
-            reviewers = User.objects.filter(
-                role='reviewer',
-                is_active=True
-            ).filter(
-                Q(specializations__icontains=specializations[0]) |
-                Q(first_name__icontains=specializations[0]) |
-                Q(last_name__icontains=specializations[0])
-            )[:50]
-        
-        result_data = []
-        for reviewer in reviewers:
-            data = {
+        specializations = [
+            s.strip() for s in (request.query_params.get('specializations', '') or '').split(',') if s.strip()
+        ]
+        query = (request.query_params.get('q') or '').strip().lower()
+        assigned = {}
+        article_id = request.query_params.get('article')
+        if article_id:
+            try:
+                import uuid
+
+                assigned = dict(
+                    PeerReview.objects.filter(article_id=uuid.UUID(str(article_id))).values_list('reviewer_id', 'status')
+                )
+            except ValueError:
+                assigned = {}
+        active_load = dict(
+            PeerReview.objects.filter(status__in=('pending', 'accepted', 'in_progress'))
+            .values('reviewer_id').annotate(n=Count('id')).values_list('reviewer_id', 'n')
+        )
+        result = []
+        for reviewer in User.objects.filter(role='reviewer', is_active=True):
+            specs = reviewer.specializations if isinstance(reviewer.specializations, list) else []
+            name = reviewer.get_full_name()
+            if query and query not in name.lower() and not any(query in str(sp).lower() for sp in specs):
+                continue
+            result.append({
                 'id': str(reviewer.id),
-                'full_name': reviewer.get_full_name(),
-                'phone': reviewer.phone,
-                'email': reviewer.email,
-                'specializations': reviewer.specializations,
+                'full_name': name,
+                'affiliation': reviewer.affiliation or '',
+                'specializations': specs,
                 'reviews_completed': reviewer.reviews_completed,
                 'average_review_time': reviewer.average_review_time,
                 'acceptance_rate': reviewer.acceptance_rate,
-                'gamification_level': reviewer.gamification_level,
-                'match_score': self._calculate_match_score(reviewer, specializations),
-            }
-            result_data.append(data)
-        
-        # Sort by match score
-        result_data.sort(key=lambda x: x['match_score'], reverse=True)
-        
-        # Cache for 10 minutes
-        cache.set(cache_key, result_data, 600)
-        
-        logger.info(f"✅ Found {len(result_data)} specialists")
-        return Response(result_data)
-    
+                'active_reviews': active_load.get(reviewer.id, 0),
+                'already_assigned': reviewer.id in assigned,
+                'assigned_status': assigned.get(reviewer.id),
+                'match_score': self._calculate_match_score(reviewer, specializations) if specializations else min(reviewer.reviews_completed, 20),
+            })
+        result.sort(key=lambda x: (-x['match_score'], x['active_reviews'], x['full_name']))
+        return Response(result[:100])
+
     def _calculate_match_score(self, reviewer, target_specializations):
         """Calculate match score (0-100) for reviewer specialization"""
         score = 0
-        reviewer_specs = [s.lower() for s in reviewer.specializations]
+        reviewer_specs = [str(s).lower() for s in (reviewer.specializations if isinstance(reviewer.specializations, list) else [])]
         target_specs = [s.lower() for s in target_specializations]
         
         # Exact match: +30 points per specialization
@@ -369,7 +363,7 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
         
         for reviewer_id in reviewer_ids:
             try:
-                reviewer = User.objects.get(id=reviewer_id, role='reviewer')
+                reviewer = User.objects.get(id=reviewer_id, role='reviewer', is_active=True)
                 
                 # Check if already assigned (PREVENT DUPLICATE)
                 existing = PeerReview.objects.filter(
@@ -392,6 +386,7 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
                     status='pending',
                     assigned_at=timezone.now()
                 )
+                self._apply_default_deadline(review)
                 
                 assigned.append({
                     'review_id': str(review.id),

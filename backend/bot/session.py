@@ -90,14 +90,29 @@ def get_client_from_context(context) -> Optional[PhonixApiClient]:
     return PhonixApiClient(access, refresh)
 
 
+def _issue_tokens_sync(user: User) -> tuple[str, str]:
+    from rest_framework_simplejwt.tokens import RefreshToken
+
+    refresh = RefreshToken.for_user(user)
+    return str(refresh.access_token), str(refresh)
+
+
+issue_tokens = sync_to_async(_issue_tokens_sync)
+
+
 async def persist_login(context, telegram_id: int, login_response: dict, telegram_username: str = '') -> None:
     user = login_response.get('user') or {}
     access = login_response.get('access')
     refresh = login_response.get('refresh')
-    if not access or not refresh or not user.get('id'):
+    if not user.get('id'):
         return
     db_user = await get_user_by_id(user['id'])
     if not db_user:
         return
+    if not access or not refresh:
+        # Production'da (HttpOnly cookie rejimi) login javobida refresh token qaytmaydi — avval sessiya jimgina
+        # saqlanmas, bot "Xush kelibsiz" deb keyingi amallarda ishlamasdi. Bot server ichida ishlaydi va
+        # foydalanuvchi parolni hozirgina tasdiqladi — tokenlarni shu yerda chiqaramiz.
+        access, refresh = await issue_tokens(db_user)
     await save_session(telegram_id, db_user, access, refresh, telegram_username)
     apply_client_to_context(context, PhonixApiClient(access, refresh), user)

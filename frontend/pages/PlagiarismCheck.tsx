@@ -402,7 +402,8 @@ const PlagiarismCheck: React.FC = () => {
   };
 
   /** Tekshiruv hujjat hajmi va ochiq API javoblariga qarab bir necha daqiqa davom etadi */
-  const pollUntilPlagiarismReady = async (targetArticleId: string, maxAttempts = 240): Promise<boolean> => {
+  // Natija tayyorligini har 2 s da tekshirish (avval 4 s); umumiy kutish o'sha 16 daqiqa
+  const pollUntilPlagiarismReady = async (targetArticleId: string, maxAttempts = 480): Promise<boolean> => {
     for (let i = 0; i < maxAttempts; i++) {
       try {
         const art = await apiService.articles.get(targetArticleId);
@@ -426,7 +427,7 @@ const PlagiarismCheck: React.FC = () => {
           throw err;
         }
       }
-      await new Promise((r) => window.setTimeout(r, 4000));
+      await new Promise((r) => window.setTimeout(r, 2000));
     }
     return false;
   };

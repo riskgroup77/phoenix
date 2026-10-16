@@ -5,6 +5,10 @@ from .models import Article, ArticleVersion, ActivityLog, DoiRequest, ArticleSam
 from apps.users.serializers import UserSerializer
 from apps.users.models import User
 from apps.journals.models import Journal
+from apps.payments.pricing import BOOK_MAX_PAGES
+from config.upload_validation import (
+    DEFAULT_MAX_MB, DOCUMENT_EXTENSIONS, IMAGE_EXTENSIONS, LARGE_DOCUMENT_MAX_MB, validate_upload,
+)
 
 
 def _normalize_journal_lookup_string(value: str) -> str:
@@ -122,6 +126,109 @@ class JournalPKField(serializers.PrimaryKeyRelatedField):
         raise serializers.ValidationError('Jurnal identifikatori noto\'g\'ri yoki jurnal topilmadi.')
 
 
+def is_large_document_flow(title, keywords) -> bool:
+    """Antiplagiat tekshiruvi yoki kitob qo'lyozmasi — 100 MB gacha fayl qabul qilinadi."""
+    title_l = (title or '').strip().lower()
+    kws = [str(k).strip().lower() for k in (keywords or [])] if isinstance(keywords, (list, tuple)) else []
+    return title_l.startswith('[kitob]') or title_l.startswith('plagiarism check') or 'plagiarism' in kws
+
+
+def enforce_regular_size_limit(file_obj, large_flow: bool) -> None:
+    """Oddiy jurnal maqolasi — 25 MB; antiplagiat/kitob — 100 MB (maydon validatori yuqori chegarani tekshiradi)."""
+    if large_flow or not file_obj or not hasattr(file_obj, 'size') or getattr(file_obj, '_committed', False):
+        return
+    if (file_obj.size or 0) > DEFAULT_MAX_MB * 1024 * 1024:
+        raise serializers.ValidationError(
+            {'final_pdf_path': f'Maqola fayli hajmi {DEFAULT_MAX_MB} MB dan oshmasligi kerak.'}
+        )
+
+
+ANONYMOUS_AUTHOR = 'Anonim muallif'
+# Taqrizchidan yashiriladigan, muallifni aniqlaydigan maydonlar
+_AUTHOR_IDENTITY_KEYS = ('author', 'co_authors')
+_AUTHOR_NAME_KEYS = ('submitted_author_name',)
+_REPORT_IDENTITY_KEYS = ('author_first_name', 'author_last_name')
+
+
+def hide_author_from_viewer(context, article) -> bool:
+    """
+    Yopiq taqriz: taqrizchi muallif kimligini ko'rmasligi kerak ("Maxfiylik" sahifasidagi va'da).
+    Faqat shu maqola bo'yicha OCHIQ (open) taqrizga tayinlangan taqrizchi muallifni ko'radi.
+    """
+    request = context.get('request') if context else None
+    user = getattr(request, 'user', None) if request else None
+    if not user or not getattr(user, 'is_authenticated', False):
+        return False
+    if (getattr(user, 'role', '') or '').strip().lower() != 'reviewer':
+        return False
+    if article.author_id == user.id or article.co_authors.filter(pk=user.pk).exists():
+        return False
+    return not article.peer_reviews.filter(reviewer=user, review_type='open').exists()
+
+
+def _needs_publication_payment(context, article) -> bool:
+    """
+    Muallif uchun: qoralama nashr to'lovini kutyapti va hali to'lanmagan. Avval to'lov bekor qilinsa yoki
+    Click'da xato bo'lsa (kutilayotgan tranzaksiya qolmasa) "To'lash" tugmasi yo'qolib, maqola qoralamada
+    qotib qolardi — endi shu belgi bo'yicha yangi to'lov boshlanadi.
+    """
+    if article.status != 'Draft':
+        return False
+    request = context.get('request') if context else None
+    user = getattr(request, 'user', None) if request else None
+    if not user or article.author_id != getattr(user, 'id', None):
+        return False
+    journal = article.journal
+    if journal is None or journal.payment_model != 'pre-payment':
+        return False
+    if not (float(journal.publication_fee or 0) > 0 or float(journal.price_per_page or 0) > 0):
+        return False
+    if (article.title or '').strip().startswith('[KITOB]'):
+        return False  # kitob — alohida (book_publication) to'lov
+    from .antiplagiat_utils import is_standalone_antiplagiat
+    from apps.payments.models import Transaction
+
+    if is_standalone_antiplagiat(article):
+        return False
+    return not Transaction.objects.filter(
+        article_id=article.pk, service_type='publication_fee', status='completed',
+    ).exists()
+
+
+def _allowed_transitions(context, article) -> list[str]:
+    """UI shu ro'yxatga qarab qaror tugmalarini ko'rsatadi (backend update_status bilan bir xil qoida)."""
+    from .workflow import allowed_transitions_for
+
+    request = context.get('request') if context else None
+    user = getattr(request, 'user', None) if request else None
+    if not user or not getattr(user, 'is_authenticated', False):
+        return []
+    return allowed_transitions_for(user, article)
+
+
+def anonymize_author(data: dict, article) -> dict:
+    for key in _AUTHOR_IDENTITY_KEYS:
+        if key in data:
+            data[key] = [] if key == 'co_authors' else None
+    for key in _AUTHOR_NAME_KEYS:
+        if key in data:
+            data[key] = ''
+    if 'author_name' in data:
+        data['author_name'] = ANONYMOUS_AUTHOR
+    report = data.get('plagiarism_report')
+    if isinstance(report, dict):
+        data['plagiarism_report'] = {k: v for k, v in report.items() if k not in _REPORT_IDENTITY_KEYS}
+    author_ids = {str(article.author_id)} | {str(pk) for pk in article.co_authors.values_list('pk', flat=True)}
+    for log in data.get('activity_logs') or []:
+        if str(log.get('user')) in author_ids:
+            log['user'] = None
+            log['user_name'] = ANONYMOUS_AUTHOR
+    for version in data.get('versions') or []:
+        if str(version.get('signed_by')) in author_ids:
+            version['signed_by'] = None
+    return data
+
+
 class ArticleVersionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ArticleVersion
@@ -162,6 +269,14 @@ class ArticleListSerializer(serializers.ModelSerializer):
             'publication_url', 'publication_link', 'certificate_download_link',
             'pending_payment_transaction_id',
         )
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['allowed_transitions'] = _allowed_transitions(self.context, instance)
+        data['needs_publication_payment'] = _needs_publication_payment(self.context, instance)
+        if hide_author_from_viewer(self.context, instance):
+            anonymize_author(data, instance)
+        return data
 
     def get_author_name(self, obj):
         return _article_author_display(obj)
@@ -256,6 +371,22 @@ class ArticleSerializer(serializers.ModelSerializer):
             'page_count', 'fast_track',
         )
 
+    def validate_final_pdf_path(self, value):
+        return validate_upload(value, allowed=DOCUMENT_EXTENSIONS, max_mb=LARGE_DOCUMENT_MAX_MB, field='final_pdf_path')
+
+    def validate_additional_document_path(self, value):
+        # Kitob muqovasi rasm bo'lishi mumkin
+        return validate_upload(value, allowed=DOCUMENT_EXTENSIONS | IMAGE_EXTENSIONS, field='additional_document_path')
+
+    def validate(self, attrs):
+        # Faylni almashtirish (PATCH): oddiy maqola 25 MB, antiplagiat/kitob 100 MB
+        if self.instance is not None and 'final_pdf_path' in attrs:
+            enforce_regular_size_limit(
+                attrs['final_pdf_path'],
+                is_large_document_flow(self.instance.title, self.instance.keywords),
+            )
+        return super().validate(attrs)
+
     def validate_plagiarism_report(self, value):
         """Faqat sozlama kalitlari qabul qilinadi va mavjud hisobotga qo'shiladi (natijalar o'zgarmaydi)."""
         if not isinstance(value, dict):
@@ -281,6 +412,10 @@ class ArticleSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data['publication_link'] = self.get_publication_link(instance)
         data['certificate_download_link'] = self.get_certificate_download_link(instance)
+        data['allowed_transitions'] = _allowed_transitions(self.context, instance)
+        data['needs_publication_payment'] = _needs_publication_payment(self.context, instance)
+        if hide_author_from_viewer(self.context, instance):
+            anonymize_author(data, instance)
         return data
 
     def _build_absolute_url(self, value):
@@ -584,6 +719,12 @@ class CreateArticleSerializer(serializers.ModelSerializer):
             'abstract': {'required': False, 'allow_blank': True},
         }
 
+    def validate_final_pdf_path(self, value):
+        return validate_upload(value, allowed=DOCUMENT_EXTENSIONS, max_mb=LARGE_DOCUMENT_MAX_MB, field='final_pdf_path')
+
+    def validate_additional_document_path(self, value):
+        return validate_upload(value, allowed=DOCUMENT_EXTENSIONS | IMAGE_EXTENSIONS, field='additional_document_path')
+
     def validate_keywords(self, value):
         """Accept list, JSON string (e.g. from multipart), or comma-separated string; normalize to list."""
         if value is None:
@@ -683,6 +824,27 @@ class CreateArticleSerializer(serializers.ModelSerializer):
             if user_by_phone:
                 return user_by_phone
         return None
+
+    def validate(self, attrs):
+        """
+        Sahifalar soni (bet bo'yicha narx shunga qarab olinadi) fayldan SERVER tomonida aniqlanadi.
+        Aniqlab bo'lmasa (masalan, eski .doc dan matn chiqmasa) — muallif kiritgan qiymat (1..500).
+        """
+        from .page_count import count_pages
+
+        large_flow = is_large_document_flow(attrs.get('title'), attrs.get('keywords'))
+        enforce_regular_size_limit(attrs.get('final_pdf_path'), large_flow)
+        # Kitob: sahifalar soni — bosma nashr betlari (narx book_publication to'lovida, foydalanuvchi kiritadi)
+        is_book = (attrs.get('title') or '').strip().startswith('[KITOB]')
+        pages = None if is_book else count_pages(attrs.get('final_pdf_path'))
+        if pages:
+            attrs['page_count'] = pages
+        else:
+            try:
+                attrs['page_count'] = max(1, min(BOOK_MAX_PAGES if is_book else 500, int(attrs.get('page_count') or 1)))
+            except (TypeError, ValueError):
+                attrs['page_count'] = 1
+        return attrs
 
     def validate_journal(self, journal):
         """Namuna (demo) jurnalga haqiqiy foydalanuvchi maqola yubora olmaydi (pul to'lab qo'ymasin)."""

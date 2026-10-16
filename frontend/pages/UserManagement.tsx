@@ -5,7 +5,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import { Role } from '../types';
-import { Search, User, Shield, Eye, Edit, Trash2, Plus, X, Download, FileText, Languages, ClipboardCheck, CreditCard, Activity } from 'lucide-react';
+import { Search, User, Shield, Eye, Edit, Trash2, RotateCcw, Plus, X, Download, FileText, Languages, ClipboardCheck, CreditCard, Activity } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { toast } from 'react-toastify';
 import { useT } from '../i18n/LanguageContext';
@@ -33,8 +33,8 @@ const UserManagement: React.FC = () => {
     const [editForm, setEditForm] = useState({ first_name: '', last_name: '', email: '', phone: '', role: '' as string, affiliation: '' });
     const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
-    // Delete confirmation modal (password 8406)
-    const DELETE_CONFIRM_PASSWORD = '8406';
+    // "O'chirish" = hisobni faolsizlantirish; tasdiq — bosh adminning o'z paroli (server tekshiradi).
+    // Avval tasdiqlash paroli frontend kodida ochiq turardi va hisob to'lov tarixi bilan birga o'chib ketardi.
     const [userToDelete, setUserToDelete] = useState<any>(null);
     const [deletePassword, setDeletePassword] = useState('');
     const [deleteError, setDeleteError] = useState('');
@@ -231,6 +231,16 @@ const UserManagement: React.FC = () => {
         }
     };
 
+    const handleReactivate = async (u: any) => {
+        try {
+            await apiService.users.setActive(u.id, true);
+            setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, is_active: true } : x)));
+            toast.success('Hisob qayta faollashtirildi.');
+        } catch (err: any) {
+            toast.error(err?.message || 'Faollashtirib bo\'lmadi.');
+        }
+    };
+
     const handleDeleteClick = (u: any) => {
         setUserToDelete(u);
         setDeletePassword('');
@@ -244,17 +254,18 @@ const UserManagement: React.FC = () => {
     const handleDeleteConfirm = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!userToDelete?.id) return;
-        if (deletePassword !== DELETE_CONFIRM_PASSWORD) {
-            setDeleteError('Noto\'g\'ri parol. Iltimos, parolni tekshiring.');
+        if (!deletePassword) {
+            setDeleteError("O'z parolingizni kiriting.");
             return;
         }
         try {
             setIsDeleting(true);
             setDeleteError('');
-            await apiService.users.delete(userToDelete.id);
-            setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
+            await apiService.users.delete(userToDelete.id, deletePassword);
+            // Hisob saqlanadi (maqola va to'lov tarixi bilan), faqat faolsiz bo'ladi
+            setUsers((prev) => prev.map((u) => (u.id === userToDelete.id ? { ...u, is_active: false } : u)));
             handleDeleteCancel();
-            toast.success(tr("Foydalanuvchi o'chirildi."));
+            toast.success("Hisob faolsizlantirildi: tizimga kira olmaydi, maqola va to'lov tarixi saqlandi.");
         } catch (err: any) {
             setDeleteError(err?.message || 'O\'chirishda xatolik.');
         } finally {
@@ -420,7 +431,12 @@ const UserManagement: React.FC = () => {
                                                 )}
                                             </div>
                                             <div className="ml-4">
-                                                <div className="text-sm font-medium text-slate-900">{user.first_name} {user.last_name}</div>
+                                                <div className="text-sm font-medium text-slate-900">
+                                                    {user.first_name} {user.last_name}
+                                                    {user.is_active === false && (
+                                                        <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-slate-500/15 text-slate-700">Faolsiz</span>
+                                                    )}
+                                                </div>
                                                 <div className="text-sm text-slate-500">{displayEmail(user.email) || '—'}</div>
                                             </div>
                                         </div>
@@ -443,9 +459,15 @@ const UserManagement: React.FC = () => {
                                             <Button type="button" variant="secondary" onClick={() => handleOpenEdit(user)} title={tr('Tahrirlash')}>
                                                 <Edit className="h-4 w-4" />
                                             </Button>
-                                            <Button type="button" variant="danger" onClick={() => handleDeleteClick(user)} title={tr("O'chirish")}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                            {user.is_active === false ? (
+                                                <Button type="button" variant="secondary" onClick={() => handleReactivate(user)} title="Qayta faollashtirish">
+                                                    <RotateCcw className="h-4 w-4" />
+                                                </Button>
+                                            ) : (
+                                                <Button type="button" variant="danger" onClick={() => handleDeleteClick(user)} title={tr("O'chirish")}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -800,7 +822,7 @@ const UserManagement: React.FC = () => {
                             <X size={24} />
                         </button>
                         <p className="text-slate-600 mb-4">
-                            <strong className="text-slate-900">{userToDelete.first_name} {userToDelete.last_name}</strong> {tr("foydalanuvchisini o'chirish uchun parolni kiriting.")}
+                            <strong className="text-slate-900">{userToDelete.first_name} {userToDelete.last_name}</strong> hisobi faolsizlantiriladi: tizimga kira olmaydi, maqolalari va to'lov tarixi saqlanadi. Tasdiqlash uchun o'z parolingizni kiriting.
                         </p>
                         <form onSubmit={handleDeleteConfirm} className="space-y-4">
                             <div>

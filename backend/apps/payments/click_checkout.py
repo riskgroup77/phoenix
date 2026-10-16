@@ -6,16 +6,16 @@ logger = logging.getLogger(__name__)
 
 
 def _build_click_return_url(transaction, django_settings=None) -> str:
-    """Click to'lovdan keyin foydalanuvchini qaytarish URL'i (xizmat turiga qarab)."""
+    """
+    Click to'lovdan keyin qaytish: #/payment/return — oraliq "Click To'lov" sahifasi ko'rsatilmaydi;
+    u holatni tekshirib, foydalanuvchini darhol xizmat sahifasiga (Maqolalarim, Antiplagiat, UDK...) qaytaradi
+    va natijani bildirishnoma (alert) bilan ko'rsatadi (frontend/pages/PaymentReturn.tsx).
+    """
     from django.conf import settings as default_settings
 
     settings_obj = django_settings or default_settings
     base = getattr(settings_obj, 'FRONTEND_BASE_URL', 'http://localhost:3000').rstrip('/')
-    tx_id = transaction.id
-    service_type = getattr(transaction, 'service_type', None)
-    if service_type == 'language_editing':
-        return f"{base}/#/plagiarism-check?payment_return=1&transaction_id={tx_id}"
-    return f"{base}/#/payment/click?transaction_id={tx_id}"
+    return f"{base}/#/payment/return?transaction_id={transaction.id}"
 
 
 class ClickCheckoutUrlMixin:

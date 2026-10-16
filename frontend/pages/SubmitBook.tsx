@@ -11,6 +11,7 @@ import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
 import { toast } from 'react-toastify';
 import { useT } from '../i18n/LanguageContext';
+import { MAX_UPLOAD_BYTES, formatMaxUploadLabel } from '../constants/upload';
 
 // --- Pricing Data from Image ---
 const PRINTING_PER_PAGE = {
@@ -532,8 +533,24 @@ const SubmitBook: React.FC = () => {
                                         <div className="p-8 border-2 border-dashed rounded-lg border-slate-200 text-center bg-slate-100/70 hover:bg-white/10 transition-colors h-full flex flex-col justify-center">
                                             <UploadCloud className="mx-auto h-10 w-10 text-slate-500" />
                                             <p className="mt-2 text-sm text-slate-500">{manuscriptFile ? manuscriptFile.name : t('Faylni yuklang')}</p>
+                                            <p className="mt-1 text-xs text-slate-400">DOC, DOCX — {formatMaxUploadLabel()} gacha</p>
                                         </div>
-                                        <input id="manuscript-upload" type="file" className="sr-only" onChange={(e) => setManuscriptFile(e.target.files ? e.target.files[0] : null)} accept=".doc,.docx" required />
+                                        <input
+                                            id="manuscript-upload"
+                                            type="file"
+                                            className="sr-only"
+                                            onChange={(e) => {
+                                                const picked = e.target.files ? e.target.files[0] : null;
+                                                e.target.value = '';
+                                                if (picked && picked.size > MAX_UPLOAD_BYTES) {
+                                                    toast.error(`Fayl hajmi ${formatMaxUploadLabel()} dan oshmasligi kerak.`);
+                                                    return;
+                                                }
+                                                setManuscriptFile(picked);
+                                            }}
+                                            accept=".doc,.docx"
+                                            required
+                                        />
                                     </label>
                                 </div>
                                 <div>
@@ -543,7 +560,7 @@ const SubmitBook: React.FC = () => {
                                             <UploadCloud className="mx-auto h-10 w-10 text-slate-500" />
                                             <p className="mt-2 text-sm text-slate-500">{coverFile ? coverFile.name : t('Rasm yuklang')}</p>
                                         </div>
-                                        <input id="cover-upload" type="file" className="sr-only" onChange={(e) => setCoverFile(e.target.files ? e.target.files[0] : null)} accept="image/*" />
+                                        <input id="cover-upload" type="file" className="sr-only" onChange={(e) => setCoverFile(e.target.files ? e.target.files[0] : null)} accept=".jpg,.jpeg,.png,.webp" />
                                     </label>
                                 </div>
                             </div>

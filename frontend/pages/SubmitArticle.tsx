@@ -318,6 +318,21 @@ const SubmitArticle: React.FC = () => {
     setCurrentStep(currentStep - 1);
   };
 
+  // Sahifalar soni serverda fayldan aniqlanadi (bet bo'yicha narx shunga qarab olinadi) — formada ham o'sha qiymat
+  const [pagesFromServer, setPagesFromServer] = useState(false);
+  const detectPages = async (file: File) => {
+    setPagesFromServer(false);
+    try {
+      const res = await apiService.articles.pageCount(file);
+      if (res?.detected && res.pages) {
+        setFormData((prev) => (prev.file === file ? { ...prev, pageCount: res.pages as number } : prev));
+        setPagesFromServer(true);
+      }
+    } catch {
+      /* aniqlanmasa — taxminiy qiymat qoladi, server baribir o'zi hisoblaydi */
+    }
+  };
+
   const acceptFile = (file: File | undefined | null) => {
     if (!file) return;
     const name = file.name.toLowerCase();
@@ -331,6 +346,7 @@ const SubmitArticle: React.FC = () => {
     }
     setFormData((prev) => ({ ...prev, file, pageCount: estimatePageCountFromFile(file) }));
     setErrors((e) => ({ ...e, file: '' }));
+    detectPages(file);
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -765,13 +781,16 @@ const SubmitArticle: React.FC = () => {
                   min={1}
                   max={500}
                   value={formData.pageCount}
+                  readOnly={pagesFromServer}
                   onChange={(e) =>
                     setFormData({ ...formData, pageCount: parsePageCount(e.target.value) })
                   }
                   className="w-full px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-blue-500"
                 />
                 <p className="text-xs text-slate-500 mt-1">
-                  Fayl yuklanganda taxminiy hisoblanadi; sahifabop narx uchun to&apos;g&apos;rilang.
+                  {pagesFromServer
+                    ? "Sahifalar soni fayldan aniqlandi — sahifabop narx shu bo'yicha hisoblanadi."
+                    : "Fayldan aniqlab bo'lmasa, sahifalar sonini kiriting."}
                 </p>
               </div>
             </div>

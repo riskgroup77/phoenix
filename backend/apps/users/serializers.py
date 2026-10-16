@@ -24,7 +24,7 @@ class UserSerializer(serializers.ModelSerializer):
             'date_joined', 'phone_verified', 'phone_verified_at', 'terms_accepted_at', 'terms_version',
         )
         read_only_fields = (
-            'id', 'date_joined', 'gamification_profile', 'avatar_url', 'is_active',
+            'id', 'date_joined', 'gamification_profile', 'avatar_url',  # is_active: faqat bosh admin (update da)
             'phone_verified', 'phone_verified_at', 'terms_accepted_at', 'terms_version',
         )
 
@@ -34,6 +34,43 @@ class UserSerializer(serializers.ModelSerializer):
             return normalize_orcid(value)
         except ValueError as exc:
             raise serializers.ValidationError(str(exc))
+
+    def _requester_is_super_admin(self) -> bool:
+        request = self.context.get('request')
+        requester = getattr(request, 'user', None) if request else None
+        return bool(
+            requester and requester.is_authenticated
+            and (getattr(requester, 'role', None) == 'super_admin' or getattr(requester, 'is_superuser', False))
+        )
+
+    def validate_email(self, value):
+        """
+        Demo domeni (@demo.ilmiyfaoliyat.uz) tizim belgisi: shu domenli foydalanuvchining to'lovlari tushumdan,
+        maqolalari antiplagiat korpusidan chiqariladi va telefon tasdiqlash talab qilinmaydi. Avval har kim
+        emailini shu domenga o'zgartirib, o'zini "demo" qila olardi.
+        """
+        from config.demo import DEMO_EMAIL_DOMAIN, is_demo_user
+
+        email = (value or '').strip()
+        if email.lower().endswith('@' + DEMO_EMAIL_DOMAIN):
+            already_demo = self.instance is not None and is_demo_user(self.instance)
+            if not already_demo:
+                raise serializers.ValidationError('Bu email domeni tizim uchun ajratilgan. Boshqa email kiriting.')
+        return email
+
+    def validate_phone(self, value):
+        """Login bilan bir xil normallashtirish (998XXXXXXXXX) — aks holda parol tiklash/hammuallif qidiruvi topmasdi."""
+        from .phone_verification import normalize_phone
+
+        digits = normalize_phone(value)
+        if len(digits) != 12 or not digits.startswith('998'):
+            raise serializers.ValidationError('Telefon raqam noto\'g\'ri. Namuna: 90 123 45 67')
+        clash = User.objects.filter(phone=digits)
+        if self.instance is not None:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise serializers.ValidationError('Bu telefon raqam boshqa foydalanuvchiga tegishli.')
+        return digits
 
     def get_orcid_url(self, obj):
         from .orcid import orcid_url
@@ -85,13 +122,40 @@ class UserSerializer(serializers.ModelSerializer):
             validated_data.pop('is_staff', None)
             validated_data.pop('is_superuser', None)
             validated_data.pop('is_active', None)
+            # Taqrizchi statistikasi tizim tomonidan hisoblanadi — o'zi "yaxshilay" olmaydi
+            for key in self.SYSTEM_STATS_FIELDS:
+                validated_data.pop(key, None)
         password = validated_data.pop('password', None)
+        if password and not is_super_admin:
+            # O'z parolini o'zgartirish: joriy parol shart (ochiq qolgan sessiyadan parolni almashtirib bo'lmasin)
+            current = (self.initial_data.get('current_password') if hasattr(self, 'initial_data') else '') or ''
+            if not instance.check_password(current):
+                raise serializers.ValidationError({'current_password': 'Joriy parol noto\'g\'ri.'})
+        phone_changed = 'phone' in validated_data and validated_data['phone'] != instance.phone
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        if phone_changed:
+            # Yangi raqam hali tasdiqlanmagan — avval eski raqamning "tasdiqlangan" belgisi saqlanib qolardi
+            instance.phone_verified = False
+            instance.phone_verified_at = None
         if password:
             instance.set_password(password)
         instance.save()
         return instance
+
+    SYSTEM_STATS_FIELDS = ('reviews_completed', 'average_review_time', 'acceptance_rate')
+
+
+class UserDirectorySerializer(serializers.ModelSerializer):
+    """
+    Bosh admin bo'lmagan xodimlar (buxgalter, jurnal admini) uchun foydalanuvchi ro'yxati: faqat ism va ish joyi.
+    Avval ular barcha foydalanuvchilarning telefon, email va Telegram ma'lumotlarini olardi.
+    """
+
+    class Meta:
+        model = User
+        fields = ('id', 'first_name', 'last_name', 'patronymic', 'role', 'affiliation', 'orcid_id')
+        read_only_fields = fields
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -170,6 +234,11 @@ class RegisterSerializer(serializers.ModelSerializer):
         # Basic email validation (Django's EmailField already does this, but add extra check)
         if '@' not in value or '.' not in value.split('@')[1]:
             raise serializers.ValidationError('Email noto\'g\'ri formatda')
+        from config.demo import DEMO_EMAIL_DOMAIN
+
+        # Demo domeni tizim belgisi (UserSerializer.validate_email ga qarang)
+        if value.strip().lower().endswith('@' + DEMO_EMAIL_DOMAIN):
+            raise serializers.ValidationError('Bu email domeni tizim uchun ajratilgan. Boshqa email kiriting.')
         
         return value.lower().strip()
     

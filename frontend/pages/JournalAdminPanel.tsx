@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ListSkeleton } from '../components/ui/Skeleton';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useAuth } from '../contexts/AuthContext';
 import { Article, ArticleStatus, Role, Journal } from '../types';
 import Card from '../components/ui/Card';
@@ -172,16 +173,27 @@ const JournalAdminPanel: React.FC = () => {
     };
     
     const handleUpdateStatus = async (articleId: string, newStatus: ArticleStatus) => {
+        let reason: string | undefined;
+        if (newStatus === ArticleStatus.Rejected) {
+            // Muallif bildirishnomada sababni ko'radi — sababsiz rad etilmasin
+            const input = window.prompt("Rad etish sababi (muallifga yuboriladi):");
+            if (input === null) return;
+            reason = input.trim();
+            if (!reason) {
+                toast.error("Rad etish sababini yozing.");
+                return;
+            }
+        }
         try {
-            await apiService.articles.updateStatus(articleId, newStatus);
-            // Refresh the data
-            const updatedArticles = articles.map(article => 
-                article.id === articleId ? { ...article, status: newStatus } : article
-            );
-            setArticles(updatedArticles);
-        } catch (err) {
-            console.error('Failed to update article status:', err);
-            setError(t('Maqola holatini yangilashda xatolik yuz berdi.'));
+            const res: any = await apiService.articles.updateStatus(articleId, newStatus, reason);
+            // Server antiplagiat chegarasiga qarab boshqa holat qo'yishi mumkin
+            const finalStatus = (res?.new_status as ArticleStatus) || newStatus;
+            setArticles((prev) => prev.map((article) =>
+                article.id === articleId ? ({ ...article, status: finalStatus, allowed_transitions: [] } as any) : article
+            ));
+        } catch (err: any) {
+            // Xato butun panelni almashtirmasin — sababi toast'da
+            toast.error(err?.message || t('Maqola holatini yangilashda xatolik yuz berdi.'));
         }
     };
     
@@ -294,7 +306,7 @@ const JournalAdminPanel: React.FC = () => {
                                                     <Edit3 className="h-4 w-4 text-yellow-800" />
                                                 </button>
                                                 
-                                                {article.status !== ArticleStatus.Accepted && article.status !== ArticleStatus.Published && (
+                                                {((article as any).allowed_transitions ?? []).includes(ArticleStatus.Accepted) && (
                                                     <button 
                                                         onClick={() => handleUpdateStatus(article.id, ArticleStatus.Accepted)}
                                                         className="p-2 rounded-md hover:bg-white/10 transition-colors"
@@ -304,7 +316,7 @@ const JournalAdminPanel: React.FC = () => {
                                                     </button>
                                                 )}
                                                 
-                                                {article.status !== ArticleStatus.Rejected && (
+                                                {((article as any).allowed_transitions ?? []).includes(ArticleStatus.Rejected) && (
                                                     <button 
                                                         onClick={() => handleUpdateStatus(article.id, ArticleStatus.Rejected)}
                                                         className="p-2 rounded-md hover:bg-white/10 transition-colors"

@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { CheckCircle, Clock, Download, Receipt, Search, Wallet, XCircle } from 'lucide-react';
+import { CheckCircle, Clock, CreditCard, Download, Receipt, Search, Wallet, XCircle } from 'lucide-react';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import EmptyState from '../components/EmptyState';
 import { ListSkeleton, Skeleton } from '../components/ui/Skeleton';
 import { apiService } from '../services/apiService';
+import { paymentService } from '../services/paymentService';
 import { useT } from '../i18n/LanguageContext';
 import { formatUzDate } from '../utils/uzDate';
 import { txAmount } from '../utils/amount';
@@ -56,6 +57,7 @@ const Payments: React.FC = () => {
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [paying, setPaying] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -93,6 +95,17 @@ const Payments: React.FC = () => {
       toast.error(e?.message || t("Chekni yuklab bo'lmadi"));
     } finally {
       setDownloading(null);
+    }
+  };
+
+  /** Kutilayotgan to'lovni davom ettirish (Click) — to'lovdan keyin shu xizmat sahifasiga alert bilan qaytiladi */
+  const payNow = async (tx: Tx) => {
+    setPaying(tx.id);
+    try {
+      await paymentService.redirectToPaymentPage(tx.id);
+    } catch (e: any) {
+      toast.error(e?.message || "To'lovni boshlab bo'lmadi.");
+      setPaying(null);
     }
   };
 
@@ -235,6 +248,17 @@ const Payments: React.FC = () => {
                       <BadgeIcon className="w-3.5 h-3.5" aria-hidden /> {t(badge.label)}
                     </span>
                   </span>
+                  {tx.status === 'pending' && (
+                    <button
+                      type="button"
+                      onClick={() => payNow(tx)}
+                      disabled={paying === tx.id}
+                      className="milliy-btn-primary !min-h-[2.5rem] !px-3 text-sm"
+                    >
+                      <CreditCard className="w-4 h-4" aria-hidden />
+                      <span>{paying === tx.id ? '...' : "To'lash"}</span>
+                    </button>
+                  )}
                   {tx.status === 'completed' && (
                     <button
                       type="button"

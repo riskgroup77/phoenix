@@ -10,8 +10,21 @@ class PeerReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = PeerReview
         fields = '__all__'
-        read_only_fields = ('id', 'assigned_at', 'reviewer')
-    
+        # Natija (holat, ballar, tavsiya, matn) faqat taqrizchining o'zi submit_review orqali yozadi —
+        # avval muharrir umumiy PUT bilan "yakunlangan" taqriz yaratishi yoki natijani o'zgartirishi mumkin edi
+        read_only_fields = (
+            'id', 'assigned_at', 'reviewer', 'status', 'completed_at', 'rating', 'recommendation',
+            'review_content', 'strengths', 'weaknesses', 'comments_to_author', 'comments_to_editor',
+            'originality_score', 'methodology_score', 'clarity_score', 'significance_score', 'references_score',
+        )
+
+    def get_fields(self):
+        fields = super().get_fields()
+        if self.instance is not None and 'article' in fields:
+            # Tayinlangan taqrizni boshqa maqolaga (boshqa jurnalga) ko'chirib bo'lmaydi
+            fields['article'].read_only = True
+        return fields
+
     def get_reviewer_name(self, obj):
         return obj.reviewer.get_full_name()
 

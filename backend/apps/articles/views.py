@@ -1,3 +1,7 @@
+from decimal import Decimal
+
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction as db_transaction
 from django.db.models import Q
 from rest_framework import viewsets, status
 from rest_framework.exceptions import PermissionDenied, ValidationError as DRFValidationError
@@ -12,6 +16,7 @@ from .serializers import (
     PublicArticleShareSerializer,
 )
 from apps.payments.models import Transaction
+from apps.payments.pricing import publication_fee_amount
 from apps.journals.models import Journal
 from django.conf import settings
 from config.throttles import PlagiarismActionThrottle
@@ -109,13 +114,27 @@ class ArticleViewSet(
         if role == 'super_admin' or getattr(self.request.user, 'is_superuser', False):
             return base_queryset.all()
         elif role == 'journal_admin':
-            return base_queryset.filter(journal__journal_admin=self.request.user)
+            # Mustaqil antiplagiat hujjati jurnalga yuborilgan maqola emas — u texnik sababli biror jurnalga
+            # bog'langan bo'ladi, lekin o'sha jurnal muharriri muallifning maxfiy hujjatini ko'rmasligi kerak.
+            # exclude(json_key=True) SQL da NULL ni ham chiqarib tashlaydi — shuning uchun ijobiy shart bilan
+            return (
+                base_queryset.filter(journal__journal_admin=self.request.user)
+                .filter(
+                    Q(plagiarism_report__is_standalone__isnull=True)
+                    | Q(plagiarism_report__is_standalone=False)
+                )
+                .exclude(title__istartswith='plagiarism check')
+            )
         elif role == 'author':
             return base_queryset.filter(
                 Q(author=self.request.user) | Q(co_authors=self.request.user)
             ).distinct()
         elif role == 'reviewer':
-            return base_queryset.filter(status='QabulQilingan')
+            # Ko'rib chiqilayotgan maqolalar + o'ziga taqriz tayinlangan maqolalar (holatidan qat'i nazar):
+            # avval tayinlangan maqola boshqa holatda bo'lsa, bildirishnomadagi havola 404 berardi
+            return base_queryset.filter(
+                Q(status='QabulQilingan') | Q(peer_reviews__reviewer=self.request.user)
+            ).distinct()
         elif role == 'operator':
             return base_queryset.all()
         elif role == 'accountant':
@@ -142,7 +161,30 @@ class ArticleViewSet(
         except (TypeError, ValueError):
             return False
 
-    def _resolve_awaiting_publication_payment(self, request, journal=None):
+    def _prepaid_publication_tx(self, request, journal, page_count):
+        """
+        Maqola yaratishda yuborilgan oldindan to'lov (payment_transaction_id) haqiqatan yaroqlimi.
+
+        Avval faqat egasi, turi va holati tekshirilardi: boshqa maqolaga ishlatilgan bitta to'lov bilan
+        istalgan (qimmatroq) jurnalga cheksiz maqola yuborish mumkin edi. Endi to'lov hali hech bir maqolaga
+        bog'lanmagan va summasi shu jurnalning (sahifalar soni bilan) narxidan kam bo'lmasligi shart.
+        """
+        tx_id = request.data.get('payment_transaction_id')
+        if not tx_id or journal is None:
+            return None
+        try:
+            tx = Transaction.objects.get(
+                id=tx_id, user=request.user, service_type='publication_fee', status='completed',
+            )
+        except (Transaction.DoesNotExist, ValueError, TypeError, DjangoValidationError):
+            return None
+        if tx.article_id:
+            return None
+        if Decimal(str(tx.amount)) + Decimal('0.01') < publication_fee_amount(journal, page_count):
+            return None
+        return tx
+
+    def _resolve_awaiting_publication_payment(self, request, journal=None, page_count=None):
         """
         Oldindan to'lovli jurnalda to'lov tugamaguncha Draft yaratish.
         Frontend flag yubormasa ham (eski build) avtomatik yoqiladi.
@@ -153,50 +195,35 @@ class ArticleViewSet(
         if explicit:
             return True
 
-        tx_id = request.data.get('payment_transaction_id')
-        if tx_id:
-            try:
-                tx = Transaction.objects.get(id=tx_id)
-                if (
-                    str(tx.user_id) == str(request.user.id)
-                    and tx.service_type == 'publication_fee'
-                    and tx.status == 'completed'
-                ):
-                    return False
-            except (Transaction.DoesNotExist, ValueError, TypeError):
-                pass
-
         if journal is None:
             journal_raw = request.data.get('journal')
             if not journal_raw:
                 return False
             try:
                 journal = Journal.objects.get(pk=journal_raw)
-            except (Journal.DoesNotExist, ValueError, TypeError):
+            except (Journal.DoesNotExist, ValueError, TypeError, DjangoValidationError):
                 return False
 
         if getattr(journal, 'payment_model', None) == 'pre-payment' and self._journal_has_publication_fee(journal):
-            return True
+            return self._prepaid_publication_tx(request, journal, page_count) is None
         return False
 
     def create(self, request, *args, **kwargs):
-        """For pre-payment journals, require a completed publication_fee transaction before creating article."""
-        awaiting_payment = self._resolve_awaiting_publication_payment(request)
-        serializer = self.get_serializer(
-            data=request.data,
-            context={
-                **self.get_serializer_context(),
-                'awaiting_publication_payment': awaiting_payment,
-            },
-        )
+        """Oldindan to'lovli jurnal: yaroqli to'lov bo'lmasa maqola Draft (to'lov kutilmoqda) bo'lib yaratiladi."""
+        # Avval tekshiruv (sahifalar soni fayldan aniqlanadi), so'ng to'lov holatiga qarab Draft/Yangi
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         journal = serializer.validated_data.get('journal')
+        page_count = serializer.validated_data.get('page_count')
+        awaiting_payment = self._resolve_awaiting_publication_payment(request, journal, page_count)
+        serializer.context['awaiting_publication_payment'] = awaiting_payment
         title_val = (serializer.validated_data.get('title') or '').strip()
         kw_list = serializer.validated_data.get('keywords') or []
         is_antiplagiat_flow = (
             title_val.lower().startswith('plagiarism check')
             or any(str(k).lower() == 'plagiarism' for k in kw_list)
         )
+        prepaid_tx = None
         if journal:
             try:
                 journal_obj = journal if isinstance(journal, Journal) else Journal.objects.get(pk=journal)
@@ -207,43 +234,30 @@ class ArticleViewSet(
                 if is_antiplagiat_flow:
                     pass
                 elif journal_obj.payment_model == 'pre-payment' and has_fee and not awaiting_payment:
-                    tx_id = request.data.get('payment_transaction_id')
-                    if not tx_id:
+                    prepaid_tx = self._prepaid_publication_tx(request, journal_obj, page_count)
+                    if prepaid_tx is None:
                         return Response(
-                            {'detail': 'Ushbu jurnal oldindan to\'lov talab qiladi. To\'lovni amalga oshiring va to\'lovni tekshirish tugmasini bosing.'},
-                            status=status.HTTP_400_BAD_REQUEST
+                            {'detail': 'Ushbu jurnal oldindan to\'lov talab qiladi. To\'lov topilmadi, '
+                                       'boshqa maqolaga ishlatilgan yoki summasi yetarli emas.'},
+                            status=status.HTTP_400_BAD_REQUEST,
                         )
-                    try:
-                        tx = Transaction.objects.get(id=tx_id)
-                    except (Transaction.DoesNotExist, ValueError, TypeError):
-                        return Response(
-                            {'detail': 'To\'lov tranzaksiyasi topilmadi yoki noto\'g\'ri. To\'lovni qayta tekshiring.'},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                    if str(tx.user_id) != str(request.user.id):
-                        return Response({'detail': 'Ushbu to\'lov sizga tegishli emas.'}, status=status.HTTP_400_BAD_REQUEST)
-                    if tx.status != 'completed':
-                        return Response(
-                            {'detail': 'To\'lov hali tasdiqlanmagan. To\'lovni amalga oshiring va "To\'lovni tekshirish" tugmasini bosing.'},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-                    if tx.service_type != 'publication_fee':
-                        return Response({'detail': 'Noto\'g\'ri to\'lov turi.'}, status=status.HTTP_400_BAD_REQUEST)
             except Journal.DoesNotExist:
                 pass
         try:
-            self.perform_create(serializer)
-            article = serializer.instance
-            tx_id = request.data.get('payment_transaction_id')
-            if tx_id and article:
-                try:
-                    tx = Transaction.objects.get(id=tx_id)
-                    if str(tx.user_id) == str(request.user.id) and tx.status == 'completed':
-                        if not tx.article_id:
-                            tx.article = article
-                            tx.save(update_fields=['article'])
-                except (Transaction.DoesNotExist, ValueError, TypeError):
-                    pass
+            with db_transaction.atomic():
+                if prepaid_tx is not None:
+                    # Bir vaqtda ikki so'rov bitta to'lovni ishlatmasin
+                    locked = Transaction.objects.select_for_update().get(pk=prepaid_tx.pk)
+                    if locked.article_id:
+                        return Response(
+                            {'detail': 'Bu to\'lov allaqachon boshqa maqolaga ishlatilgan.'},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                self.perform_create(serializer)
+                article = serializer.instance
+                if prepaid_tx is not None:
+                    locked.article = article
+                    locked.save(update_fields=['article'])
             if article and awaiting_payment and article.status == 'Draft' and not is_antiplagiat_flow:
                 try:
                     from .submission_notifications import notify_article_draft_pending_payment
@@ -280,9 +294,39 @@ class ArticleViewSet(
         Holat va natijalar serializer'da read-only — ular alohida amallar orqali o'zgaradi.
         """
         article = self.get_object()
-        if not self._is_super_admin() and article.author_id != request.user.id:
-            return Response({'detail': 'Maqolani tahrirlash huquqingiz yo\'q.'}, status=status.HTTP_403_FORBIDDEN)
+        if not self._is_super_admin():
+            if article.author_id != request.user.id:
+                return Response({'detail': 'Maqolani tahrirlash huquqingiz yo\'q.'}, status=status.HTTP_403_FORBIDDEN)
+            blocked = self._author_edit_block_reason(article, set(request.data.keys()))
+            if blocked:
+                return Response({'detail': blocked}, status=status.HTTP_403_FORBIDDEN)
         return super().update(request, *args, **kwargs)
+
+    # Muallif maqola tahririyatga o'tgach ham o'zgartira oladigan yagona maydon — antiplagiat sozlamalari
+    # (u ham tekshiruv boshlanguncha; serializer.validate_plagiarism_report).
+    AUTHOR_ALWAYS_EDITABLE = frozenset({'plagiarism_report'})
+    # Antiplagiat to'lovi/tekshiruvidan keyin almashtirilsa, bitta to'lov bilan boshqa hujjat tekshirilardi
+    CHECKED_CONTENT_FIELDS = frozenset({'final_pdf_path', 'title'})
+
+    @staticmethod
+    def _plagiarism_started(article) -> bool:
+        report = article.plagiarism_report if isinstance(article.plagiarism_report, dict) else {}
+        return bool(article.plagiarism_checked_at) or report.get('check_status') in ('processing', 'completed')
+
+    def _author_edit_block_reason(self, article, keys: set[str]) -> str | None:
+        """
+        Muallif tahriri: qoralama (to'lovgacha) va tahrirga qaytarilgan maqola. Tahririyatdagi, qabul qilingan
+        yoki nashr etilgan maqolaning fayli/sarlavhasi o'zgarmaydi (taqrizdan keyin faylni almashtirib bo'lmaydi).
+        """
+        if article.status == 'Revision':
+            return None
+        if article.status == 'Draft':
+            if self._plagiarism_started(article) and keys & self.CHECKED_CONTENT_FIELDS:
+                return 'Antiplagiat tekshiruvi o\'tkazilgan hujjatning fayli va nomini o\'zgartirib bo\'lmaydi.'
+            return None
+        if keys - self.AUTHOR_ALWAYS_EDITABLE:
+            return 'Maqola tahririyatga yuborilgan — uni faqat tahrirga qaytarilganda o\'zgartirish mumkin.'
+        return None
 
     def destroy(self, request, *args, **kwargs):
         """O'chirish: bosh admin yoki muallif — faqat to'lanmagan qoralamasini."""
@@ -319,6 +363,24 @@ def public_article_detail(request, pk):
 
     serializer = PublicArticleShareSerializer(article, context={'request': request})
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def article_page_count(request):
+    """
+    Yuklanadigan fayldagi sahifalar soni — maqola yaratishda server aynan shu qiymat bo'yicha narx oladi
+    (CreateArticleSerializer.validate). Frontend to'lov summasini oldindan to'g'ri ko'rsatishi uchun.
+    """
+    from config.upload_validation import validate_document
+    from .page_count import count_pages
+
+    upload = request.FILES.get('file')
+    if not upload:
+        return Response({'detail': 'Fayl yuborilmadi.'}, status=status.HTTP_400_BAD_REQUEST)
+    validate_document(upload)
+    pages = count_pages(upload)
+    return Response({'pages': pages, 'detected': pages is not None})
 
 
 @api_view(['GET'])

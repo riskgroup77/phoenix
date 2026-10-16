@@ -11,9 +11,16 @@ class NotificationViewSet(viewsets.ModelViewSet):
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
     
+    # Bildirishnomalarni faqat server yaratadi; foydalanuvchi o'qiydi, o'qilgan deb belgilaydi yoki o'chiradi
+    http_method_names = ['get', 'post', 'delete', 'head', 'options']
+
     def get_queryset(self):
         return Notification.objects.filter(user=self.request.user)
-    
+
+    def create(self, request, *args, **kwargs):
+        # Avval `user` read-only bo'lgani uchun 500 (IntegrityError) qaytardi
+        return Response({'detail': 'Bildirishnoma qo\'lda yaratilmaydi.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
     @action(detail=True, methods=['post'])
     def mark_read(self, request, pk=None):
         """Mark notification as read"""

@@ -65,6 +65,8 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
       { to: '/articles', icon: FileText, label: 'Maqolalarim' },
       { to: '/submit', icon: Upload, label: 'Maqola yuborish' },
       { to: '/services', icon: Sparkles, label: 'Xizmatlar' },
+      // To'lovlar tarixi va cheklar — asosiy menyuda (avval faqat profil/«Boshqa» ichida yashirin edi)
+      { to: '/payments', icon: Receipt, label: "To'lovlarim" },
     ],
     tools: [
       { to: '/my-collections', icon: Archive, label: "To'plamlarim" },
@@ -73,7 +75,6 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
       { to: '/author-publications', icon: BookOpen, label: 'Muallif nashrlari' },
     ],
     account: [
-      { to: '/payments', icon: Receipt, label: "To'lovlarim" },
       { to: '/profile?tab=notifications', icon: Bell, label: 'Bildirishnomalar' },
       { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
       { to: '/profile?tab=settings', icon: Settings, label: 'Sozlamalar' },
@@ -186,6 +187,7 @@ export const bottomNavByRole: Partial<Record<Role, NavItem[]>> = {
     { to: '/operator-dashboard', icon: LayoutDashboard, label: 'Panel' },
     { to: '/all-requests', icon: FileText, label: "So'rovlar" },
     { to: '/articles', icon: MessageSquare, label: 'Chat' },
+    { to: '/payments', icon: Receipt, label: "To'lovlarim" },
     { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
   ],
   [Role.Accountant]: [

@@ -300,6 +300,9 @@ class ArticleProtectionTests(BaseFixture):
         self.assertEqual(res.status_code, 200, res.content)
 
     def test_journal_admin_still_can_change_status(self):
+        # To'lanmagan qoralama tahririyatga qo'lda o'tkazilmaydi (tests/test_qa_fixes.py), tahririyatdagisi — ha
+        self.article.status = 'Yangi'
+        self.article.save()
         res = self.api(self.journal_admin).post(f'/api/v1/articles/{self.article.id}/update_status/',
                                                 {'status': 'Accepted'}, format='json')
         self.assertEqual(res.status_code, 200, res.content)

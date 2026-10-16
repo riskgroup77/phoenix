@@ -26,6 +26,8 @@ from django.core.files.storage import FileSystemStorage
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden
 from django.views.decorators.http import require_GET
 
+from config.upload_validation import is_active_content
+
 # Hech qanday maxfiy ma'lumot bo'lmagan, ochiq ko'rsatiladigan papkalar
 PUBLIC_PREFIXES = (
     'journals/',
@@ -112,6 +114,10 @@ def protected_media(request, path: str):
         )
 
     content_type, _ = mimetypes.guess_type(name)
+    # HTML/SVG/JS kabi faol kontent hech qachon api. domenida sahifa sifatida ochilmasin (XSS) — faqat yuklab olish
+    active = is_active_content(name)
+    if active:
+        content_type = 'application/octet-stream'
     if getattr(settings, 'MEDIA_ACCEL_REDIRECT', False):
         # Faylni nginx beradi (tez, Django oqimini band qilmaydi)
         resp = HttpResponse(content_type=content_type or 'application/octet-stream')
@@ -121,4 +127,7 @@ def protected_media(request, path: str):
     resp['Cache-Control'] = 'private, max-age=3600'
     resp['X-Content-Type-Options'] = 'nosniff'
     resp['X-Robots-Tag'] = 'noindex'
+    if active:
+        resp['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(os.path.basename(name))}"
+        resp['Content-Security-Policy'] = 'sandbox'
     return resp

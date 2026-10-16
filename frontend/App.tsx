@@ -32,6 +32,7 @@ const Register = lazyPage(() => import('./pages/RegisterSimple'));
 const ForgotPassword = lazyPage(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazyPage(() => import('./pages/ResetPassword'));
 const ClickPayment = lazyPage(() => import('./pages/ClickPayment'));
+const PaymentReturn = lazyPage(() => import('./pages/PaymentReturn'));
 const JournalManagement = lazyPage(() => import('./pages/JournalManagement'));
 const PublishedArticles = lazyPage(() => import('./pages/PublishedArticles'));
 const Financials = lazyPage(() => import('./pages/Financials'));
@@ -127,6 +128,8 @@ const AppContent: React.FC = () => {
                 <Route path="/ai" element={<ProtectedRoute><RoleRoute allowedRoles={[Role.Author]}><AiWorkspace /></RoleRoute></ProtectedRoute>} />
                 <Route path="/ai/:conversationId" element={<ProtectedRoute><RoleRoute allowedRoles={[Role.Author]}><AiWorkspace /></RoleRoute></ProtectedRoute>} />
                 <Route path="/payment/click" element={<ClickPayment />} />
+                {/* Click return_url: oraliq sahifasiz — holatni tekshirib, xizmat sahifasiga alert bilan qaytaradi */}
+                <Route path="/payment/return" element={<ProtectedRoute><PaymentReturn /></ProtectedRoute>} />
                 <Route path="/udk-verify" element={<UdkVerify />} />
                 <Route path="/verify/:code" element={<VerifyDocument />} />
                 <Route path="/public/article/:id" element={<PublicArticleShare />} />

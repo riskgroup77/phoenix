@@ -223,7 +223,12 @@ export function getUserFriendlyError(error: any): string {
   }
   
   if (status === 403) {
-    return 'Siz bu amalni bajarish huquqiga egasiz.';
+    // Server sababini aytsa (masalan "Maqola tahririyatga yuborilgan — ..."), o'shani ko'rsatamiz.
+    // Avvalgi matn "huquqiga egasiz" aksincha ma'no berardi ("huquqingiz bor").
+    const body = error?.response;
+    const msg = body && (body.detail || body.error);
+    return (typeof msg === 'string' && msg && msg.length < 300 ? msg : null)
+      || 'Bu amalni bajarishga huquqingiz yo\'q.';
   }
   
   if (status === 404) {

@@ -17,6 +17,7 @@ import { ARTICLE_CHAT_DOCK_BREAKPOINT_PX } from '../components/ArticleChatDock';
 import { useMediaMinWidth } from '../hooks/useMediaMinWidth';
 import ArticleTimeline, { type TimelineEntry } from '../components/ArticleTimeline';
 import PublicationIndexingPanel from '../components/PublicationIndexingPanel';
+import ArticleReviewsPanel from '../components/ArticleReviewsPanel';
 import AntiplagiatHighlightView from '../components/AntiplagiatHighlightView';
 import { buildAntiplagiatViewFromArticle } from '../utils/antiplagiatFromArticle';
 import { useT } from '../i18n/LanguageContext';
@@ -51,7 +52,26 @@ interface ArticleApiResponse {
     plagiarism_report?: PlagiarismReportData | null;
     publication_link?: string;
     certificate_download_link?: string;
+    /** Joriy foydalanuvchi o'tkaza oladigan holatlar (backend workflow.py) */
+    allowed_transitions?: string[];
 }
+
+/** Tahririyat qaror tugmalari — ko'rsatilishi backend `allowed_transitions` ga bog'liq */
+const STAFF_ACTIONS: {
+    status: ArticleStatus;
+    label: string;
+    icon: typeof Check;
+    variant: 'primary' | 'secondary' | 'danger';
+}[] = [
+    { status: ArticleStatus.WithEditor, label: 'Dastlabki tekshiruvga olish', icon: Eye, variant: 'secondary' },
+    { status: ArticleStatus.QabulQilingan, label: 'Taqrizga yuborish', icon: UserCheck, variant: 'secondary' },
+    { status: ArticleStatus.WritingInProgress, label: 'Tuzatish bosqichiga', icon: Edit, variant: 'secondary' },
+    { status: ArticleStatus.Accepted, label: 'Qabul qilish', icon: Check, variant: 'primary' },
+    { status: ArticleStatus.NashrgaYuborilgan, label: 'Nashrga yuborish', icon: Send, variant: 'primary' },
+    { status: ArticleStatus.Yangi, label: 'Tahririyatga qaytarish', icon: RefreshCw, variant: 'secondary' },
+    { status: ArticleStatus.Revision, label: 'Tahrirga qaytarish', icon: Edit, variant: 'secondary' },
+    { status: ArticleStatus.Rejected, label: 'Rad etish', icon: X, variant: 'danger' },
+];
 
 const ArticleDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -99,11 +119,12 @@ const ArticleDetail: React.FC = () => {
                 setCertificateData({
                     certificateNumber: `QBL-${articleData.id.substring(0, 8).toUpperCase()}`,
                     issueDate: new Date().toLocaleDateString('uz-UZ'),
-                    author: `${user.lastName} ${user.firstName}`,
+                    // Sahifani ochgan xodim emas — maqola muallifi (avval muharrir/operator ismi chiqardi)
+                    author: articleData.author_name || `${user.lastName} ${user.firstName}`,
                     workType: 'Ilmiy maqola',
                     workTitle: articleData.title,
                     journalName: articleData.journal_name || 'Noma\'lum jurnal',
-                    organization: user.affiliation || 'Noma\'lum tashkilot',
+                    organization: (articleData.author === user.id ? user.affiliation : '') || 'Noma\'lum tashkilot',
                     publishDate: articleData.submission_date ? new Date(articleData.submission_date).toLocaleDateString('uz-UZ') : undefined,
                     currentStatus: articleData.status_label || articleData.status,
                     articleId: articleData.id
@@ -120,7 +141,8 @@ const ArticleDetail: React.FC = () => {
     }, [id, user]);
 
     useEffect(() => {
-        if (article?.status !== ArticleStatus.Accepted || !article?.journal) return;
+        const publishable = article?.status === ArticleStatus.Accepted || article?.status === ArticleStatus.NashrgaYuborilgan;
+        if (!publishable || !article?.journal) return;
         const fetchIssues = async () => {
             try {
                 const list = await apiService.journals.listIssues();
@@ -145,9 +167,8 @@ const ArticleDetail: React.FC = () => {
             setArticle(articleData);
             // Backend holatni boshqasiga o'zgartirishi mumkin (masalan antiplagiat natijasiga ko'ra)
             toast.success(articleData?.status === status ? 'Maqola holati yangilandi.' : 'Holat yangilandi — natijani maqola tarixida ko\'ring.');
-        } catch (err) {
-            console.error('Failed to update article status:', err);
-            setError('Maqola holatini yangilashda xatolik yuz berdi.');
+        } catch (err: any) {
+            toast.error(err?.message || 'Maqola holatini yangilashda xatolik yuz berdi.');
         }
     };
 
@@ -327,6 +348,7 @@ const ArticleDetail: React.FC = () => {
     };
 
     const statusData = getStatusDisplayData(article.status);
+    const allowedTransitions = new Set<string>(article.allowed_transitions ?? []);
     const StatusIcon = statusData.icon;
     const viewerRoleNorm =
         typeof user?.role === 'string' ? user.role.toLowerCase() : String(user?.role ?? '');
@@ -407,6 +429,12 @@ const ArticleDetail: React.FC = () => {
                             </div>
                         </div>
                     </Card>
+
+                    {/* Taqriz jarayoni: muharrir tayinlaydi, taqrizchi yozadi, muallif natijani ko'radi */}
+                    <ArticleReviewsPanel
+                        articleId={article.id}
+                        canManage={user?.role === Role.JournalAdmin || user?.role === Role.SuperAdmin}
+                    />
 
                     {/* Plagiarism Report — faqat jurnal admin / super admin uchun (muallifda ko'rinmasin) */}
                     {showPlagiarismForAdmin && (
@@ -632,36 +660,25 @@ const ArticleDetail: React.FC = () => {
                                     </Button>
                                 </div>
                             )}
-                            {/* Yakuniy (nashr/rad) va to'lanmagan qoralamada qaror tugmalari yo'q — tasodifan
-                                nashr etilgan maqolani "Qabul qilindi"ga qaytarib yuborish mumkin edi */}
-                            {(user?.role === Role.JournalAdmin || user?.role === Role.SuperAdmin)
-                                && article.status !== ArticleStatus.PlagiarismReview
-                                && ![ArticleStatus.Published, ArticleStatus.Rejected, ArticleStatus.Draft].includes(article.status as ArticleStatus) && (
-                                <>
-                                    {article.status !== ArticleStatus.Accepted && (
-                                        <Button onClick={() => handleStatusUpdate(ArticleStatus.Accepted)} variant="primary" className="w-full flex items-center justify-center gap-2">
-                                            <Check size={18} /> Qabul qilish
-                                        </Button>
-                                    )}
-                                    <Button onClick={() => setShowRevisionModal(true)} variant="secondary" className="w-full flex items-center justify-center gap-2">
-                                        <Edit size={18} /> Tahrirga qaytarish
-                                    </Button>
-                                    <Button onClick={() => setShowRejectModal(true)} variant="danger" className="w-full flex items-center justify-center gap-2">
-                                        <X size={18} /> Rad etish
-                                    </Button>
-                                </>
+                            {/* Qaror tugmalari faqat backend ruxsat bergan o'tishlar uchun (apps/articles/workflow.py):
+                                avval to'lanmagan qoralamani ham "Qabul qilish" mumkin edi (to'lov va antiplagiat chetlab o'tilardi) */}
+                            {article.status === ArticleStatus.PlagiarismReview && allowedTransitions.size > 0 && (
+                                <p className="text-sm text-amber-900 mb-2">Plagiat/AI/originalilik qisman talabga mos. Qaror qiling:</p>
                             )}
-                            {user?.role === Role.SuperAdmin && article.status === ArticleStatus.PlagiarismReview && (
-                                <>
-                                    <p className="text-sm text-amber-900 mb-2">Plagiat/AI/originalilik qisman talabga mos. Qaror qiling:</p>
-                                    <Button onClick={() => handleStatusUpdate(ArticleStatus.NashrgaYuborilgan)} variant="primary" className="w-full flex items-center justify-center gap-2">
-                                        <Check size={18} /> Qabul qilish (nashrga yuborish)
-                                    </Button>
-                                    <Button onClick={() => setShowRejectModal(true)} variant="danger" className="w-full flex items-center justify-center gap-2">
-                                        <X size={18} /> Rad etish
-                                    </Button>
-                                </>
-                            )}
+                            {user?.role !== Role.Author && STAFF_ACTIONS.filter((a) => allowedTransitions.has(a.status)).map((a) => (
+                                <Button
+                                    key={a.status}
+                                    onClick={() => {
+                                        if (a.status === ArticleStatus.Revision) setShowRevisionModal(true);
+                                        else if (a.status === ArticleStatus.Rejected) setShowRejectModal(true);
+                                        else handleStatusUpdate(a.status);
+                                    }}
+                                    variant={a.variant}
+                                    className="w-full flex items-center justify-center gap-2"
+                                >
+                                    <a.icon size={18} /> {a.label}
+                                </Button>
+                            ))}
                         </div>
                     </Card>
 
@@ -712,7 +729,7 @@ const ArticleDetail: React.FC = () => {
                     )}
 
                     {/* Nashr qilish — faqat Accepted holatida, jurnal/bosh admin uchun */}
-                    {(user?.role === Role.JournalAdmin || user?.role === Role.SuperAdmin) && article.status === ArticleStatus.Accepted && (
+                    {(user?.role === Role.JournalAdmin || user?.role === Role.SuperAdmin) && (article.status === ArticleStatus.Accepted || article.status === ArticleStatus.NashrgaYuborilgan) && (
                         <Card title="Nashr qilish">
                             <p className="text-sm text-slate-500 mb-4">
                                 Sertifikat faylini yuklang va muallifga tayyor deb yuboring. Muallifga bildirishnoma keladi.
