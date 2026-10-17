@@ -1441,4 +1441,8 @@ export const PAGE_ROWS: [string, string, string][] = [
   ["Ortga", "Назад", "Back"],
   ["Click sahifasi yangi oynada ochiladi. To'lovdan keyin natija shu yerda ko'rinadi.", "Страница Click откроется в новой вкладке. После оплаты результат появится здесь.", "The Click page opens in a new tab. After payment the result appears here."],
   ["Click sahifasida to'lovni yakunlang — tasdiq shu yerda ko'rinadi", "Завершите оплату на странице Click — подтверждение появится здесь", "Complete the payment on the Click page — confirmation will appear here"],
+  ["Click sahifasida to'lovni yakunlang", "Завершите оплату на странице Click", "Complete the payment on the Click page"],
+  ["To'lov tekshirilmoqda — Click'da to'lovni yakunlang, tasdiq shu oynada avtomatik chiqadi.", "Проверяем оплату — завершите платёж в Click, подтверждение появится в этом окне автоматически.", "Checking the payment — complete it in Click, the confirmation will appear here automatically."],
+  ["To'lov qabul qilindi. Click oynasi yopildi — ochiq qolgan bo'lsa, uni yopishingiz mumkin.", "Оплата получена. Окно Click закрыто — если оно осталось открытым, его можно закрыть.", "Payment received. The Click window was closed — if it is still open, you can close it."],
+  ["Davom etish", "Продолжить", "Continue"],
 ];

@@ -214,6 +214,9 @@ const ClickPayment: React.FC = () => {
         if (!isPaymentCompleted || !transaction || returnScheduled.current) return;
         returnScheduled.current = true;
         sessionStorage.removeItem('phonix_submit_article_pending');
+        // Click qaytargan (sayt to'lov oynasidan ochilgan) tab — o'zini yopadi, natija asosiy tabdagi oynada.
+        // Oddiy tabda brauzer yopishga ruxsat bermaydi — unda xizmat sahifasiga o'tiladi.
+        try { window.close(); } catch { /* ignore */ }
         navigate(paymentDestination(transaction), { replace: true });
     }, [isPaymentCompleted, transaction, navigate]);
 
