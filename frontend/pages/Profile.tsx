@@ -8,6 +8,7 @@ import { normalizeOrcid, orcidUrl } from '../utils/orcid';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { formatUzDateTime } from '../utils/uzDate';
 import Card from '../components/ui/Card';
 import EditorialTabs from '../components/EditorialTabs';
 import Button from '../components/ui/Button';
@@ -89,7 +90,7 @@ const Profile: React.FC = () => {
         (async () => {
             try {
                 setLoadingPayments(true);
-                const raw = await apiService.payments.getTransactions();
+                const raw = await apiService.payments.listMyTransactions();
                 if (!cancelled) {
                     setTransactions(asApiList(raw));
                 }
@@ -244,10 +245,8 @@ const Profile: React.FC = () => {
 
             // Check if payment was successful — QR kodli to'lov sahifasiga yo'naltirish
             if (result && result.success === true && result.transaction_id) {
-                toast.success(t('To\'lov sahifasiga yo\'naltirilmoqdasiz. QR kodni skanerlang yoki tugmani bosing.'), { autoClose: 2000 });
-                paymentService.redirectToPaymentPage(result.transaction_id);
+                paymentService.redirectToPaymentPage(result.transaction_id, result.payment_url);
             } else if (result && result.success === true && (result.payment_url || result.transaction_id)) {
-                toast.success(t('To\'lov sahifasiga yo\'naltirilmoqdasiz. QR kodni skanerlang.'), { autoClose: 2000 });
                 if (result.transaction_id) {
                     paymentService.redirectToPaymentPage(result.transaction_id);
                 } else if (result.payment_url) {
@@ -372,14 +371,20 @@ const Profile: React.FC = () => {
                                         <th className="pb-2 font-medium text-slate-500">{t('Xizmat')}</th>
                                         <th className="pb-2 font-medium text-slate-500">{t('Summa')}</th>
                                         <th className="pb-2 font-medium text-slate-500">{t('Holat')}</th>
-                                        <th className="pb-2 font-medium text-slate-500 hidden sm:table-cell">{t('Sana')}</th>
+                                        <th className="pb-2 font-medium text-slate-500">{t('Sana')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {sortedTransactions.map((tx) => (
                                         <tr key={tx.id} className="border-b border-slate-100">
                                             <td className="py-3 pr-3 text-slate-900">
-                                                {t(SERVICE_LABELS[tx.service_type] || tx.service_type || '—')}
+                                                <div className="font-medium">{t(SERVICE_LABELS[tx.service_type] || tx.service_type || '—')}</div>
+                                                {/* Nima uchun to'langan: maqola / buyurtma nomi */}
+                                                {((tx as any).article_title || (tx as any).context_label) && (
+                                                    <div className="mt-0.5 text-xs text-slate-500 break-words [overflow-wrap:anywhere]">
+                                                        {(tx as any).article_title || (tx as any).context_label}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="py-3 pr-3 font-medium text-slate-900 whitespace-nowrap">
                                                 {Math.abs(txAmount(tx.amount)).toLocaleString('uz-UZ')} {tx.currency || 'UZS'}
@@ -397,10 +402,8 @@ const Profile: React.FC = () => {
                                                     {t(STATUS_LABELS[tx.status] || tx.status)}
                                                 </span>
                                             </td>
-                                            <td className="py-3 text-slate-500 hidden sm:table-cell whitespace-nowrap">
-                                                {tx.created_at
-                                                    ? new Date(tx.created_at).toLocaleString('uz-UZ')
-                                                    : '—'}
+                                            <td className="py-3 text-slate-500 whitespace-nowrap">
+                                                {tx.created_at ? formatUzDateTime(tx.created_at) : '—'}
                                             </td>
                                         </tr>
                                     ))}

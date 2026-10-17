@@ -123,10 +123,7 @@ const TranslationService: React.FC = () => {
       
       if (result && result.success === true && result.transaction_id) {
         setIsPaymentModalOpen(false);
-        addNotification({
-          message: 'To\'lov sahifasiga yo\'naltirilmoqdasiz. QR kodni skanerlang yoki tugmani bosing.',
-        });
-        paymentService.redirectToPaymentPage(result.transaction_id);
+        paymentService.redirectToPaymentPage(result.transaction_id, result.payment_url);
       } else if (result && result.success === true && result.payment_url) {
         setIsPaymentModalOpen(false);
         addNotification({

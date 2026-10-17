@@ -400,10 +400,7 @@ const SubmitBook: React.FC = () => {
                 setTransactionId(txId);
                 setProcessPaymentStatus('pending');
                 sessionStorage.setItem('submitbook_pending_transaction_id', txId);
-                addNotification({
-                    message: 'To\'lov sahifasida QR kodni skanerlang yoki tugmani bosing. To\'lovdan keyin sahifaga qayting va "Holatni yangilash" ni bosing.',
-                });
-                paymentService.redirectToPaymentPage(txId);
+                paymentService.redirectToPaymentPage(txId, result.payment_url);
             } else if (result && result.success === true && result.payment_url && result.transaction_id) {
                 paymentService.redirectToPaymentPage(result.transaction_id);
             } else {

@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { CreditCard, Loader, CheckCircle, XCircle, QrCode } from 'lucide-react';
+import { CreditCard, Loader, CheckCircle, XCircle } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
 import { toast } from 'react-toastify';
-import { shouldAutoOpenClickPayment } from '../utils/device';
 import { useT } from '../i18n/LanguageContext';
 import { PAYMENT_POLL_INTERVAL_MS, paymentDestination } from '../utils/paymentReturn';
 
@@ -67,8 +65,6 @@ const ClickPayment: React.FC = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const transactionId = searchParams.get('transaction_id');
-    const noAutoRedirect =
-        searchParams.get('no_auto') === '1' || searchParams.get('no_auto') === 'true';
 
     const [isLoading, setIsLoading] = useState(false);
     const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
@@ -81,8 +77,6 @@ const ClickPayment: React.FC = () => {
     const pollStartedAt = useRef<number | null>(null);
     const returnScheduled = useRef(false);
 
-    const isMobilePaymentUi = shouldAutoOpenClickPayment();
-    const useMobileAutoFlow = isMobilePaymentUi && !noAutoRedirect;
 
     const txStatus = transaction?.status;
     const isPaymentCompleted = txStatus === 'completed';
@@ -181,18 +175,6 @@ const ClickPayment: React.FC = () => {
     }, [transactionId, refreshTransaction, loadPaymentUrl]);
 
     useEffect(() => {
-        if (!transactionId || !paymentUrl || status !== 'success') return;
-        if (!useMobileAutoFlow || isPaymentCompleted) return;
-        const storageKey = `click_auto_redirect_${transactionId}`;
-        if (sessionStorage.getItem(storageKey)) return;
-        sessionStorage.setItem(storageKey, '1');
-        toast.info(t("Click to'lov sahifasiga yo'naltirilmoqdasiz..."), { autoClose: 2000 });
-        window.setTimeout(() => {
-            window.location.assign(paymentUrl);
-        }, 450);
-    }, [transactionId, paymentUrl, status, useMobileAutoFlow, isPaymentCompleted]);
-
-    useEffect(() => {
         if (!transactionId || isPaymentCompleted || isPaymentFailed || status !== 'success') {
             setIsPolling(false);
             return;
@@ -257,7 +239,7 @@ const ClickPayment: React.FC = () => {
                     <p className="text-[var(--editorial-muted,#64748b)]">
                         {isPaymentCompleted
                             ? t("To'lov tasdiqlandi")
-                            : t("To'lovni amalga oshirish uchun QR yoki tugmadan foydalaning")}
+                            : t("Click sahifasida to'lovni yakunlang — tasdiq shu yerda ko'rinadi")}
                     </p>
                 </div>
 
@@ -408,63 +390,14 @@ const ClickPayment: React.FC = () => {
                             </span>
                         </div>
 
-                        <div className="p-4 bg-green-500/20 border border-green-500/30 rounded-lg">
-                            <div className="flex items-center gap-2 text-emerald-900 mb-2">
-                                <CheckCircle className="h-5 w-5" />
-                                <p className="font-semibold">{t("Click to'lov sahifasi tayyor")}</p>
-                            </div>
-                            <p className="text-sm text-slate-500">
-                                {useMobileAutoFlow
-                                    ? t("Telefonda to'lov uchun avtomatik Click sahifasi ochiladi. Kompyuterdan kirgan bo'lsangiz, QR ni boshqa telefon bilan skanerlang.")
-                                    : t("QR kodni telefon bilan skanerlang yoki tugma orqali Click rasmiy to'lov sahifasiga o'ting (my.click.uz).")}
-                            </p>
-                        </div>
-
-                        {useMobileAutoFlow ? (
-                            <div className="flex flex-col items-center justify-center p-8 bg-slate-100/70 rounded-xl border border-slate-200/90 min-h-[140px]">
-                                <Loader className="h-10 w-10 animate-spin text-cyan-800 mb-3" />
-                                <p className="text-slate-700 text-sm text-center font-medium">
-                                    {t("Click to'lov sahifasiga yo'naltirilmoqdasiz...")}
-                                </p>
-                                <p className="text-slate-500 text-xs mt-2 text-center">
-                                    {t('Ochilmasa, pastdagi tugmani bosing.')}
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center p-4 bg-white rounded-xl shadow-sm">
-                                <p className="text-gray-700 text-sm font-medium mb-3 flex items-center gap-2">
-                                    <QrCode className="h-4 w-4" />
-                                    {t("QR kod — telefonda to'lash")}
-                                </p>
-                                <QRCodeSVG
-                                    value={paymentUrl}
-                                    size={240}
-                                    level="M"
-                                    bgColor="#ffffff"
-                                    fgColor="#0f172a"
-                                    includeMargin
-                                    className="rounded-lg"
-                                />
-                                <p className="text-gray-700 text-xs mt-3 text-center max-w-[280px] font-medium">
-                                    {t('Telefonda:')} <strong>{t('Click ilovasi')}</strong> {t("→ «QR orqali to'lash» yoki kamerani shu QR ga qarating.")}
-                                </p>
-                            </div>
-                        )}
-
-                        <div className="border-t border-slate-200/90 pt-4">
-                            <p className="text-sm text-slate-500 text-center mb-3">
-                                {useMobileAutoFlow
-                                    ? t("Click ochilmagan bo'lsa:")
-                                    : t('Yoki kompyuterdan — Click sahifasini ochish:')}
-                            </p>
+                        {/* QR kod va avtomatik Click ochilishi olib tashlandi — Click faqat tugma bosilganda yangi tabda */}
+                        <div>
                             <Button
                                 onClick={handlePayment}
-                                className="w-full flex items-center justify-center gap-2"
+                                className="flex w-full items-center justify-center gap-2"
                             >
                                 <CreditCard className="h-5 w-5" />
-                                {isMobilePaymentUi
-                                    ? t("Click orqali to'lash")
-                                    : t("Click orqali to'lash (sahifa yangi tabda ochiladi)")}
+                                {t("Click orqali to'lash")}
                             </Button>
                         </div>
 

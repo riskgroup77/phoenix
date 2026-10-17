@@ -30,8 +30,7 @@ const PaymentTest: React.FC = () => {
       setResult(response);
 
       if (response.success && response.transaction_id) {
-        toast.success('To\'lov sahifasiga o\'tmoqdasiz. QR kodni skanerlang yoki tugmani bosing.');
-        paymentService.redirectToPaymentPage(response.transaction_id);
+        paymentService.redirectToPaymentPage(response.transaction_id, response.payment_url);
       } else if (response.success && response.payment_url) {
         toast.success('To\'lov sahifasiga o\'tmoqdasiz...');
         setTimeout(() => {

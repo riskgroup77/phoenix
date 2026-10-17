@@ -4,6 +4,14 @@
 
 import { apiService } from './apiService';
 
+/** To'lov oynasini ochish hodisasi (PaymentConfirmModal tinglaydi) */
+export const PAYMENT_MODAL_EVENT = 'phoenix:payment-modal';
+export type PaymentModalRequest = { transactionId: string; paymentUrl?: string };
+
+export function openPaymentModal(request: PaymentModalRequest): void {
+  window.dispatchEvent(new CustomEvent<PaymentModalRequest>(PAYMENT_MODAL_EVENT, { detail: request }));
+}
+
 interface ProcessPaymentResponse {
   success: boolean;
   transaction_id?: string;
@@ -154,34 +162,15 @@ class PaymentService {
   }
 
   /**
-   * To'lov: Click (my.click.uz) yangi tabda ochiladi, joriy tab #/payment/click sahifasida
-   * to'lov holatini kutadi (to'lov tugagach natija o'zi ko'rinadi).
-   * Havolani olib bo'lmasa — ichki sahifa (QR + tugma + xato matni) zaxira sifatida ochiladi.
+   * To'lov: yagona to'lov oynasi (PaymentConfirmModal) ochiladi — to'lov ma'lumotlari va
+   * "Click orqali to'lash" / "Ortga" tugmalari. Click faqat tugma bosilganda yangi tabda ochiladi.
    */
   async redirectToPaymentPage(transactionId: string, knownPaymentUrl?: string): Promise<void> {
     if (!transactionId) {
       console.error('Transaction ID is not available');
       throw new Error('To\'lov ID topilmadi');
     }
-    const fallback = `#/payment/click?transaction_id=${encodeURIComponent(transactionId)}`;
-    try {
-      const url = knownPaymentUrl || (await apiService.payments.processPayment(transactionId, 'click'))?.payment_url;
-      if (typeof url === 'string' && /^https:\/\//.test(url)) {
-        const win = window.open(url, '_blank');
-        if (win) {
-          try { win.opener = null; } catch { /* ignore */ }
-          // Click allaqachon ochildi — kutish sahifasi uni qayta avtomatik ochmasin
-          try { sessionStorage.setItem(`click_auto_redirect_${transactionId}`, '1'); } catch { /* ignore */ }
-          window.location.hash = fallback;
-        } else {
-          window.location.assign(url);
-        }
-        return;
-      }
-    } catch (error) {
-      console.error('Click payment URL olinmadi:', error);
-    }
-    window.location.hash = fallback;
+    openPaymentModal({ transactionId, paymentUrl: knownPaymentUrl });
   }
 
   /** To'g'ridan-to'g'ri Click havolasini yangi tabda ochish. */

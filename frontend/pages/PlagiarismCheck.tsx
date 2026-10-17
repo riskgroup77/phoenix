@@ -618,6 +618,8 @@ const PlagiarismCheck: React.FC = () => {
           if (result && result.success === true && result.transaction_id) {
               sessionStorage.setItem(STORAGE_KEY_TRANSACTION_ID, result.transaction_id);
               sessionStorage.setItem(STORAGE_KEY_ARTICLE_ID, linkedArticleId);
+              // Sahifaning o'z "tayyorlanmoqda" oynasi yopiladi — endi umumiy to'lov oynasi ochiladi
+              closePaymentModal();
               await paymentService.redirectToPaymentPage(result.transaction_id, result.payment_url);
               return;
           } else {

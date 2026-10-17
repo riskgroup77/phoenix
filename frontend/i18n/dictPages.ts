@@ -1435,4 +1435,10 @@ export const PAGE_ROWS: [string, string, string][] = [
   ["To'lov kutilmoqda — muallif Click/Payme orqali to'laydi", "Ожидается оплата — автор оплачивает через Click/Payme", "Awaiting payment — the author pays via Click/Payme"],
   ["Oxirgi to'lov yakunlanmagan — qayta urinish kerak", "Последний платёж не завершён — нужно повторить", "The last payment was not completed — try again"],
   ["To'lov qilinmagan — muallif «Xizmatlar → Tarjima»da to'lovni yakunlashi kerak", "Не оплачено — автору нужно завершить оплату в «Услуги → Перевод»", "Not paid — the author must complete payment in “Services → Translation”"],
+  ["Click to'lov havolasini olib bo'lmadi. Keyinroq qayta urinib ko'ring.", "Не удалось получить ссылку на оплату Click. Попробуйте позже.", "Could not get the Click payment link. Please try again later."],
+  ["To'lov ma'lumotlarini tekshiring", "Проверьте данные платежа", "Check the payment details"],
+  ["Nima uchun", "За что", "Purpose"],
+  ["Ortga", "Назад", "Back"],
+  ["Click sahifasi yangi oynada ochiladi. To'lovdan keyin natija shu yerda ko'rinadi.", "Страница Click откроется в новой вкладке. После оплаты результат появится здесь.", "The Click page opens in a new tab. After payment the result appears here."],
+  ["Click sahifasida to'lovni yakunlang — tasdiq shu yerda ko'rinadi", "Завершите оплату на странице Click — подтверждение появится здесь", "Complete the payment on the Click page — confirmation will appear here"],
 ];

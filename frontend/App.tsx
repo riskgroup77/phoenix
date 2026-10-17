@@ -14,6 +14,7 @@ import { showPaymentTestTools } from './config/env';
 import { lazyPage } from './utils/lazyPage';
 import { homePathFor } from './utils/authorUi';
 // Bosh sahifa va kirish — darhol (birinchi ekran); qolgan sahifalar alohida chunk bo'lib kerak bo'lganda yuklanadi.
+import PaymentConfirmModal from './components/PaymentConfirmModal';
 import Landing from './pages/Landing';
 import Login from './pages/LoginSimple';
 
@@ -218,6 +219,7 @@ const App: React.FC = () => {
             <LanguageProvider>
             <AuthProvider>
                 <AppContent />
+                <PaymentConfirmModal />
                 <ThemedToasts />
             </AuthProvider>
             </LanguageProvider>
