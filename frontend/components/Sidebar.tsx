@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Role } from '../types';
 import { sidebarNavByRole } from '../config/navConfig';
@@ -73,10 +73,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, className = '' }) => {
         )}
 
         <SectionLabel>{t('Yordam')}</SectionLabel>
-        <a href={`mailto:${SUPPORT_EMAIL}`} className={linkClass} onClick={onNavigate}>
+        <Link to="/help" className={linkClass} onClick={onNavigate}>
           <HelpCircle className="editorial-nav-icon w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
           <span>{t('Yordam')}</span>
-        </a>
+        </Link>
       </nav>
 
       <div className="p-4 shrink-0 border-t border-[var(--editorial-sidebar-border)]">

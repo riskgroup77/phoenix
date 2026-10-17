@@ -66,6 +66,7 @@ const Payments = lazyPage(() => import('./pages/Payments'));
 const Analytics = lazyPage(() => import('./pages/Analytics'));
 const AiWorkspace = lazyPage(() => import('./pages/AiWorkspace'));
 const Oferta = lazyPage(() => import('./pages/Oferta'));
+const Help = lazyPage(() => import('./pages/Help'));
 const Privacy = lazyPage(() => import('./pages/Privacy'));
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -130,6 +131,8 @@ const AppContent: React.FC = () => {
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password/:token" element={<ResetPassword />} />
                 <Route path="/oferta" element={<Oferta />} />
+                {/* Mehmonlar uchun aloqa sahifasi (kirganlar uchun — Layout ichidagi /help) */}
+                <Route path="/contact" element={<div className="min-h-screen bg-[var(--editorial-bg,#f6f7fb)] px-4 py-8"><Help /></div>} />
                 <Route path="/maxfiylik" element={<Privacy />} />
                 {/* Muallif AI ish maydoni — o'z sarlavhasi va suhbatlar paneli bilan (Layout'siz) */}
                 <Route path="/ai" element={<ProtectedRoute><RoleRoute allowedRoles={[Role.Author]}><AiWorkspace /></RoleRoute></ProtectedRoute>} />
@@ -172,7 +175,8 @@ const AppContent: React.FC = () => {
                     <Route path="maqola-namuna-olish" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><MaqolaNamunaOlish /></RoleRoute>} />
                     <Route path="doi-olish" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><DoiOlish /></RoleRoute>} />
                     <Route path="doi-requests" element={<RoleRoute allowedRoles={[Role.SuperAdmin, Role.Reviewer, Role.Operator]}><DoiRequests /></RoleRoute>} />
-                    <Route path="article-sample-requests" element={<RoleRoute allowedRoles={[Role.SuperAdmin, Role.Reviewer, Role.Operator]}><ArticleSampleRequests /></RoleRoute>} />
+                    <Route path="article-sample-requests" element={<RoleRoute allowedRoles={[Role.SuperAdmin, Role.Reviewer, Role.Operator, Role.Author]}><ArticleSampleRequests /></RoleRoute>} />
+                    <Route path="help" element={<Help />} />
                     <Route path="translation-service" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><TranslationService /></RoleRoute>} />
                     <Route path="plagiarism-check" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><PlagiarismCheck /></RoleRoute>} />
                     <Route path="plagiarism-check/result/:articleId" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><AntiplagiatResultPage /></RoleRoute>} />

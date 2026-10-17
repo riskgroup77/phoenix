@@ -9,7 +9,6 @@ import { useT } from '../i18n/LanguageContext';
 import GirihPattern from './GirihPattern';
 import { Notification, Role } from '../types';
 import { roleNames, sidebarNavByRole, type NavItem } from '../config/navConfig';
-import { SUPPORT_EMAIL } from '../config/env';
 import { isNavItemActive } from '../utils/navActive';
 import BrandMark from './BrandMark';
 
@@ -177,10 +176,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                 {primary.slice(visLg, visXl).map((item) => renderMoreItem(item, 'xl'))}
                 {primary.slice(visXl).map((item) => renderMoreItem(item))}
                 {extra.map((item) => renderMoreItem(item))}
-                <a href={`mailto:${SUPPORT_EMAIL}`} className="editorial-dropdown-item !flex items-center gap-3">
+                <Link to="/help" onClick={() => setIsMoreOpen(false)} className="editorial-dropdown-item !flex items-center gap-3">
                   <HelpCircle className="w-4 h-4 shrink-0" strokeWidth={2} aria-hidden />
                   {t('Yordam')}
-                </a>
+                </Link>
               </div>
             )}
           </div>

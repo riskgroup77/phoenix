@@ -1319,6 +1319,12 @@ export const apiService = {
   },
 
   // Notifications
+  // Yordam sahifasidagi murojaat formasi (mehmon ham yuborishi mumkin)
+  support: {
+    contact: (data: { name: string; phone: string; email: string; topic: string; message: string }) =>
+      apiFetch('/notifications/contact/', { method: 'POST', body: JSON.stringify(data) }),
+  },
+
   notifications: {
     list: () => apiFetch('/notifications/'),
 
