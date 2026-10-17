@@ -370,7 +370,7 @@ const UdkOlish: React.FC = () => {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium text-slate-900 truncate">{req.title}</p>
                       <span className={`text-xs px-2 py-0.5 rounded ${getStatusColor(req.status)}`}>
-                        {getStatusLabel(req.status)}
+                        {t(getStatusLabel(req.status))}
                       </span>
                     </div>
                     {req.status === 'completed' && req.udk_code && (

@@ -203,7 +203,7 @@ const ArxivHujjatlar: React.FC = () => {
                             >
                                 <option value="">{t('Barcha turi')}</option>
                                 {Object.entries(ARCHIVE_TYPE_LABELS).map(([k, v]) => (
-                                    <option key={k} value={k}>{v}</option>
+                                    <option key={k} value={k}>{t(v)}</option>
                                 ))}
                             </select>
                         </div>
@@ -220,8 +220,9 @@ const ArxivHujjatlar: React.FC = () => {
                                 </thead>
                                 <tbody>
                                     {filtered.map((it) => {
-                                        const typeLabel = archiveTypeLabel(it);
-                                        const statusLabel = archiveStatusLabel(it);
+                                        const typeLabel = t(archiveTypeLabel(it));
+                                        const statusLabelRaw = archiveStatusLabel(it);
+                                        const statusLabel = statusLabelRaw ? t(statusLabelRaw) : null;
                                         return (
                                         <tr key={it.id} className="border-b border-white/5 hover:bg-slate-100/70 align-top">
                                             <td className="py-3 text-sm text-blue-900 whitespace-nowrap font-medium">

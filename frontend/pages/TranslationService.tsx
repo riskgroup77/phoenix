@@ -313,7 +313,7 @@ const TranslationService: React.FC = () => {
               >
                 {languages.map(lang => (
                   <option key={lang.code} value={lang.code} className="bg-[#1f1630] text-slate-900">
-                    {lang.name}
+                    {t(lang.name)}
                   </option>
                 ))}
               </select>
@@ -330,7 +330,7 @@ const TranslationService: React.FC = () => {
               >
                 {languages.map(lang => (
                   <option key={lang.code} value={lang.code} className="bg-[#1f1630] text-slate-900">
-                    {lang.name}
+                    {t(lang.name)}
                   </option>
                 ))}
               </select>

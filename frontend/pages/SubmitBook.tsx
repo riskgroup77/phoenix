@@ -85,7 +85,9 @@ const SliderInput: React.FC<{ label: string, value: number, onChange: (value: nu
     </div>
 );
 
-const OptionToggle: React.FC<{ label: string, options: { value: string, label: string }[], selected: string, onSelect: (value: string) => void }> = ({ label, options, selected, onSelect }) => (
+const OptionToggle: React.FC<{ label: string, options: { value: string, label: string }[], selected: string, onSelect: (value: string) => void }> = ({ label, options, selected, onSelect }) => {
+    const { t } = useT();
+    return (
     <div>
         <label className="block text-sm font-medium text-slate-600 mb-2">{label}</label>
         <div className="flex bg-slate-100/70 rounded-lg p-1">
@@ -96,12 +98,13 @@ const OptionToggle: React.FC<{ label: string, options: { value: string, label: s
                     onClick={() => onSelect(opt.value)}
                     className={`w-full text-center px-4 py-2 rounded-md text-sm font-semibold transition-colors duration-200 ${selected === opt.value ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-white/10'}`}
                 >
-                    {opt.label}
+                    {t(opt.label)}
                 </button>
             ))}
         </div>
     </div>
-);
+    );
+};
 
 const CheckboxCard: React.FC<{ title: string, description: string, price: number, checked: boolean, onChange: (checked: boolean) => void }> = ({ title, description, price, checked, onChange }) => {
   const { t } = useT();
@@ -460,7 +463,7 @@ const SubmitBook: React.FC = () => {
         }
     };
     
-    const formatCurrency = (amount: number) => `${new Intl.NumberFormat('uz-UZ').format(amount)} so'm`;
+    const formatCurrency = (amount: number) => `${new Intl.NumberFormat('uz-UZ').format(amount)} ${t("so'm")}`;
 
     return (
         <>

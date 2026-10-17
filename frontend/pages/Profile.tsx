@@ -40,6 +40,9 @@ const SERVICE_LABELS: Record<string, string> = {
     translation: 'Tarjima',
     doi: 'DOI',
     udk: 'UDK',
+    doi_request: 'DOI raqami',
+    udk_request: 'UDK buyurtmasi',
+    article_sample: 'Maqola namunasi',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -376,7 +379,7 @@ const Profile: React.FC = () => {
                                     {sortedTransactions.map((tx) => (
                                         <tr key={tx.id} className="border-b border-slate-100">
                                             <td className="py-3 pr-3 text-slate-900">
-                                                {SERVICE_LABELS[tx.service_type] || tx.service_type || '—'}
+                                                {t(SERVICE_LABELS[tx.service_type] || tx.service_type || '—')}
                                             </td>
                                             <td className="py-3 pr-3 font-medium text-slate-900 whitespace-nowrap">
                                                 {Math.abs(txAmount(tx.amount)).toLocaleString('uz-UZ')} {tx.currency || 'UZS'}
@@ -391,7 +394,7 @@ const Profile: React.FC = () => {
                                                               : 'bg-red-100 text-red-800'
                                                     }`}
                                                 >
-                                                    {STATUS_LABELS[tx.status] || tx.status}
+                                                    {t(STATUS_LABELS[tx.status] || tx.status)}
                                                 </span>
                                             </td>
                                             <td className="py-3 text-slate-500 hidden sm:table-cell whitespace-nowrap">
@@ -412,7 +415,7 @@ const Profile: React.FC = () => {
                 <Card title={t('Bildirishnomalar')}>
                     <div className="flex justify-between items-center mb-4">
                         <p className="text-sm text-slate-500">
-                            {unreadCount > 0 ? `${unreadCount} ta o'qilmagan` : 'Barcha bildirishnomalar o\'qilgan'}
+                            {unreadCount > 0 ? t("{n} ta o'qilmagan", { n: unreadCount }) : t('Barcha bildirishnomalar o\'qilgan')}
                         </p>
                         {notifications.length > 0 && (
                             <Button type="button" variant="secondary" onClick={() => markAllAsRead()}>
@@ -519,7 +522,7 @@ const Profile: React.FC = () => {
                                         className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                                     >
                                         <CreditCard className="mr-2 h-4 w-4" />
-                                        {processingPayment ? 'Jarayonda...' : '1000 so\'m test to\'lov'}
+                                        {processingPayment ? t('Jarayonda...') : t('1000 so\'m test to\'lov')}
                                     </Button>
                                 </div>
                             )}

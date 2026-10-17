@@ -134,8 +134,8 @@ const ServiceCard: React.FC<{ service: (typeof services)[number] }> = ({ service
       >
         <service.icon size={28} strokeWidth={1.75} aria-hidden />
       </div>
-      <h3 className="font-serif text-base font-bold text-[var(--editorial-text)] mb-2">{service.title}</h3>
-      <p className="text-sm text-[var(--editorial-muted)] leading-relaxed flex-1">{service.description}</p>
+      <h3 className="font-serif text-base font-bold text-[var(--editorial-text)] mb-2">{t(service.title)}</h3>
+      <p className="text-sm text-[var(--editorial-muted)] leading-relaxed flex-1">{t(service.description)}</p>
       {service.isAvailable && service.link && (
         <p className="mt-5 text-sm font-semibold text-[var(--editorial-primary)] inline-flex items-center justify-center gap-1 group-hover:gap-2 transition-all">
           {t('Boshlash')} <ArrowRight className="w-4 h-4" aria-hidden />

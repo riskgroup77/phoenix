@@ -452,7 +452,7 @@ const AuthorPublications: React.FC = () => {
               {filteredPlatformArticles.map((article) => {
                 const status = article.status as ArticleStatus;
                 const statusLabel =
-                  ARTICLE_STATUS_LABELS[status] || getAuthorWorkflowStageLabel(status) || String(status);
+                  t(ARTICLE_STATUS_LABELS[status] || getAuthorWorkflowStageLabel(status) || String(status));
                 const journalName =
                   article.journal_name ||
                   (typeof article.journal === 'object' ? article.journal?.name : article.journal) ||
@@ -531,7 +531,7 @@ const AuthorPublications: React.FC = () => {
                         {order.topic || order.requirements || t('Maqola yozish buyurtmasi')}
                       </td>
                       <td className="py-3 text-slate-600">
-                        {SAMPLE_STATUS_LABELS[order.status] || order.status}
+                        {t(SAMPLE_STATUS_LABELS[order.status] || order.status)}
                       </td>
                       <td className="py-3 text-slate-500 hidden sm:table-cell">{order.pages ?? '—'}</td>
                       <td className="py-3 text-slate-500 hidden md:table-cell whitespace-nowrap">

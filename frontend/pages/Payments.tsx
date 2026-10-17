@@ -257,7 +257,7 @@ const Payments: React.FC = () => {
                       className="milliy-btn-primary !min-h-[2.5rem] !px-3 text-sm"
                     >
                       <CreditCard className="w-4 h-4" aria-hidden />
-                      <span>{paying === tx.id ? '...' : "To'lash"}</span>
+                      <span>{paying === tx.id ? '...' : t("To'lash")}</span>
                     </button>
                   )}
                   {tx.status === 'completed' && (

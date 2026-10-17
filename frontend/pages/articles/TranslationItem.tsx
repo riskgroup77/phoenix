@@ -52,7 +52,7 @@ const TranslationItem: React.FC<{ request: TranslationRequestApiResponse }> = ({
             <div className="flex justify-between items-end mt-4">
                 <div>
                      <p className="text-sm text-slate-500 mt-2">
-                        {request.source_language?.toUpperCase() || t("Noma'lum")} <ArrowRight size={14} className="inline-block mx-1"/> {request.target_language?.toUpperCase() || t("Noma'lum")}
+                        {request.source_language ? t(request.source_language).toUpperCase() : t("Noma'lum")} <ArrowRight size={14} className="inline-block mx-1"/> {request.target_language ? t(request.target_language).toUpperCase() : t("Noma'lum")}
                     </p>
                     <div className="text-xs text-slate-500 mt-2">
                         <span>{t('Muallif:')} {request.author_name || t("Noma'lum")}</span>

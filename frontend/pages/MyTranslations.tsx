@@ -163,7 +163,7 @@ const MyTranslations: React.FC = () => {
                                             {req.title}
                                         </h3>
                                         <p className="text-sm text-slate-500 mt-2">
-                                            {req.source_language.toUpperCase()} → {req.target_language.toUpperCase()}
+                                            {t(req.source_language).toUpperCase()} → {t(req.target_language).toUpperCase()}
                                         </p>
                                         <div className="text-xs text-slate-500 mt-2">
                                             <span>{t('Yuborilgan sana: {value}', { value: new Date(req.submission_date).toLocaleDateString() })}</span>
@@ -180,7 +180,7 @@ const MyTranslations: React.FC = () => {
                                                 }`}
                                             >
                                                 {t("To'lov:")}{' '}
-                                                {req.payment_status_label ||
+                                                {(req.payment_status_label && t(req.payment_status_label)) ||
                                                     (Number(req.cost ?? 0) <= 0
                                                         ? t('talab qilinmaydi')
                                                         : req.payment_completed
@@ -192,7 +192,7 @@ const MyTranslations: React.FC = () => {
                                     <div className="flex flex-col sm:items-end gap-2 w-full sm:w-auto">
                                         <div className={`flex items-center gap-2 font-semibold ${statusInfo.color}`}>
                                             <StatusIcon className={`w-5 h-5 ${req.status === TranslationStatus.Jarayonda ? 'animate-spin' : ''}`} />
-                                            <span>{statusInfo.text}</span>
+                                            <span>{t(statusInfo.text)}</span>
                                         </div>
                                         {Number(req.cost ?? 0) > 0 && !req.payment_completed && (
                                             <Button

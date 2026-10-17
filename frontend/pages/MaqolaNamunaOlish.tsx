@@ -185,7 +185,7 @@ const MaqolaNamunaOlish: React.FC = () => {
   const selectOpt = (opts: readonly { value: string; label: string }[]) =>
     opts.map((opt) => (
       <option key={opt.value || 'empty'} value={opt.value} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
-        {opt.label}
+        {t(opt.label)}
       </option>
     ));
 
@@ -266,7 +266,7 @@ const MaqolaNamunaOlish: React.FC = () => {
                 <select value={qualityLevel} onChange={(e) => setQualityLevel(e.target.value as 'quyi' | 'orta' | 'yuqori')} className={inputClass}>
                   {QUALITY_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
-                      {opt.label} — {prices ? (prices[opt.priceKey]?.toLocaleString('uz-UZ') ?? '') : ''} {t("so'm / bet")}
+                      {t(opt.label)} — {prices ? (prices[opt.priceKey]?.toLocaleString('uz-UZ') ?? '') : ''} {t("so'm / bet")}
                     </option>
                   ))}
                 </select>
