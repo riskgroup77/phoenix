@@ -23,7 +23,7 @@ const AuthLayout: React.FC<{ children: React.ReactNode; title: string }> = ({ ch
         <Link to="/" className="milliy-brand">
           <BrandMark />
           <span className="flex flex-col">
-            <span className="milliy-brand-title">Phoenix</span>
+            <span className="milliy-brand-title">{t('Phoenix')}</span>
             <span className="milliy-brand-sub">{t('Ilmiy nashrlar markazi')}</span>
           </span>
         </Link>
@@ -49,9 +49,9 @@ const AuthLayout: React.FC<{ children: React.ReactNode; title: string }> = ({ ch
           © {new Date().getFullYear()} Phoenix — {t('Ilmiy nashrlar markazi')}{' · '}
           <Link to="/" className="underline underline-offset-2 text-white/90 hover:text-white">{t('Jurnallar katalogi')}</Link>
           {' · '}
-          <Link to="/oferta" className="underline underline-offset-2 text-white/90 hover:text-white">Ommaviy oferta</Link>
+          <Link to="/oferta" className="underline underline-offset-2 text-white/90 hover:text-white">{t('Ommaviy oferta')}</Link>
           {' · '}
-          <Link to="/maxfiylik" className="underline underline-offset-2 text-white/90 hover:text-white">Maxfiylik siyosati</Link>
+          <Link to="/maxfiylik" className="underline underline-offset-2 text-white/90 hover:text-white">{t('Maxfiylik siyosati')}</Link>
         </p>
       </aside>
 

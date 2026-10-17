@@ -2651,6 +2651,17 @@ html.dark .milliy-timeline-dot--current { background: #3a5bbf; }
   table.rtable td .flex {
     justify-content: flex-end;
   }
+  /* Amallar katagi (faqat tugmalar): yorliqsiz, tugmalar to'liq kenglikda bir qatorda o'ngda */
+  table.rtable td:has(> .flex > button):not(:first-child)::before,
+  table.rtable td:has(> .flex > a):not(:first-child)::before {
+    display: none;
+  }
+  table.rtable td:has(> .flex > button):not(:first-child) > .flex,
+  table.rtable td:has(> .flex > a):not(:first-child) > .flex {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
   /* Tailwind "hidden lg:table-cell" kabi ustunlar telefonda yashirin qoladi */
   table.rtable td.hidden,
   table.rtable th.hidden {

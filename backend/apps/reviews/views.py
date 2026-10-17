@@ -123,6 +123,13 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
         review = serializer.save(reviewer=reviewer, round_number=review_round_for(serializer.validated_data['article']))
         self._apply_default_deadline(review)
 
+        # Taqrizchi tayinlanishi bilan maqola "Ko'rib chiqilmoqda" (QabulQilingan) holatiga o'tadi
+        article = review.article
+        if article.status in ('Yangi', 'WithEditor'):
+            article.status = 'QabulQilingan'
+            article._status_note = 'Maqola taqrizga yuborildi.'
+            article.save(update_fields=['status'])
+
         # Notify reviewer if assigned by admin
         if review.reviewer != self.request.user:
             try:

@@ -10,12 +10,14 @@ import CommandPalette from './CommandPalette';
 import { PageSkeleton } from './ui/Skeleton';
 import InstallAppBanner from './InstallAppBanner';
 import { X } from 'lucide-react';
+import { useT } from '../i18n/LanguageContext';
 
 /**
  * "Milliy zamonaviy" layout: tepada lojuvard panel (asosiy menyu), kontent markazda (1200px).
  * Kichik ekranlarda to'liq menyu chap tomondan ochiladi (Sidebar) + pastki menyu.
  */
 const Layout: React.FC = () => {
+  const { t } = useT();
   const [mainRightInset, setMainRightInset] = useState(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const location = useLocation();
@@ -31,11 +33,11 @@ const Layout: React.FC = () => {
         <Header onMenuClick={() => setMobileNavOpen(true)} />
 
         {mobileNavOpen && (
-          <div className="lg:hidden fixed inset-0 z-[80] flex" role="dialog" aria-modal="true" aria-label="Menyu">
+          <div className="lg:hidden fixed inset-0 z-[80] flex" role="dialog" aria-modal="true" aria-label={t('Menyu')}>
             <button
               type="button"
               className="absolute inset-0 bg-black/40"
-              aria-label="Menyuni yopish"
+              aria-label={t('Menyuni yopish')}
               onClick={() => setMobileNavOpen(false)}
             />
             <div className="relative h-full shadow-xl">
@@ -44,7 +46,7 @@ const Layout: React.FC = () => {
                 type="button"
                 onClick={() => setMobileNavOpen(false)}
                 className="absolute top-3 right-3 w-11 h-11 flex items-center justify-center rounded-[10px] bg-[var(--milliy-surface)] text-[var(--editorial-muted)] border border-[var(--editorial-border)]"
-                aria-label="Yopish"
+                aria-label={t('Yopish')}
               >
                 <X className="w-5 h-5" />
               </button>

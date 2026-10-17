@@ -102,7 +102,8 @@ def reviewer_queue(reviewer=None) -> list[WorkItem]:
 
     items: list[WorkItem] = []
 
-    articles = list(
+    # Taqrizchi uchun umumiy navbat yo'q — unga faqat tayinlangan taqrizlar (pastda peer_review) chiqadi
+    articles = [] if reviewer is not None else list(
         Article.objects.filter(status='QabulQilingan')
         .exclude(_standalone_exclusion())
         .exclude(title__istartswith='[KITOB]')
@@ -125,7 +126,14 @@ def reviewer_queue(reviewer=None) -> list[WorkItem]:
         items.append(WorkItem('udk', str(r.id), r.title or "UDK so'rovi", '/udk-requests', start,
                               start + timedelta(days=sla_days('udk'))))
 
-    for t in TranslationRequest.objects.filter(status__in=('Yangi', 'Jarayonda')):
+    tr_qs = TranslationRequest.objects.filter(status__in=('Yangi', 'Jarayonda'))
+    if reviewer is not None:
+        from django.db.models import Q
+
+        tr_qs = tr_qs.filter(
+            Q(cost__lte=0) | Q(transactions__service_type='translation', transactions__status='completed')
+        ).distinct()
+    for t in tr_qs:
         start = t.submission_date
         items.append(WorkItem('translation', str(t.id), t.title, f'/translations/{t.id}', start,
                               start + timedelta(days=sla_days('translation')),

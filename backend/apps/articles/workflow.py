@@ -61,7 +61,14 @@ def allowed_staff_transitions(article, *, super_admin: bool) -> frozenset[str]:
     allowed = ARTICLE_TRANSITIONS.get(current, frozenset())
     if super_admin:
         allowed = allowed | SUPER_ADMIN_EXTRA.get(current, frozenset())
+    elif 'Accepted' in allowed and not has_completed_review(article):
+        # Jurnal muharriri maqolani taqrizsiz qabul qilmaydi (bosh admin istisno)
+        allowed = allowed - {'Accepted'}
     return allowed
+
+
+def has_completed_review(article) -> bool:
+    return article.peer_reviews.filter(status='completed').exists()
 
 
 def allowed_transitions_for(user, article) -> list[str]:

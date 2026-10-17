@@ -663,7 +663,7 @@ const AuthorPublications: React.FC = () => {
               <div className="space-y-1 text-sm text-gray-600">
                 <div><strong>{t('Ilmiy soha:')}</strong> {publication.scientific_field_name}</div>
                 <div><strong>{t('Sana:')}</strong> {new Date(publication.publication_date).toLocaleDateString('uz-UZ')}</div>
-                {publication.doi && <div><strong>DOI:</strong> {publication.doi}</div>}
+                {publication.doi && <div><strong>{t('DOI:')}</strong> {publication.doi}</div>}
                 {publication.pages && <div><strong>{t('Sahifalar:')}</strong> {publication.pages}</div>}
                 {publication.co_authors && (
                   <div><strong>{t('Hammualliflar:')}</strong> {publication.co_authors}</div>

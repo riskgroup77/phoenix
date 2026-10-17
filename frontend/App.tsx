@@ -17,9 +17,6 @@ import { homePathFor } from './utils/authorUi';
 import Landing from './pages/Landing';
 import Login from './pages/LoginSimple';
 
-/** Maqola / kitob yuborishi mumkin bo'lgan rollar (backend ArticleViewSet.create bilan bir xil) */
-const SUBMITTER_ROLES = [Role.Author, Role.Reviewer, Role.SuperAdmin];
-
 const Dashboard = lazyPage(() => import('./pages/Dashboard'));
 const Articles = lazyPage(() => import('./pages/Articles'));
 const SubmitArticle = lazyPage(() => import('./pages/SubmitArticle'));
@@ -108,6 +105,11 @@ const HomeRoute: React.FC = () => {
     return <Landing />;
 };
 
+/** Muallif xizmatlari (maqola yuborish, to'lovlar, buyurtmalar) — faqat muallif va bosh admin uchun */
+const AUTHOR_SERVICE_ROLES: Role[] = [Role.Author, Role.SuperAdmin];
+/** Maqolalar — buxgalterga yopiq (u faqat moliya bilan ishlaydi) */
+const NON_ACCOUNTANT_ROLES = Object.values(Role).filter((r) => r !== Role.Accountant) as Role[];
+
 const AppContent: React.FC = () => {
     return (
         <Suspense
@@ -145,18 +147,17 @@ const AppContent: React.FC = () => {
                     </ProtectedRoute>
                 }>
                     <Route path="dashboard" element={<Dashboard />} />
-                    <Route path="payments" element={<Payments />} />
+                    <Route path="payments" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><Payments /></RoleRoute>} />
                     <Route path="analytics" element={<RoleRoute allowedRoles={[Role.SuperAdmin, Role.Accountant, Role.JournalAdmin]}><Analytics /></RoleRoute>} />
                     <Route path="operator-dashboard" element={<RoleRoute allowedRoles={[Role.Operator]}><OperatorDashboard /></RoleRoute>} />
-                    <Route path="articles" element={<Articles />} />
-                    <Route path="articles/:id" element={<ArticleDetail />} />
+                    <Route path="articles" element={<RoleRoute allowedRoles={NON_ACCOUNTANT_ROLES}><Articles /></RoleRoute>} />
+                    <Route path="articles/:id" element={<RoleRoute allowedRoles={NON_ACCOUNTANT_ROLES}><ArticleDetail /></RoleRoute>} />
                     <Route path="translations/:id" element={<TranslationDetail />} />
                     <Route path="published-articles" element={<RoleRoute allowedRoles={[Role.JournalAdmin, Role.SuperAdmin]}><PublishedArticles /></RoleRoute>} />
-                    <Route path="my-collections" element={<MyCollections />} />
-                    <Route path="my-translations" element={<MyTranslations />} />
-                    {/* Maqola / kitob yuborish — muallif, taqrizchi (olim) va bosh admin; xizmat hisoblari (muharrir, operator, moliyachi) emas */}
-                    <Route path="submit" element={<RoleRoute allowedRoles={SUBMITTER_ROLES}><SubmitArticle /></RoleRoute>} />
-                    <Route path="submit-book" element={<RoleRoute allowedRoles={SUBMITTER_ROLES}><SubmitBook /></RoleRoute>} />
+                    <Route path="my-collections" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><MyCollections /></RoleRoute>} />
+                    <Route path="my-translations" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><MyTranslations /></RoleRoute>} />
+                    <Route path="submit" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><SubmitArticle /></RoleRoute>} />
+                    <Route path="submit-book" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><SubmitBook /></RoleRoute>} />
                     <Route path="users" element={<RoleRoute allowedRoles={[Role.SuperAdmin]}><UserManagement /></RoleRoute>} />
                     <Route path="journal-management" element={<RoleRoute allowedRoles={[Role.SuperAdmin]}><JournalManagement /></RoleRoute>} />
                     <Route path="journal-admin-panel" element={<RoleRoute allowedRoles={[Role.JournalAdmin]}><JournalAdminPanel /></RoleRoute>} />
@@ -164,18 +165,18 @@ const AppContent: React.FC = () => {
                     <Route path="prices" element={<RoleRoute allowedRoles={[Role.SuperAdmin]}><Prices /></RoleRoute>} />
                     <Route path="price-management" element={<RoleRoute allowedRoles={[Role.SuperAdmin]}><PriceManagement /></RoleRoute>} />
                     <Route path="udk-requests" element={<RoleRoute allowedRoles={[Role.SuperAdmin, Role.Reviewer, Role.Operator]}><UdkRequests /></RoleRoute>} />
-                    <Route path="udk-olish" element={<UdkOlish />} />
-                    <Route path="services" element={<Services />} />
+                    <Route path="udk-olish" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><UdkOlish /></RoleRoute>} />
+                    <Route path="services" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><Services /></RoleRoute>} />
                     <Route path="browse" element={<BrowseByCategory />} />
-                    <Route path="maqola-namuna-olish" element={<MaqolaNamunaOlish />} />
-                    <Route path="doi-olish" element={<DoiOlish />} />
-                    <Route path="doi-requests" element={<DoiRequests />} />
-                    <Route path="article-sample-requests" element={<ArticleSampleRequests />} />
-                    <Route path="translation-service" element={<TranslationService />} />
-                    <Route path="plagiarism-check" element={<PlagiarismCheck />} />
-                    <Route path="plagiarism-check/result/:articleId" element={<AntiplagiatResultPage />} />
+                    <Route path="maqola-namuna-olish" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><MaqolaNamunaOlish /></RoleRoute>} />
+                    <Route path="doi-olish" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><DoiOlish /></RoleRoute>} />
+                    <Route path="doi-requests" element={<RoleRoute allowedRoles={[Role.SuperAdmin, Role.Reviewer, Role.Operator]}><DoiRequests /></RoleRoute>} />
+                    <Route path="article-sample-requests" element={<RoleRoute allowedRoles={[Role.SuperAdmin, Role.Reviewer, Role.Operator]}><ArticleSampleRequests /></RoleRoute>} />
+                    <Route path="translation-service" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><TranslationService /></RoleRoute>} />
+                    <Route path="plagiarism-check" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><PlagiarismCheck /></RoleRoute>} />
+                    <Route path="plagiarism-check/result/:articleId" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><AntiplagiatResultPage /></RoleRoute>} />
                     <Route path="profile" element={<Profile />} />
-                    <Route path="arxiv" element={<ArxivHujjatlar />} />
+                    <Route path="arxiv" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><ArxivHujjatlar /></RoleRoute>} />
                     <Route path="financials" element={<RoleRoute allowedRoles={[Role.SuperAdmin, Role.Accountant]}><Financials /></RoleRoute>} />
                     <Route path="all-requests" element={<RoleRoute allowedRoles={[Role.Operator]}><AllRequests /></RoleRoute>} />
                     {showPaymentTestTools && (

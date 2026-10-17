@@ -52,6 +52,8 @@ class PlagiarismThresholdTests(QaBase):
         self.journal.save()
         self.article.final_pdf_path = _docx(words=200)
         self.article.save()
+        # Muharrir faqat yakunlangan taqrizdan keyin qabul qiladi (test_reviewer_scope.AcceptRequiresReviewTests)
+        PeerReview.objects.create(article=self.article, reviewer=self.reviewer, status='completed', recommendation='accept')
 
     def test_unchecked_article_starts_editorial_check_instead_of_super_admin_review(self):
         with mock.patch('apps.articles.views_publication.start_plagiarism_check') as start:

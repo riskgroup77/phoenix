@@ -18,7 +18,7 @@ import BrandMark from '../components/BrandMark';
 const STARTERS = [
   'Maqolamni jurnalga yuborish',
   "Antiplagiatdan o'tkazish",
-  'Maqolalarim qayerda?',
+  'Ishlarim qayerda?',
   'UDK olish',
   'Kitob nashr etish',
   'Narxlar',
@@ -228,9 +228,9 @@ const AiWorkspace: React.FC = () => {
           <span className="hidden md:inline">{t('Boshqaruv paneli')}</span>
         </button>
         <span className="mx-1 hidden h-6 w-px bg-white/20 sm:block" aria-hidden />
-        <Link to="/ai" className="flex items-center gap-2 font-extrabold" aria-label="Phoenix AI">
+        <Link to="/ai" className="flex items-center gap-2 font-extrabold" aria-label={t('Phoenix AI')}>
           <BrandMark className="!h-8 !w-8" />
-          <span className="hidden sm:inline">Phoenix</span>
+          <span className="hidden sm:inline">{t('Phoenix')}</span>
         </Link>
         <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold" title={t('AI yordamchi')}>
           <Sparkles className="h-3.5 w-3.5" aria-hidden /> <span className="hidden sm:inline">{t('AI yordamchi')}</span>

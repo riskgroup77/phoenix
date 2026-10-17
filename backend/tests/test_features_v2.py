@@ -269,10 +269,17 @@ class WorkloadTests(Base):
         )
 
     def test_reviewer_sees_overdue(self):
+        # Taqrizchi umumiy navbatni emas, faqat o'ziga tayinlangan taqrizlarni ko'radi
+        from apps.reviews.models import PeerReview
+
+        PeerReview.objects.create(
+            article=self.article, reviewer=self.reviewer, status='in_progress',
+            deadline=timezone.now() - timedelta(days=1),
+        )
         res = self.api(self.reviewer).get('/api/v1/analytics/workload/')
         self.assertEqual(res.status_code, 200)
         item = res.json()['items'][0]
-        self.assertEqual(item['kind'], 'article')
+        self.assertEqual(item['kind'], 'peer_review')
         self.assertTrue(item['overdue'])
         self.assertEqual(res.json()['counts']['overdue'], 1)
         self.assertNotIn('reviewers', res.json())

@@ -420,6 +420,8 @@ export const apiService = {
 
   // Users
   users: {
+    /** Barcha foydalanuvchilar (barcha sahifalar). */
+    listAll: (): Promise<any[]> => fetchAllPages('/auth/'),
     /** @param params masalan { role: 'journal_admin' } — DRF sahifalashda barcha jurnal adminlarni olish uchun */
     list: (params?: Record<string, string>) =>
       fetchAllPages(params && Object.keys(params).length ? `/auth/?${new URLSearchParams(params)}` : '/auth/'),
@@ -697,6 +699,29 @@ export const apiService = {
       apiFetch(`/articles/${id}/`, {
         method: 'DELETE',
       }),
+
+    /** Qoralamani qisman tahrirlash; yangi fayl berilsa alohida multipart so'rov bilan yuklanadi. */
+    patchDraft: async (id: string, data: { title?: string; abstract?: string; keywords?: string[] }, mainFile?: File | null) => {
+      let result: any = await apiFetch(`/articles/${id}/`, { method: 'PATCH', body: JSON.stringify(data) });
+      if (!mainFile) return result;
+      const formData = new FormData();
+      formData.append('final_pdf_path', mainFile);
+      const token = getToken();
+      const headers: HeadersInit = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const response = await fetch(`${API_BASE_URL}/articles/${id}/`, {
+        method: 'PATCH',
+        headers,
+        body: formData,
+        credentials: 'include',
+      });
+      const text = await response.text();
+      try { result = text ? JSON.parse(text) : result; } catch { result = { detail: text }; }
+      if (!response.ok) {
+        throw new Error(result?.detail || result?.message || `API request failed with status ${response.status}`);
+      }
+      return result;
+    },
 
     incrementViews: (id: string) =>
       apiFetch(`/articles/${id}/increment_views/`, {
@@ -1004,7 +1029,7 @@ export const apiService = {
     /** Faqat joriy foydalanuvchining to'lovlari (To'lovlarim) — xodim rolida ham */
     listMyTransactions: () => fetchAllPages('/payments/transactions/?mine=1'),
 
-    getTransactions: () => apiFetch('/payments/transactions/'),
+    getTransactions: () => fetchAllPages('/payments/transactions/'),
 
     getTransaction: (id: string) => apiFetch(`/payments/transactions/${id}/`),
     /** Muallif: rad etilgan maqolaning nashr to'lovini qaytarishni so'rash */

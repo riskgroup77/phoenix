@@ -5,6 +5,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { CreditCard, Loader, CheckCircle, XCircle, QrCode } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { paymentService } from '../services/paymentService';
 import { toast } from 'react-toastify';
 import { shouldAutoOpenClickPayment } from '../utils/device';
 import { useT } from '../i18n/LanguageContext';
@@ -236,11 +237,7 @@ const ClickPayment: React.FC = () => {
 
     const handlePayment = () => {
         if (!paymentUrl) return;
-        if (isMobilePaymentUi) {
-            window.location.assign(paymentUrl);
-        } else {
-            window.open(paymentUrl, '_blank', 'noopener,noreferrer');
-        }
+        paymentService.openPaymentUrl(paymentUrl);
     };
 
     const serviceLabel =
@@ -345,7 +342,7 @@ const ClickPayment: React.FC = () => {
                                         {t("Arxiv hujjatlarga o'tish")}
                                     </Button>
                                     <Button onClick={() => navigate('/articles?tab=journal')} variant="secondary" className="w-full">
-                                        {t("Maqolalarimga o'tish")}
+                                        {t("Ishlarimga o'tish")}
                                     </Button>
                                 </>
                             )}

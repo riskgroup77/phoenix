@@ -618,11 +618,7 @@ const PlagiarismCheck: React.FC = () => {
           if (result && result.success === true && result.transaction_id) {
               sessionStorage.setItem(STORAGE_KEY_TRANSACTION_ID, result.transaction_id);
               sessionStorage.setItem(STORAGE_KEY_ARTICLE_ID, linkedArticleId);
-              if (result.payment_url) {
-                  paymentService.redirectToPayment(result.payment_url);
-                  return;
-              }
-              paymentService.redirectToPaymentPage(result.transaction_id);
+              await paymentService.redirectToPaymentPage(result.transaction_id, result.payment_url);
               return;
           } else {
               // Payment preparation failed
@@ -662,7 +658,9 @@ const PlagiarismCheck: React.FC = () => {
       // Narx 0 bo'lsa to'lovsiz tekshirish; aks holda to'lov talab qilinadi
       const requiresPayment = PLAGIARISM_CHECK_PRICE > 0;
       if (requiresPayment && !paymentCompleted && !paymentVerifiedCompleted) {
+          // Tasdiqlash oynasisiz to'g'ridan-to'g'ri Click to'loviga o'tiladi
           setIsPaymentModalOpen(true);
+          void handlePay();
           return;
       }
       

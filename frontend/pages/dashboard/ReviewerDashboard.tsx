@@ -6,6 +6,7 @@ import { DashboardHero, DueChip, SectionHead, StatRow, StatTile, TodoCard, greet
 import EmptyState from '../../components/EmptyState';
 import { ListSkeleton } from '../../components/ui/Skeleton';
 import { apiService } from '../../services/apiService';
+import { useAuth } from '../../contexts/AuthContext';
 import { useT } from '../../i18n/LanguageContext';
 import { formatUzDate } from '../../utils/uzDate';
 
@@ -52,6 +53,7 @@ const ReviewerDashboard: React.FC<Props> = ({
   onDoiUpdated,
 }) => {
   const { t } = useT();
+  const { user } = useAuth();
   const [workload, setWorkload] = useState<{ items: WorkItem[]; counts: { total: number; overdue: number; due_soon: number }; processing: any } | null>(null);
   const [loadingWl, setLoadingWl] = useState(true);
   const [doiLinks, setDoiLinks] = useState<Record<string, string>>({});
@@ -76,7 +78,12 @@ const ReviewerDashboard: React.FC<Props> = ({
   );
   const doiOpen = doiRequests.filter((r) => r.status === 'submitted');
   const udkOpen = udkRequests.filter((r) => r.status === 'submitted');
-  const trOpen = translationRequests.filter((x) => x.status === 'Yangi' || x.status === 'Jarayonda');
+  // «Tarjimalar» ro'yxati bilan bir xil: yangi + o'zi olgan (yoki hech kim olmagan) jarayondagilar
+  const trOpen = translationRequests.filter(
+    (x) =>
+      x.status === 'Yangi' ||
+      (x.status === 'Jarayonda' && (!x.reviewer || String(x.reviewer) === String(user?.id))),
+  );
   const sampleOpen = articleSampleRequests.filter((r) => r.status === 'submitted' || r.status === 'in_progress');
   const counts = workload?.counts;
   const items = workload?.items || [];

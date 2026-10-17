@@ -393,7 +393,8 @@ class Command(BaseCommand):
 
         text = f'{art.title}\n{art.abstract}'
         res = get_antiplagiat_engine().check_text(
-            text, enabled_modules=['shablon_iboralar', 'iqtibos_keltirish'],
+            text, enabled_modules=['shablon_iboralar', 'iqtibos_keltirish', 'semantic_paraphrase', 'ai_detection'],
+            exclude_article_id=art.pk, deep=False,
         )
         report = dict(res['report'])
         report.update({

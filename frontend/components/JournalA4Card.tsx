@@ -1,6 +1,7 @@
 import React from 'react';
 import { BookOpen, CheckCircle2 } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { useT, type TFunction } from '../i18n/LanguageContext';
 
 export type JournalCardData = {
   id: string;
@@ -30,7 +31,7 @@ function resolveImageUrl(url?: string | null): string | null {
   return url.startsWith('http') ? url : apiService.getMediaUrl(url);
 }
 
-function priceLabel(journal: JournalCardData): { main: string; sub: string } {
+function priceLabel(journal: JournalCardData, t: TFunction): { main: string; sub: string } {
   const isFixed =
     journal.pricing_type === 'fixed' ||
     (journal.publication_fee != null &&
@@ -38,17 +39,17 @@ function priceLabel(journal: JournalCardData): { main: string; sub: string } {
       !journal.price_per_page);
   if (isFixed) {
     return {
-      main: `${(journal.publication_fee ?? 0).toLocaleString('uz-UZ')} so'm`,
-      sub: "To'liq to'lov",
+      main: `${(journal.publication_fee ?? 0).toLocaleString('uz-UZ')} ${t("so'm")}`,
+      sub: t("To'liq to'lov"),
     };
   }
   if (journal.price_per_page != null && journal.price_per_page > 0) {
     return {
-      main: `${journal.price_per_page.toLocaleString('uz-UZ')} so'm / sahifa`,
-      sub: 'Sahifabop narx',
+      main: `${journal.price_per_page.toLocaleString('uz-UZ')} ${t("so'm / sahifa")}`,
+      sub: t('Sahifabop narx'),
     };
   }
-  return { main: 'Bepul', sub: "To'lov talab qilinmaydi" };
+  return { main: t('Bepul'), sub: t("To'lov talab qilinmaydi") };
 }
 
 const JournalA4Card: React.FC<Props> = ({
@@ -58,12 +59,13 @@ const JournalA4Card: React.FC<Props> = ({
   onSelect,
   selected,
 }) => {
+  const { t } = useT();
   const imgSrc = resolveImageUrl(journal.image_url);
-  const price = priceLabel(journal);
+  const price = priceLabel(journal, t);
   const paymentModel =
     (journal.payment_model || 'pre-payment') === 'pre-payment'
-      ? "Oldindan to'lov"
-      : "Keyin to'lov";
+      ? t("Oldindan to'lov")
+      : t("Keyin to'lov");
 
   return (
     <button
@@ -96,7 +98,7 @@ const JournalA4Card: React.FC<Props> = ({
             {journal.name}
           </h4>
           {selected && (
-            <CheckCircle2 className="w-5 h-5 text-[var(--editorial-primary)] shrink-0" aria-label="Tanlangan" />
+            <CheckCircle2 className="w-5 h-5 text-[var(--editorial-primary)] shrink-0" aria-label={t('Tanlangan')} />
           )}
         </div>
         {journal.description && (
@@ -119,7 +121,7 @@ const JournalA4Card: React.FC<Props> = ({
             <p className="text-xs text-slate-500">{price.sub}</p>
           </div>
           <span className="text-xs font-medium text-[var(--editorial-teal)] opacity-0 group-hover:opacity-100 transition-opacity">
-            Tanlash →
+            {t('Tanlash →')}
           </span>
         </div>
       </div>

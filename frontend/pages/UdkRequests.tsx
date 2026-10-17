@@ -235,7 +235,7 @@ const UdkRequests: React.FC = () => {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium text-slate-900">{req.author_short}</p>
                       <span className={`text-xs px-2 py-0.5 rounded ${getStatusColor(req.status)} bg-slate-100/70`}>
-                        {getStatusLabel(req.status)}
+                        {t(getStatusLabel(req.status))}
                       </span>
                     </div>
                     <p className="text-sm text-[var(--editorial-primary)] mt-1">{req.title}</p>

@@ -19,6 +19,7 @@ import { useMediaMinWidth } from '../hooks/useMediaMinWidth';
 import ArticleTimeline, { type TimelineEntry } from '../components/ArticleTimeline';
 import PublicationIndexingPanel from '../components/PublicationIndexingPanel';
 import ArticleReviewsPanel from '../components/ArticleReviewsPanel';
+import DraftArticleActions from '../components/DraftArticleActions';
 import AntiplagiatHighlightView from '../components/AntiplagiatHighlightView';
 import { buildAntiplagiatViewFromArticle } from '../utils/antiplagiatFromArticle';
 import { useT } from '../i18n/LanguageContext';
@@ -60,6 +61,8 @@ interface ArticleApiResponse {
     publication_payment?: PublicationPayment | null;
     /** Muallif: qoralama nashr to'lovini kutyapti */
     needs_publication_payment?: boolean;
+    /** Kamida bitta yakunlangan taqriz bor (muharrir "Qabul qilish" uchun) */
+    has_completed_review?: boolean;
 }
 
 type PublicationPayment = {
@@ -345,7 +348,7 @@ const ArticleDetail: React.FC = () => {
         try {
             if (resubmitFile) await apiService.articles.replaceFile(id, resubmitFile);
             await apiService.articles.updateStatus(id, ArticleStatus.Yangi);
-            toast.success('Maqola qayta yuborildi. Tahririyatga bildirishnoma yuborildi.');
+            toast.success(t('Maqola qayta yuborildi. Tahririyatga bildirishnoma yuborildi.'));
             setResubmitFile(null);
             const articleResponse = await apiService.articles.get(id);
             const articleData = articleResponse.data || articleResponse;
@@ -379,12 +382,12 @@ const ArticleDetail: React.FC = () => {
 
     const handleCompletePublication = async () => {
         if (!id || !publicationCertificateFile) {
-            toast.error('Sertifikat faylini (PDF yoki JPG) tanlang.');
+            toast.error(t('Sertifikat faylini (PDF yoki JPG) tanlang.'));
             return;
         }
         const allowed = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
         if (!allowed.includes(publicationCertificateFile.type)) {
-            toast.error('Sertifikat faqat PDF yoki JPG (PNG) formatida bo\'lishi kerak.');
+            toast.error(t('Sertifikat faqat PDF yoki JPG (PNG) formatida bo\'lishi kerak.'));
             return;
         }
         setCompletePublicationLoading(true);
@@ -394,7 +397,7 @@ const ArticleDetail: React.FC = () => {
             if (publicationIssueId) formData.append('issue_id', publicationIssueId);
             if (publicationUrl.trim()) formData.append('publication_url', publicationUrl.trim());
             await apiService.articles.completePublication(id, formData);
-            toast.success('Nashr qilindi. Muallifga bildirishnoma yuborildi.');
+            toast.success(t('Nashr qilindi. Muallifga bildirishnoma yuborildi.'));
             setPublicationCertificateFile(null);
             setPublicationUrl('');
             setPublicationIssueId('');
@@ -415,7 +418,7 @@ const ArticleDetail: React.FC = () => {
 
     const handleDownload = () => {
         if (!fileUrl) {
-            toast.info('Maqola fayli hali mavjud emas.');
+            toast.info(t('Maqola fayli hali mavjud emas.'));
             return;
         }
         const link = document.createElement('a');
@@ -435,7 +438,7 @@ const ArticleDetail: React.FC = () => {
 
     const handleView = () => {
         if (!fileUrl) {
-            toast.info('Maqola fayli hali mavjud emas.');
+            toast.info(t('Maqola fayli hali mavjud emas.'));
             return;
         }
         window.open(fileUrl, '_blank', 'noopener,noreferrer');
@@ -463,18 +466,18 @@ const ArticleDetail: React.FC = () => {
 
     if (error) {
         return (
-            <Card title="Xatolik">
+            <Card title={t('Xatolik')}>
                 <p className="text-red-700">{error}</p>
-                <Button onClick={() => window.location.reload()} className="mt-4">Qayta urinish</Button>
+                <Button onClick={() => window.location.reload()} className="mt-4">{t('Qayta urinish')}</Button>
             </Card>
         );
     }
 
     if (!article) {
         return (
-            <Card title="Maqola topilmadi">
-                <p>Ko'rsatilgan ID bo'yicha maqola topilmadi.</p>
-                <Button onClick={() => navigate('/articles')} className="mt-4">Orqaga qaytish</Button>
+            <Card title={t('Maqola topilmadi')}>
+                <p>{t('Ko\'rsatilgan ID bo\'yicha maqola topilmadi.')}</p>
+                <Button onClick={() => navigate('/articles')} className="mt-4">{t('Orqaga qaytish')}</Button>
             </Card>
         );
     }
@@ -530,7 +533,7 @@ const ArticleDetail: React.FC = () => {
     return (
         <div className="space-y-6">
             <Link to="/articles" className="text-[var(--editorial-primary)] hover:opacity-80 flex items-center gap-2 mb-2 text-sm font-medium">
-                <span>←</span> Maqolalar ro'yxati
+                <span>←</span> {t('Maqolalar ro\'yxati')}
             </Link>
             <EditorialPageHeader
                 title={article.title}
@@ -543,7 +546,7 @@ const ArticleDetail: React.FC = () => {
                         {article.fast_track && (
                             <span className="px-3 py-1 rounded-full text-sm font-medium bg-yellow-500/20 text-yellow-900 flex items-center gap-2">
                                 <Award size={16} />
-                                Tezkor
+                                {t('Tezkor')}
                             </span>
                         )}
                     </div>
@@ -603,7 +606,7 @@ const ArticleDetail: React.FC = () => {
 
                     {/* Plagiarism Report — faqat jurnal admin / super admin uchun (muallifda ko'rinmasin) */}
                     {showPlagiarismForAdmin && (
-                        <Card title="Antiplagiat & AI Detektor">
+                        <Card title={t('Antiplagiat & AI Detektor')}>
                             <PlagiarismReport
                                 plagiarismPercentage={article.plagiarism_percentage ?? 0}
                                 aiContentPercentage={article.ai_content_percentage ?? 0}
@@ -629,39 +632,48 @@ const ArticleDetail: React.FC = () => {
                         );
                     })()}
 
+
+                    {article.status === ArticleStatus.Draft && user && String(article.author) === String(user.id) && (
+                        <DraftArticleActions
+                            article={article}
+                            onSaved={(updated) => setArticle((prev) => (prev ? { ...prev, ...updated } : prev))}
+                            onDeleted={() => navigate('/articles')}
+                        />
+                    )}
+
                     {/* Basic info */}
-                    <Card title="Asosiy ma'lumotlar">
+                    <Card title={t('Asosiy ma\'lumotlar')}>
                         <div className="space-y-4">
                             <div>
-                                <h3 className="text-sm font-medium text-slate-500 mb-1">Muallif(lar)</h3>
+                                <h3 className="text-sm font-medium text-slate-500 mb-1">{t('Muallif(lar)')}</h3>
                                 <p className="text-slate-900">{article.author_name || 'Noma\'lum'}</p>
                             </div>
                             <div>
-                                <h3 className="text-sm font-medium text-slate-500 mb-1">Annotatsiya</h3>
+                                <h3 className="text-sm font-medium text-slate-500 mb-1">{t('Annotatsiya')}</h3>
                                 <p className="text-slate-600 leading-relaxed">{article.abstract || 'Annotatsiya mavjud emas'}</p>
                             </div>
                             <div>
-                                <h3 className="text-sm font-medium text-slate-500 mb-1">Kalit so'zlar</h3>
+                                <h3 className="text-sm font-medium text-slate-500 mb-1">{t('Kalit so\'zlar')}</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {article.keywords?.map((keyword: string, index: number) => (
                                         <span key={index} className="px-3 py-1 bg-blue-500/20 text-blue-900 rounded-full text-sm">
                                             {keyword}
                                         </span>
-                                    )) || <span className="text-slate-500">Kalit so'zlar mavjud emas</span>}
+                                    )) || <span className="text-slate-500">{t('Kalit so\'zlar mavjud emas')}</span>}
                                 </div>
                             </div>
                         </div>
                     </Card>
 
                     {/* Files with PDF preview */}
-                    <Card title="Fayllar">
+                    <Card title={t('Fayllar')}>
                         <div className="space-y-4">
                             <div className="flex flex-col sm:flex-row gap-3">
                                 <Button onClick={handleDownload} variant="secondary" className="flex items-center justify-center gap-2 flex-1">
-                                    <Download size={18} /> Yuklab olish
+                                    <Download size={18} /> {t('Yuklab olish')}
                                 </Button>
                                 <Button onClick={handleView} variant="secondary" className="flex items-center justify-center gap-2 flex-1">
-                                    <Eye size={18} /> Ko'rish
+                                    <Eye size={18} /> {t('Ko\'rish')}
                                 </Button>
                                 {fileUrl && (fileUrl.toLowerCase().endsWith('.pdf') || !fileUrl.includes('.')) && (
                                     <Button onClick={() => setShowPdfPreview(!showPdfPreview)} variant="secondary" className="flex items-center justify-center gap-2 flex-1">
@@ -672,7 +684,7 @@ const ArticleDetail: React.FC = () => {
                             {showPdfPreview && fileUrl && (
                                 <div className="rounded-xl overflow-hidden border border-slate-200/90 bg-white/55">
                                     <div className="flex items-center justify-between px-4 py-2 bg-slate-100/70 border-b border-slate-200/90">
-                                        <span className="text-sm text-slate-600 font-medium">PDF ko'rinishi</span>
+                                        <span className="text-sm text-slate-600 font-medium">{t('PDF ko\'rinishi')}</span>
                                         <button onClick={() => setShowPdfPreview(false)} className="text-slate-500 hover:text-slate-900 transition-colors">
                                             <X size={16} />
                                         </button>
@@ -681,7 +693,7 @@ const ArticleDetail: React.FC = () => {
                                         src={fileUrl}
                                         className="w-full border-0"
                                         style={{ height: '70vh', minHeight: '400px' }}
-                                        title="PDF Preview"
+                                        title={t('PDF Preview')}
                                     />
                                 </div>
                             )}
@@ -690,11 +702,11 @@ const ArticleDetail: React.FC = () => {
 
                     {/* Nashr havolasi va sertifikat — nashr etilganda barcha uchun (ayniqsa muallif) */}
                     {article.status === ArticleStatus.Published && (article.publication_link || article.certificate_download_link) && (
-                        <Card title="Nashr natijalari">
+                        <Card title={t('Nashr natijalari')}>
                             <div className="space-y-4">
                                 {article.publication_link && (
                                     <div>
-                                        <p className="text-sm text-slate-500 mb-1">Nashr etilgan maqola havolasi</p>
+                                        <p className="text-sm text-slate-500 mb-1">{t('Nashr etilgan maqola havolasi')}</p>
                                         <a
                                             href={article.publication_link}
                                             target="_blank"
@@ -708,7 +720,7 @@ const ArticleDetail: React.FC = () => {
                                 )}
                                 {article.certificate_download_link && (
                                     <div>
-                                        <p className="text-sm text-slate-500 mb-1">Nashr sertifikati</p>
+                                        <p className="text-sm text-slate-500 mb-1">{t('Nashr sertifikati')}</p>
                                         <a
                                             href={article.certificate_download_link}
                                             target="_blank"
@@ -716,7 +728,7 @@ const ArticleDetail: React.FC = () => {
                                             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium"
                                         >
                                             <Download size={16} />
-                                            Sertifikatni yuklab olish
+                                            {t('Sertifikatni yuklab olish')}
                                         </a>
                                     </div>
                                 )}
@@ -739,7 +751,7 @@ const ArticleDetail: React.FC = () => {
                         const revisionLog = findStatusReason(article.status_timeline, activityLogs, ArticleStatus.Revision);
                         const reason = revisionLog?.details?.trim();
                         return reason ? (
-                            <Card title="Tahrirga qaytarish sababi">
+                            <Card title={t('Tahrirga qaytarish sababi')}>
                                 <p className="text-slate-600 whitespace-pre-wrap">{reason}</p>
                                 {revisionLog?.timestamp && (
                                     <p className="text-xs text-slate-500 mt-2">
@@ -755,7 +767,7 @@ const ArticleDetail: React.FC = () => {
                         const rejectLog = findStatusReason(article.status_timeline, activityLogs, ArticleStatus.Rejected);
                         const reason = rejectLog?.details?.trim();
                         return reason ? (
-                            <Card title="Rad etish sababi">
+                            <Card title={t('Rad etish sababi')}>
                                 <p className="text-slate-600 whitespace-pre-wrap">{reason}</p>
                                 {rejectLog?.timestamp && (
                                     <p className="text-xs text-slate-500 mt-2">
@@ -777,7 +789,7 @@ const ArticleDetail: React.FC = () => {
                     {article.needs_publication_payment && <PublicationPayCard articleId={article.id} />}
 
                     {/* Activity log */}
-                    <Card title="Faoliyat jurnali">
+                    <Card title={t('Faoliyat jurnali')}>
                         <div className="space-y-4">
                             {activityLogs.length > 0 ? (
                                 activityLogs.map(log => (
@@ -798,7 +810,7 @@ const ArticleDetail: React.FC = () => {
                                     </div>
                                 ))
                             ) : (
-                                <p className="text-center text-slate-500 py-4">Faoliyat jurnali hali mavjud emas.</p>
+                                <p className="text-center text-slate-500 py-4">{t('Faoliyat jurnali hali mavjud emas.')}</p>
                             )}
                         </div>
                     </Card>
@@ -807,7 +819,7 @@ const ArticleDetail: React.FC = () => {
                 {/* Right sidebar - 1/3 width */}
                 <div className="space-y-6">
                     {/* Management actions */}
-                    <Card title="Boshqaruv">
+                    <Card title={t('Boshqaruv')}>
                         <div className="space-y-3">
                             {/* Qabul ma'lumotnomasi: faqat maqola qabul qilingandan keyin, muallif va tahririyatga. Avval har
                                 qanday holatda (qoralama, rad etilgan) va har qanday rolga (taqrizchi, moliyachi) chiqardi. */}
@@ -821,7 +833,7 @@ const ArticleDetail: React.FC = () => {
                             {user?.role === Role.Author && article.status === ArticleStatus.Revision && (
                                 <div className="space-y-2 rounded-lg border border-[var(--editorial-border)] p-3">
                                     <label className="block text-sm font-medium text-slate-700">
-                                        Tuzatilgan fayl (DOC/DOCX, ixtiyoriy)
+                                        {t('Tuzatilgan fayl (DOC/DOCX, ixtiyoriy)')}
                                         <input
                                             type="file"
                                             accept=".doc,.docx"
@@ -833,6 +845,13 @@ const ArticleDetail: React.FC = () => {
                                         <Edit size={18} /> {resubmitting ? 'Yuborilmoqda...' : 'Qayta yuborish'}
                                     </Button>
                                 </div>
+                            )}
+                            {/* Muharrir: taqriz yakunlanmaguncha "Qabul qilish" yo'q (backend workflow.py ham ruxsat bermaydi) */}
+                            {user?.role === Role.JournalAdmin && !article.has_completed_review && !isBookOrder
+                                && [ArticleStatus.Yangi, ArticleStatus.WithEditor, ArticleStatus.QabulQilingan, ArticleStatus.WritingInProgress].includes(article.status as ArticleStatus) && (
+                                <p className="m-0 text-xs text-[var(--editorial-muted)]">
+                                    {t('Qabul qilish taqriz yakunlangandan keyin ochiladi. Avval taqrizchi tayinlang.')}
+                                </p>
                             )}
                             {/* Qaror tugmalari faqat backend ruxsat bergan o'tishlar uchun (apps/articles/workflow.py):
                                 avval to'lanmagan qoralamani ham "Qabul qilish" mumkin edi (to'lov va antiplagiat chetlab o'tilardi) */}
@@ -879,18 +898,18 @@ const ArticleDetail: React.FC = () => {
                     </Card>
 
                     {/* Statistics */}
-                    <Card title="Statistika">
+                    <Card title={t('Statistika')}>
                         <div className="space-y-4">
                             <div className="flex justify-between">
-                                <span className="text-slate-500">Ko'rishlar</span>
+                                <span className="text-slate-500">{t('Ko\'rishlar')}</span>
                                 <span className="text-slate-900 font-medium">{article.views || 0}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-slate-500">Yuklab olishlar</span>
+                                <span className="text-slate-500">{t('Yuklab olishlar')}</span>
                                 <span className="text-slate-900 font-medium">{article.downloads || 0}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-slate-500">Yuborilgan sana</span>
+                                <span className="text-slate-500">{t('Yuborilgan sana')}</span>
                                 <span className="text-slate-900 font-medium">
                                     {article.submission_date ? formatUzDate(article.submission_date, true) : 'Noma\'lum'}
                                 </span>
@@ -900,23 +919,23 @@ const ArticleDetail: React.FC = () => {
 
                     {/* Jurnal admin / bosh admin: nashr etilganda yuklangan link va sertifikat — qaytib kirganda ham ko‘rinsin */}
                     {(user?.role === Role.JournalAdmin || user?.role === Role.SuperAdmin) && article.status === ArticleStatus.Published && (article.publication_link || article.certificate_download_link) && (
-                        <Card title="Nashr natijalari">
+                        <Card title={t('Nashr natijalari')}>
                             <div className="space-y-3">
                                 {article.publication_link && (
                                     <div>
-                                        <p className="text-xs text-slate-500 mb-1">Nashr havolasi</p>
+                                        <p className="text-xs text-slate-500 mb-1">{t('Nashr havolasi')}</p>
                                         <a href={article.publication_link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-blue-800 hover:text-blue-700 text-sm break-all">
                                             <ExternalLink size={14} />
-                                            Havolani ochish
+                                            {t('Havolani ochish')}
                                         </a>
                                     </div>
                                 )}
                                 {article.certificate_download_link && (
                                     <div>
-                                        <p className="text-xs text-slate-500 mb-1">Sertifikat</p>
+                                        <p className="text-xs text-slate-500 mb-1">{t('Sertifikat')}</p>
                                         <a href={article.certificate_download_link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm">
                                             <Download size={14} />
-                                            Yuklab olish
+                                            {t('Yuklab olish')}
                                         </a>
                                     </div>
                                 )}
@@ -928,17 +947,17 @@ const ArticleDetail: React.FC = () => {
                     {(user?.role === Role.JournalAdmin || user?.role === Role.SuperAdmin) && (article.status === ArticleStatus.Accepted || article.status === ArticleStatus.NashrgaYuborilgan) && (
                         <Card title="Nashr qilish">
                             <p className="text-sm text-slate-500 mb-4">
-                                Sertifikat faylini yuklang va muallifga tayyor deb yuboring. Muallifga bildirishnoma keladi.
+                                {t('Sertifikat faylini yuklang va muallifga tayyor deb yuboring. Muallifga bildirishnoma keladi.')}
                             </p>
                             {journalIssues.length > 0 && (
                                 <div className="mb-4">
-                                    <label className="block text-sm text-slate-500 mb-1">Jurnal soni (ixtiyoriy)</label>
+                                    <label className="block text-sm text-slate-500 mb-1">{t('Jurnal soni (ixtiyoriy)')}</label>
                                     <select
                                         value={publicationIssueId}
                                         onChange={(e) => setPublicationIssueId(e.target.value)}
                                         className="w-full rounded-lg bg-white/50 border border-slate-200 text-slate-900 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                                     >
-                                        <option value="">— Tanlamang —</option>
+                                        <option value="">{t('— Tanlamang —')}</option>
                                         {journalIssues.map((iss) => (
                                             <option key={iss.id} value={iss.id}>{iss.issue_number}</option>
                                         ))}
@@ -946,7 +965,7 @@ const ArticleDetail: React.FC = () => {
                                 </div>
                             )}
                             <div className="mb-4">
-                                <label className="block text-sm text-slate-500 mb-1">Nashr etilgan maqola linki (ixtiyoriy)</label>
+                                <label className="block text-sm text-slate-500 mb-1">{t('Nashr etilgan maqola linki (ixtiyoriy)')}</label>
                                 <input
                                     type="url"
                                     value={publicationUrl}
@@ -956,7 +975,7 @@ const ArticleDetail: React.FC = () => {
                                 />
                             </div>
                             <div className="mb-4">
-                                <label className="block text-sm text-slate-500 mb-1">Sertifikat fayli (PDF yoki JPG) *</label>
+                                <label className="block text-sm text-slate-500 mb-1">{t('Sertifikat fayli (PDF yoki JPG) *')}</label>
                                 <input
                                     type="file"
                                     accept=".pdf,.jpg,.jpeg,.png"
@@ -974,7 +993,7 @@ const ArticleDetail: React.FC = () => {
                                 className="w-full flex items-center justify-center gap-2"
                             >
                                 <Send size={18} />
-                                {completePublicationLoading ? 'Yuborilmoqda...' : 'Muallifga tayyor deb yuborish'}
+                                {completePublicationLoading ? t('Yuborilmoqda...') : t('Muallifga tayyor deb yuborish')}
                             </Button>
                         </Card>
                     )}
@@ -997,14 +1016,14 @@ const ArticleDetail: React.FC = () => {
                 <div className="fixed inset-0 bg-slate-900/35 backdrop-blur-sm z-50 flex justify-center items-center p-4">
                     <div className="w-full max-w-lg bg-white/50 border border-slate-200 rounded-xl shadow-2xl">
                         <div className="p-4 border-b border-slate-200">
-                            <h3 className="text-lg font-semibold text-slate-900">Tahrirga qaytarish</h3>
-                            <p className="text-sm text-slate-500 mt-1">Nega tahrirga qaytarilgani haqida izoh yozing. Bu matn muallifga bildirishnoma orqali yuboriladi.</p>
+                            <h3 className="text-lg font-semibold text-slate-900">{t('Tahrirga qaytarish')}</h3>
+                            <p className="text-sm text-slate-500 mt-1">{t('Nega tahrirga qaytarilgani haqida izoh yozing. Bu matn muallifga bildirishnoma orqali yuboriladi.')}</p>
                         </div>
                         <div className="p-4">
                             <textarea
                                 value={revisionReason}
                                 onChange={(e) => setRevisionReason(e.target.value)}
-                                placeholder="Masalan: Annotatsiya qisqartirilishi, adabiyotlar ro'yxati to'ldirilishi kerak..."
+                                placeholder={t('Masalan: Annotatsiya qisqartirilishi, adabiyotlar ro\'yxati to\'ldirilishi kerak...')}
                                 rows={4}
                                 className="w-full rounded-lg bg-white/55 border border-slate-200 text-slate-900 placeholder-slate-400 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                             />
@@ -1014,10 +1033,10 @@ const ArticleDetail: React.FC = () => {
                         </div>
                         <div className="p-4 border-t border-slate-200 flex gap-3 justify-end">
                             <Button onClick={() => { setShowRevisionModal(false); setRevisionReason(''); }} variant="secondary">
-                                Bekor qilish
+                                {t('Bekor qilish')}
                             </Button>
                             <Button onClick={handleRevisionSubmit} variant="primary" disabled={revisionReason.trim().length < REASON_MIN_LENGTH || reasonSubmitting}>
-                                Yuborish
+                                {t('Yuborish')}
                             </Button>
                         </div>
                     </div>
@@ -1029,14 +1048,14 @@ const ArticleDetail: React.FC = () => {
                 <div className="fixed inset-0 bg-slate-900/35 backdrop-blur-sm z-50 flex justify-center items-center p-4">
                     <div className="w-full max-w-lg bg-white/50 border border-slate-200 rounded-xl shadow-2xl">
                         <div className="p-4 border-b border-slate-200">
-                            <h3 className="text-lg font-semibold text-slate-900">Rad etish</h3>
-                            <p className="text-sm text-slate-500 mt-1">Nega rad etilgani haqida to‘liq izoh yozing. Bu matn muallifga bildirishnoma orqali yuboriladi va maqola sahifasida ko‘rinadi.</p>
+                            <h3 className="text-lg font-semibold text-slate-900">{t('Rad etish')}</h3>
+                            <p className="text-sm text-slate-500 mt-1">{t('Nega rad etilgani haqida to‘liq izoh yozing. Bu matn muallifga bildirishnoma orqali yuboriladi va maqola sahifasida ko‘rinadi.')}</p>
                         </div>
                         <div className="p-4">
                             <textarea
                                 value={rejectReason}
                                 onChange={(e) => setRejectReason(e.target.value)}
-                                placeholder="Masalan: Maqola mavzusi jurnal doirasiga to‘g‘ri kelmadi; adabiyotlar yangilanishi talab qilinadi..."
+                                placeholder={t('Masalan: Maqola mavzusi jurnal doirasiga to‘g‘ri kelmadi; adabiyotlar yangilanishi talab qilinadi...')}
                                 rows={4}
                                 className="w-full rounded-lg bg-white/55 border border-slate-200 text-slate-900 placeholder-slate-400 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                             />
@@ -1046,10 +1065,10 @@ const ArticleDetail: React.FC = () => {
                         </div>
                         <div className="p-4 border-t border-slate-200 flex gap-3 justify-end">
                             <Button onClick={() => { setShowRejectModal(false); setRejectReason(''); }} variant="secondary">
-                                Bekor qilish
+                                {t('Bekor qilish')}
                             </Button>
                             <Button onClick={handleRejectSubmit} variant="danger" disabled={rejectReason.trim().length < REASON_MIN_LENGTH || reasonSubmitting}>
-                                Yuborish
+                                {t('Yuborish')}
                             </Button>
                         </div>
                     </div>
@@ -1061,12 +1080,12 @@ const ArticleDetail: React.FC = () => {
                 <div className="fixed inset-0 bg-slate-900/35 backdrop-blur-sm z-50 flex justify-center items-center p-4 print:p-0 print:bg-white">
                     <div className="w-full max-w-6xl bg-white/55 rounded-lg shadow-2xl print:max-w-none print:bg-white print:rounded-none">
                         <div className="p-4 border-b border-slate-200/90 flex justify-between items-center no-print">
-                            <h3 className="text-lg font-semibold text-slate-900">Qabul haqida ma'lumotnoma</h3>
+                            <h3 className="text-lg font-semibold text-slate-900">{t('Qabul haqida ma\'lumotnoma')}</h3>
                             <div className="flex items-center gap-2">
                                 <Button onClick={() => window.print()} variant="secondary" className="flex items-center gap-2">
-                                    <Printer size={16} /> Chop etish / PDF
+                                    <Printer size={16} /> {t('Chop etish / PDF')}
                                 </Button>
-                                <Button onClick={() => setShowCertificate(false)} variant="secondary">Yopish</Button>
+                                <Button onClick={() => setShowCertificate(false)} variant="secondary">{t('Yopish')}</Button>
                             </div>
                         </div>
                         <div className="p-4 max-h-[80vh] overflow-y-auto print:p-0 print:max-h-none print:overflow-visible">

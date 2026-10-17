@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 
 from django.conf import settings
-from django.http import FileResponse, Http404, HttpResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import escape
@@ -125,6 +125,14 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:0 16px 32px}
 @require_GET
 @cache_page(60 * 30)
 def scholar_article_page(request, pk):
+    from config.demo import is_demo_article
+
+    # Demo maqola indekslanmaydi, lekin havola ishlashi uchun ilovadagi ochiq sahifaga yo'naltiriladi
+    demo = Article.objects.filter(pk=pk, status='Published').first()
+    if demo is not None and is_demo_article(demo):
+        resp = HttpResponseRedirect(f'{_site()}/#/public/article/{demo.pk}')
+        resp['X-Robots-Tag'] = 'noindex'
+        return resp
     article = _published_article(pk)
     site = _site()
     journal = article.journal

@@ -88,7 +88,7 @@ const Articles: React.FC = () => {
     switch (userRole) {
         case Role.Author: 
         case 'author': 
-            title = "Mening Maqolalarim"; 
+            title = "Ilmiy ishlarim"; 
             break;
         case Role.Reviewer: 
         case 'reviewer': 

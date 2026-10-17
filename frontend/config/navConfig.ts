@@ -62,7 +62,7 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
     primary: [
       { to: '/ai', icon: Bot, label: 'AI yordamchi' },
       { to: '/dashboard', icon: LayoutDashboard, label: 'Boshqaruv paneli' },
-      { to: '/articles', icon: FileText, label: 'Maqolalarim' },
+      { to: '/articles', icon: FileText, label: 'Ishlarim' },
       { to: '/submit', icon: Upload, label: 'Maqola yuborish' },
       { to: '/services', icon: Sparkles, label: 'Xizmatlar' },
       // To'lovlar tarixi va cheklar — asosiy menyuda (avval faqat profil/«Boshqa» ichida yashirin edi)
@@ -162,7 +162,7 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
 export const bottomNavByRole: Partial<Record<Role, NavItem[]>> = {
   [Role.Author]: [
     { to: '/ai', icon: Bot, label: 'AI' },
-    { to: '/articles', icon: FileText, label: 'Maqolalar' },
+    { to: '/articles', icon: FileText, label: 'Ishlarim' },
     { to: '/submit', icon: Upload, label: 'Yuborish' },
     { to: '/services', icon: Sparkles, label: 'Xizmatlar' },
     { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },

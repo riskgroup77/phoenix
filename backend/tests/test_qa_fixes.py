@@ -177,6 +177,11 @@ class UploadValidationTests(QaBase):
 
 
 class StatusTransitionTests(QaBase):
+    def setUp(self):
+        super().setUp()
+        # Muharrir faqat yakunlangan taqrizdan keyin qabul qiladi (test_reviewer_scope.AcceptRequiresReviewTests)
+        PeerReview.objects.create(article=self.article, reviewer=self.reviewer, status='completed', recommendation='accept')
+
     def test_draft_cannot_be_moved_by_journal_admin(self):
         self.article.status = 'Draft'
         self.article.save()

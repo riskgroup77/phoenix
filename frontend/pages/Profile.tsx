@@ -55,7 +55,7 @@ const Profile: React.FC = () => {
     const [avatarUploading, setAvatarUploading] = useState(false);
     const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
     const { theme, setTheme } = useTheme();
-    const { lang, setLang } = useT();
+    const { lang, setLang, t } = useT();
     const navigate = useNavigate();
     const [orcidError, setOrcidError] = useState('');
     const [searchParams, setSearchParams] = useSearchParams();
@@ -162,11 +162,11 @@ const Profile: React.FC = () => {
         e.target.value = '';
         if (!file) return;
         if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-            toast.error('Faqat JPG, PNG yoki WEBP rasm yuklang.');
+            toast.error(t('Faqat JPG, PNG yoki WEBP rasm yuklang.'));
             return;
         }
         if (file.size > 5 * 1024 * 1024) {
-            toast.error("Rasm hajmi 5 MB dan oshmasligi kerak.");
+            toast.error(t("Rasm hajmi 5 MB dan oshmasligi kerak."));
             return;
         }
         setAvatarUploading(true);
@@ -174,7 +174,7 @@ const Profile: React.FC = () => {
             const updated = await apiService.auth.uploadAvatar(file);
             setProfile((prev: any) => (prev ? { ...prev, avatar_url: updated.avatar_url } : prev));
             setAvatarUrl(updated.avatar_url || '');
-            toast.success('Profil rasmi yangilandi');
+            toast.success(t('Profil rasmi yangilandi'));
         } catch (err: any) {
             toast.error(err?.message || 'Rasmni yuklashda xatolik');
         } finally {
@@ -188,7 +188,7 @@ const Profile: React.FC = () => {
             await apiService.auth.deleteAvatar();
             setProfile((prev: any) => (prev ? { ...prev, avatar_url: null } : prev));
             setAvatarUrl('');
-            toast.success("Profil rasmi o'chirildi");
+            toast.success(t("Profil rasmi o'chirildi"));
         } catch (err: any) {
             toast.error(err?.message || "Rasmni o'chirishda xatolik");
         } finally {
@@ -212,7 +212,7 @@ const Profile: React.FC = () => {
             const userData = updatedProfile.data || updatedProfile;
             setProfile(userData);
             setIsEditing(false);
-            toast.success('Profil muvaffaqiyatli yangilandi');
+            toast.success(t('Profil muvaffaqiyatli yangilandi'));
         } catch (err: any) {
             console.error('Failed to update profile:', err);
             toast.error(err?.message || 'Profilni yangilashda xatolik yuz berdi');
@@ -226,7 +226,7 @@ const Profile: React.FC = () => {
         setError(null);
         
         try {
-            toast.info('To\'lov tayyorlanmoqda...', { autoClose: 2000 });
+            toast.info(t('To\'lov tayyorlanmoqda...'), { autoClose: 2000 });
             
             console.log('Starting test payment...');
             
@@ -241,10 +241,10 @@ const Profile: React.FC = () => {
 
             // Check if payment was successful — QR kodli to'lov sahifasiga yo'naltirish
             if (result && result.success === true && result.transaction_id) {
-                toast.success('To\'lov sahifasiga yo\'naltirilmoqdasiz. QR kodni skanerlang yoki tugmani bosing.', { autoClose: 2000 });
+                toast.success(t('To\'lov sahifasiga yo\'naltirilmoqdasiz. QR kodni skanerlang yoki tugmani bosing.'), { autoClose: 2000 });
                 paymentService.redirectToPaymentPage(result.transaction_id);
             } else if (result && result.success === true && (result.payment_url || result.transaction_id)) {
-                toast.success('To\'lov sahifasiga yo\'naltirilmoqdasiz. QR kodni skanerlang.', { autoClose: 2000 });
+                toast.success(t('To\'lov sahifasiga yo\'naltirilmoqdasiz. QR kodni skanerlang.'), { autoClose: 2000 });
                 if (result.transaction_id) {
                     paymentService.redirectToPaymentPage(result.transaction_id);
                 } else if (result.payment_url) {
@@ -326,15 +326,15 @@ const Profile: React.FC = () => {
 
     if (error) {
         return (
-            <Card title="Error">
+            <Card title={t('Error')}>
                 <p className="text-red-700">{error}</p>
-                <Button onClick={() => window.location.reload()} className="mt-4">Retry</Button>
+                <Button onClick={() => window.location.reload()} className="mt-4">{t('Retry')}</Button>
             </Card>
         );
     }
 
     if (!profile) {
-        return <Card title="Xatolik"><p>Profil ma'lumotlari topilmadi.</p></Card>;
+        return <Card title={t('Xatolik')}><p>{t('Profil ma\'lumotlari topilmadi.')}</p></Card>;
     }
 
     return (
@@ -342,7 +342,7 @@ const Profile: React.FC = () => {
             <EditorialTabs
                 tabs={PROFILE_TABS.map((tab) => ({
                     id: tab.id,
-                    label: tab.label,
+                    label: t(tab.label),
                     count: tab.id === 'notifications' && unreadCount > 0 ? unreadCount : undefined,
                 }))}
                 activeId={activeTab}
@@ -350,26 +350,26 @@ const Profile: React.FC = () => {
             />
 
             {activeTab === 'payments' && (
-                <Card title="To'lovlar tarixi">
+                <Card title={t('To\'lovlar tarixi')}>
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-4 p-3 rounded-[10px] bg-[var(--editorial-bg-alt)]">
-                        <p className="m-0 text-sm text-[var(--editorial-body)]">Cheklar (PDF) va to&apos;liq ro&apos;yxat alohida sahifada.</p>
-                        <Button type="button" variant="secondary" onClick={() => navigate('/payments')}>To&apos;lovlarim sahifasi</Button>
+                        <p className="m-0 text-sm text-[var(--editorial-body)]">{t('Cheklar (PDF) va to\'liq ro\'yxat alohida sahifada.')}</p>
+                        <Button type="button" variant="secondary" onClick={() => navigate('/payments')}>{t('To\'lovlarim sahifasi')}</Button>
                     </div>
                     {loadingPayments ? (
                         <ListSkeleton rows={4} />
                     ) : sortedTransactions.length === 0 ? (
                         <p className="text-slate-500 text-sm py-6 text-center">
-                            Hozircha to&apos;lovlar tarixi yo&apos;q.
+                            {t('Hozircha to\'lovlar tarixi yo\'q.')}
                         </p>
                     ) : (
                         <div className="overflow-x-auto rtable-wrap">
                             <table className="w-full text-left text-sm rtable">
                                 <thead>
                                     <tr className="border-b border-slate-200">
-                                        <th className="pb-2 font-medium text-slate-500">Xizmat</th>
-                                        <th className="pb-2 font-medium text-slate-500">Summa</th>
-                                        <th className="pb-2 font-medium text-slate-500">Holat</th>
-                                        <th className="pb-2 font-medium text-slate-500 hidden sm:table-cell">Sana</th>
+                                        <th className="pb-2 font-medium text-slate-500">{t('Xizmat')}</th>
+                                        <th className="pb-2 font-medium text-slate-500">{t('Summa')}</th>
+                                        <th className="pb-2 font-medium text-slate-500">{t('Holat')}</th>
+                                        <th className="pb-2 font-medium text-slate-500 hidden sm:table-cell">{t('Sana')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -409,19 +409,19 @@ const Profile: React.FC = () => {
             )}
 
             {activeTab === 'notifications' && (
-                <Card title="Bildirishnomalar">
+                <Card title={t('Bildirishnomalar')}>
                     <div className="flex justify-between items-center mb-4">
                         <p className="text-sm text-slate-500">
                             {unreadCount > 0 ? `${unreadCount} ta o'qilmagan` : 'Barcha bildirishnomalar o\'qilgan'}
                         </p>
                         {notifications.length > 0 && (
                             <Button type="button" variant="secondary" onClick={() => markAllAsRead()}>
-                                Hammasini o&apos;qilgan deb belgilash
+                                {t('Hammasini o\'qilgan deb belgilash')}
                             </Button>
                         )}
                     </div>
                     {notifications.length === 0 ? (
-                        <p className="text-slate-500 text-sm py-8 text-center">Yangi bildirishnomalar yo&apos;q.</p>
+                        <p className="text-slate-500 text-sm py-8 text-center">{t('Yangi bildirishnomalar yo\'q.')}</p>
                     ) : (
                         <ul className="divide-y divide-slate-100">
                             {notifications.map((n) => (
@@ -435,7 +435,7 @@ const Profile: React.FC = () => {
                                     <p className="text-sm text-slate-800 leading-relaxed">{n.message}</p>
                                     {!n.read && (
                                         <span className="inline-block mt-1 text-[10px] font-semibold uppercase tracking-wide text-blue-600">
-                                            Yangi
+                                            {t('Yangi')}
                                         </span>
                                     )}
                                 </li>
@@ -453,9 +453,9 @@ const Profile: React.FC = () => {
                         botUsername={profile.telegram_bot_username}
                         onChange={(enabled) => setProfile((p: any) => ({ ...p, telegram_notifications: enabled }))}
                     />
-                    <Card title="Til / Язык / Language">
-                        <p className="text-sm text-slate-500 mb-3">Interfeys tilini tanlang.</p>
-                        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Til">
+                    <Card title={t('Til / Язык / Language')}>
+                        <p className="text-sm text-slate-500 mb-3">{t('Interfeys tilini tanlang.')}</p>
+                        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('Til')}>
                             {LANGUAGES.map((l) => (
                                 <Button
                                     key={l.code}
@@ -471,42 +471,42 @@ const Profile: React.FC = () => {
                         </div>
                     </Card>
                     {profile.role === 'author' && (
-                        <Card title="Arxiv hujjatlar">
+                        <Card title={t('Arxiv hujjatlar')}>
                             <p className="text-slate-500 text-sm mb-3">
-                                Nashr sertifikatlari, UDK, taqriz natijalari, DOI va antiplagiat tekshiruvlari.
+                                {t('Nashr sertifikatlari, UDK, taqriz natijalari, DOI va antiplagiat tekshiruvlari.')}
                             </p>
                             <Button variant="secondary" onClick={() => navigate('/arxiv')}>
-                                <Archive className="mr-2 h-4 w-4" /> Arxiv hujjatlar sahifasiga o&apos;tish
+                                <Archive className="mr-2 h-4 w-4" /> {t('Arxiv hujjatlar sahifasiga o\'tish')}
                             </Button>
                         </Card>
                     )}
-                    <Card title="Ko&apos;rinish">
-                        <p className="text-sm text-slate-500 mb-3">Interfeys mavzusini tanlang.</p>
+                    <Card title={t('Ko\'rinish')}>
+                        <p className="text-sm text-slate-500 mb-3">{t('Interfeys mavzusini tanlang.')}</p>
                         <div className="flex gap-2">
                             <Button
                                 type="button"
                                 variant={theme === 'light' ? 'primary' : 'secondary'}
                                 onClick={() => setTheme('light')}
                             >
-                                Yorug&apos;
+                                {t('Yorug\'')}
                             </Button>
                             <Button
                                 type="button"
                                 variant={theme === 'dark' ? 'primary' : 'secondary'}
                                 onClick={() => setTheme('dark')}
                             >
-                                Qorong&apos;u
+                                {t('Qorong\'u')}
                             </Button>
                         </div>
                     </Card>
                     <PrivacyDataCard />
-                    <Card title="Hisobni boshqarish">
+                    <Card title={t('Hisobni boshqarish')}>
                         <div className="space-y-4">
                             {showPaymentTestTools && (
                                 <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-                                    <h3 className="text-sm font-medium text-blue-900 mb-2">Test To&apos;lov (faqat dev)</h3>
+                                    <h3 className="text-sm font-medium text-blue-900 mb-2">{t('Test To\'lov (faqat dev)')}</h3>
                                     <p className="text-xs text-slate-500 mb-3">
-                                        Click to&apos;lov tizimini sinab ko&apos;rish uchun 1000 so&apos;m miqdorida test to&apos;lovini amalga oshirish mumkin.
+                                        {t('Click to\'lov tizimini sinab ko\'rish uchun 1000 so\'m miqdorida test to\'lovini amalga oshirish mumkin.')}
                                     </p>
                                     {error && (
                                         <div className="mb-3 p-2 bg-red-500/20 border border-red-500/30 rounded text-xs text-red-800">
@@ -525,7 +525,7 @@ const Profile: React.FC = () => {
                             )}
                             <div className="flex flex-col sm:flex-row gap-4 pt-2 border-t border-slate-200/90">
                                 <Button variant="danger" onClick={logout}>
-                                    Chiqish
+                                    {t('Chiqish')}
                                 </Button>
                             </div>
                         </div>
@@ -534,7 +534,7 @@ const Profile: React.FC = () => {
             )}
 
             {activeTab === 'profile' && (
-            <Card title="Profilim">
+            <Card title={t('Profilim')}>
                 <div className="flex flex-col md:flex-row gap-8">
                     <div className="flex flex-col items-center">
                         <div className="relative">
@@ -554,8 +554,8 @@ const Profile: React.FC = () => {
                                 type="button"
                                 onClick={() => avatarInputRef.current?.click()}
                                 disabled={avatarUploading}
-                                title="Rasmni o'zgartirish"
-                                aria-label="Rasmni o'zgartirish"
+                                title={t('Rasmni o\'zgartirish')}
+                                aria-label={t('Rasmni o\'zgartirish')}
                                 className="absolute bottom-1 right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-[var(--editorial-primary)] text-white shadow-md transition hover:brightness-110 disabled:opacity-70"
                             >
                                 {avatarUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
@@ -572,10 +572,10 @@ const Profile: React.FC = () => {
                             <h2 className="text-xl font-bold text-slate-900">
                                 {personFullName(profile)}
                             </h2>
-                            <p className="text-slate-500">{roleNames[profile.role] || profile.role}</p>
+                            <p className="text-slate-500">{t(roleNames[profile.role] || profile.role)}</p>
                             {profile.avatar_url && (
                                 <button type="button" onClick={handleAvatarDelete} disabled={avatarUploading} className="mt-2 text-xs text-red-700 hover:underline disabled:opacity-60">
-                                    Rasmni o'chirish
+                                    {t('Rasmni o\'chirish')}
                                 </button>
                             )}
                         </div>
@@ -586,7 +586,7 @@ const Profile: React.FC = () => {
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-600 mb-2">Ism</label>
+                                        <label className="block text-sm font-medium text-slate-600 mb-2">{t('Ism')}</label>
                                         <input
                                             type="text"
                                             name="first_name"
@@ -597,7 +597,7 @@ const Profile: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-600 mb-2">Familiya</label>
+                                        <label className="block text-sm font-medium text-slate-600 mb-2">{t('Familiya')}</label>
                                         <input
                                             type="text"
                                             name="last_name"
@@ -608,7 +608,7 @@ const Profile: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-600 mb-2">Otasining ismi</label>
+                                        <label className="block text-sm font-medium text-slate-600 mb-2">{t('Otasining ismi')}</label>
                                         <input
                                             type="text"
                                             name="patronymic"
@@ -618,7 +618,7 @@ const Profile: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-600 mb-2">Telefon</label>
+                                        <label className="block text-sm font-medium text-slate-600 mb-2">{t('Telefon')}</label>
                                         <div className="flex">
                                             <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-slate-200/90 bg-slate-100/70 text-slate-600">
                                                 +998
@@ -635,18 +635,18 @@ const Profile: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="md:col-span-2">
-                                        <label className="block text-sm font-medium text-slate-600 mb-2">Email</label>
+                                        <label className="block text-sm font-medium text-slate-600 mb-2">{t('Email')}</label>
                                         <input
                                             type="email"
                                             name="email"
                                             value={formData.email}
                                             onChange={handleInputChange}
                                             className="w-full"
-                                            placeholder="email@misol.uz (ixtiyoriy)"
+                                            placeholder={t('email@misol.uz (ixtiyoriy)')}
                                         />
                                     </div>
                                     <div className="md:col-span-2">
-                                        <label className="block text-sm font-medium text-slate-600 mb-2">Ish yoki o'qish joyi</label>
+                                        <label className="block text-sm font-medium text-slate-600 mb-2">{t('Ish yoki o\'qish joyi')}</label>
                                         <input
                                             type="text"
                                             name="affiliation"
@@ -657,7 +657,7 @@ const Profile: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label htmlFor="profile-orcid" className="block text-sm font-medium text-slate-600 mb-2">ORCID iD</label>
+                                        <label htmlFor="profile-orcid" className="block text-sm font-medium text-slate-600 mb-2">{t('ORCID iD')}</label>
                                         <input
                                             id="profile-orcid"
                                             type="text"
@@ -677,7 +677,7 @@ const Profile: React.FC = () => {
                                         </p>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-600 mb-2">Telegram</label>
+                                        <label className="block text-sm font-medium text-slate-600 mb-2">{t('Telegram')}</label>
                                         <div className="flex">
                                             <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-slate-200/90 bg-slate-100/70 text-slate-600">
                                                 @
@@ -694,13 +694,13 @@ const Profile: React.FC = () => {
                                 </div>
                                 
                                 <div className="flex gap-3 pt-4">
-                                    <Button type="submit">Saqlash</Button>
+                                    <Button type="submit">{t('Saqlash')}</Button>
                                     <Button 
                                         type="button" 
                                         variant="secondary" 
                                         onClick={() => setIsEditing(false)}
                                     >
-                                        Bekor qilish
+                                        {t('Bekor qilish')}
                                     </Button>
                                 </div>
                             </form>
@@ -711,7 +711,7 @@ const Profile: React.FC = () => {
                                     <div className="flex items-center p-3 bg-slate-100/70 rounded-lg min-w-0">
                                         <User className="h-5 w-5 text-blue-800 mr-3 shrink-0" />
                                         <div className="min-w-0">
-                                            <p className="text-sm text-slate-500">To'liq ism</p>
+                                            <p className="text-sm text-slate-500">{t('To\'liq ism')}</p>
                                             <p className="text-slate-900 break-words [overflow-wrap:anywhere]">{personFullName(profile)}</p>
                                         </div>
                                     </div>
@@ -721,7 +721,7 @@ const Profile: React.FC = () => {
                                     <div className="flex items-center p-3 bg-slate-100/70 rounded-lg min-w-0">
                                         <Mail className="h-5 w-5 text-emerald-800 mr-3 shrink-0" />
                                         <div className="min-w-0">
-                                            <p className="text-sm text-slate-500">Email</p>
+                                            <p className="text-sm text-slate-500">{t('Email')}</p>
                                             <p className="text-slate-900 break-words [overflow-wrap:anywhere]">{profile.email}</p>
                                         </div>
                                     </div>
@@ -730,7 +730,7 @@ const Profile: React.FC = () => {
                                     <div className="flex items-center p-3 bg-slate-100/70 rounded-lg min-w-0">
                                         <Phone className="h-5 w-5 text-purple-400 mr-3 shrink-0" />
                                         <div className="min-w-0">
-                                            <p className="text-sm text-slate-500">Telefon</p>
+                                            <p className="text-sm text-slate-500">{t('Telefon')}</p>
                                             <p className="text-slate-900 break-words [overflow-wrap:anywhere]">{profile.phone}</p>
                                         </div>
                                     </div>
@@ -738,7 +738,7 @@ const Profile: React.FC = () => {
                                     <div className="flex items-center p-3 bg-slate-100/70 rounded-lg min-w-0">
                                         <Building className="h-5 w-5 text-yellow-800 mr-3 shrink-0" />
                                         <div className="min-w-0">
-                                            <p className="text-sm text-slate-500">Tashkilot</p>
+                                            <p className="text-sm text-slate-500">{t('Tashkilot')}</p>
                                             <p className="text-slate-900 break-words [overflow-wrap:anywhere]">{profile.affiliation}</p>
                                         </div>
                                     </div>
@@ -747,7 +747,7 @@ const Profile: React.FC = () => {
                                         <div className="flex items-center p-3 bg-slate-100/70 rounded-lg min-w-0">
                                             <Hash className="h-5 w-5 text-red-700 mr-3 shrink-0" />
                                             <div className="min-w-0">
-                                                <p className="text-sm text-slate-500">ORCID iD</p>
+                                                <p className="text-sm text-slate-500">{t('ORCID iD')}</p>
                                                 <a
                                                     href={orcidUrl(profile.orcid_id)}
                                                     target="_blank"
@@ -764,7 +764,7 @@ const Profile: React.FC = () => {
                                         <div className="flex items-center p-3 bg-slate-100/70 rounded-lg min-w-0">
                                             <span className="text-lg mr-3 shrink-0">@</span>
                                             <div className="min-w-0">
-                                                <p className="text-sm text-slate-500">Telegram</p>
+                                                <p className="text-sm text-slate-500">{t('Telegram')}</p>
                                                 <p className="text-slate-900 break-words [overflow-wrap:anywhere]">{profile.telegram_username}</p>
                                             </div>
                                         </div>
@@ -773,7 +773,7 @@ const Profile: React.FC = () => {
                                 
                                 <div className="pt-4">
                                     <Button onClick={() => setIsEditing(true)}>
-                                        <Edit className="mr-2 h-4 w-4" /> Tahrirlash
+                                        <Edit className="mr-2 h-4 w-4" /> {t('Tahrirlash')}
                                     </Button>
                                 </div>
                             </div>
@@ -784,14 +784,14 @@ const Profile: React.FC = () => {
             )}
 
             {activeTab === 'profile' && profile.gamification_profile && (
-                <Card title="Gamifikatsiya">
+                <Card title={t('Gamifikatsiya')}>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="text-center p-6 bg-slate-100/70 rounded-lg">
                             <div className="inline-flex items-center justify-center p-3 rounded-full bg-blue-500/20 mb-4">
                                 <Award className="h-8 w-8 text-blue-800" />
                             </div>
                             <h3 className="text-lg font-semibold text-slate-900">{profile.gamification_profile.level}</h3>
-                            <p className="text-slate-500">Daraja</p>
+                            <p className="text-slate-500">{t('Daraja')}</p>
                         </div>
                         
                         <div className="text-center p-6 bg-slate-100/70 rounded-lg">
@@ -799,7 +799,7 @@ const Profile: React.FC = () => {
                                 <Award className="h-8 w-8 text-yellow-800" />
                             </div>
                             <h3 className="text-lg font-semibold text-slate-900">{profile.gamification_profile.points}</h3>
-                            <p className="text-slate-500">Ballar</p>
+                            <p className="text-slate-500">{t('Ballar')}</p>
                         </div>
                         
                         <div className="text-center p-6 bg-slate-100/70 rounded-lg">
@@ -807,17 +807,17 @@ const Profile: React.FC = () => {
                                 <Award className="h-8 w-8 text-purple-400" />
                             </div>
                             <h3 className="text-lg font-semibold text-slate-900">{profile.gamification_profile.badges.length}</h3>
-                            <p className="text-slate-500">Mukofotlar</p>
+                            <p className="text-slate-500">{t('Mukofotlar')}</p>
                         </div>
                     </div>
                     
                     {profile.gamification_profile.badges.length > 0 && (
                         <div className="mt-6">
-                            <h4 className="text-md font-semibold text-slate-900 mb-3">Mukofotlar</h4>
+                            <h4 className="text-md font-semibold text-slate-900 mb-3">{t('Mukofotlar')}</h4>
                             <div className="flex flex-wrap gap-2">
                                 {profile.gamification_profile.badges.map((badge: string, index: number) => (
                                     <span key={index} className="px-3 py-1 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-900 rounded-full text-sm">
-                                        {badge}
+                                        {t(badge)}
                                     </span>
                                 ))}
                             </div>

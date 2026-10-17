@@ -541,6 +541,8 @@ class ArticleSerializer(serializers.ModelSerializer):
         data['certificate_download_link'] = self.get_certificate_download_link(instance)
         data['allowed_transitions'] = _allowed_transitions(self.context, instance)
         data['needs_publication_payment'] = _needs_publication_payment(self.context, instance)
+        # Muharrir "Qabul qilish" tugmasini faqat yakunlangan taqriz bo'lsa ko'radi (backend ham tekshiradi)
+        data['has_completed_review'] = instance.peer_reviews.filter(status='completed').exists()
         if hide_author_from_viewer(self.context, instance):
             anonymize_author(data, instance)
         return data

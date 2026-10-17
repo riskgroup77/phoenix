@@ -78,7 +78,7 @@ const AiSidebar: React.FC<Props> = ({ conversations, activeId, onSelect, onNew, 
       </div>
       <div className="border-t border-[#23407d] p-3 space-y-1">
         <Link to="/articles" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-[#1a3570]">
-          <FileText className="h-4 w-4" aria-hidden /> {t('Maqolalarim')}
+          <FileText className="h-4 w-4" aria-hidden /> {t('Ishlarim')}
         </Link>
         <button
           type="button"

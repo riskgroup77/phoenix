@@ -87,7 +87,7 @@ const PublicationIndexingPanel: React.FC<Props> = ({ articleId, doi, canManage }
 
       {shownDoi && (
         <p className="m-0 text-sm">
-          <span className="text-[var(--editorial-muted)]">DOI: </span>
+          <span className="text-[var(--editorial-muted)]">{t('DOI:')} </span>
           <a
             href={shownDoi.startsWith('http') ? shownDoi : `https://doi.org/${shownDoi}`}
             target="_blank"
@@ -109,7 +109,7 @@ const PublicationIndexingPanel: React.FC<Props> = ({ articleId, doi, canManage }
 
       {canManage && info && info.available !== false && (
         <div className="flex flex-col gap-2 pt-3 border-t border-[var(--editorial-border)]">
-          <p className="m-0 text-sm font-bold">Crossref</p>
+          <p className="m-0 text-sm font-bold">{t('Crossref')}</p>
           <p className="m-0 text-xs text-[var(--editorial-muted)]">
             {info?.configured
               ? t("DOI ma'lumotlari Crossref'ga to'g'ridan-to'g'ri yuboriladi.")

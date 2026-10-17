@@ -136,7 +136,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         <Link to={user.role === Role.Operator ? '/operator-dashboard' : '/dashboard'} className="milliy-brand">
           <BrandMark />
           <span className="hidden sm:flex flex-col min-w-0">
-            <span className="milliy-brand-title">Phoenix</span>
+            <span className="milliy-brand-title">{t('Phoenix')}</span>
             <span className="milliy-brand-sub">{t('Ilmiy nashrlar markazi')}</span>
           </span>
         </Link>
@@ -196,7 +196,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           >
             <Search className="w-5 h-5" aria-hidden />
             <span className="hidden 2xl:inline text-sm font-medium">{t('Qidiruv')}</span>
-            <span className="hidden 2xl:inline-flex"><kbd className="milliy-kbd milliy-kbd--band">Ctrl K</kbd></span>
+            <span className="hidden 2xl:inline-flex"><kbd className="milliy-kbd milliy-kbd--band">{t('Ctrl K')}</kbd></span>
           </button>
           <div className="hidden sm:block">
             <LanguageSwitcher variant="band" />

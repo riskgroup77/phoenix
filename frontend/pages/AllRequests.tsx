@@ -209,11 +209,11 @@ const AllRequests: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{request.journalName || '—'}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs font-semibold rounded ${getServiceTypeColor(request.serviceType)}`}>
-                          {getServiceLabel(request.serviceType)}
+                          {t(getServiceLabel(request.serviceType))}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-semibold rounded ${statusInfo.color}`}>{statusInfo.text}</span>
+                        <span className={`px-2 py-1 text-xs font-semibold rounded ${statusInfo.color}`}>{t(statusInfo.text)}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                         <div className="flex items-center gap-1">

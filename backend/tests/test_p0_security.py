@@ -300,14 +300,15 @@ class ArticleProtectionTests(BaseFixture):
         self.assertEqual(res.status_code, 200, res.content)
 
     def test_journal_admin_still_can_change_status(self):
-        # To'lanmagan qoralama tahririyatga qo'lda o'tkazilmaydi (tests/test_qa_fixes.py), tahririyatdagisi — ha
+        # To'lanmagan qoralama tahririyatga qo'lda o'tkazilmaydi (tests/test_qa_fixes.py), tahririyatdagisi — ha.
+        # "Accepted" esa taqriz yakunlanishini talab qiladi (test_reviewer_scope) — bu yerda oddiy o'tish.
         self.article.status = 'Yangi'
         self.article.save()
         res = self.api(self.journal_admin).post(f'/api/v1/articles/{self.article.id}/update_status/',
-                                                {'status': 'Accepted'}, format='json')
+                                                {'status': 'WithEditor'}, format='json')
         self.assertEqual(res.status_code, 200, res.content)
         self.article.refresh_from_db()
-        self.assertEqual(self.article.status, 'Accepted')
+        self.assertEqual(self.article.status, 'WithEditor')
 
 
 class TranslationPricingTests(BaseFixture):

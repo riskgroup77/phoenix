@@ -169,21 +169,21 @@ const Landing: React.FC = () => {
 
       {/* Ko'rsatkichlar */}
       <div className="max-w-[1200px] mx-auto px-4 sm:px-8 -mt-14 relative z-[1]">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           {[
             { label: 'Jurnallar', value: data?.stats.journals, icon: BookMarked },
             { label: 'Nashr etilgan maqolalar', value: data?.stats.published_articles, icon: FileText },
             { label: 'Mualliflar', value: data?.stats.authors, icon: BadgeCheck },
           ].map((s) => (
-            <div key={s.label} className="milliy-stat">
-              <span className="milliy-icon-tile"><s.icon className="w-5 h-5" aria-hidden /></span>
+            <div key={s.label} className="milliy-stat max-sm:!px-3 max-sm:!py-3">
+              <span className="milliy-icon-tile max-sm:!hidden"><s.icon className="w-5 h-5" aria-hidden /></span>
               <span className="flex flex-col min-w-0">
                 {loading ? (
                   <Skeleton className="h-7 w-16" rounded="sm" />
                 ) : (
                   <span className="text-2xl sm:text-[28px] font-extrabold tabular-nums">{(s.value ?? 0).toLocaleString('ru-RU')}</span>
                 )}
-                <span className="text-sm font-semibold text-[var(--editorial-muted)]">{t(s.label)}</span>
+                <span className="text-xs sm:text-sm font-semibold leading-tight text-[var(--editorial-muted)]">{t(s.label)}</span>
               </span>
             </div>
           ))}

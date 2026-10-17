@@ -60,16 +60,8 @@ const UserManagement: React.FC = () => {
                 setLoading(true);
                 setError(null);
                 
-                const usersData = await apiService.users.list();
-                
-                // Ensure we're working with arrays - handle various response formats
-                const usersArray = Array.isArray(usersData) 
-                    ? usersData 
-                    : (usersData?.data && Array.isArray(usersData.data) 
-                        ? usersData.data 
-                        : (usersData?.results && Array.isArray(usersData.results) 
-                            ? usersData.results 
-                            : []));
+                // Barcha sahifalar yuklanadi — qidiruv va filtr butun ro'yxat bo'yicha ishlashi uchun
+                const usersArray = await apiService.users.listAll();
                 setUsers(usersArray);
             } catch (err: any) {
                 console.error('Failed to fetch users:', err);

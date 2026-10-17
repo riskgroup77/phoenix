@@ -95,7 +95,7 @@ const PublicArticleShare: React.FC = () => {
                 {t('Jurnal:')} <span className="text-slate-700">{article.journal_name || t('Noma’lum')}</span>
               </p>
               {article.doi && (
-                <p className="text-sm text-slate-500 mt-0.5">DOI: <span className="text-slate-700">{article.doi}</span></p>
+                <p className="text-sm text-slate-500 mt-0.5">{t('DOI:')} <span className="text-slate-700">{article.doi}</span></p>
               )}
             </div>
 

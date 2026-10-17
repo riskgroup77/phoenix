@@ -39,23 +39,10 @@ const Financials: React.FC = () => {
                     apiService.users.list()
                 ]);
                 
-                // Ensure we're working with arrays
-                const transactionsArray = Array.isArray(transactionsData) 
-                    ? transactionsData 
-                    : (transactionsData?.data && Array.isArray(transactionsData.data) 
-                        ? transactionsData.data 
-                        : (transactionsData?.results && Array.isArray(transactionsData.results) 
-                            ? transactionsData.results 
-                            : []));
-                
-                const usersArray = Array.isArray(usersData) 
-                    ? usersData 
-                    : (usersData?.data && Array.isArray(usersData.data) 
-                        ? usersData.data 
-                        : (usersData?.results && Array.isArray(usersData.results) 
-                            ? usersData.results 
-                            : []));
-                
+                // apiService barcha sahifalarni yuklab massiv qaytaradi
+                const transactionsArray: any[] = Array.isArray(transactionsData) ? transactionsData : [];
+                const usersArray: any[] = Array.isArray(usersData) ? usersData : [];
+
                 setTransactions(transactionsArray);
                 setFilteredTransactions(transactionsArray);
                 setUsers(usersArray);

@@ -233,7 +233,7 @@ const SubmitArticle: React.FC = () => {
         if (cancelled) return;
         if (res.payment_status === 2) {
           sessionStorage.removeItem(SUBMIT_ARTICLE_PENDING_KEY);
-          toast.success("To'lov tasdiqlandi. Maqola arxiv va «Maqolalarim» bo'limlarida ko'rinadi.");
+          toast.success(t("To'lov tasdiqlandi. Maqola arxiv va «Ishlarim» bo'limlarida ko'rinadi."));
           navigate('/arxiv');
         }
       } catch {
@@ -397,22 +397,22 @@ const SubmitArticle: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!formData.title.trim()) {
-      toast.error('Maqola mavzusini kiriting.');
+      toast.error(t('Maqola mavzusini kiriting.'));
       setErrors(e => ({ ...e, title: 'Maqola mavzusini kiriting (majburiy)' }));
       return;
     }
     if (!formData.authorName.trim()) {
-      toast.error('Muallif ism-familiyasini kiriting.');
+      toast.error(t('Muallif ism-familiyasini kiriting.'));
       setErrors(e => ({ ...e, authorName: 'Muallif ism-familiyasini kiriting (majburiy)' }));
       return;
     }
     if (!formData.journalId) {
-      toast.error('Jurnalni tanlang.');
+      toast.error(t('Jurnalni tanlang.'));
       setErrors((e) => ({ ...e, journalId: 'Jurnalni tanlang' }));
       return;
     }
     if (!formData.file) {
-      toast.error('Maqola faylini yuklang.');
+      toast.error(t('Maqola faylini yuklang.'));
       return;
     }
     if (!validateStep(3)) {
@@ -440,7 +440,7 @@ const SubmitArticle: React.FC = () => {
         );
         const articleId = draftArticle?.id;
         if (!articleId) {
-          toast.error('Maqola yaratilmadi. Qayta urinib ko\'ring.');
+          toast.error(t('Maqola yaratilmadi. Qayta urinib ko\'ring.'));
           return;
         }
         // Maqola serverda saqlandi — brauzerdagi qoralama endi kerak emas
@@ -460,8 +460,7 @@ const SubmitArticle: React.FC = () => {
             SUBMIT_ARTICLE_PENDING_KEY,
             JSON.stringify({ articleId, transactionId: result.transaction_id })
           );
-          toast.info(
-            'Maqola saqlandi. To\'lovni amalga oshiring — «Maqolalarim» → To\'lov va qoralama bo\'limida ham ko\'rinadi.'
+          toast.info(t('Maqola saqlandi. To\'lovni amalga oshiring — «Ishlarim» → To\'lov va qoralama bo\'limida ham ko\'rinadi.')
           );
           paymentService.redirectToPaymentPage(result.transaction_id);
         } else {
@@ -497,7 +496,7 @@ const SubmitArticle: React.FC = () => {
         const pendingRaw = sessionStorage.getItem(SUBMIT_ARTICLE_PENDING_KEY);
         if (pendingRaw) {
           sessionStorage.removeItem(SUBMIT_ARTICLE_PENDING_KEY);
-          toast.success("To'lov tasdiqlandi. Maqola arxiv va «Maqolalarim» bo'limlarida ko'rinadi.");
+          toast.success(t("To'lov tasdiqlandi. Maqola arxiv va «Ishlarim» bo'limlarida ko'rinadi."));
           navigate('/arxiv');
           return;
         }
@@ -510,9 +509,9 @@ const SubmitArticle: React.FC = () => {
           setLoading(false);
         }
       } else if (res.payment_status === -1) {
-        toast.error('To\'lov amalga oshirilmadi yoki bekor qilindi.');
+        toast.error(t('To\'lov amalga oshirilmadi yoki bekor qilindi.'));
       } else {
-        toast.info('To\'lov hali tasdiqlanmadi. To\'lovni amalga oshiring yoki biroz kutib qayta tekshiring.');
+        toast.info(t('To\'lov hali tasdiqlanmadi. To\'lovni amalga oshiring yoki biroz kutib qayta tekshiring.'));
       }
     } catch (err: any) {
       toast.error(err?.message || 'To\'lov holatini tekshirishda xatolik');
@@ -598,14 +597,14 @@ const SubmitArticle: React.FC = () => {
       <Card className="p-6">
         {currentStep === 1 && (
           <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-slate-900 mb-2">Jurnal tanlang</h2>
-            <p className="text-slate-500 text-sm mb-4">Jurnal kartasiga bosing — tanlash va keyingi qadamga o&apos;ting (Keyingi tugmasini bosish shart emas).</p>
+            <h2 className="text-xl font-semibold text-slate-900 mb-2">{t('Jurnal tanlang')}</h2>
+            <p className="text-slate-500 text-sm mb-4">{t('Jurnal kartasiga bosing — tanlash va keyingi qadamga o\'ting (Keyingi tugmasini bosish shart emas).')}</p>
 
             {/* Filtr — faqat jurnal tanlash qadamida, kartalar ustida; mobilda carddan chiqmaslik */}
             <div className="w-full min-w-0 overflow-hidden flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 p-3 rounded-lg bg-white/60 border border-slate-200/90 mb-4">
               <span className="flex items-center gap-2 text-sm font-medium text-slate-500 shrink-0">
                 <Filter size={18} className="text-blue-800" />
-                Filtr
+                {t('Filtr')}
               </span>
               <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 min-w-0 w-full sm:flex-1">
                 <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto">
@@ -615,11 +614,11 @@ const SubmitArticle: React.FC = () => {
                     onChange={(e) => setJournalFilterType(e.target.value)}
                     className="flex-1 min-w-0 w-full max-w-full bg-slate-100/70 border border-slate-200/90 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 cursor-pointer"
                     style={{ minWidth: 0 }}
-                    aria-label="Nashr turi"
+                    aria-label={t('Nashr turi')}
                   >
-                    <option value="">Barcha jurnallar</option>
+                    <option value="">{t('Barcha jurnallar')}</option>
                     {PUBLICATION_TYPES.map((name) => (
-                      <option key={name} value={name}>{name}</option>
+                      <option key={name} value={name}>{t(name)}</option>
                     ))}
                   </select>
                 </div>
@@ -630,11 +629,11 @@ const SubmitArticle: React.FC = () => {
                     onChange={(e) => setJournalFilterSubject(e.target.value)}
                     className="flex-1 min-w-0 w-full max-w-full bg-slate-100/70 border border-slate-200/90 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 cursor-pointer"
                     style={{ minWidth: 0 }}
-                    aria-label="Soha"
+                    aria-label={t('Soha')}
                   >
-                    <option value="">Barcha sohalar</option>
+                    <option value="">{t('Barcha sohalar')}</option>
                     {SUBJECT_AREAS.map((name) => (
-                      <option key={name} value={name}>{name}</option>
+                      <option key={name} value={name}>{t(name)}</option>
                     ))}
                   </select>
                 </div>
@@ -643,10 +642,10 @@ const SubmitArticle: React.FC = () => {
                     type="button"
                     onClick={() => { setJournalFilterType(''); setJournalFilterSubject(''); }}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-white/10 transition-colors shrink-0 self-start sm:self-center"
-                    aria-label="Filterni tozalash"
+                    aria-label={t('Filterni tozalash')}
                   >
                     <X size={16} />
-                    Tozalash
+                    {t('Tozalash')}
                   </button>
                 )}
               </div>
@@ -656,10 +655,10 @@ const SubmitArticle: React.FC = () => {
               type="text"
               value={journalSearch}
               onChange={(e) => setJournalSearch(e.target.value)}
-              placeholder="Jurnal nomi yoki tavsifi bo'yicha qidirish..."
+              placeholder={t('Jurnal nomi yoki tavsifi bo\'yicha qidirish...')}
               className="w-full px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 mb-4"
             />
-            <p className="text-sm text-slate-500 mb-4">Jurnallar: {journals.length} | Ko&apos;rsatilmoqda: {filteredJournals.length}</p>
+            <p className="text-sm text-slate-500 mb-4">{t("Jurnallar: {total} | Ko'rsatilmoqda: {shown}", { total: journals.length, shown: filteredJournals.length })}</p>
             {errors.journalId && <p className="text-red-500 text-sm mb-2">{errors.journalId}</p>}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8 justify-items-center">
               {filteredJournals.map((j) => (
@@ -674,7 +673,7 @@ const SubmitArticle: React.FC = () => {
               ))}
             </div>
             {filteredJournals.length === 0 && (
-              <p className="text-center text-slate-500 py-8">Qidiruv bo&apos;yicha jurnal topilmadi.</p>
+              <p className="text-center text-slate-500 py-8">{t('Qidiruv bo\'yicha jurnal topilmadi.')}</p>
             )}
           </div>
         )}
@@ -740,41 +739,41 @@ const SubmitArticle: React.FC = () => {
 
         {currentStep === 3 && (
           <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-slate-900 mb-4">Maqola tavsifi</h2>
-            <p className="text-slate-500 text-sm mb-4">Maqola mavzusi va muallif ism-familiyasi majburiy (ma&apos;lumotnomada ko&apos;rsatiladi).</p>
+            <h2 className="text-xl font-semibold text-slate-900 mb-4">{t('Maqola tavsifi')}</h2>
+            <p className="text-slate-500 text-sm mb-4">{t('Maqola mavzusi va muallif ism-familiyasi majburiy (ma\'lumotnomada ko\'rsatiladi).')}</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-600 mb-2">
-                  Maqola mavzusi (sarlavha) *
+                  {t('Maqola mavzusi (sarlavha) *')}
                 </label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500"
-                  placeholder="Masalan: O'zbekiston iqtisodiyotida raqamlashtirish tendensiyalari"
+                  placeholder={t('Masalan: O\'zbekiston iqtisodiyotida raqamlashtirish tendensiyalari')}
                 />
                 {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-2">
-                  Muallif ism-familiyasi *
+                  {t('Muallif ism-familiyasi *')}
                 </label>
                 <input
                   type="text"
                   value={formData.authorName}
                   onChange={(e) => setFormData({ ...formData, authorName: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500"
-                  placeholder="Masalan: Ali Valiyev"
+                  placeholder={t('Masalan: Ali Valiyev')}
                 />
                 {errors.authorName && <p className="text-red-500 text-sm mt-1">{errors.authorName}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-2">
-                  Sahifalar soni *
+                  {t('Sahifalar soni *')}
                 </label>
                 <input
                   type="number"
@@ -789,56 +788,56 @@ const SubmitArticle: React.FC = () => {
                 />
                 <p className="text-xs text-slate-500 mt-1">
                   {pagesFromServer
-                    ? "Sahifalar soni fayldan aniqlandi — sahifabop narx shu bo'yicha hisoblanadi."
-                    : "Fayldan aniqlab bo'lmasa, sahifalar sonini kiriting."}
+                    ? t("Sahifalar soni fayldan aniqlandi — sahifabop narx shu bo'yicha hisoblanadi.")
+                    : t("Fayldan aniqlab bo'lmasa, sahifalar sonini kiriting.")}
                 </p>
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-2">
-                Abstrakt *
+                {t('Abstrakt *')}
               </label>
               <textarea
                 value={formData.abstract}
                 onChange={(e) => setFormData({ ...formData, abstract: e.target.value })}
                 rows={4}
                 className="w-full px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500"
-                placeholder="Maqola abstraktini kiriting"
+                placeholder={t('Maqola abstraktini kiriting')}
               />
               {errors.abstract && <p className="text-red-500 text-sm mt-1">{errors.abstract}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-2">
-                Kalit so'zlar *
+                {t('Kalit so\'zlar *')}
               </label>
               <input
                 type="text"
                 value={formData.keywords}
                 onChange={(e) => setFormData({ ...formData, keywords: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500"
-                placeholder="Kalit so'zlarni vergul bilan ajratib kiriting"
+                placeholder={t('Kalit so\'zlarni vergul bilan ajratib kiriting')}
               />
               {errors.keywords && <p className="text-red-500 text-sm mt-1">{errors.keywords}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-2">
-                Adabiyotlar ro&apos;yxati (ixtiyoriy)
+                {t('Adabiyotlar ro\'yxati (ixtiyoriy)')}
               </label>
               <textarea
                 value={formData.references}
                 onChange={(e) => setFormData({ ...formData, references: e.target.value })}
                 rows={3}
                 className="w-full px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500"
-                placeholder="Adabiyotlar ro&apos;yxatini kiriting"
+                placeholder={t('Adabiyotlar ro\'yxatini kiriting')}
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-2">
-                Jurnal
+                {t('Jurnal')}
               </label>
               <p className="px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900">
                 {journals.find((j) => j.id === formData.journalId)?.name || '—'}
@@ -850,32 +849,32 @@ const SubmitArticle: React.FC = () => {
 
         {currentStep === 4 && (
           <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-slate-900 mb-4">Hammualliflar</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mb-4">{t('Hammualliflar')}</h2>
 
             {formData.coAuthors.map((coAuthor, index) => (
               <div key={index} className="flex gap-4 items-end">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-600 mb-2">
-                    Hammuallif ismi
+                    {t('Hammuallif ismi')}
                   </label>
                   <input
                     type="text"
                     value={coAuthor.name}
                     onChange={(e) => updateCoAuthor(index, 'name', e.target.value)}
                     className="w-full px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500"
-                    placeholder="Ism familiyani kiriting"
+                    placeholder={t('Ism familiyani kiriting')}
                   />
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-600 mb-2">
-                    ID / email / telefon *
+                    {t('ID / email / telefon *')}
                   </label>
                   <input
                     type="text"
                     value={coAuthor.identifier}
                     onChange={(e) => updateCoAuthor(index, 'identifier', e.target.value)}
                     className="w-full px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500"
-                    placeholder="Telefon (90 123 45 67), email yoki ID"
+                    placeholder={t('Telefon (90 123 45 67), email yoki ID')}
                   />
                   {errors[`coAuthor_${index}`] && (
                     <p className="mt-1 text-xs text-red-700">{errors[`coAuthor_${index}`]}</p>
@@ -892,33 +891,33 @@ const SubmitArticle: React.FC = () => {
             ))}
 
             <Button onClick={addCoAuthor} variant="secondary" className="w-full">
-              + Hammuallif qo'shish
+              {t('+ Hammuallif qo\'shish')}
             </Button>
             <p className="text-xs text-slate-500">
-              Hammuallif platformada ro'yxatdan o'tgan telefon raqami yoki emailini kiriting — maqola uning kabinetida ham ko'rinadi.
+              {t('Hammuallif platformada ro\'yxatdan o\'tgan telefon raqami yoki emailini kiriting — maqola uning kabinetida ham ko\'rinadi.')}
             </p>
           </div>
         )}
 
         {currentStep === 5 && (
           <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-slate-900 mb-4">Tasdiqlash</h2>
+            <h2 className="text-xl font-semibold text-slate-900 mb-4">{t('Tasdiqlash')}</h2>
 
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-medium text-slate-900 mb-2">Fayl</h3>
+                <h3 className="text-lg font-medium text-slate-900 mb-2">{t('Fayl')}</h3>
                 <p className="text-slate-600">{formData.file?.name}</p>
               </div>
 
               <div>
-                <h3 className="text-lg font-medium text-slate-900 mb-2">Maqola ma'lumotlari</h3>
+                <h3 className="text-lg font-medium text-slate-900 mb-2">{t('Maqola ma\'lumotlari')}</h3>
                 <div className="bg-slate-100/70 rounded-lg p-4 space-y-2">
-                  <p><strong>Mavzu (sarlavha):</strong> {formData.title || '—'}</p>
-                  <p><strong>Muallif (ism-familiya):</strong> {formData.authorName || '—'}</p>
-                  <p><strong>Sahifalar soni:</strong> {formData.pageCount}</p>
-                  <p><strong>Jurnal:</strong> {journals.find(j => j.id === formData.journalId)?.name || '—'}</p>
-                  <p><strong>Kalit so'zlar:</strong> {formData.keywords}</p>
-                  <p><strong>Abstrakt:</strong> {formData.abstract.substring(0, 100)}...</p>
+                  <p><strong>{t('Mavzu (sarlavha):')}</strong> {formData.title || '—'}</p>
+                  <p><strong>{t('Muallif (ism-familiya):')}</strong> {formData.authorName || '—'}</p>
+                  <p><strong>{t('Sahifalar soni:')}</strong> {formData.pageCount}</p>
+                  <p><strong>{t('Jurnal:')}</strong> {journals.find(j => j.id === formData.journalId)?.name || '—'}</p>
+                  <p><strong>{t('Kalit so\'zlar:')}</strong> {formData.keywords}</p>
+                  <p><strong>{t('Abstrakt:')}</strong> {formData.abstract.substring(0, 100)}...</p>
                 </div>
               </div>
 
@@ -958,7 +957,7 @@ const SubmitArticle: React.FC = () => {
                       ))}
                     </ol>
                     <p className="m-0 text-xs text-[var(--editorial-muted)]">
-                      {t("Har bir bosqich «Maqolalarim» sahifasidagi tarixda ko'rinadi va Telegram'ga xabar keladi.")}
+                      {t("Har bir bosqich «Ishlarim» sahifasidagi tarixda ko'rinadi va Telegram'ga xabar keladi.")}
                     </p>
                   </div>
                 );
@@ -966,7 +965,7 @@ const SubmitArticle: React.FC = () => {
 
               {formData.coAuthors.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-medium text-slate-900 mb-2">Hammualliflar</h3>
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">{t('Hammualliflar')}</h3>
                   <div className="space-y-2">
                     {formData.coAuthors.map((coAuthor, index) => (
                       <div key={index} className="bg-slate-100/70 rounded-lg p-3">
@@ -984,7 +983,7 @@ const SubmitArticle: React.FC = () => {
         {currentStep === steps.length && paymentPendingTransactionId && (
           <div className="mt-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
             <p className="text-amber-950 text-sm mb-3">
-              Oldindan to&apos;lov talab qilinadi. To&apos;lovni amalga oshiring (yangi tabda ochilgan sahifada), keyin quyidagi tugmani bosing.
+              {t('Oldindan to\'lov talab qilinadi. To\'lovni amalga oshiring (yangi tabda ochilgan sahifada), keyin quyidagi tugmani bosing.')}
             </p>
             <Button
               type="button"
@@ -993,7 +992,7 @@ const SubmitArticle: React.FC = () => {
               className="flex items-center gap-2"
             >
               {paymentChecking || loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              To&apos;lovni tekshirish va maqolani yuborish
+              To'lovni tekshirish va maqolani yuborish
             </Button>
           </div>
         )}

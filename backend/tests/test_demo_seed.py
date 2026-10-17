@@ -58,7 +58,9 @@ class DemoSeedTests(TestCase):
     def test_demo_excluded_from_scholar_index_and_revenue(self):
         seed()
         pub = Article.objects.filter(status='Published').first()
-        self.assertEqual(self.client.get(f'/p/article/{pub.pk}/').status_code, 404)
+        res = self.client.get(f'/p/article/{pub.pk}/')
+        self.assertEqual(res.status_code, 302)
+        self.assertIn(f'#/public/article/{pub.pk}', res['Location'])
         self.assertNotIn(str(pub.pk), self.client.get('/sitemap.xml').content.decode())
         from apps.articles.antiplagiat_index import article_is_indexable
 

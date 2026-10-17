@@ -149,7 +149,8 @@ class ArticleViewSet(
         elif role == 'operator':
             return base_queryset.all()
         elif role == 'accountant':
-            return base_queryset.all()
+            # Buxgalter maqolalar bilan ishlamaydi — moliya ma'lumotlari tranzaksiyalar orqali keladi
+            return base_queryset.none()
         # Noma'lum rol: kamida o'z maqolalarini ko'rsat (bo'sh ro'yxat oldini olish)
         return base_queryset.filter(
             Q(author=self.request.user) | Q(co_authors=self.request.user)

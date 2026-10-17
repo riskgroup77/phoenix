@@ -83,7 +83,7 @@ const ROWS: Row[] = [
 
   // —— Menyu bandlari (navConfig) ——
   ['Boshqaruv paneli', 'Панель управления', 'Dashboard'],
-  ['Maqolalarim', 'Мои статьи', 'My articles'],
+  ['Ishlarim', 'Мои работы', 'My works'],
   ['Maqola yuborish', 'Отправить статью', 'Submit article'],
   ['Xizmatlar', 'Услуги', 'Services'],
   ["To'plamlarim", 'Мои сборники', 'My collections'],
@@ -479,7 +479,7 @@ const ROWS: Row[] = [
   ["To'lov maqola qabul qilingandan keyin olinadi.", 'Оплата — после принятия статьи.', 'Payment is taken after the article is accepted.'],
   ['Muharrir tekshiruvi', 'Проверка редактором', 'Editor check'],
   ['Taqriz va antiplagiat', 'Рецензия и антиплагиат', 'Review & plagiarism check'],
-  ["Har bir bosqich «Maqolalarim» sahifasidagi tarixda ko'rinadi va Telegram'ga xabar keladi.", 'Каждый этап виден в истории статьи и приходит уведомлением в Telegram.', 'Every stage appears in the article history and is sent to Telegram.'],
+  ["Har bir bosqich «Ishlarim» sahifasidagi tarixda ko'rinadi va Telegram'ga xabar keladi.", 'Каждый этап виден в истории статьи и приходит уведомлением в Telegram.', 'Every stage appears in the article history and is sent to Telegram.'],
   ["To'lov kutilmoqda", 'Ожидается оплата', 'Awaiting payment'],
 
   // —— Kirish sahifasi ——

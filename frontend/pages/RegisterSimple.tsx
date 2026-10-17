@@ -312,7 +312,7 @@ const RegisterSimple: React.FC = () => {
                                     className="w-full p-3 bg-white/50 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-blue-500"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="email@example.com"
+                                    placeholder={t('email@example.com')}
                                 />
                             <p className="text-xs text-slate-500 mt-1">{t("Bo'sh qoldirish mumkin")}</p>
                         </div>

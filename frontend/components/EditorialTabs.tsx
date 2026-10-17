@@ -1,4 +1,5 @@
 import React from 'react';
+import { useT } from '../i18n/LanguageContext';
 
 export type EditorialTabItem = {
   id: string;
@@ -13,7 +14,9 @@ type Props = {
   className?: string;
 };
 
-const EditorialTabs: React.FC<Props> = ({ tabs, activeId, onChange, className = '' }) => (
+const EditorialTabs: React.FC<Props> = ({ tabs, activeId, onChange, className = '' }) => {
+  const { t } = useT();
+  return (
   <div className={`editorial-tabs mb-6 overflow-x-auto ${className}`}>
     <div className="editorial-tabs-inner flex min-w-max border-b border-[var(--editorial-border)]">
       {tabs.map((tab) => {
@@ -25,7 +28,7 @@ const EditorialTabs: React.FC<Props> = ({ tabs, activeId, onChange, className = 
             onClick={() => onChange(tab.id)}
             className={`editorial-tab ${active ? 'editorial-tab--active' : ''}`}
           >
-            <span>{tab.label}</span>
+            <span>{t(tab.label)}</span>
             {typeof tab.count === 'number' && (
               <span className={`editorial-tab-count ${active ? 'editorial-tab-count--active' : ''}`}>
                 {tab.count}
@@ -36,6 +39,7 @@ const EditorialTabs: React.FC<Props> = ({ tabs, activeId, onChange, className = 
       })}
     </div>
   </div>
-);
+  );
+};
 
 export default EditorialTabs;

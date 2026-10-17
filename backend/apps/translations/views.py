@@ -17,7 +17,14 @@ class TranslationRequestViewSet(viewsets.ModelViewSet):
         role = getattr(self.request.user, 'role', None) if self.request.user.is_authenticated else None
         if isinstance(role, str):
             role = role.strip().lower()
-        if role in ('super_admin', 'reviewer') or (role == 'operator' and self.request.method in ('GET', 'HEAD', 'OPTIONS')):
+        if role == 'reviewer':
+            # Tarjimon to'lanmagan buyurtmalarni ko'rmaydi (narxi 0 bo'lsa to'lov shart emas)
+            from django.db.models import Q
+            return TranslationRequest.objects.select_related('author', 'reviewer').filter(
+                Q(cost__lte=0)
+                | Q(transactions__service_type='translation', transactions__status='completed')
+            ).distinct()
+        if role in ('super_admin',) or (role == 'operator' and self.request.method in ('GET', 'HEAD', 'OPTIONS')):
             # Operator — faqat kuzatish (o'zgartirish update/destroy da rol bo'yicha taqiqlangan)
             return TranslationRequest.objects.select_related('author', 'reviewer').all()
         return TranslationRequest.objects.select_related('author', 'reviewer').filter(

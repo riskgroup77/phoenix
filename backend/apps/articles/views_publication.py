@@ -7,7 +7,7 @@ from .serializers import ArticleSerializer, status_change_text
 from apps.notifications.models import Notification
 from .views_antiplagiat import _check_plagiarism_thresholds, start_plagiarism_check
 from config.upload_validation import validate_upload
-from .workflow import THRESHOLD_CHECKED_TARGETS, allowed_staff_transitions, is_book_submission
+from .workflow import THRESHOLD_CHECKED_TARGETS, allowed_staff_transitions, has_completed_review, is_book_submission
 import logging
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ class ArticlePublicationActionsMixin:
         
         if not new_status:
             return Response({'error': 'Status kiritilishi shart'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Validate status value
         valid_statuses = [choice[0] for choice in Article.STATUS_CHOICES]
         if new_status not in valid_statuses:
@@ -81,6 +81,8 @@ class ArticlePublicationActionsMixin:
                 hint = ', '.join(labels.get(s, s) for s in sorted(allowed)) or "yo'q"
                 if new_status == 'Published':
                     msg = 'Maqola faqat "Nashrni yakunlash" (sertifikat yuklash) orqali nashr etiladi.'
+                elif new_status == 'Accepted' and not has_completed_review(article):
+                    msg = "Maqolani qabul qilish uchun avval taqriz yakunlanishi kerak. Taqrizchi tayinlang."
                 elif old_status == 'Draft':
                     msg = "Qoralama to'lov tasdiqlangandan keyin tahririyatga o'tadi — holatini qo'lda o'zgartirib bo'lmaydi."
                 else:

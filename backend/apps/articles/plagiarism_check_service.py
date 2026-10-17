@@ -330,6 +330,13 @@ def run_plagiarism_check(
                     deep=True,
                 )
 
+        # Matn o'qilmagan bo'lsa (bo'sh hisobot) 0% natija saqlanmaydi — xato sifatida qaytariladi
+        _rep = result.get('report') or {}
+        if not int(_rep.get('word_count') or 0) and not int(_rep.get('character_count') or 0):
+            raise ValueError(
+                'Plagiat tekshiruvi uchun hujjat matni o\'qilmadi. DOCX yoki PDF faylni qayta yuklang.'
+            )
+
         plagiarism_percentage = float(result.get('plagiarism_percentage', 0))
         ai_content_percentage = float(result.get('ai_content_percentage', 0))
         originality = float(result.get('originality', max(0, 100 - plagiarism_percentage)))

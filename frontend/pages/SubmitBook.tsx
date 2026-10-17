@@ -497,10 +497,10 @@ const SubmitBook: React.FC = () => {
                                             <div className="flex justify-between py-1.5 border-b border-slate-200/90"><span className="text-slate-500">{t('Chop etish:')}</span><span className="font-medium text-slate-900">{formatCurrency(calculatedCosts.printing)}</span></div>
                                             <div className="flex justify-between py-1.5 border-b border-slate-200/90"><span className="text-slate-500">{t('Muqova:')}</span><span className="font-medium text-slate-900">{formatCurrency(calculatedCosts.cover)}</span></div>
                                             <div className="flex justify-between py-1.5 border-b border-slate-200/90"><span className="text-slate-500">{t('Tikish:')}</span><span className="font-medium text-slate-900">{formatCurrency(calculatedCosts.binding)}</span></div>
-                                            {options.isbn && <div className="flex justify-between py-1.5 border-b border-slate-200/90"><span className="text-slate-500">ISBN:</span><span className="font-medium text-slate-900">{formatCurrency(calculatedCosts.isbn)}</span></div>}
+                                            {options.isbn && <div className="flex justify-between py-1.5 border-b border-slate-200/90"><span className="text-slate-500">{t('ISBN:')}</span><span className="font-medium text-slate-900">{formatCurrency(calculatedCosts.isbn)}</span></div>}
                                             {options.design && <div className="flex justify-between py-1.5 border-b border-slate-200/90"><span className="text-slate-500">{t('Dizayn:')}</span><span className="font-medium text-slate-900">{formatCurrency(calculatedCosts.design)}</span></div>}
                                             <div className="flex justify-between items-center pt-4">
-                                                <span className="text-lg font-bold text-slate-900">JAMI:</span>
+                                                <span className="text-lg font-bold text-slate-900">{t('JAMI:')}</span>
                                                 <span className="text-2xl font-bold text-blue-900">{formatCurrency(calculatedCosts.total)}</span>
                                             </div>
                                         </div>
