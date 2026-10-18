@@ -368,6 +368,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
     pending_payment_transaction_id = serializers.SerializerMethodField()
     work_type = serializers.SerializerMethodField()
     antiplagiat_state = serializers.SerializerMethodField()
+    antiplagiat_check_active = serializers.SerializerMethodField()
 
     class Meta:
         model = Article
@@ -377,7 +378,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
             'downloads_count', 'citations_count', 'page_count', 'fast_track',
             'plagiarism_percentage', 'ai_content_percentage', 'originality_percentage', 'plagiarism_checked_at',
             'publication_url', 'publication_link', 'certificate_download_link',
-            'pending_payment_transaction_id', 'work_type', 'antiplagiat_state',
+            'pending_payment_transaction_id', 'work_type', 'antiplagiat_state', 'antiplagiat_check_active',
         )
 
     def get_work_type(self, obj):
@@ -387,6 +388,11 @@ class ArticleListSerializer(serializers.ModelSerializer):
         from .antiplagiat_utils import standalone_antiplagiat_state
 
         return standalone_antiplagiat_state(obj)
+
+    def get_antiplagiat_check_active(self, obj):
+        from .antiplagiat_utils import antiplagiat_check_active, looks_like_standalone_antiplagiat
+
+        return looks_like_standalone_antiplagiat(obj) and antiplagiat_check_active(obj)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

@@ -265,26 +265,56 @@ const PlagiarismCheck: React.FC = () => {
   }, [urlTransactionId]);
 
   /**
-   * Sahifa yangilansa (F5) yoki boshqa joydan qaytilsa: serverda davom etayotgan tekshiruv bo'lsa — progressni
-   * qayta ko'rsatamiz (avval "Tekshirilmoqda" holati faqat brauzer xotirasida edi va refreshdan keyin yo'qolardi).
+   * Sahifa yangilansa (F5) yoki boshqa joydan qaytilsa: serverda HOZIR ketayotgan tekshiruv bo'lsa — uning progressi
+   * formadan ALOHIDA bannerda ko'rsatiladi. Forma (yangi hujjat, yangi to'lov) bunga bog'lanmaydi: avval eski
+   * to'langan/qotib qolgan hujjat formaga ulanib, yangi hujjat to'lovsiz "tekshirilmoqda" bo'lib qolardi.
    */
+  const [resumeDoc, setResumeDoc] = useState<{ id: string; title: string; progress: number; label: string; done: boolean } | null>(null);
   const resumeRunningCheck = async () => {
       if (!user) return;
       try {
           const raw = await apiService.articles.listAllForRole(String(user.role || 'author'));
-          const list = (Array.isArray(raw) ? raw : []) as Array<{ id: string; antiplagiat_state?: string | null; submission_date?: string }>;
+          const list = (Array.isArray(raw) ? raw : []) as Array<{ id: string; title?: string; antiplagiat_check_active?: boolean; submission_date?: string }>;
           const running = list
-              .filter((a) => a.antiplagiat_state === 'checking')
+              .filter((a) => a.antiplagiat_check_active === true)
               .sort((a, b) => String(b.submission_date || '').localeCompare(String(a.submission_date || '')))[0];
           if (running?.id) {
-              setArticleId(running.id);
-              setPaymentVerifiedCompleted(true);
-              void runPlagiarismAfterPayment(running.id);
+              setResumeDoc({ id: running.id, title: running.title || '', progress: 5, label: '', done: false });
           }
       } catch {
           /* ro'yxat olinmasa — oddiy bo'sh forma */
       }
   };
+
+  // Bannerdagi tekshiruv progressini kuzatish (asosiy forma holatiga tegmaydi)
+  const resumeId = resumeDoc?.id;
+  const resumeDone = resumeDoc?.done;
+  React.useEffect(() => {
+      if (!resumeId || resumeDone) return;
+      let stop = false;
+      const tick = async () => {
+          try {
+              const art: any = await apiService.articles.get(resumeId);
+              const data = art?.data || art;
+              const report = (data?.plagiarism_report || {}) as Record<string, unknown>;
+              const done = !!data?.plagiarism_checked_at && report.check_status !== 'processing';
+              const failed = report.check_status === 'failed';
+              if (stop) return;
+              setResumeDoc((prev) => prev && {
+                  ...prev,
+                  progress: done ? 100 : Math.max(prev.progress, Number(report.progress_percent ?? 0) || prev.progress),
+                  label: failed ? t('Tekshiruvda xatolik') : String(report.current_module_label || ''),
+                  done: done || failed,
+              });
+          } catch {
+              /* keyingi urinishda */
+          }
+      };
+      void tick();
+      const timer = window.setInterval(() => void tick(), 4000);
+      return () => { stop = true; window.clearInterval(timer); };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeId, resumeDone]);
 
   // Eski havolalar: ?article_id=...&view=1 → alohida natija sahifasiga
   React.useEffect(() => {
@@ -767,6 +797,36 @@ const PlagiarismCheck: React.FC = () => {
   return (
       <>
       <div className="no-print mx-auto max-w-4xl px-4 py-6">
+          {resumeDoc && (
+              <div className="mb-4 rounded-xl border border-amber-300/70 bg-amber-50 p-4 text-sm text-amber-950">
+                  <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                          <p className="font-semibold">
+                              {resumeDoc.done ? t('Oldingi hujjatingiz tekshiruvi yakunlandi') : t('Oldingi hujjatingiz tekshirilmoqda')}
+                          </p>
+                          <p className="truncate text-amber-900/80">{resumeDoc.title}</p>
+                      </div>
+                      <button type="button" onClick={() => setResumeDoc(null)} className="text-amber-900/70 hover:text-amber-950" aria-label={t('Yopish')}>×</button>
+                  </div>
+                  {!resumeDoc.done && (
+                      <div className="mt-3">
+                          <div className="h-2 rounded-full bg-amber-200/70 overflow-hidden">
+                              <div className="h-full bg-amber-500 transition-all" style={{ width: `${resumeDoc.progress}%` }} />
+                          </div>
+                          <p className="mt-1 text-xs text-amber-900/80">{resumeDoc.progress}%{resumeDoc.label ? ` — ${resumeDoc.label}` : ''}</p>
+                      </div>
+                  )}
+                  {resumeDoc.done && (
+                      <button
+                          type="button"
+                          onClick={() => goToResultView(resumeDoc.id)}
+                          className="mt-2 font-semibold text-amber-950 underline"
+                      >
+                          {t("Natijani ko'rish")}
+                      </button>
+                  )}
+              </div>
+          )}
           <AntiplagiatUploadPanel
             values={form}
             onChange={patchForm}

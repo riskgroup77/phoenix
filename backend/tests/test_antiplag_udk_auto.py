@@ -91,11 +91,26 @@ class StandaloneAntiplagiatFlowTests(TestCase):
         self.assertIn('allaqachon', str(ctx.exception))
 
     def test_checking_state_survives_refresh(self):
+        from django.utils import timezone
+
         article = self._upload()
         article.status = 'PaymentCompleted'
-        article.plagiarism_report = {**article.plagiarism_report, 'check_status': 'processing'}
+        article.save()
+        rows = self.client.get('/api/v1/articles/mine/').data
+        row = next(r for r in rows if r['id'] == str(article.id))
+        # To'langan, lekin tekshiruv ketmayapti — sahifa uni "davom ettirmaydi" (yangi formaga ulanmaydi)
+        self.assertFalse(row['antiplagiat_check_active'])
+        article.plagiarism_report = {**article.plagiarism_report, 'check_status': 'processing',
+                                     'check_updated_at': timezone.now().isoformat()}
         article.save()
         self.assertEqual(self._mine_state(article)[0], 'checking')
+        rows = self.client.get('/api/v1/articles/mine/').data
+        self.assertTrue(next(r for r in rows if r['id'] == str(article.id))['antiplagiat_check_active'])
+        # Qotib qolgan (eski) processing — faol emas
+        article.plagiarism_report = {**article.plagiarism_report, 'check_updated_at': '2026-08-07T10:00:00+05:00'}
+        article.save()
+        rows = self.client.get('/api/v1/articles/mine/').data
+        self.assertFalse(next(r for r in rows if r['id'] == str(article.id))['antiplagiat_check_active'])
 
 
 @override_settings(MEDIA_ROOT=MEDIA)

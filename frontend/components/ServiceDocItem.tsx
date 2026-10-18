@@ -75,22 +75,11 @@ const ServiceDocItem: React.FC<{ doc: ServiceDoc }> = ({ doc }) => {
           <FileBadge size={18} className="mt-1 shrink-0 text-[var(--editorial-teal)]" />
           <span>{doc.title || t(TYPE_LABELS[doc.type] || doc.label)}</span>
         </h4>
-        <div className="flex flex-col items-end gap-1.5 self-start" onClick={(e) => e.stopPropagation()}>
-          {status && (
-            <span className={`text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap ${statusColor(doc)}`}>
-              {t(status)}
-            </span>
-          )}
-          {reference && (
-            <button
-              type="button"
-              onClick={() => void openReferencePdf(reference.kind, reference.id, t("Ma'lumotnomani yaratib bo'lmadi"))}
-              className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-[var(--editorial-border)] text-[var(--editorial-primary)] hover:bg-slate-100/80 whitespace-nowrap"
-            >
-              <Award size={13} /> {t("Ma'lumotnoma")}
-            </button>
-          )}
-        </div>
+        {status && (
+          <span className={`text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap self-start ${statusColor(doc)}`}>
+            {t(status)}
+          </span>
+        )}
       </div>
       {(doc.extra?.udk_code || doc.extra?.doi_link) && (
         <p className="text-sm text-slate-600 mt-2">
@@ -119,9 +108,20 @@ const ServiceDocItem: React.FC<{ doc: ServiceDoc }> = ({ doc }) => {
           </button>
         )}
       </div>
-      <div className="flex flex-wrap justify-between items-center mt-4 text-xs text-slate-500 gap-1">
+      <div className="flex flex-wrap justify-between items-end mt-4 text-xs text-slate-500 gap-1">
         <span className="font-medium text-[var(--editorial-teal)]">{t(TYPE_LABELS[doc.type] || doc.label)}</span>
-        {doc.date && <span>{new Date(doc.date).toLocaleDateString(locale)}</span>}
+        <span className="flex flex-col items-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+          {doc.date && <span>{new Date(doc.date).toLocaleDateString(locale === 'uz-UZ' ? 'ru-RU' : locale)}</span>}
+          {reference && (
+            <button
+              type="button"
+              onClick={() => void openReferencePdf(reference.kind, reference.id, t("Ma'lumotnomani yaratib bo'lmadi"))}
+              className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-[var(--editorial-border)] text-[var(--editorial-primary)] hover:bg-slate-100/80 whitespace-nowrap"
+            >
+              <Award size={13} /> {t("Ma'lumotnoma")}
+            </button>
+          )}
+        </span>
       </div>
     </div>
   );

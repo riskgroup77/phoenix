@@ -42,6 +42,17 @@ def standalone_antiplagiat_state(article) -> str | None:
     return 'checking'
 
 
+def antiplagiat_check_active(article) -> bool:
+    """Tekshiruv hozir haqiqatan ketyaptimi (processing va qotib qolmagan) — sahifa refreshdan keyin progressni
+    davom ettirish uchun. To'langan, lekin hech boshlanmagan / qotib qolgan eski hujjatlar bu yerga kirmaydi."""
+    report = getattr(article, 'plagiarism_report', None) or {}
+    if not isinstance(report, dict) or report.get('check_status') != 'processing':
+        return False
+    from .plagiarism_check_service import _is_stale_processing
+
+    return not _is_stale_processing(report)
+
+
 def is_standalone_antiplagiat(article) -> bool:
     """
     Jurnalga yuborilgan haqiqiy maqoladan farqlash:

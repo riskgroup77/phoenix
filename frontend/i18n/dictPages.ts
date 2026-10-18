@@ -1624,4 +1624,7 @@ export const PAGE_ROWS: [string, string, string][] = [
   // ==== /Ishlarim ====
   ["Ma'lumotnoma", "Справка", "Certificate"],
   ["Hujjat holati haqida ma'lumotnoma", "Справка о статусе документа", "Document status certificate"],
+  ["Natijani ko'rish", "Посмотреть результат", "View result"],
+  ["Oldingi hujjatingiz tekshirilmoqda", "Ваш предыдущий документ проверяется", "Your previous document is being checked"],
+  ["Oldingi hujjatingiz tekshiruvi yakunlandi", "Проверка вашего предыдущего документа завершена", "The check of your previous document is complete"],
 ];

@@ -28,7 +28,7 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
     journalIds,
     onStatusUpdate
 }) => {
-    const { t } = useT();
+    const { t, locale } = useT();
     const navigate = useNavigate();
     const { user } = useAuth();
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
@@ -140,7 +140,7 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                             <Rocket size={14} /> TOP
                         </span>
                     )}
-                    <div className="relative flex flex-col items-end gap-1.5">
+                    <div className="relative">
                         <div className="flex items-center gap-2">
                             <span className={`text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap ${statusData.color}`}>
                                 {t(statusData.text)}
@@ -194,19 +194,6 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                                 </div>
                             )}
                         </div>
-                        {/* Har qanday hujjat uchun holat haqida ma'lumotnoma (PDF, interfeys tilida) */}
-                        {isAuthor && isAuthorRole && (
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    void openReferencePdf('article', article.id, t("Ma'lumotnomani yaratib bo'lmadi"));
-                                }}
-                                className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-[var(--editorial-border)] text-[var(--editorial-primary)] hover:bg-slate-100/80 whitespace-nowrap"
-                            >
-                                <Award size={13} /> {t("Ma'lumotnoma")}
-                            </button>
-                        )}
                     </div>
                 </div>
             </div>
@@ -288,12 +275,27 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                     <WorksReportModal articleId={article.id} articleTitle={article.title} onClose={() => setShowReport(false)} />
                 </div>
             )}
-            <div className="flex flex-wrap justify-between items-center mt-4 text-xs text-slate-500 gap-1">
+            <div className="flex flex-wrap justify-between items-end mt-4 text-xs text-slate-500 gap-1">
                 <span className="truncate max-w-[60%]">
                     {article.work_type && <span className="font-medium text-[var(--editorial-teal)] mr-1.5">{t(article.work_type)} ·</span>}
                     {article.author_name || t("Noma'lum muallif")}
                 </span>
-                <span>{new Date(article.submission_date).toLocaleDateString()}</span>
+                <span className="flex flex-col items-end gap-1.5">
+                    <span>{new Date(article.submission_date).toLocaleDateString(locale === 'uz-UZ' ? 'ru-RU' : locale)}</span>
+                    {/* Har qanday hujjat uchun holat haqida ma'lumotnoma (PDF, interfeys tilida) — sana ostida */}
+                    {isAuthor && isAuthorRole && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                void openReferencePdf('article', article.id, t("Ma'lumotnomani yaratib bo'lmadi"));
+                            }}
+                            className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-[var(--editorial-border)] text-[var(--editorial-primary)] hover:bg-slate-100/80 whitespace-nowrap"
+                        >
+                            <Award size={13} /> {t("Ma'lumotnoma")}
+                        </button>
+                    )}
+                </span>
             </div>
         </div>
     );
