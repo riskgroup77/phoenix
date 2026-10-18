@@ -88,6 +88,22 @@ TEXTS: dict[str, tuple[str, str, str]] = {
     'u_qr1': ('TEKSHIRISH UCHUN', 'ДЛЯ ПРОВЕРКИ', 'SCAN THE'),
     'u_qr2': ('QR KODDAN', 'ОТСКАНИРУЙТЕ', 'QR CODE'),
     'u_qr3': ('FOYDALANING', 'QR-КОД', 'TO VERIFY'),
+    # --- Hujjat holati haqida ma'lumotnoma ("Ishlarim" dagi har bir hujjat uchun)
+    'm_doc_number': ('HUJJAT RAQAMI:', 'ДОКУМЕНТ №:', 'DOCUMENT NO.:'),
+    'm_doc_date': ('HUJJAT SANASI:', 'ДАТА ВЫДАЧИ:', 'ISSUE DATE:'),
+    'm_title1': ('QABUL HAQIDA', 'СПРАВКА', 'CERTIFICATE'),
+    'm_title2': ('MA’LUMOTNOMA', 'О ПРИЁМЕ', 'OF ACCEPTANCE'),
+    'm_author': ('MUALLIF', 'АВТОР', 'AUTHOR'),
+    'm_work_type': ('ISH TURI', 'ВИД РАБОТЫ', 'WORK TYPE'),
+    'm_work_title': ('ISH NOMI', 'НАЗВАНИЕ РАБОТЫ', 'TITLE'),
+    'm_journal': ('JURNAL NOMI', 'НАЗВАНИЕ ЖУРНАЛА', 'JOURNAL'),
+    'm_org': ('TASHKILOT NOMI', 'ОРГАНИЗАЦИЯ', 'ORGANIZATION'),
+    'm_pub_date': ('NASHR ETILISH SANASI', 'ДАТА ПУБЛИКАЦИИ', 'PUBLICATION DATE'),
+    'm_status': ('HOZIRGI HOLATI', 'ТЕКУЩИЙ СТАТУС', 'CURRENT STATUS'),
+    'm_website': ('WEB-SAYT', 'ВЕБ-САЙТ', 'WEBSITE'),
+    'm_qr1': ('TEKSHIRISH UCHUN', 'ДЛЯ ПРОВЕРКИ', 'SCAN THE'),
+    'm_qr2': ('QR KODDAN', 'ОТСКАНИРУЙТЕ', 'QR CODE'),
+    'm_qr3': ('FOYDALANING', 'QR-КОД', 'TO VERIFY'),
 }
 
 
@@ -169,6 +185,31 @@ TEMPLATES = {
             L('u_qr1', 551, 1310, 22, '#1194ab', 280, align='center', group='u_qr'),
             L('u_qr2', 551, 1344, 22, '#1194ab', 280, align='center', group='u_qr'),
             L('u_qr3', 551, 1378, 22, '#1194ab', 280, align='center', group='u_qr'),
+        ],
+    },
+    'malumotnoma': {
+        'src': ROOT / 'backend' / 'assets' / 'reference_template' / 'malumotnoma.jpg',
+        'dests': [ROOT / 'backend' / 'assets' / 'reference_template'],
+        'texture_src': (700, 320, 1300, 400),
+        'erase': [(60, 45, 398, 100), (728, 45, 1054, 100), (188, 122, 1196, 296), (78, 440, 632, 846),
+                  (408, 1280, 698, 1390)],
+        'labels': [
+            # qiymatlar: yuqorida x=405 / x=1060 dan, ro'yxatda vertikal chiziqdan keyin (x=700)
+            L('m_doc_number', 72, 83, 29, '#0c5984', 392, group='m_top'),
+            L('m_doc_date', 739, 83, 29, '#0d5983', 1048, group='m_top'),
+            L('m_title1', 681, 184, 51, '#047a9b', 1000, font='serif', align='center', tracking=0.14),
+            L('m_title2', 690, 282, 68, '#085885', 1060, font='serif', align='center', tracking=0.14),
+            L('m_author', 87, 486, 33, '#057a9a', 625, group='m_list'),
+            L('m_work_type', 87, 536, 33, '#057a9b', 625, group='m_list'),
+            L('m_work_title', 87, 586, 33, '#057a9b', 625, group='m_list'),
+            L('m_journal', 87, 636, 33, '#057a9b', 625, group='m_list'),
+            L('m_org', 87, 686, 33, '#057a9b', 625, group='m_list'),
+            L('m_pub_date', 87, 736, 33, '#057b9b', 625, group='m_list'),
+            L('m_status', 87, 786, 33, '#0a5984', 625, group='m_list'),
+            L('m_website', 87, 835, 33, '#057b9b', 625, group='m_list'),
+            L('m_qr1', 551, 1309, 21, '#0e7a98', 290, align='center', group='m_qr'),
+            L('m_qr2', 551, 1342, 21, '#0e7a98', 290, align='center', group='m_qr'),
+            L('m_qr3', 551, 1376, 21, '#0e7a98', 290, align='center', group='m_qr'),
         ],
     },
 }
@@ -349,7 +390,7 @@ def build_variant(name: str, lang: str) -> Image.Image:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--preview', help="Faqat shu papkaga yoziladi (repo fayllari o'zgarmaydi)")
-    ap.add_argument('--only', help='Shablon nomi (sertifikat | hisobot1 | udk_malumotnoma)')
+    ap.add_argument('--only', help='Shablon nomi (sertifikat | hisobot1 | udk_malumotnoma | malumotnoma)')
     args = ap.parse_args()
     for name, tpl in TEMPLATES.items():
         if args.only and name != args.only:

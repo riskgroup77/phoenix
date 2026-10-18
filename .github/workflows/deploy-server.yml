@@ -4,6 +4,9 @@
 #
 # Deploy faqat CI (testlar, TypeScript, build) MUVAFFAQIYATLI o'tgandan keyin ishga tushadi va
 # aynan sinovdan o'tgan commit chiqariladi. Testlar yiqilsa — serverga hech narsa chiqmaydi.
+# Frontend CI da build qilingan (artifact frontend-dist-<sha>) — serverga tayyor holda yuboriladi,
+# serverda npm install / npm run build qilinmaydi. Artifact bo'lmasa (qo'lda ishga tushirish) —
+# serverda eskicha build qilinadi.
 # Qo'lda: Actions → Deploy to server → Run workflow (main dagi oxirgi commit; CI ni tekshirib bosing).
 
 name: Deploy to server
@@ -19,6 +22,10 @@ concurrency:
   group: phonix-production-deploy
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  actions: read   # CI run artifactini yuklab olish uchun
+
 jobs:
   deploy:
     # CI dan kelgan bo'lsa — faqat muvaffaqiyatli va main dagi push uchun (PR uchun emas)
@@ -27,8 +34,45 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      REF: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
-      - name: SSH — pull, build, restart
+      - name: Download prebuilt frontend (CI artifact)
+        id: dist
+        if: github.event_name == 'workflow_run'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist-${{ github.event.workflow_run.head_sha }}
+          path: dist
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pack frontend dist
+        id: pack
+        if: steps.dist.outcome == 'success'
+        run: |
+          test -f dist/index.html || { echo "dist/index.html yo'q — serverda build qilinadi"; exit 1; }
+          mkdir -p upload
+          tar -czf upload/phonix-dist.tgz -C dist .
+          ls -la upload
+
+      - name: Upload dist to server
+        id: upload
+        if: steps.pack.outcome == 'success'
+        continue-on-error: true
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PHONIX_SSH_HOST }}
+          username: ${{ secrets.PHONIX_SSH_USER }}
+          key: ${{ secrets.PHONIX_SSH_PRIVATE_KEY }}
+          password: ${{ secrets.PHONIX_SSH_PASSWORD }}
+          port: ${{ secrets.PHONIX_SSH_PORT || 22 }}
+          source: upload/phonix-dist.tgz
+          target: /tmp/phonix-dist-${{ env.REF }}
+          overwrite: true
+
+      - name: SSH — pull, deploy, restart
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.PHONIX_SSH_HOST }}
@@ -40,8 +84,11 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
-            REF="${{ github.event.workflow_run.head_sha || github.sha }}"
+            REF="${{ env.REF }}"
+            DIST_UPLOADED="${{ steps.upload.outcome == 'success' }}"
             URL="https://raw.githubusercontent.com/riskgroup77/phoenix/${REF}/deploy_phonix.sh"
+            DIST_TMP="/tmp/phonix-dist-${REF}"
+            trap 'rm -rf "${DIST_TMP}"' EXIT
             # Avval serverdagi git (repo private bo'lsa ham ishlaydi), bo'lmasa — ochiq raw URL
             if [ -d /phonix/.git ] && git -C /phonix fetch -q origin main 2>/dev/null \
                && git -C /phonix show "${REF}:deploy_phonix.sh" > /tmp/phonix_deploy.sh 2>/dev/null \
@@ -53,6 +100,22 @@ jobs:
               wget -qO /tmp/phonix_deploy.sh "$URL"
             fi
             chmod +x /tmp/phonix_deploy.sh
+            # CI da build qilingan frontend (bo'lsa) — ochib, deploy skriptiga beriladi
+            PREBUILT=""
+            if [ "${DIST_UPLOADED}" = "true" ]; then
+              TGZ=$(find "${DIST_TMP}" -type f -name phonix-dist.tgz 2>/dev/null | head -n1 || true)
+              if [ -n "${TGZ}" ]; then
+                mkdir -p "${DIST_TMP}/dist"
+                tar -xzf "${TGZ}" -C "${DIST_TMP}/dist"
+                [ -f "${DIST_TMP}/dist/index.html" ] && PREBUILT="${DIST_TMP}/dist"
+              fi
+            fi
+            if [ -n "${PREBUILT}" ]; then
+              echo "Frontend CI build ishlatiladi: ${PREBUILT}"
+            else
+              echo "Tayyor frontend yo'q — serverda build qilinadi"
+            fi
+            export PHONIX_PREBUILT_DIST="${PREBUILT}"
             export PHONIX_GIT_RESET=true
             export PHONIX_GIT_REF="${REF}"
             export PHONIX_FRONTEND_WEB_ROOT=/var/www/ilmiyfaoliyat

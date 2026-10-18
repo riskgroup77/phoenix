@@ -602,6 +602,10 @@ export const apiService = {
       return apiUpload('/articles/page-count/', form);
     },
 
+    /** Hujjat holati haqida ma'lumotnoma (PDF, interfeys tilida) — maqola, antiplagiat, UDK, DOI */
+    referencePdf: (kind: 'article' | 'udk_request' | 'udk_certificate' | 'doi', id: string | number) =>
+      fetchAuthedBlob(`/articles/reports/reference/?${new URLSearchParams({ kind, id: String(id), lang: uiLang() })}`),
+
     /** Barcha ilmiy ishlar (articleId bo'lsa — bitta ish) bo'yicha ma'lumotnoma: PDF yoki DOCX */
     worksReport: (params: { format: 'pdf' | 'docx'; articleId?: string; workplace?: string; position?: string }) => {
       const q = new URLSearchParams({ fmt: params.format, lang: uiLang() });

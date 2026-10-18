@@ -1,6 +1,7 @@
 """Muallif ilmiy ishlari bo'yicha ma'lumotnoma (PDF / DOCX) — works_report.py generatori ustidan API."""
 import logging
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
 from django.http import HttpResponse
 from rest_framework.decorators import api_view, permission_classes
@@ -61,5 +62,54 @@ def works_report_view(request):
     filename = f"{'Ilmiy_ish' if article else 'Ilmiy_ishlar'}_malumotnoma_{meta.number}.{fmt}"
     resp = HttpResponse(data, content_type=CONTENT_TYPES[fmt])
     resp['Content-Disposition'] = f'attachment; filename="{filename}"'
+    resp['Access-Control-Expose-Headers'] = 'Content-Disposition'
+    return resp
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def reference_view(request):
+    """
+    Hujjat holati haqida ma'lumotnoma (PDF, interfeys tilida):
+    GET /api/v1/articles/reports/reference/?kind=article|udk_request|udk_certificate|doi&id=<id>[&download=1]
+    Faqat hujjat egasi (maqolada — muallif yoki hammuallif).
+    """
+    from apps.udc.models import UDKCertificate, UdkRequest
+
+    from . import reference_doc
+    from .models import DoiRequest
+
+    kind = (request.GET.get('kind') or 'article').strip()
+    obj_id = (request.GET.get('id') or '').strip()
+    lang = request_lang(request)
+    user = request.user
+    try:
+        if kind == 'article':
+            obj = (Article.objects.select_related('author', 'journal__category', 'issue')
+                   .filter(Q(author=user) | Q(co_authors=user), pk=obj_id).distinct().first())
+            data = obj and reference_doc.for_article(obj, lang)
+        elif kind == 'udk_request':
+            obj = UdkRequest.objects.select_related('user').filter(user=user, pk=obj_id).first()
+            data = obj and reference_doc.for_udk_request(obj, lang)
+        elif kind == 'udk_certificate':
+            obj = UDKCertificate.objects.select_related('user').filter(user=user, pk=int(obj_id)).first()
+            data = obj and reference_doc.for_udk_certificate(obj, lang)
+        elif kind == 'doi':
+            obj = DoiRequest.objects.select_related('user').filter(user=user, pk=obj_id).first()
+            data = obj and reference_doc.for_doi(obj, lang)
+        else:
+            return Response({'detail': 'kind: article | udk_request | udk_certificate | doi'}, status=400)
+    except (ValueError, DjangoValidationError):
+        data = None
+    if not data:
+        return Response({'detail': 'Hujjat topilmadi.'}, status=404)
+    try:
+        pdf = reference_doc.build_pdf(data)
+    except Exception:
+        logger.exception('reference_view: PDF yaratilmadi (%s %s)', kind, obj_id)
+        return Response({'detail': "Ma'lumotnoma yaratishda xatolik."}, status=500)
+    resp = HttpResponse(pdf, content_type='application/pdf')
+    disposition = 'attachment' if request.GET.get('download') else 'inline'
+    resp['Content-Disposition'] = f'{disposition}; filename="Malumotnoma_{data.number}.pdf"'
     resp['Access-Control-Expose-Headers'] = 'Content-Disposition'
     return resp

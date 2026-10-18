@@ -1622,4 +1622,6 @@ export const PAGE_ROWS: [string, string, string][] = [
   ["Tekshiruvda xatolik", "Ошибка проверки", "Check failed"],
   ["Aniqlanmoqda", "Определяется", "Being determined"],
   // ==== /Ishlarim ====
+  ["Ma'lumotnoma", "Справка", "Certificate"],
+  ["Hujjat holati haqida ma'lumotnoma", "Справка о статусе документа", "Document status certificate"],
 ];

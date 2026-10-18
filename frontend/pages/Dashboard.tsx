@@ -11,6 +11,7 @@ import { FileText, CheckCircle, Shield, Upload, Bell, CreditCard, Bot } from 'lu
 import { apiService } from '../services/apiService';
 import { txAmount } from '../utils/amount';
 import { isStandalonePlagiarismArticle } from '../utils/antiplagiatFromArticle';
+import { isAntiplagiatDoc, ANTIPLAGIAT_STATE_LABELS } from './articles/helpers';
 import { useT } from '../i18n/LanguageContext';
 import ReviewerDashboard from './dashboard/ReviewerDashboard';
 import JournalAdminDashboard from './dashboard/JournalAdminDashboard';
@@ -165,10 +166,22 @@ const Dashboard: React.FC = () => {
         // "Maqolalarim" bilan bir xil hisob: o'zi va hammualliflik maqolalari (/articles/mine/), mustaqil
         // antiplagiat hujjatlarisiz. Avval hammualliflik tushib qolib, ro'yxatdagi "Barchasi" bilan farq qilardi.
         const myArticles = validArticles.filter((a: any) => !isStandalonePlagiarismArticle(a));
-        const recentArticles = [...myArticles]
+        // So'nggi ishlar ro'yxatida antiplagiat hujjatlari ham (holati bilan) — statistika esa faqat maqolalar bo'yicha
+        const recentArticles = [...validArticles]
             .sort((a: any, b: any) => new Date(b.submission_date || 0).getTime() - new Date(a.submission_date || 0).getTime())
             .slice(0, 5);
         const getStatusLabel = (status: string) => ARTICLE_STATUS_LABELS[status] || status;
+        const isPlagDoc = (art: any) => isAntiplagiatDoc(art);
+        const workLink = (art: any) =>
+            isPlagDoc(art)
+                ? art.antiplagiat_state === 'done' ? `/plagiarism-check/result/${art.id}` : '/plagiarism-check'
+                : `/articles/${art.id}`;
+        const workBadge = (art: any) => {
+            if (!isPlagDoc(art)) return getPinmStatusStyle(art.status);
+            const st = art.antiplagiat_state || (art.status === 'Draft' ? 'awaiting_payment' : 'checking');
+            const cls = st === 'done' ? 'pinm-badge--success' : st === 'failed' ? 'pinm-badge--danger' : 'pinm-badge--warning';
+            return { label: t(ANTIPLAGIAT_STATE_LABELS[st]?.text || 'Tekshirilmoqda'), className: `pinm-badge ${cls}` };
+        };
         const getPinmStatusStyle = (status: string) => {
             if (status === ArticleStatus.Published || status === 'Published') {
                 return { label: t('Nashr etildi'), className: 'pinm-badge pinm-badge--success' };
@@ -205,7 +218,7 @@ const Dashboard: React.FC = () => {
 
         const activityRows: ActivityRow[] = [
             ...recentArticles.map((art: any) => {
-                const badge = getPinmStatusStyle(art.status);
+                const badge = workBadge(art);
                 return {
                     id: `art-${art.id}`,
                     icon: FileText,
@@ -215,7 +228,7 @@ const Dashboard: React.FC = () => {
                         : '—',
                     badge,
                     sortAt: new Date(art.submission_date || 0).getTime(),
-                    link: `/articles/${art.id}`,
+                    link: workLink(art),
                 };
             }),
             ...validTransactions.slice(0, 8).map((tx: any) => ({
@@ -363,11 +376,11 @@ const Dashboard: React.FC = () => {
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                                 {recentArticles.slice(0, 4).map((art: any) => {
-                                    const badge = getPinmStatusStyle(art.status);
-                                    const journalName = (art.journal_name && String(art.journal_name).trim()) || '';
+                                    const badge = workBadge(art);
+                                    const journalName = isPlagDoc(art) ? t('Antiplagiat') : (art.journal_name && String(art.journal_name).trim()) || '';
                                     const dateLabel = formatShortDate(art.submission_date);
                                     return (
-                                        <Link key={art.id} to={`/articles/${art.id}`} className="milliy-article-card">
+                                        <Link key={art.id} to={workLink(art)} className="milliy-article-card">
                                             <span className={`${badge.className} self-start`}>{badge.label}</span>
                                             <span className="font-bold text-base leading-snug line-clamp-2">
                                                 {art.title || t('Nomsiz maqola')}

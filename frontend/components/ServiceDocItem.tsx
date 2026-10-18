@@ -5,9 +5,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Download, ExternalLink, FileBadge } from 'lucide-react';
+import { Award, Download, ExternalLink, FileBadge } from 'lucide-react';
 import { fetchAuthedBlob, saveBlob } from '../services/apiService';
 import { useT } from '../i18n/LanguageContext';
+import { openReferencePdf, referenceTarget } from '../utils/referenceDoc';
 
 export type ServiceDoc = {
   type: string;
@@ -41,6 +42,7 @@ const ServiceDocItem: React.FC<{ doc: ServiceDoc }> = ({ doc }) => {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const status = doc.extra?.status_label || (doc.download_url ? 'Tayyor' : '');
+  const reference = referenceTarget(doc);
 
   const open = () => {
     if (!doc.view_url) return;
@@ -73,11 +75,22 @@ const ServiceDocItem: React.FC<{ doc: ServiceDoc }> = ({ doc }) => {
           <FileBadge size={18} className="mt-1 shrink-0 text-[var(--editorial-teal)]" />
           <span>{doc.title || t(TYPE_LABELS[doc.type] || doc.label)}</span>
         </h4>
-        {status && (
-          <span className={`text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap self-start ${statusColor(doc)}`}>
-            {t(status)}
-          </span>
-        )}
+        <div className="flex flex-col items-end gap-1.5 self-start" onClick={(e) => e.stopPropagation()}>
+          {status && (
+            <span className={`text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap ${statusColor(doc)}`}>
+              {t(status)}
+            </span>
+          )}
+          {reference && (
+            <button
+              type="button"
+              onClick={() => void openReferencePdf(reference.kind, reference.id, t("Ma'lumotnomani yaratib bo'lmadi"))}
+              className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-[var(--editorial-border)] text-[var(--editorial-primary)] hover:bg-slate-100/80 whitespace-nowrap"
+            >
+              <Award size={13} /> {t("Ma'lumotnoma")}
+            </button>
+          )}
+        </div>
       </div>
       {(doc.extra?.udk_code || doc.extra?.doi_link) && (
         <p className="text-sm text-slate-600 mt-2">

@@ -4,7 +4,8 @@ import AuthorArticleReport from '../../components/AuthorArticleReport';
 import { ArticleApiResponse, getArticleJournalId } from './types';
 import { isStandalonePlagiarismArticle } from '../../utils/antiplagiatFromArticle';
 
-export const ANTIPLAGIAT_DOCS_TAB = 'antiplagiat-docs';
+/** "Antiplagiat" bandi: jurnaldagi antiplagiat ko'rib chiqish + muallifning mustaqil antiplagiat tekshiruvlari */
+export const ANTIPLAGIAT_DOCS_TAB = 'plagiarism';
 /** UDK / DOI kabi maqolaga bog'lanmagan xizmat hujjatlari (arxivdan) — "Ishlarim" da ham ko'rinadi */
 export const SERVICE_DOCS_TAB = 'service-docs';
 
@@ -53,7 +54,6 @@ export const authorArticleTabs: { id: string; label: string; statuses: ArticleSt
     { id: 'review', label: 'Taqriz', statuses: [ArticleStatus.QabulQilingan, ArticleStatus.Revision] },
     { id: 'publish', label: 'Nashrga', statuses: [ArticleStatus.Accepted, ArticleStatus.NashrgaYuborilgan] },
     { id: 'done', label: 'Nashr / yakun', statuses: [ArticleStatus.Published, ArticleStatus.Rejected] },
-    { id: ANTIPLAGIAT_DOCS_TAB, label: 'Antiplagiat tekshiruvlari', statuses: [] },
     { id: SERVICE_DOCS_TAB, label: 'UDK va DOI hujjatlari', statuses: [] },
     { id: 'all', label: 'Barchasi', statuses: [] },
 ];
@@ -66,7 +66,7 @@ export const isAntiplagiatDoc = (a: { antiplagiat_state?: string | null; work_ty
 export const matchesAuthorTab = (tab: { id: string; statuses: ArticleStatus[] }, a: ArticleApiResponse): boolean => {
     if (tab.id === 'all') return true;
     const doc = isAntiplagiatDoc(a);
-    if (tab.id === ANTIPLAGIAT_DOCS_TAB) return doc;
+    if (tab.id === ANTIPLAGIAT_DOCS_TAB) return doc || tab.statuses.includes(a.status as ArticleStatus);
     if (tab.id === SERVICE_DOCS_TAB) return false; // bu bandda faqat xizmat hujjatlari (ServiceDocItem)
     return !doc && tab.statuses.includes(a.status as ArticleStatus);
 };

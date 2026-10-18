@@ -1,3 +1,12 @@
+# CI: backend testlari + frontend tekshiruv/build.
+# Tezlik uchun:
+#   - backend virtualenv to'liq keshlanadi (requirements*.txt o'zgarmasa pip install umuman ishlamaydi);
+#   - torch CPU varianti o'rnatiladi (CUDA paketlarisiz ~200 MB, ~2.5 GB emas);
+#   - pytest-xdist bilan parallel testlar;
+#   - frontend: npm kesh + `npm ci`; build natijasi (dist) artifact sifatida saqlanadi va
+#     "Deploy to server" uni serverga yuboradi (serverda npm install/build qilinmaydi).
+# Xavfsizlik auditi (pip-audit, npm audit) — alohida: .github/workflows/security-audit.yml (haftalik).
+
 name: CI
 
 on:
@@ -6,48 +15,60 @@ on:
   pull_request:
     branches: [master, main]
 
+# Bir branchga ketma-ket push bo'lsa — eskisining CI si bekor qilinadi (deploy faqat oxirgisiga bo'ladi)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
+    env:
+      USE_SQLITE: 'true'
+      SECRET_KEY: ci-not-for-production
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        id: py
         with:
           python-version: '3.12'
-          cache: pip
-          cache-dependency-path: |
-            backend/requirements.txt
-            backend/requirements-dev.txt
-      - name: Install dependencies
+      - name: Restore virtualenv cache
+        id: venv-cache
+        uses: actions/cache@v4
+        with:
+          path: backend/.venv
+          # requirements o'zgarsa yoki Python patch versiyasi yangilansa — yangi venv quriladi
+          key: venv-v1-${{ runner.os }}-${{ runner.arch }}-py${{ steps.py.outputs.python-version }}-torchcpu-${{ hashFiles('backend/requirements.txt', 'backend/requirements-dev.txt') }}
+      - name: Install dependencies (cache miss only)
+        if: steps.venv-cache.outputs.cache-hit != 'true'
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip -q
+          # sentence-transformers torch talab qiladi — CPU varianti oldindan o'rnatiladi,
+          # shunda pip CUDA (nvidia-*) paketlarini yuklamaydi.
+          .venv/bin/pip install -q torch --index-url https://download.pytorch.org/whl/cpu
+          .venv/bin/pip install -q -r requirements-dev.txt
+      - name: Use virtualenv
+        run: echo "${GITHUB_WORKSPACE}/backend/.venv/bin" >> "$GITHUB_PATH"
       - name: Django check
         env:
           DJANGO_SETTINGS_MODULE: config.settings
-          USE_SQLITE: 'true'
-          SECRET_KEY: ci-not-for-production
         run: python manage.py check
       - name: Migrations up to date
         env:
           DJANGO_SETTINGS_MODULE: config.settings
-          USE_SQLITE: 'true'
-          SECRET_KEY: ci-not-for-production
         run: python manage.py makemigrations --check --dry-run
-      - name: Pytest
-        env:
-          USE_SQLITE: 'true'
-          SECRET_KEY: ci-not-for-production
-        run: pytest
-      - name: pip-audit
-        continue-on-error: true
-        run: pip install pip-audit && pip-audit -r requirements.txt
+      - name: Pytest (parallel)
+        run: python -m pytest -n auto -p no:cacheprovider
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
@@ -56,12 +77,33 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm ci || npm install
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
       - run: npx tsc --noEmit
       - name: Vitest
         run: npx vitest run
       - name: Build
-        run: npx vite build
-      - name: npm audit
-        continue-on-error: true
-        run: npm audit --audit-level=high
+        # Serverdagi build bilan bir xil qiymatlar (deploy_phonix.sh). Qo'shimcha VITE_* qiymatlarni
+        # GitHub → Settings → Secrets and variables → Actions → Variables orqali bering.
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://api.ilmiyfaoliyat.uz/api/v1' }}
+          VITE_MEDIA_URL: ${{ vars.VITE_MEDIA_URL || 'https://api.ilmiyfaoliyat.uz/media/' }}
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+          VITE_SENTRY_TRACES_SAMPLE_RATE: ${{ vars.VITE_SENTRY_TRACES_SAMPLE_RATE }}
+          VITE_ENABLE_PAYMENT_TEST: ${{ vars.VITE_ENABLE_PAYMENT_TEST }}
+          VITE_SUPPORT_PHONE: ${{ vars.VITE_SUPPORT_PHONE }}
+          VITE_SUPPORT_EMAIL: ${{ vars.VITE_SUPPORT_EMAIL }}
+          VITE_SUPPORT_TELEGRAM: ${{ vars.VITE_SUPPORT_TELEGRAM }}
+          VITE_DISABLE_SW: ${{ vars.VITE_DISABLE_SW }}
+          VITE_APP_VERSION: ${{ github.sha }}
+        run: npm run build
+      - name: Upload dist artifact
+        # Faqat push uchun (deploy shu artifactni ishlatadi); PR larda saqlash shart emas
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist-${{ github.sha }}
+          path: frontend/dist/
+          retention-days: 3
+          if-no-files-found: error

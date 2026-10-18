@@ -208,8 +208,19 @@ fi
 echo "   Dependencies o'rnatilmoqda..."
 source venv/bin/activate
 export DJANGO_SETTINGS_MODULE=config.settings
-pip install --upgrade pip -q
-pip install -r requirements.txt gunicorn -q || error_exit "Dependencies o'rnatish xatolik"
+# requirements.txt o'zgarmagan bo'lsa pip install o'tkazib yuboriladi (oxirgi muvaffaqiyatli o'rnatish xeshi
+# venv/.requirements.sha256 da). Majburiy o'rnatish: PHONIX_FORCE_PIP=true
+REQ_HASH_FILE="venv/.requirements.sha256"
+REQ_HASH="$(sha256sum requirements.txt | cut -d' ' -f1)"
+if [ "${PHONIX_FORCE_PIP:-false}" != "true" ] && [ -f "${REQ_HASH_FILE}" ] \
+   && [ "$(cat "${REQ_HASH_FILE}")" = "${REQ_HASH}" ]; then
+    echo "   requirements.txt o'zgarmagan — pip install o'tkazib yuborildi"
+else
+    rm -f "${REQ_HASH_FILE}"
+    pip install --upgrade pip -q
+    pip install -r requirements.txt gunicorn -q || error_exit "Dependencies o'rnatish xatolik"
+    echo "${REQ_HASH}" > "${REQ_HASH_FILE}"
+fi
 
 # .env faylini saqlab qolish / birinchi marta yaratish
 if [ ! -f .env ]; then
@@ -265,15 +276,52 @@ echo ""
 echo "📦 Frontend yangilanmoqda..."
 cd ${DEPLOY_DIR}/frontend
 
-# Dependencies va build
-echo "   Dependencies o'rnatilmoqda..."
-npm install --silent || error_exit "npm install xatolik"
+# PHONIX_PREBUILT_DIST — CI da build qilingan dist papkasi (deploy-server.yml beradi).
+# Berilsa va yaroqli bo'lsa — serverda npm install / build qilinmaydi, faqat nusxalanadi.
+# Serverdagi frontend/.env* fayllarida qo'shimcha VITE_* qiymatlar bo'lsa, CI build ularni bilmaydi —
+# shuning uchun bunday holda xavfsiz tomonga: serverda build qilinadi (PHONIX_PREBUILT_FORCE=true bilan majburlash mumkin;
+# yaxshisi bu qiymatlarni GitHub → Actions → Variables ga ko'chiring).
+USE_PREBUILT=false
+if [ -n "${PHONIX_PREBUILT_DIST:-}" ]; then
+    if [ ! -f "${PHONIX_PREBUILT_DIST}/index.html" ]; then
+        echo "   ⚠️  ${PHONIX_PREBUILT_DIST}/index.html yo'q — serverda build qilinadi"
+    else
+        LOCAL_VITE_KEYS="$(cat .env .env.local .env.production .env.production.local 2>/dev/null \
+            | grep -oE '^[[:space:]]*VITE_[A-Z0-9_]+' | sed 's/^[[:space:]]*//' \
+            | grep -vxE 'VITE_(API_BASE_URL|MEDIA_URL)' | sort -u | tr '\n' ' ' || true)"
+        if [ -n "${LOCAL_VITE_KEYS}" ] && [ "${PHONIX_PREBUILT_FORCE:-false}" != "true" ]; then
+            echo "   ⚠️  Serverdagi frontend .env fayllarida qo'shimcha qiymatlar bor: ${LOCAL_VITE_KEYS}"
+            echo "      CI build ularni bilmaydi — serverda build qilinadi (GitHub Variables ga ko'chiring)"
+        else
+            USE_PREBUILT=true
+        fi
+    fi
+fi
 
-echo "   Frontend build qilinmoqda..."
-export VITE_API_BASE_URL="https://${API_DOMAIN}/api/v1"
-export VITE_MEDIA_URL="https://${API_DOMAIN}/media/"
+if [ "${USE_PREBUILT}" = "true" ]; then
+    echo "   CI da build qilingan frontend ishlatilmoqda (npm install/build o'tkazib yuborildi)..."
+    mkdir -p dist
+    rsync -a --delete "${PHONIX_PREBUILT_DIST}/" dist/ || error_exit "Tayyor dist nusxalashda xatolik"
+else
+    # Dependencies (package-lock.json o'zgarmagan bo'lsa o'tkazib yuboriladi; majburiy: PHONIX_FORCE_NPM=true)
+    LOCK_HASH_FILE="node_modules/.phonix-package-lock.sha256"
+    LOCK_HASH="$(cat package.json package-lock.json 2>/dev/null | sha256sum | cut -d' ' -f1)"
+    if [ "${PHONIX_FORCE_NPM:-false}" != "true" ] && [ -f "${LOCK_HASH_FILE}" ] \
+       && [ "$(cat "${LOCK_HASH_FILE}")" = "${LOCK_HASH}" ]; then
+        echo "   package-lock.json o'zgarmagan — npm install o'tkazib yuborildi"
+    else
+        echo "   Dependencies o'rnatilmoqda..."
+        rm -f "${LOCK_HASH_FILE}"
+        npm install --silent || error_exit "npm install xatolik"
+        echo "${LOCK_HASH}" > "${LOCK_HASH_FILE}"
+    fi
 
-npm run build || error_exit "Frontend build xatolik"
+    echo "   Frontend build qilinmoqda..."
+    export VITE_API_BASE_URL="https://${API_DOMAIN}/api/v1"
+    export VITE_MEDIA_URL="https://${API_DOMAIN}/media/"
+
+    npm run build || error_exit "Frontend build xatolik"
+fi
 
 # Nginx static (ixtiyoriy): PHONIX_FRONTEND_WEB_ROOT=/var/www/ilmiyfaoliyat shaklida
 if [ -n "${PHONIX_FRONTEND_WEB_ROOT:-}" ] && [ -d "dist" ]; then
@@ -387,6 +435,16 @@ if systemctl list-unit-files 2>/dev/null | grep -q "^${CELERY_SERVICE}.service";
         || echo "   ⚠️  Celery worker ishga tushmadi: journalctl -u ${CELERY_SERVICE} -n 50"
 else
     echo "   ⚠️  ${CELERY_SERVICE} o'rnatilmagan — antiplagiat thread rejimida ishlaydi"
+fi
+
+# Muallif Telegram boti (scripts/deploy_telegram_bot.py o'rnatadi) — eski kodda qolmasin
+BOT_SERVICE="phoenix-telegram-bot"
+if systemctl list-unit-files 2>/dev/null | grep -q "^${BOT_SERVICE}.service"; then
+    echo "   Telegram bot qayta ishga tushirilmoqda..."
+    sudo_cmd systemctl restart ${BOT_SERVICE} || echo "   ⚠️  ${BOT_SERVICE} restart xato"
+    sleep 2
+    systemctl is-active --quiet ${BOT_SERVICE} && echo "   ✅ Telegram bot ishlayapti" \
+        || echo "   ⚠️  Telegram bot ishga tushmadi: journalctl -u ${BOT_SERVICE} -n 50"
 fi
 
 # Service status

@@ -139,6 +139,38 @@ def _verify_publications_report(prefix: str):
     }
 
 
+def _verify_reference(code: str):
+    """MLN-xxxxxxxx (maqola / antiplagiat / UDK so'rovi / DOI) yoki MLN-U<raqam> (UDK ma'lumotnoma) — joriy holat."""
+    from apps.udc.models import UDKCertificate, UdkRequest
+
+    from . import reference_doc
+    from .models import DoiRequest
+
+    data = None
+    if code.startswith('U'):
+        cert = UDKCertificate.objects.select_related('user').filter(pk=int(code[1:])).first()
+        data = cert and reference_doc.for_udk_certificate(cert, 'uz')
+    else:
+        prefix = code.lower()
+        for model, build in ((Article, reference_doc.for_article), (UdkRequest, reference_doc.for_udk_request),
+                             (DoiRequest, reference_doc.for_doi)):
+            qs = _uuid_prefix_filter(model.objects, prefix)
+            if qs.count() == 1:
+                data = build(qs.first(), 'uz')
+                break
+    if not data:
+        return None
+    return {
+        'type': 'status_reference',
+        'type_label': "Hujjat holati haqida ma'lumotnoma",
+        'document_number': data.number,
+        'title': data.title,
+        'author': data.author,
+        'date': timezone.localtime().strftime('%d.%m.%Y'),
+        'details': {'work_type': data.work_type, 'status': data.status},
+    }
+
+
 def _verify_work_report(prefix: str, lang: str = 'uz'):
     """ISH-xxxxxxxx — bitta ilmiy ish bo'yicha ma'lumotnoma. Ish turi va nashr shakli so'rov tilida."""
     from .works_report import ACCEPTANCE_EXCLUDED_STATUSES, collect_rows
@@ -187,6 +219,8 @@ def verify_document(request, code):
         result = _verify_udk(int(up[4:]))
     elif _re.fullmatch(r'HSB-[0-9A-F]{8}', up):
         result = _verify_publications_report(up[4:].lower())
+    elif _re.fullmatch(r'MLN-(?:[0-9A-F]{8}|U\d{1,9})', up):
+        result = _verify_reference(up[4:])
     elif _re.fullmatch(r'ISH-[0-9A-F]{8}', up):
         from config.doc_i18n import request_lang
 

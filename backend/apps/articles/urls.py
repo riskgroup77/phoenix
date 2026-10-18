@@ -22,6 +22,7 @@ urlpatterns = [
         author_report_pdf.author_ma_lumotnoma_signed_url,
     ),
     path('reports/works/', works_report_views.works_report_view, name='works_report'),
+    path('reports/reference/', works_report_views.reference_view, name='reference_doc'),
     path('public/<uuid:pk>/', views.public_article_detail, name='public_article_detail'),
     path('verify/<str:code>/', views.verify_document, name='verify_document'),
     path('antiplagiat-modules/', views.antiplagiat_modules, name='antiplagiat_modules'),

@@ -15,6 +15,7 @@ import { getStatusDisplayData, isAntiplagiatDoc, ANTIPLAGIAT_STATE_LABELS } from
 import { useT } from '../../i18n/LanguageContext';
 import { askStatusReason } from '../../utils/statusReason';
 import WorksReportModal from '../../components/WorksReportModal';
+import { openReferencePdf } from '../../utils/referenceDoc';
 
 /** Bu holatlarda ma'lumotnoma berilmaydi (backend: works_report.ACCEPTANCE_EXCLUDED_STATUSES) */
 const NO_DOCUMENT_STATUSES = new Set<string>([ArticleStatus.Draft, ArticleStatus.Rejected]);
@@ -139,7 +140,7 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                             <Rocket size={14} /> TOP
                         </span>
                     )}
-                    <div className="relative">
+                    <div className="relative flex flex-col items-end gap-1.5">
                         <div className="flex items-center gap-2">
                             <span className={`text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap ${statusData.color}`}>
                                 {t(statusData.text)}
@@ -193,6 +194,19 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                                 </div>
                             )}
                         </div>
+                        {/* Har qanday hujjat uchun holat haqida ma'lumotnoma (PDF, interfeys tilida) */}
+                        {isAuthor && isAuthorRole && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    void openReferencePdf('article', article.id, t("Ma'lumotnomani yaratib bo'lmadi"));
+                                }}
+                                className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-[var(--editorial-border)] text-[var(--editorial-primary)] hover:bg-slate-100/80 whitespace-nowrap"
+                            >
+                                <Award size={13} /> {t("Ma'lumotnoma")}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -267,15 +281,6 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                     >
                         <FileText size={14} /> {t('Hisobot olish')}
                     </button>
-                    {!isBookTitle(article.title) && (
-                        <button
-                            type="button"
-                            onClick={() => navigate(`/articles/${article.id}?qabul=1`)}
-                            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--editorial-border)] text-[var(--editorial-primary)] hover:bg-slate-100/80"
-                        >
-                            <Award size={14} /> {t("Qabul ma'lumotnomasi")}
-                        </button>
-                    )}
                 </div>
             )}
             {showReport && (
