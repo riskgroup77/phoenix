@@ -7,6 +7,7 @@ from config.upload_validation import validate_document
 from django_filters.rest_framework import DjangoFilterBackend
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError
+from django.db.models import ProtectedError
 from django.db.models import Prefetch, Q, Count
 from .models import Journal, JournalCategory, Issue, ScientificField, Conference, AuthorPublication
 from .serializers import JournalSerializer, JournalCategorySerializer, IssueSerializer
@@ -16,12 +17,17 @@ from apps.articles.models import Article
 class JournalCategoryViewSet(viewsets.ModelViewSet):
     queryset = JournalCategory.objects.all()
     serializer_class = JournalCategorySerializer
+    # Ruknlar kam — sahifalanmasdan to'liq ro'yxat (avval faqat 20 tasi chiqib, qolganlari formada yo'q edi)
+    pagination_class = None
     # O'qish ochiq; yaratish/o'chirish faqat bosh admin (o'chirish CASCADE: jurnallar → maqolalar)
     permission_classes = [SuperAdminWritePublicRead]
     
     def get_queryset(self):
-        # Optimize query
-        return JournalCategory.objects.prefetch_related('journals').all()
+        from .internal import INTERNAL_CATEGORY_NAME
+
+        qs = JournalCategory.objects.prefetch_related('journals').order_by('name')
+        # Ichki (texnik) rukn — tanlov ro'yxatlarida ko'rinmaydi
+        return qs.exclude(name=INTERNAL_CATEGORY_NAME)
 
     def destroy(self, request, *args, **kwargs):
         # Rukn o'chirilsa uning jurnallari (va ular orqali maqolalar) zanjir bo'ylab o'chardi — endi jurnali bor
@@ -47,7 +53,7 @@ class JournalViewSet(viewsets.ModelViewSet):
         base = Journal.objects.select_related(
             'journal_admin', 'category'
         ).prefetch_related(
-            'issues'
+            'issues', 'scientific_fields'
         )
         role = getattr(self.request.user, 'role', None) if self.request.user.is_authenticated else None
         if isinstance(role, str):
@@ -55,6 +61,9 @@ class JournalViewSet(viewsets.ModelViewSet):
         if role != 'super_admin' and not getattr(self.request.user, 'is_superuser', False):
             # Ichki (kitob buyurtmalari) jurnali katalogda va maqola yuborish ro'yxatida ko'rinmaydi
             base = base.filter(is_internal=False)
+            # Arxivlangan jurnal faqat o'z muharririga ko'rinadi (katalog va maqola yuborishda yo'q)
+            if role != 'journal_admin':
+                base = base.filter(is_archived=False)
         if role == 'journal_admin':
             return base.filter(journal_admin=self.request.user)
         # Demo (namuna) jurnallar haqiqiy mualliflar ro'yxatida ko'rinmaydi — ularga maqola yuborib pul to'lamasin
@@ -67,7 +76,7 @@ class JournalViewSet(viewsets.ModelViewSet):
     # Jurnal admini o'zgartira olmaydigan maydonlar: narx/to'lov modeli (tushumga ta'sir qiladi), jurnal egasi,
     # nomi/ISSN (Crossref va indekslash identifikatori), rukn. Bularni faqat bosh admin o'zgartiradi.
     OWNER_PROTECTED_FIELDS = frozenset({
-        'journal_admin', 'category', 'name', 'issn',
+        'journal_admin', 'category', 'name', 'issn', 'is_archived',
         'payment_model', 'pricing_type', 'publication_fee', 'price_per_page',
     })
 
@@ -111,21 +120,62 @@ class JournalViewSet(viewsets.ModelViewSet):
                 {'error': "Ichki (kitob buyurtmalari) jurnalini o'chirib bo'lmaydi."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        # Avval jurnal bilan birga uning barcha maqolalari (nashr etilgan, pullik), taqrizlari va fayllari
-        # zanjir bo'ylab o'chib ketardi. Endi maqolasi bor jurnal o'chirilmaydi (model ham PROTECT).
+        # Maqolasi bor jurnal butunlay o'chirilmaydi (nashr etilgan va to'langan maqolalar arxivi yo'qolardi,
+        # model ham PROTECT) — uning o'rniga arxivlanadi: katalogda va maqola yuborishda ko'rinmaydi.
         count = journal.articles.count()
         if count:
+            journal.is_archived = True
+            journal.save(update_fields=['is_archived', 'updated_at'])
             return Response(
                 {
-                    'error': (
-                        f"Jurnalda {count} ta maqola bor — uni o'chirib bo'lmaydi (nashr etilgan va to'langan "
-                        "maqolalar arxivi yo'qolardi)."
-                    ),
+                    'archived': True,
                     'articles_count': count,
+                    'message': (
+                        f"Jurnalda {count} ta maqola bor — jurnal arxivga o'tkazildi (katalogda ko'rinmaydi, "
+                        "maqolalar saqlanadi). Kerak bo'lsa qayta tiklash mumkin."
+                    ),
                 },
-                status=status.HTTP_409_CONFLICT,
+                status=status.HTTP_200_OK,
             )
-        return super().destroy(request, *args, **kwargs)
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            # Tekshiruvdan keyin maqola qo'shilib qolgan bo'lsa — 500 o'rniga arxiv
+            journal.is_archived = True
+            journal.save(update_fields=['is_archived', 'updated_at'])
+            return Response({'archived': True, 'message': "Jurnal arxivga o'tkazildi."}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def restore(self, request, pk=None):
+        """Arxivlangan jurnalni qayta faollashtirish (bosh admin)."""
+        if getattr(request.user, 'role', None) != 'super_admin':
+            return Response({'error': "Faqat bosh administrator."}, status=status.HTTP_403_FORBIDDEN)
+        journal = self.get_object()
+        journal.is_archived = False
+        journal.save(update_fields=['is_archived', 'updated_at'])
+        return Response(self.get_serializer(journal).data)
+
+    # Rasm (Journal.image_url) serializerda faqat o'qish uchun (absolyut URL) — fayl shu yerda saqlanadi.
+    # Avval yuklangan rasm jimgina tashlab yuborilardi.
+    def _apply_image(self, journal):
+        upload = self.request.FILES.get('image_url') or self.request.FILES.get('image')
+        if upload:
+            from config.upload_validation import IMAGE_EXTENSIONS, validate_upload
+
+            validate_upload(upload, allowed=IMAGE_EXTENSIONS, max_mb=10, field='image_url')
+            journal.image_url = upload
+            journal.save(update_fields=['image_url', 'updated_at'])
+        elif str(self.request.data.get('remove_image', '')).lower() in ('1', 'true', 'yes'):
+            if journal.image_url:
+                journal.image_url.delete(save=False)
+            journal.image_url = None
+            journal.save(update_fields=['image_url', 'updated_at'])
+
+    def perform_create(self, serializer):
+        self._apply_image(serializer.save())
+
+    def perform_update(self, serializer):
+        self._apply_image(serializer.save())
 
 
 class IssueViewSet(viewsets.ModelViewSet):
@@ -371,7 +421,10 @@ class ScientificFieldViewSet(viewsets.ModelViewSet):
     """Scientific fields CRUD operations"""
     queryset = ScientificField.objects.filter(is_active=True)
     serializer_class = ScientificFieldSerializer
-    permission_classes = [SuperAdminWriteAuthenticatedRead]
+    # Sohalar katalog filtrlarida ham kerak (mehmon ham ko'radi); yozish — faqat bosh admin
+    permission_classes = [SuperAdminWritePublicRead]
+    # Sohalar ro'yxati to'liq kerak (jurnal formasi va filtrlar) — sahifalanmaydi
+    pagination_class = None
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['is_active']
     search_fields = ['name', 'description']

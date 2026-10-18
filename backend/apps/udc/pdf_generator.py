@@ -12,11 +12,20 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
-from apps.articles.antiplagiat_template_render import _fit_pixels, _font, _hex_to_rgb, _text_w, _wrap_pixels
+from apps.articles.antiplagiat_template_render import (
+    _fit_pixels, _font, _hex_to_rgb, _text_w, _wrap_pixels, localized_template_path,
+)
+from config.doc_i18n import Dictionary, normalize_lang
 
 logger = logging.getLogger(__name__)
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent.parent / 'assets' / 'udk_template'
+_PDF_TEXT = Dictionary({
+    'title': ("UDK haqida ma'lumotnoma", 'Справка об индексе УДК', 'UDC index certificate'),
+    'author': ('Phoenix nashriyoti — ilmiyfaoliyat.uz', 'Издательство Phoenix — ilmiyfaoliyat.uz',
+               'Phoenix Publishing — ilmiyfaoliyat.uz'),
+})
+
 # Shablon 2000px — matn chop etishda tiniq chiqishi uchun 2 barobar kattalikda chiziladi
 RENDER_SCALE = 2
 
@@ -92,13 +101,15 @@ def _paste_qr(img, verification_url: str, spec: dict[str, Any], s: float) -> Non
     img.paste(qr_img, (int(spec['center_x'] * s - side / 2), int(spec['center_y'] * s - side / 2)))
 
 
-def render_udk_certificate(values: dict[str, str], verification_url: str = '', scale: float = RENDER_SCALE):
-    """Shablon + qiymatlar → PIL rasm (RGB)."""
+def render_udk_certificate(
+    values: dict[str, str], verification_url: str = '', scale: float = RENDER_SCALE, lang: str = 'uz',
+):
+    """Shablon + qiymatlar → PIL rasm (RGB). lang — yorliqlar tili (udk_malumotnoma.<lang>.jpg)."""
     from PIL import Image, ImageDraw
 
     layout = _layout()
     w, h = layout['size']
-    img = Image.open(ASSETS_DIR / layout['image']).convert('RGB')
+    img = Image.open(localized_template_path(ASSETS_DIR, layout['image'], lang)).convert('RGB')
     if scale != 1:
         img = img.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
     draw = ImageDraw.Draw(img)
@@ -117,8 +128,9 @@ def generate_udk_certificate_pdf(
     document_number: str = '',
     document_date: str = None,
     verification_url: str = '',
+    lang: str = 'uz',
 ) -> BytesIO:
-    """UDK HAQIDA MA'LUMOTNOMA — A4 albom PDF (to'liq sahifa shablon)."""
+    """UDK HAQIDA MA'LUMOTNOMA — A4 albom PDF (to'liq sahifa shablon), lang tilidagi yorliqlar bilan."""
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.utils import ImageReader
     from reportlab.pdfgen import canvas
@@ -133,6 +145,7 @@ def generate_udk_certificate_pdf(
             'udk_description': udk_description or '',
         },
         verification_url=verification_url or 'https://ilmiyfaoliyat.uz',
+        lang=lang,
     )
     jpeg = BytesIO()
     img.save(jpeg, format='JPEG', quality=90, optimize=True)
@@ -141,8 +154,8 @@ def generate_udk_certificate_pdf(
     buffer = BytesIO()
     pw, ph = landscape(A4)
     c = canvas.Canvas(buffer, pagesize=(pw, ph))
-    c.setTitle("UDK haqida ma'lumotnoma")
-    c.setAuthor('Phoenix nashriyoti — ilmiyfaoliyat.uz')
+    c.setTitle(_PDF_TEXT.t('title', lang))
+    c.setAuthor(_PDF_TEXT.t('author', lang))
     c.drawImage(ImageReader(jpeg), 0, 0, width=pw, height=ph)
     c.showPage()
     c.save()
@@ -155,14 +168,13 @@ def certificate_document_number(cert) -> str:
     return f'UDK-{cert.id:06d}'
 
 
-def save_certificate_pdf(cert) -> None:
-    """UDKCertificate uchun PDF yaratib, certificate_path ga saqlaydi (eski fayl o'rniga)."""
+def build_certificate_pdf(cert, lang: str = 'uz') -> BytesIO:
+    """Standalone UDKCertificate uchun PDF (lang tilidagi shablon bilan)."""
     from django.conf import settings
-    from django.core.files.base import ContentFile
 
     frontend_base = getattr(settings, 'FRONTEND_BASE_URL', 'https://ilmiyfaoliyat.uz').rstrip('/')
     doc_date = cert.created_at.strftime('%d.%m.%Y') if getattr(cert, 'created_at', None) else date.today().strftime('%d.%m.%Y')
-    buf = generate_udk_certificate_pdf(
+    return generate_udk_certificate_pdf(
         article_title=cert.title,
         author_name=cert.author_name or (cert.user.get_full_name() if cert.user_id else ''),
         udk_code=cert.udk_code,
@@ -170,7 +182,16 @@ def save_certificate_pdf(cert) -> None:
         document_number=certificate_document_number(cert),
         document_date=doc_date,
         verification_url=f"{frontend_base}/#/udk-verify?id={cert.id}",
+        lang=normalize_lang(lang),
     )
+
+
+def save_certificate_pdf(cert) -> None:
+    """UDKCertificate uchun PDF yaratib, certificate_path ga saqlaydi (eski fayl o'rniga).
+    Saqlanadigan nusxa — o'zbekcha; boshqa tillar yuklab olishda talab bo'yicha yaratiladi."""
+    from django.core.files.base import ContentFile
+
+    buf = build_certificate_pdf(cert, 'uz')
     if cert.certificate_path:
         cert.certificate_path.delete(save=False)
     cert.certificate_path.save(f"udk_certificate_{cert.id}.pdf", ContentFile(buf.read()), save=True)

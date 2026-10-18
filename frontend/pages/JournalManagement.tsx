@@ -3,9 +3,10 @@ import { ListSkeleton } from '../components/ui/Skeleton';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import { useAuth } from '../contexts/AuthContext';
-import { Role, Journal, JournalCategory, PaymentModel, JournalPricingType, AdditionalDocumentConfig } from '../types';
+import { Role, Journal, JournalCategory, PaymentModel, JournalPricingType, AdditionalDocumentConfig, ScientificFieldItem } from '../types';
+import { PUBLICATION_TYPES, normCategory } from '../constants/authorCategories';
 import Button from '../components/ui/Button';
-import { Edit, Trash2, PlusCircle, X, Check, UploadCloud } from 'lucide-react';
+import { Edit, Trash2, PlusCircle, X, Check, UploadCloud, Archive, RotateCcw } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { useT } from '../i18n/LanguageContext';
 
@@ -22,6 +23,11 @@ const JournalManagement: React.FC = () => {
     const { user } = useAuth();
     const [journals, setJournals] = useState<Journal[]>([]);
     const [categories, setCategories] = useState<JournalCategory[]>([]);
+    /** Soha (fan yo'nalishlari) — rukndan alohida ro'yxat */
+    const [fields, setFields] = useState<ScientificFieldItem[]>([]);
+    const [fieldSearch, setFieldSearch] = useState('');
+    const [selectedFieldFilter, setSelectedFieldFilter] = useState<string>('all');
+    const [removeImage, setRemoveImage] = useState(false);
     const [users, setUsers] = useState<any[]>([]);
     
     const [loading, setLoading] = useState(true);
@@ -35,7 +41,7 @@ const JournalManagement: React.FC = () => {
     const [editingJournal, setEditingJournal] = useState<Journal | null>(null);
     const [deletingJournal, setDeletingJournal] = useState<Journal | null>(null);
     
-    const initialNewJournalState: Partial<Journal> & { additionalDocumentConfig: AdditionalDocumentConfig } = {
+    const initialNewJournalState: Partial<Journal> & { additionalDocumentConfig: AdditionalDocumentConfig; scientificFieldIds: string[] } = {
         name: '',
         issn: '',
         description: '',
@@ -54,8 +60,9 @@ const JournalManagement: React.FC = () => {
         plagiarism_max_percent: undefined,
         ai_content_max_percent: undefined,
         originality_min_percent: undefined,
+        scientificFieldIds: [],
     };
-    const [formData, setFormData] = useState<Partial<Journal> & { additionalDocumentConfig?: AdditionalDocumentConfig }>(initialNewJournalState);
+    const [formData, setFormData] = useState<Partial<Journal> & { additionalDocumentConfig?: AdditionalDocumentConfig; scientificFieldIds?: string[] }>(initialNewJournalState);
     const [imageFile, setImageFile] = useState<File | null>(null);
     
     // Fetch data from API
@@ -68,10 +75,11 @@ const JournalManagement: React.FC = () => {
                 setError(null);
                 
                 // Fetch all required data in parallel
-                const [journalsData, categoriesData, usersData] = await Promise.all([
+                const [journalsData, categoriesData, usersData, fieldsData] = await Promise.all([
                     apiService.journals.list(),
                     apiService.journals.listCategories(),
-                    apiService.users.list()
+                    apiService.users.list(),
+                    apiService.scientificFields.list().catch(() => []),
                 ]);
                 
                 // Ensure we're working with arrays - handle various response formats
@@ -95,6 +103,7 @@ const JournalManagement: React.FC = () => {
                 setJournals(journalsArray);
                 setCategories(categoriesArray);
                 setUsers(usersArray);
+                setFields(processApiResponse(fieldsData));
             } catch (err: any) {
                 console.error('Failed to fetch data:', err);
                 setError(t("Ma'lumotlarni yuklashda xatolik yuz berdi."));
@@ -143,10 +152,12 @@ const JournalManagement: React.FC = () => {
                 pricingType: journalToEdit.pricingType || j.pricing_type,
                 publicationFee: journalToEdit.publicationFee !== undefined ? journalToEdit.publicationFee : j.publication_fee,
                 pricePerPage: journalToEdit.pricePerPage !== undefined ? journalToEdit.pricePerPage : j.price_per_page,
-                additionalDocumentConfig: journalToEdit.additionalDocumentConfig || initialNewJournalState.additionalDocumentConfig,
                 plagiarism_max_percent: journalToEdit.plagiarism_max_percent ?? j.plagiarism_max_percent ?? undefined,
                 ai_content_max_percent: journalToEdit.ai_content_max_percent ?? j.ai_content_max_percent ?? undefined,
                 originality_min_percent: journalToEdit.originality_min_percent ?? j.originality_min_percent ?? undefined,
+                additionalDocumentConfig: j.additional_document_config || journalToEdit.additionalDocumentConfig || initialNewJournalState.additionalDocumentConfig,
+                scientificFieldIds: (j.scientific_fields || []).map(String),
+                imageUrl: '',
             };
             setFormData(formDataWithCamelCase);
         } else {
@@ -163,9 +174,44 @@ const JournalManagement: React.FC = () => {
         setEditingJournal(null);
         setDeletingJournal(null);
         setImageFile(null);
+        setRemoveImage(false);
+        setFieldSearch('');
         // Reset image preview
         setFormData(prev => ({ ...prev, imageUrl: '' }));
     };
+
+    const toggleField = (id: string) => {
+        setFormData((prev) => {
+            const cur = new Set(prev.scientificFieldIds || []);
+            if (cur.has(id)) cur.delete(id);
+            else cur.add(id);
+            return { ...prev, scientificFieldIds: [...cur] };
+        });
+    };
+
+    /**
+     * Rukn (nashr turi) tanlovi: 8 ta standart nashr turi (bazada bo'lmasa — "new:<nom>", saqlashda yaratiladi)
+     * + qo'shimcha qo'shilgan turlar. Eski "soha" ruknlari (Iqtisodiyot, Pedagogika ...) bu yerda ko'rinmaydi —
+     * soha endi alohida tanlanadi; faqat tahrirlanayotgan jurnalning joriy rukni bo'lsa "(eski)" deb chiqadi.
+     */
+    const categoryOptions = (() => {
+        const opts: { value: string; label: string }[] = [];
+        const used = new Set<string>();
+        PUBLICATION_TYPES.forEach((name) => {
+            const existing = categories.find((c) => normCategory(c.name) === normCategory(name));
+            opts.push({ value: existing ? existing.id : `new:${name}`, label: name });
+            used.add(normCategory(name));
+        });
+        categories
+            .filter((c) => c.kind !== 'subject' && !used.has(normCategory(c.name)))
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .forEach((c) => opts.push({ value: c.id, label: c.name }));
+        const current = categories.find((c) => c.id === formData.categoryId);
+        if (current && !opts.some((o) => o.value === current.id)) {
+            opts.push({ value: current.id, label: `${current.name} (${t('eski rukn — nashr turini tanlang')})` });
+        }
+        return opts;
+    })();
     
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -245,9 +291,10 @@ const JournalManagement: React.FC = () => {
 
     const getJournalCategoryId = (journal: Journal) => journal.categoryId || (journal as any).category || 'uncategorized';
 
-    const filteredJournals = selectedCategoryFilter === 'all'
-        ? journals
-        : journals.filter(journal => getJournalCategoryId(journal) === selectedCategoryFilter);
+    const journalFieldIds = (journal: Journal): string[] => ((journal as any).scientific_fields || []).map(String);
+    const filteredJournals = journals
+        .filter(journal => selectedCategoryFilter === 'all' || getJournalCategoryId(journal) === selectedCategoryFilter)
+        .filter(journal => selectedFieldFilter === 'all' || journalFieldIds(journal).includes(selectedFieldFilter));
 
     const groupedJournals = filteredJournals.reduce<Record<string, Journal[]>>((acc, journal) => {
         const categoryId = getJournalCategoryId(journal);
@@ -273,6 +320,15 @@ const JournalManagement: React.FC = () => {
             alert(t("Iltimos, Jurnal Nomi, Kategoriyasi va Admini maydonlarini to'ldiring."));
             return;
         }
+        // Rukn: mavjud ID yoki bazada hali yo'q standart nashr turi (server nom bo'yicha yaratadi)
+        const categoryPayload = String(formData.categoryId).startsWith('new:')
+            ? { category_name: String(formData.categoryId).slice(4) }
+            : { category: formData.categoryId };
+        const taxonomyPayload = {
+            ...categoryPayload,
+            scientific_fields: formData.scientificFieldIds || [],
+            ...(removeImage && !imageFile ? { remove_image: true } : {}),
+        };
 
         try {
             if (editingJournal) {
@@ -283,7 +339,7 @@ const JournalManagement: React.FC = () => {
                     issn: formData.issn || '',
                     description: formData.description || '',
                     journal_admin: formData.journalAdminId,
-                    category: formData.categoryId,
+                    ...taxonomyPayload,
                     payment_model: formData.paymentModel || PaymentModel.PostPayment,
                     pricing_type: formData.pricingType || JournalPricingType.Fixed,
                     publication_fee: Number(formData.publicationFee) || 0,
@@ -302,17 +358,6 @@ const JournalManagement: React.FC = () => {
                     };
                 }
                 
-                // Handle image upload if we have an image file
-                if (imageFile) {
-                    try {
-                        // For Django ImageField, we need to send the image as part of the main request
-                        // We'll include it in the FormData for the journal update
-                    } catch (uploadError: any) {
-                        console.error('Failed to process image:', uploadError);
-                        alert(t('Rasmni qayta ishlashda xatolik yuz berdi: {value}', { value: uploadError.message || 'Unknown error' }));
-                        return; // Don't update the journal if image processing fails
-                    }
-                }
                 const updatedJournal = await apiService.journals.update(editingJournal.id, updatedJournalData, imageFile || undefined);
                 const updatedJournals = journals.map(j => 
                     j.id === editingJournal.id ? updatedJournal : j
@@ -326,7 +371,7 @@ const JournalManagement: React.FC = () => {
                     issn: formData.issn || '',
                     description: formData.description || '',
                     journal_admin: formData.journalAdminId,
-                    category: formData.categoryId,
+                    ...taxonomyPayload,
                     payment_model: formData.paymentModel || PaymentModel.PostPayment,
                     pricing_type: formData.pricingType || JournalPricingType.Fixed,
                     publication_fee: Number(formData.publicationFee) || 0,
@@ -345,17 +390,6 @@ const JournalManagement: React.FC = () => {
                     };
                 }
                 
-                // Handle image upload if we have an image file
-                if (imageFile) {
-                    try {
-                        // For Django ImageField, we need to send the image as part of the main request
-                        // We'll include it in the FormData for the journal creation
-                    } catch (uploadError: any) {
-                        console.error('Failed to process image:', uploadError);
-                        alert(t('Rasmni qayta ishlashda xatolik yuz berdi: {value}', { value: uploadError.message || 'Unknown error' }));
-                        return; // Don't create the journal if image processing fails
-                    }
-                }
                 const newJournal = await apiService.journals.create(newJournalData, imageFile || undefined);
                 setJournals(prev => [newJournal, ...prev]);
             }
@@ -387,8 +421,14 @@ const JournalManagement: React.FC = () => {
     const confirmDelete = async () => {
         if (deletingJournal) {
             try {
-                await apiService.journals.delete(deletingJournal.id);
-                setJournals(prev => prev.filter(j => j.id !== deletingJournal.id));
+                const res: any = await apiService.journals.delete(deletingJournal.id);
+                if (res?.archived) {
+                    // Maqolasi bor jurnal arxivlandi (katalogda ko'rinmaydi, maqolalar saqlanadi)
+                    setJournals(prev => prev.map(j => (j.id === deletingJournal.id ? ({ ...j, is_archived: true } as any) : j)));
+                    alert(res.message || t("Jurnal arxivga o'tkazildi."));
+                } else {
+                    setJournals(prev => prev.filter(j => j.id !== deletingJournal.id));
+                }
                 setDeletingJournal(null);
             } catch (err: any) {
                 console.error('Failed to delete journal:', err);
@@ -397,6 +437,15 @@ const JournalManagement: React.FC = () => {
         }
     };
     
+    const restoreJournal = async (journal: Journal) => {
+        try {
+            const updated = await apiService.journals.restore(journal.id);
+            setJournals(prev => prev.map(j => (j.id === journal.id ? updated : j)));
+        } catch (err: any) {
+            alert(t('Xatolik: {value}', { value: err?.message || '' }));
+        }
+    };
+
     return (
         <>
             <div className="space-y-6 max-w-6xl mx-auto">
@@ -419,6 +468,19 @@ const JournalManagement: React.FC = () => {
                             <option value="all">{t('Barcha kategoriyalar')}</option>
                             {categories.map(cat => (
                                 <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0">
+                        <label className="editorial-field-label">{t("Soha bo'yicha:")}</label>
+                        <select
+                            value={selectedFieldFilter}
+                            onChange={(e) => setSelectedFieldFilter(e.target.value)}
+                            className="editorial-select w-full sm:w-auto sm:min-w-[220px]"
+                        >
+                            <option value="all">{t('Barcha sohalar')}</option>
+                            {fields.map(f => (
+                                <option key={f.id} value={String(f.id)}>{f.name}</option>
                             ))}
                         </select>
                     </div>
@@ -481,12 +543,25 @@ const JournalManagement: React.FC = () => {
                                             {t('Narx:')} <span className="font-medium text-[var(--editorial-teal)]">{priceText}</span>
                                         </p>
                                         <p className="text-xs text-[var(--editorial-muted)] font-mono mt-1">ISSN: {journal.issn}</p>
+                                        {((journal as any).scientific_field_names || []).length > 0 && (
+                                            <p className="text-xs text-[var(--editorial-muted)] mt-1">
+                                                {t('Soha:')} <span className="text-[var(--editorial-text)]">{(journal as any).scientific_field_names.join(', ')}</span>
+                                            </p>
+                                        )}
+                                        {(journal as any).is_archived && (
+                                            <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+                                                <Archive size={12} /> {t('Arxivda — katalogda ko\'rinmaydi')}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-2 mt-3 sm:mt-0">
                                     <button onClick={() => handleOpenModal(journal)} className="text-[var(--editorial-primary)] hover:opacity-80 p-2 rounded-md transition-colors" aria-label={t('Tahrirlash')}><Edit size={18}/></button>
                                     {/* Ichki (kitob buyurtmalari) jurnali o'chirilmaydi */}
-                                    {!(journal as any).is_internal && (
+                                    {(journal as any).is_archived && (
+                                        <button onClick={() => restoreJournal(journal)} className="text-[var(--editorial-teal)] hover:opacity-80 p-2 rounded-md transition-colors" aria-label={t('Tiklash')} title={t('Tiklash')}><RotateCcw size={18}/></button>
+                                    )}
+                                    {!(journal as any).is_internal && !(journal as any).is_archived && (
                                         <button onClick={() => handleDeleteClick(journal)} className="text-red-700 hover:opacity-80 p-2 rounded-md transition-colors" aria-label={t("O'chirish")}><Trash2 size={18}/></button>
                                     )}
                                 </div>
@@ -519,6 +594,12 @@ const JournalManagement: React.FC = () => {
                                 ) : (
                                     <p className="text-slate-500 text-sm">{t('Rasm mavjud emas')}</p>
                                 )}
+                                {((editingJournal as any).image_url) && !imageFile && (
+                                    <label className="mt-2 flex items-center gap-2 text-sm text-red-700 cursor-pointer">
+                                        <input type="checkbox" checked={removeImage} onChange={(e) => setRemoveImage(e.target.checked)} />
+                                        {t("Joriy rasmni o'chirish")}
+                                    </label>
+                                )}
                             </div>
                         )}
                         <form onSubmit={handleSaveJournal} className="space-y-4 min-w-0">
@@ -528,7 +609,7 @@ const JournalManagement: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-w-0">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">{t('Jurnal Kategoriyasi')}</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{t('Nashr turi (rukn)')}</label>
                                     {isAddingCategory ? (
                                         <div className="flex items-center gap-2">
                                             <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} className="w-full" placeholder={t('Yangi kategoriya nomi')} autoFocus/>
@@ -538,13 +619,13 @@ const JournalManagement: React.FC = () => {
                                     ) : (
                                         <div className="flex items-center gap-2">
                                             <select name="categoryId" value={formData.categoryId} onChange={handleInputChange} className="w-full" required>
-                                                <option value="" disabled>{t('Kategoriyani tanlang')}</option>
-                                                {categories.map(cat => (
-                                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                                <option value="" disabled>{t('Nashr turini tanlang')}</option>
+                                                {categoryOptions.map(o => (
+                                                    <option key={o.value} value={o.value}>{t(o.label)}</option>
                                                 ))}
                                             </select>
                                             <Button type="button" onClick={() => setIsAddingCategory(true)} className="!p-2.5 !rounded-lg" title={t("Yangi kategoriya qo'shish")}><PlusCircle size={18}/></Button>
-                                            {formData.categoryId && (
+                                            {formData.categoryId && !String(formData.categoryId).startsWith('new:') && (
                                                 <Button type="button" variant="danger" onClick={() => handleDeleteCategory(formData.categoryId!)} className="!p-2.5 !rounded-lg" title={t("Tanlangan kategoriyani o'chirish")}><Trash2 size={18}/></Button>
                                             )}
                                         </div>
@@ -558,6 +639,34 @@ const JournalManagement: React.FC = () => {
                                             <option key={admin.id} value={admin.id}>{personFullName(admin)}</option>
                                         ))}
                                     </select>
+                                </div>
+                            </div>
+                            <div className="min-w-0">
+                                <label className="block text-sm font-medium text-slate-600 mb-1">
+                                    {t('Jurnal sohasi')}{' '}
+                                    <span className="text-xs text-slate-500">({t('bir nechtasini tanlash mumkin')}: {(formData.scientificFieldIds || []).length})</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={fieldSearch}
+                                    onChange={(e) => setFieldSearch(e.target.value)}
+                                    placeholder={t('Sohani qidirish...')}
+                                    className="w-full mb-2"
+                                />
+                                <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
+                                    {fields
+                                        .filter((f) => !fieldSearch.trim() || normCategory(f.name).includes(normCategory(fieldSearch)))
+                                        .map((f) => (
+                                            <label key={f.id} className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-slate-100 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={(formData.scientificFieldIds || []).includes(String(f.id))}
+                                                    onChange={() => toggleField(String(f.id))}
+                                                />
+                                                <span className="break-words">{t(f.name)}</span>
+                                            </label>
+                                        ))}
+                                    {fields.length === 0 && <p className="text-xs text-slate-500 p-2">{t('Sohalar ro\'yxati yuklanmadi')}</p>}
                                 </div>
                             </div>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-w-0">
@@ -603,7 +712,7 @@ const JournalManagement: React.FC = () => {
                                                 {t("O'zgartirish")}
                                             </label>
                                             <input id="journal-image-upload" name="journal-image-upload" type="file" className="sr-only" accept="image/png, image/jpeg" onChange={handleImageChange} />
-                                            <button type="button" onClick={() => setFormData(prev => ({...prev, imageUrl: ''}))} className="ml-3 text-red-700 hover:text-red-800 text-sm">
+                                            <button type="button" onClick={() => { setImageFile(null); setFormData(prev => ({...prev, imageUrl: ''})); }} className="ml-3 text-red-700 hover:text-red-800 text-sm">
                                                 {t("O'chirish")}
                                             </button>
                                         </div>
@@ -697,8 +806,8 @@ const JournalManagement: React.FC = () => {
                         </div>
                         {/* Maqolasi bor jurnal o'chirilmaydi (server ham rad etadi) — avval maqolalar arxivi bilan o'chib ketardi */}
                         {Number((deletingJournal as any).articles_count || 0) > 0 ? (
-                            <p className="text-red-800 bg-red-50 rounded-lg p-3 mb-6 text-sm">
-                                {t("Bu jurnalda {count} ta maqola bor — uni o'chirib bo'lmaydi: nashr etilgan va to'langan maqolalar arxivi yo'qoladi.", { count: Number((deletingJournal as any).articles_count) })}
+                            <p className="text-amber-900 bg-amber-50 rounded-lg p-3 mb-6 text-sm">
+                                {t("Bu jurnalda {count} ta maqola bor — jurnal arxivga o'tkaziladi: katalogda va maqola yuborishda ko'rinmaydi, nashr etilgan maqolalar va to'lovlar saqlanadi. Keyin qayta tiklash mumkin.", { count: Number((deletingJournal as any).articles_count) })}
                             </p>
                         ) : (
                             <p className="text-slate-600 mb-6">
@@ -707,12 +816,8 @@ const JournalManagement: React.FC = () => {
                         )}
                         <div className="flex justify-end gap-4 mt-8">
                             <Button variant="secondary" onClick={() => setDeletingJournal(null)}>{t('Bekor qilish')}</Button>
-                            <Button
-                                variant="danger"
-                                onClick={confirmDelete}
-                                disabled={Number((deletingJournal as any).articles_count || 0) > 0}
-                            >
-                                {t("O'chirish")}
+                            <Button variant="danger" onClick={confirmDelete}>
+                                {Number((deletingJournal as any).articles_count || 0) > 0 ? t('Arxivga o\'tkazish') : t("O'chirish")}
                             </Button>
                         </div>
                     </Card>

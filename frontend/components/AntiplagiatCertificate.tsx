@@ -2,6 +2,8 @@ import React from 'react';
 import AntiplagJpgPage from './AntiplagTemplateOverlay';
 import { CERTIFICATE_TEMPLATE } from '../constants/antiplagTemplateLayout';
 import { verifyUrl } from '../utils/verifyLink';
+import { localizedTemplateUrl } from '../constants/localizedTemplate';
+import { useT } from '../i18n/LanguageContext';
 
 export interface AntiplagiatCertificateData {
     certificateNumber: string;
@@ -18,6 +20,8 @@ export interface AntiplagiatCertificateData {
 }
 
 const AntiplagiatCertificate: React.FC<{ data: AntiplagiatCertificateData }> = ({ data }) => {
+    // Yorliqlar shablon rasmida — interfeys tiliga mos nusxa olinadi
+    const { lang } = useT();
 
     const values: Record<string, string> = {
         check_date: data.checkDate,
@@ -36,7 +40,7 @@ const AntiplagiatCertificate: React.FC<{ data: AntiplagiatCertificateData }> = (
         <AntiplagJpgPage
             id="antipagiat-certificate"
             data-paper className="antiplagiat-certificate"
-            imageUrl={CERTIFICATE_TEMPLATE.image}
+            imageUrl={localizedTemplateUrl(CERTIFICATE_TEMPLATE.image, lang)}
             baseWidth={CERTIFICATE_TEMPLATE.width}
             aspectRatio={CERTIFICATE_TEMPLATE.aspect}
             fields={CERTIFICATE_TEMPLATE.fields}

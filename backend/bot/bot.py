@@ -35,6 +35,9 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', os.getenv('DJANGO_SETTINGS_MODUL
 django.setup()
 
 from bot.constants import (  # noqa: E402
+    BC_BUTTON,
+    BC_CONFIRM,
+    BC_MESSAGE,
     BOOK_ABSTRACT,
     BOOK_COVER,
     BOOK_FILE,
@@ -96,6 +99,14 @@ from bot.handlers.auth import (  # noqa: E402
     register_phone,
     register_start,
 )
+from bot.handlers.broadcast import (  # noqa: E402
+    broadcast_button,
+    broadcast_cancel,
+    broadcast_confirm,
+    broadcast_message,
+    broadcast_skip,
+    broadcast_start,
+)
 from bot.handlers.dashboard import dashboard_callback  # noqa: E402
 from bot.handlers.list_views import list_view_callback  # noqa: E402
 from bot.handlers.router import help_command, menu_router, start  # noqa: E402
@@ -149,6 +160,22 @@ def build_application() -> Application:
         raise RuntimeError('TELEGRAM_BOT_TOKEN .env faylida belgilanmagan')
 
     app = Application.builder().token(token).build()
+
+    # Reklama (/reklama, faqat adminlar). Birinchi ro'yxatdan o'tkaziladi: admin xabar kutilayotgan holatda
+    # menyu matni («📝 Maqola yuborish» va h.k.) yoki kontakt yuborsa ham boshqa suhbatlarga o'tib ketmasin.
+    app.add_handler(ConversationHandler(
+        entry_points=[CommandHandler('reklama', broadcast_start)],
+        states={
+            BC_MESSAGE: [MessageHandler(filters.ALL & ~filters.COMMAND, broadcast_message)],
+            BC_BUTTON: [
+                CommandHandler('skip', broadcast_skip),
+                MessageHandler(filters.ALL & ~filters.COMMAND, broadcast_button),
+            ],
+            BC_CONFIRM: [CallbackQueryHandler(broadcast_confirm, pattern=r'^bc:')],
+        },
+        fallbacks=[CommandHandler('cancel', broadcast_cancel)],
+        allow_reentry=True,
+    ))
 
     # Auth
     app.add_handler(ConversationHandler(

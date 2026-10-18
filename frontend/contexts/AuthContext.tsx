@@ -115,6 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             avatarUrl: userData.avatar_url || userData.avatarUrl || '',
             telegramUsername: userData.telegram_username || userData.telegramUsername || '',
             phoneVerified: Boolean(userData.phone_verified),
+            phoneVerificationRequired: Boolean(userData.phone_verification_required),
           };
           
           setUser(user);
@@ -266,6 +267,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             avatarUrl: userData.avatar_url || userData.avatarUrl || '',
             telegramUsername: userData.telegram_username || userData.telegramUsername || '',
             phoneVerified: Boolean(userData.phone_verified),
+            phoneVerificationRequired: Boolean(userData.phone_verification_required),
           };
           
           setUser(user);

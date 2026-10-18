@@ -141,7 +141,7 @@ def _do_standalone_udk(transaction, extra, gemini, udc_services):
 def fulfill_udk_request(transaction):
     """
     Called when a transaction with service_type='udk_request' is completed.
-    - UdkRequest workflow: statusni 'submitted' ga o'zgartirib, taqrizchilarga xabar yuborish.
+    - UdkRequest workflow: statusni 'submitted' ga o'zgartirib, UDK ni avtomatik aniqlash (auto_complete.py).
     - Article-based (eski): update article, generate PDF, save to article.udk_certificate_path, notify.
     - Standalone (eski): create UDKCertificate, generate PDF, save to certificate, notify.
     """
@@ -159,10 +159,10 @@ def fulfill_udk_request(transaction):
             if udk_req.status == 'pending_payment':
                 udk_req.status = UDK_REQUEST_STATUS_SUBMITTED
                 udk_req.save(update_fields=['status'])
-                # Taqrizchilarga xabar yuborish
-                from .views import _notify_reviewers_udk_request
-                _notify_reviewers_udk_request(udk_req)
-                logger.info(f"UdkRequest {udk_request_id} submitted to reviewers")
+                # UDK avtomatik aniqlanadi (taqrizchisiz); aniqlab bo'lmasa — xodimlarga xabar
+                from .auto_complete import schedule_auto_complete
+                schedule_auto_complete(udk_req)
+                logger.info(f"UdkRequest {udk_request_id} paid — automatic UDK classification scheduled")
         except UdkRequest.DoesNotExist:
             logger.warning(f"UdkRequest {udk_request_id} not found")
         return

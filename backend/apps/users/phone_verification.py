@@ -70,12 +70,22 @@ def start_verification(user: User) -> dict:
     _cleanup()
     if user.phone_verified:
         return {'already_verified': True}
+    ch = _create_verify_challenge(user)
+    return {'deep_link': deep_link(ch.purpose, ch.code), 'expires_in': int(VERIFY_TTL.total_seconds())}
+
+
+def _create_verify_challenge(user: User) -> PhoneChallenge:
     PhoneChallenge.objects.filter(user=user, purpose=PhoneChallenge.PURPOSE_VERIFY, used_at__isnull=True).delete()
-    ch = PhoneChallenge.objects.create(
+    return PhoneChallenge.objects.create(
         code=_new_code(), purpose=PhoneChallenge.PURPOSE_VERIFY, user=user, phone=user.phone,
         expires_at=timezone.now() + VERIFY_TTL,
     )
-    return {'deep_link': deep_link(ch.purpose, ch.code), 'expires_in': int(VERIFY_TTL.total_seconds())}
+
+
+def start_verification_in_bot(user: User) -> str:
+    """Bot ichida (sayt havolasisiz) tasdiqlashni boshlash: kod qaytaradi, bot kontakt so'raydi."""
+    _cleanup()
+    return _create_verify_challenge(user).code
 
 
 def start_password_reset(phone: str) -> dict:
@@ -173,21 +183,22 @@ def confirm_contact(code: str, purpose: str, *, telegram_id: int, contact_user_i
 
 def verification_required_message(user) -> str:
     """
-    PHONE_VERIFICATION_REQUIRED=true bo'lsa — tasdiqlanmagan muallif maqola yubora/to'lay olmaydi.
+    PHONE_VERIFICATION_REQUIRED=true (standart) bo'lsa — tasdiqlanmagan muallif maqola yubora/to'lay olmaydi.
     Bo'sh satr — ruxsat. Xodimlar (admin, operator, ...) va demo hisoblar cheklanmaydi.
     """
-    if not getattr(settings, 'PHONE_VERIFICATION_REQUIRED', False):
+    if not getattr(settings, 'PHONE_VERIFICATION_REQUIRED', True):
         return ''
     if user is None or not getattr(user, 'is_authenticated', False) or getattr(user, 'phone_verified', False):
         return ''
-    if getattr(user, 'role', 'author') != 'author':
+    if getattr(user, 'role', 'author') != 'author' or getattr(user, 'is_staff', False) \
+            or getattr(user, 'is_superuser', False):
         return ''
     from config.demo import is_demo_user
 
     if is_demo_user(user):
         return ''
-    return ("Avval telefon raqamingizni tasdiqlang: Profil → «Telegram orqali tasdiqlash» "
-            "(bir daqiqa, bepul).")
+    return ("Maqola yuborishdan oldin telefon raqamingizni Telegram orqali tasdiqlang: "
+            "Profil → «Telegram orqali tasdiqlash» (bir daqiqa, bepul).")
 
 
 def reset_password(token: str, new_password: str) -> User:

@@ -17,6 +17,7 @@ from bot.constants import (
     SUBMIT_TITLE,
 )
 from bot.handlers.auth import require_author
+from bot.handlers.verification import ensure_phone_verified
 from bot.journal_browse import init_journal_session, send_filter_menu
 from bot.journal_callbacks import process_journal_pick_callback, process_journal_search_message
 from bot.keyboards import author_main_keyboard, cancel_keyboard
@@ -49,6 +50,8 @@ async def _on_journal_selected(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def article_submit_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not await require_author(update, context):
+        return ConversationHandler.END
+    if not await ensure_phone_verified(update, context):
         return ConversationHandler.END
     client = get_client_from_context(context)
     if not client:

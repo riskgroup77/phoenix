@@ -11,6 +11,7 @@ class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False)
     telegram_connected = serializers.SerializerMethodField()
     telegram_bot_username = serializers.SerializerMethodField()
+    phone_verification_required = serializers.SerializerMethodField()
     orcid_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -21,7 +22,8 @@ class UserSerializer(serializers.ModelSerializer):
             'telegram_notifications', 'telegram_connected', 'telegram_bot_username',
             'gamification_profile', 'specializations', 'reviews_completed',
             'average_review_time', 'acceptance_rate', 'password', 'is_active',
-            'date_joined', 'phone_verified', 'phone_verified_at', 'terms_accepted_at', 'terms_version',
+            'date_joined', 'phone_verified', 'phone_verified_at', 'phone_verification_required',
+            'terms_accepted_at', 'terms_version',
         )
         read_only_fields = (
             'id', 'date_joined', 'gamification_profile', 'avatar_url',  # is_active: faqat bosh admin (update da)
@@ -82,6 +84,11 @@ class UserSerializer(serializers.ModelSerializer):
     def get_telegram_bot_username(self, obj):
         from django.conf import settings
         return getattr(settings, 'TELEGRAM_BOT_USERNAME', '') or ''
+
+    def get_phone_verification_required(self, obj):
+        """True — bu foydalanuvchi maqola yuborish/to'lovdan oldin telefonini Telegram orqali tasdiqlashi shart."""
+        from .phone_verification import verification_required_message
+        return bool(verification_required_message(obj))
 
     def get_gamification_profile(self, obj):
         return {
@@ -439,6 +446,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     avatar_url = serializers.SerializerMethodField()
     telegram_connected = serializers.SerializerMethodField()
     telegram_bot_username = serializers.SerializerMethodField()
+    phone_verification_required = serializers.SerializerMethodField()
     orcid_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -450,7 +458,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'gamification_profile', 'specializations',
             'reviews_completed', 'average_review_time', 'acceptance_rate',
             'is_active', 'date_joined', 'last_login',
-            'phone_verified', 'phone_verified_at', 'terms_accepted_at', 'terms_version',
+            'phone_verified', 'phone_verified_at', 'phone_verification_required', 'terms_accepted_at', 'terms_version',
         )
         read_only_fields = fields
     
@@ -474,6 +482,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def get_telegram_bot_username(self, obj):
         from django.conf import settings
         return getattr(settings, 'TELEGRAM_BOT_USERNAME', '') or ''
+
+    def get_phone_verification_required(self, obj):
+        """True — bu foydalanuvchi maqola yuborish/to'lovdan oldin telefonini Telegram orqali tasdiqlashi shart."""
+        from .phone_verification import verification_required_message
+        return bool(verification_required_message(obj))
     
     def get_avatar_url(self, obj):
         if obj.avatar_url and hasattr(obj.avatar_url, 'url'):

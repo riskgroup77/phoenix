@@ -58,6 +58,8 @@ PAYME_MERCHANT_KEY = ''
 PAYME_TEST_KEY = ''
 
 TELEGRAM_BOT_TOKEN = ''
+# Telefon tasdiqlash talabi kerakli testlarda override_settings(PHONE_VERIFICATION_REQUIRED=True) bilan yoqiladi
+PHONE_VERIFICATION_REQUIRED = False
 TELEGRAM_NOTIFY_SYNC = True
 CROSSREF_USERNAME = ''
 CROSSREF_PASSWORD = ''
@@ -68,3 +70,7 @@ STORAGES = {
     'default': {'BACKEND': 'config.media_protection.ProtectedMediaStorage'},
     'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
 }
+
+# UDK avtomatik aniqlash testlarda sinxron va tashqi tarmoqsiz
+UDK_AUTO_ASYNC = False
+UDK_PERVIY_SEARCH_ENABLED = False

@@ -33,7 +33,7 @@ class UdkRequestSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'author_first_name', 'author_last_name', 'author_middle_name', 'author_short',
             'title', 'abstract', 'file', 'file_url', 'udk_code', 'udk_description',
-            'status', 'reject_reason', 'created_at', 'completed_at',
+            'status', 'reject_reason', 'created_at', 'completed_at', 'auto_method',
         )
         read_only_fields = fields
 
@@ -101,7 +101,7 @@ class ServicePriceViewSet(ModelViewSet):
 def udk_request_create(request):
     """
     UDK so'rovi yaratish: muallif ism/familya, mavzu, abstract va fayl yuboradi.
-    To'lovdan keyin status 'submitted' ga o'zgaradi va taqrizchiga boradi.
+    To'lovdan keyin status 'submitted' ga o'zgaradi va UDK avtomatik aniqlanadi (auto_complete.py).
     """
     from apps.payments.models import Transaction
     
@@ -157,14 +157,16 @@ def udk_request_create(request):
         transaction.save(update_fields=['status', 'completed_at'])
         udk_req.status = UDK_REQUEST_STATUS_SUBMITTED
         udk_req.save(update_fields=['status'])
-        _notify_reviewers_udk_request(udk_req)
+        from .auto_complete import schedule_auto_complete
+
+        schedule_auto_complete(udk_req)
         return Response({
             'udk_request_id': str(udk_req.id),
             'transaction_id': str(transaction.id),
             'amount': 0,
             'currency': 'UZS',
             'submitted': True,
-            'message': "UDK so'rovi taqrizchiga yuborildi.",
+            'message': "UDK so'rovi qabul qilindi — UDK avtomatik aniqlanmoqda.",
         }, status=status.HTTP_201_CREATED)
     
     return Response({
@@ -236,33 +238,10 @@ def udk_request_complete(request, pk):
     if not udk_code:
         return Response({'detail': 'UDK kodi majburiy.'}, status=status.HTTP_400_BAD_REQUEST)
     
-    udk_req.udk_code = udk_code
-    udk_req.udk_description = udk_description
-    udk_req.status = UDK_REQUEST_STATUS_COMPLETED
-    udk_req.completed_at = timezone.now()
-    udk_req.save(update_fields=['udk_code', 'udk_description', 'status', 'completed_at'])
-    
-    # UDKCertificate yaratish
-    cert = UDKCertificate.objects.create(
-        user=udk_req.user,
-        author_name=f"{udk_req.author_last_name} {udk_req.author_first_name} {udk_req.author_middle_name}".strip(),
-        title=udk_req.title,
-        udk_code=udk_code,
-        udk_description=udk_description,
-        transaction=udk_req.transaction,
-    )
-    
-    # PDF generatsiya (avval funksiya noto'g'ri argument bilan chaqirilib, TypeError jimgina
-    # yutilardi — natijada UDK so'rovlari uchun PDF hech qachon yaratilmasdi)
-    try:
-        from .pdf_generator import save_certificate_pdf
-        save_certificate_pdf(cert)
-    except Exception as e:
-        logger.error('[UDK] PDF yaratilmadi (certificate=%s): %s', cert.id, e, exc_info=True)
-    
-    # Muallifga bildirishnoma yuborish
-    _notify_author_udk_completed(udk_req, cert)
-    
+    from .auto_complete import complete_udk_request
+
+    cert = complete_udk_request(udk_req, udk_code, udk_description, method='manual')
+
     return Response({
         'message': 'UDK so\'rovi yakunlandi va muallifga xabar yuborildi.',
         'certificate_id': cert.id,
@@ -630,20 +609,36 @@ def my_udk_certificates(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def udk_certificate_download(request, certificate_id):
-    """Standalone UDK ma'lumotnomani yuklab olish (faqat o'zining)."""
+    """Standalone UDK ma'lumotnomani yuklab olish (faqat o'zining).
+
+    Hujjat foydalanuvchi interfeysi tilida (?lang= → Accept-Language): o'zbekcha — saqlangan fayl,
+    boshqa tillarda (yoki fayl yo'q bo'lsa) PDF shu tilda talab bo'yicha yaratiladi.
+    """
     from .models import UDKCertificate
+    from .pdf_generator import build_certificate_pdf
+    from config.doc_i18n import request_lang
     from django.http import HttpResponse, Http404
     try:
         cert = UDKCertificate.objects.get(id=certificate_id, user=request.user)
     except UDKCertificate.DoesNotExist:
         raise Http404("Ma'lumotnoma topilmadi.")
-    if not cert.certificate_path:
-        raise Http404("Fayl mavjud emas.")
-    path = cert.certificate_path.path
-    if not os.path.isfile(path):
-        raise Http404("Fayl topilmadi.")
-    with open(path, 'rb') as f:
-        content = f.read()
+    lang = request_lang(request)
+    content = None
+    if lang == 'uz' and cert.certificate_path:
+        try:
+            path = cert.certificate_path.path
+            if os.path.isfile(path):
+                with open(path, 'rb') as f:
+                    content = f.read()
+        except (NotImplementedError, ValueError):
+            content = None
+    if content is None:
+        try:
+            content = build_certificate_pdf(cert, lang).getvalue()
+        except Exception:
+            logger.exception('UDK certificate %s render failed (lang=%s)', cert.id, lang)
+            raise Http404("Fayl mavjud emas.")
+    suffix = '' if lang == 'uz' else f'_{lang}'
     response = HttpResponse(content, content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="udk_malumotnoma_{cert.id}.pdf"'
+    response['Content-Disposition'] = f'attachment; filename="udk_malumotnoma_{cert.id}{suffix}.pdf"'
     return response

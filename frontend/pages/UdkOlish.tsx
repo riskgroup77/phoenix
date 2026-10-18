@@ -137,6 +137,15 @@ const UdkOlish: React.FC = () => {
     } catch (_) {}
   };
 
+  // UDK avtomatik aniqlanayotgan so'rov bo'lsa — natija tayyor bo'lguncha har 5 soniyada yangilaymiz
+  const hasProcessing = myRequests.some((r: any) => r.status === 'submitted' && r.auto_method !== 'manual');
+  useEffect(() => {
+    if (!hasProcessing) return;
+    const timer = window.setInterval(() => void refreshData(), 5000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasProcessing]);
+
   const handleStandaloneRequest = async () => {
     const firstName = authorFirstName.trim();
     const lastName = authorLastName.trim();
@@ -174,7 +183,7 @@ const UdkOlish: React.FC = () => {
       }
 
       if (res?.submitted) {
-        toast.success(res?.message || t("UDK so'rovi taqrizchiga yuborildi."));
+        toast.success(res?.message || t("UDK so'rovi qabul qilindi — UDK avtomatik aniqlanmoqda."));
         // Formani tozalash
         setStandaloneTitle('');
         setStandaloneAbstract('');
@@ -228,7 +237,7 @@ const UdkOlish: React.FC = () => {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'pending_payment': return 'To\'lov kutilmoqda';
-      case 'submitted': return 'Taqrizchida';
+      case 'submitted': return 'Aniqlanmoqda';
       case 'completed': return 'Yakunlangan';
       case 'rejected': return 'Rad etilgan';
       default: return status;
@@ -249,7 +258,7 @@ const UdkOlish: React.FC = () => {
     <div className="space-y-6 max-w-5xl mx-auto">
       <EditorialPageHeader
         title={t('UDK Olish')}
-        subtitle={t("UDK tasdiqlangan ma'lumotnoma: mavzu va annotatsiyani kiriting, to'lovdan keyin taqrizchi UDK kodini aniqlaydi va ma'lumotnoma tayyorlanadi.")}
+        subtitle={t("UDK tasdiqlangan ma'lumotnoma: mavzu va annotatsiyani kiriting — to'lovdan keyin UDK kodi avtomatik aniqlanadi va ma'lumotnoma darhol tayyorlanadi.")}
       />
       <Card>
         {/* UDK so'rovi yuborish formasi */}
@@ -259,7 +268,7 @@ const UdkOlish: React.FC = () => {
             {t("UDK so'rovi yuborish")}
           </h2>
           <p className="text-xs text-slate-500 mb-4">
-            {t("Mavzu, annotatsiya va muallif ma'lumotlarini kiriting. To'lovdan keyin so'rov taqrizchiga yuboriladi. Taqrizchi UDK kodini aniqlab, ma'lumotnoma tayyorlaydi.")}
+            {t("Mavzu, annotatsiya va muallif ma'lumotlarini kiriting. To'lovdan keyin UDK kodi UDK klassifikatori (O'zbekiston Milliy kutubxonasi nashri) asosida avtomatik aniqlanadi va ma'lumotnoma bir necha soniyada tayyor bo'ladi.")}
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
             <div>

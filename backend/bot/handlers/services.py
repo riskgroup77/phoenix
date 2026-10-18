@@ -44,6 +44,7 @@ from bot.constants import (
     UDK_TITLE,
 )
 from bot.handlers.auth import require_author
+from bot.handlers.verification import ensure_phone_verified
 from bot.handlers.articles import _download_doc
 from bot.journal_browse import init_journal_session, send_filter_menu
 from bot.journal_callbacks import process_journal_pick_callback, process_journal_search_message
@@ -382,6 +383,8 @@ def _plag_module_keyboard(presets: dict[str, list[str]]) -> InlineKeyboardMarkup
 async def plag_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not await require_author(update, context):
         return ConversationHandler.END
+    if not await ensure_phone_verified(update, context):
+        return ConversationHandler.END
     if update.message:
         total = len((await _plag_presets())['all'])
         await update.message.reply_text(
@@ -595,6 +598,8 @@ async def _on_book_journal_selected(update: Update, context: ContextTypes.DEFAUL
 
 async def book_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not await require_author(update, context):
+        return ConversationHandler.END
+    if not await ensure_phone_verified(update, context):
         return ConversationHandler.END
     client = get_client_from_context(context)
     if not client:

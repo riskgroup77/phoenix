@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { API_V1_BASE_URL } from '../config/apiBase';
-import { useT } from '../i18n/LanguageContext';
+import { useT, type TFunction } from '../i18n/LanguageContext';
 import BrandMark from '../components/BrandMark';
 
 type VerifyResponse = {
@@ -18,6 +18,7 @@ type VerifyResponse = {
   detail?: string;
 };
 
+/** Kalitlar o'zbekcha (lotin) — ko'rsatishda t() bilan joriy tilga tarjima qilinadi */
 const DETAIL_LABELS: Record<string, string> = {
   plagiarism_percent: "O'zlashtirish (%)",
   originality_percent: 'Originallik (%)',
@@ -29,10 +30,23 @@ const DETAIL_LABELS: Record<string, string> = {
   udk_code: 'UDK kodi',
   udk_description: 'UDK tavsifi',
   published_articles: 'Nashr etilgan maqolalar',
+  works_count: 'Ilmiy ishlar soni',
+  work_type: 'Ish turi',
+  publication: 'Nashr nomi va shakli',
   amount: 'Summa',
 };
 
 /** Sertifikatlardagi QR kod: #/verify/<kod> — hujjat tizimda haqiqatan berilganini tekshiradi. */
+/** Backend qiymatlari (hujjat turi, holat, ish turi) o'zbekcha keladi — joriy tilga; "1 000 so'm" → valyuta ham */
+const TRANSLATABLE_DETAILS = new Set(['status', 'work_type']);
+
+function detailValue(t: TFunction, key: string, value: unknown): string {
+  const text = String(value);
+  if (TRANSLATABLE_DETAILS.has(key)) return t(text);
+  if (key === 'amount') return text.replace(/\s*so['‘’ʻ]m$/, ` ${t("so'm")}`);
+  return text;
+}
+
 const VerifyDocument: React.FC = () => {
   const { t } = useT();
   const { code = '' } = useParams<{ code: string }>();
@@ -90,11 +104,12 @@ const VerifyDocument: React.FC = () => {
             </p>
             <dl className="space-y-3 text-sm">
               {[
-                ['Hujjat turi', data.type_label],
-                ['Hujjat raqami', data.document_number],
-                [data.type === 'receipt' ? 'Xizmat' : 'Nomi', data.title],
-                [data.type === 'receipt' ? "To'lovchi" : 'Muallif', data.author],
-                [data.type === 'receipt' ? "To'lov sanasi" : 'Sana', data.date],
+                [t('Hujjat turi'), data.type_label ? t(data.type_label) : ''],
+                [t('Hujjat raqami'), data.document_number],
+                // Chekda nom — xizmat nomi (o'zbekcha), ma'lumotnomada esa hujjat/ish nomi (tarjima qilinmaydi)
+                [data.type === 'receipt' ? t('Xizmat') : t('Nomi'), data.type === 'receipt' && data.title ? t(data.title) : data.title],
+                [data.type === 'receipt' ? t("To'lovchi") : t('Muallif'), data.author],
+                [data.type === 'receipt' ? t("To'lov sanasi") : t('Sana'), data.date],
               ]
                 .filter(([, v]) => v)
                 .map(([label, value]) => (
@@ -105,8 +120,8 @@ const VerifyDocument: React.FC = () => {
                 ))}
               {details.map(([key, value]) => (
                 <div key={key}>
-                  <dt className="text-slate-500">{DETAIL_LABELS[key] || key}</dt>
-                  <dd className="font-medium text-slate-900 break-words">{String(value)}</dd>
+                  <dt className="text-slate-500">{DETAIL_LABELS[key] ? t(DETAIL_LABELS[key]) : key}</dt>
+                  <dd className="font-medium text-slate-900 break-words">{detailValue(t, key, value)}</dd>
                 </div>
               ))}
             </dl>
@@ -116,7 +131,7 @@ const VerifyDocument: React.FC = () => {
             <XCircle className="h-10 w-10 shrink-0" />
             <div>
               <h1 className="text-xl font-bold text-slate-900 mb-1">{t('Hujjat tasdiqlanmadi')}</h1>
-              <p className="text-sm text-slate-600">{data?.detail || t("Hujjat topilmadi yoki kod noto'g'ri.")}</p>
+              <p className="text-sm text-slate-600">{data?.detail ? t(data.detail) : t("Hujjat topilmadi yoki kod noto'g'ri.")}</p>
             </div>
           </div>
         )}

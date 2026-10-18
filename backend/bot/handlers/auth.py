@@ -4,7 +4,7 @@ import logging
 import requests
 from asgiref.sync import sync_to_async
 from django.conf import settings
-from telegram import Update
+from telegram import ReplyKeyboardRemove, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from bot.api_client import ApiError, PhonixApiClient
@@ -14,6 +14,12 @@ from bot.session import delete_session, get_client_from_context, persist_login
 from bot.utils import format_api_error, normalize_phone
 
 logger = logging.getLogger(__name__)
+
+ADMIN_WELCOME = (
+    "✅ Siz bosh administrator sifatida kirdingiz.\n\n"
+    "/reklama — barcha bot foydalanuvchilariga reklama xabarini yuborish\n"
+    "/logout — chiqish"
+)
 
 
 async def require_author(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -65,6 +71,11 @@ async def login_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     try:
         data = await sync_to_async(client.login)(phone, password)
         user = data.get('user') or {}
+        if user.get('role') == 'super_admin':
+            # Bosh admin botda faqat /reklama uchun kiradi (muallif menyusi ko'rsatilmaydi)
+            await persist_login(context, tg_user.id, data, tg_user.username or '')
+            await update.message.reply_text(ADMIN_WELCOME, reply_markup=ReplyKeyboardRemove())
+            return ConversationHandler.END
         if user.get('role') != 'author':
             await update.message.reply_text(
                 "❌ Bu bot hozircha faqat muallif (author) roli uchun.\n"

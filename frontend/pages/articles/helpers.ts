@@ -2,6 +2,11 @@
 import { Article, ArticleStatus, ARTICLE_STATUS_LABELS, TranslationStatus } from '../../types';
 import AuthorArticleReport from '../../components/AuthorArticleReport';
 import { ArticleApiResponse, getArticleJournalId } from './types';
+import { isStandalonePlagiarismArticle } from '../../utils/antiplagiatFromArticle';
+
+export const ANTIPLAGIAT_DOCS_TAB = 'antiplagiat-docs';
+/** UDK / DOI kabi maqolaga bog'lanmagan xizmat hujjatlari (arxivdan) — "Ishlarim" da ham ko'rinadi */
+export const SERVICE_DOCS_TAB = 'service-docs';
 
 export const journalAdminTabsBase = [
     {
@@ -48,8 +53,31 @@ export const authorArticleTabs: { id: string; label: string; statuses: ArticleSt
     { id: 'review', label: 'Taqriz', statuses: [ArticleStatus.QabulQilingan, ArticleStatus.Revision] },
     { id: 'publish', label: 'Nashrga', statuses: [ArticleStatus.Accepted, ArticleStatus.NashrgaYuborilgan] },
     { id: 'done', label: 'Nashr / yakun', statuses: [ArticleStatus.Published, ArticleStatus.Rejected] },
+    { id: ANTIPLAGIAT_DOCS_TAB, label: 'Antiplagiat tekshiruvlari', statuses: [] },
+    { id: SERVICE_DOCS_TAB, label: 'UDK va DOI hujjatlari', statuses: [] },
     { id: 'all', label: 'Barchasi', statuses: [] },
 ];
+
+/** Mustaqil antiplagiat hujjati (jurnalga yuborilmagan, faqat tekshiruv uchun) */
+export const isAntiplagiatDoc = (a: { antiplagiat_state?: string | null; work_type?: string; title?: string; keywords?: string[] | string; abstract?: string }): boolean =>
+    !!a.antiplagiat_state || a.work_type === 'Antiplagiat' || isStandalonePlagiarismArticle(a);
+
+/** "Ishlarim" filtri: holat bo'yicha bandlarda antiplagiat hujjatlari aralashmaydi, ular alohida bandda */
+export const matchesAuthorTab = (tab: { id: string; statuses: ArticleStatus[] }, a: ArticleApiResponse): boolean => {
+    if (tab.id === 'all') return true;
+    const doc = isAntiplagiatDoc(a);
+    if (tab.id === ANTIPLAGIAT_DOCS_TAB) return doc;
+    if (tab.id === SERVICE_DOCS_TAB) return false; // bu bandda faqat xizmat hujjatlari (ServiceDocItem)
+    return !doc && tab.statuses.includes(a.status as ArticleStatus);
+};
+
+/** Antiplagiat hujjati holati yorlig'i */
+export const ANTIPLAGIAT_STATE_LABELS: Record<string, { text: string; color: string }> = {
+    awaiting_payment: { text: "To'lov kutilmoqda", color: 'bg-gray-500/20 text-slate-600' },
+    checking: { text: 'Tekshirilmoqda', color: 'bg-amber-500/20 text-amber-900' },
+    failed: { text: 'Tekshiruvda xatolik', color: 'bg-red-500/20 text-red-800' },
+    done: { text: 'Tekshirildi', color: 'bg-green-500/20 text-emerald-900' },
+};
 
 // Convert API response to Article type for AuthorArticleReport
 export const convertToArticleType = (apiArticle: ArticleApiResponse): Article => {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { publicArticleUrl } from '../utils/verifyLink';
+import { useT } from '../i18n/LanguageContext';
 import { CertificateBackground, CertificateQRBlock, CertificateBrandBlock, CERT_COLOR_DARK, CERT_COLOR_TEAL, CERT_COLOR_TEXT } from './CertificateLayout';
 
 export interface QabulCertificateData {
@@ -16,15 +17,27 @@ export interface QabulCertificateData {
 }
 
 const QabulCertificate: React.FC<{ data: QabulCertificateData }> = ({ data }) => {
-    const labels = ['MUALLIF', 'ISH TURI', 'ISH NOMI', 'JURNAL NOMI', 'TASHKILOT NOMI', ...(data.publishDate ? ['NASHR ETILISH SANASI'] : []), 'HOZIRGI HOLATI', 'WEB-SAYT'];
+    const { t } = useT();
+    const labels = [
+        t('MUALLIF'),
+        t('ISH TURI'),
+        t('ISH NOMI'),
+        t('JURNAL NOMI'),
+        t('TASHKILOT NOMI'),
+        ...(data.publishDate ? [t('NASHR ETILISH SANASI')] : []),
+        t('HOZIRGI HOLATI'),
+        t('WEB-SAYT'),
+    ];
+    // Standart (o'zbekcha) qiymatlar — ish turi, holat va "Noma'lum ..." o'rinbosarlari — joriy tilga
+    const known = (value: string, keys: string[]) => (keys.includes(value) ? t(value) : value);
     const values = [
         data.author,
-        data.workType,
+        data.workType ? t(data.workType) : '',
         data.workTitle,
-        data.journalName,
-        data.organization,
+        known(data.journalName, ["Noma'lum jurnal"]),
+        known(data.organization, ["Noma'lum tashkilot"]),
         ...(data.publishDate ? [data.publishDate] : []),
-        data.currentStatus,
+        data.currentStatus ? t(data.currentStatus) : '',
         'www.ilmiyfaoliyat.uz',
     ];
 
@@ -40,18 +53,18 @@ const QabulCertificate: React.FC<{ data: QabulCertificateData }> = ({ data }) =>
             <div className="relative z-10 h-full flex flex-col px-8 sm:px-10 py-8 sm:py-10">
                 <div className="flex justify-between items-start mb-6">
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-wider" style={{ color: CERT_COLOR_DARK }}>HUJJAT RAQAMI:</p>
+                        <p className="text-xs font-bold uppercase tracking-wider" style={{ color: CERT_COLOR_DARK }}>{t('HUJJAT RAQAMI:')}</p>
                         <p className="text-sm font-medium mt-1" style={{ color: CERT_COLOR_DARK }}>{data.certificateNumber}</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-xs font-bold uppercase tracking-wider" style={{ color: CERT_COLOR_DARK }}>HUJJAT SANASI:</p>
+                        <p className="text-xs font-bold uppercase tracking-wider" style={{ color: CERT_COLOR_DARK }}>{t('HUJJAT SANASI:')}</p>
                         <p className="text-sm font-medium mt-1" style={{ color: CERT_COLOR_DARK }}>{data.issueDate}</p>
                     </div>
                 </div>
 
                 <div className="text-center mt-2 mb-8">
-                    <h2 className="text-lg sm:text-xl font-bold uppercase tracking-widest" style={{ color: CERT_COLOR_TEAL }}>QABUL HAQIDA</h2>
-                    <h1 className="text-3xl sm:text-4xl font-bold uppercase tracking-wide mt-1" style={{ color: CERT_COLOR_DARK, fontFamily: 'Georgia, serif' }}>MA&apos;LUMOTNOMA</h1>
+                    <h2 className="text-lg sm:text-xl font-bold uppercase tracking-widest" style={{ color: CERT_COLOR_TEAL }}>{t('QABUL HAQIDA')}</h2>
+                    <h1 className="text-3xl sm:text-4xl font-bold uppercase tracking-wide mt-1" style={{ color: CERT_COLOR_DARK, fontFamily: 'Georgia, serif' }}>{t("MA'LUMOTNOMA")}</h1>
                 </div>
 
                 <div className="flex-1 flex min-h-0 pr-4">

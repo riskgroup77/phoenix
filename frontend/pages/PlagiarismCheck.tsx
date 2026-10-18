@@ -199,32 +199,36 @@ const PlagiarismCheck: React.FC = () => {
       }));
   }, [user]);
 
-  // To'lov sahifasidan qaytish: tranzaksiya holatini aniq ID bo'yicha tekshiramiz (ro'yxat paginatsiyasi xatosiz).
-  // pending bo'lsa sessionStorage ni SAQLAB qolamiz — avvalgi kodda har safar o'chirilardi va UI "o'ylanib" qolardi.
+  // To'lov sahifasidan qaytish: tranzaksiya holatini aniq ID bo'yicha tekshiramiz.
+  // Click yangi oynada ochiladi — u yerdan qaytilganda sessionStorage bo'sh bo'ladi, shuning uchun hujjat ID si
+  // tranzaksiyaning o'zidan olinadi (avval forma bo'sh qolib, qayta to'lashda "allaqachon to'langan" xatosi chiqardi).
+  // Effekt URL dagi transaction_id ga bog'langan: to'lov oynasi shu sahifaga qaytarganda ham ishlaydi.
+  const urlTransactionId = searchParams.get('payment_return') === '1' ? searchParams.get('transaction_id') : null;
   React.useEffect(() => {
-      const urlTxId = searchParams.get('transaction_id');
-      const paymentReturn = searchParams.get('payment_return') === '1';
-      if (urlTxId && paymentReturn) {
-          sessionStorage.setItem(STORAGE_KEY_TRANSACTION_ID, urlTxId);
-      }
-
-      const pendingTxId = sessionStorage.getItem(STORAGE_KEY_TRANSACTION_ID);
-      const pendingArticleId = sessionStorage.getItem(STORAGE_KEY_ARTICLE_ID);
-
-      if (urlTxId && paymentReturn) {
+      if (urlTransactionId) {
+          sessionStorage.setItem(STORAGE_KEY_TRANSACTION_ID, urlTransactionId);
           const next = new URLSearchParams(searchParams);
           next.delete('payment_return');
           next.delete('transaction_id');
           setSearchParams(next, { replace: true });
       }
 
-      if (!pendingTxId || !pendingArticleId) return;
+      const pendingTxId = urlTransactionId || sessionStorage.getItem(STORAGE_KEY_TRANSACTION_ID);
+      if (!pendingTxId) {
+          void resumeRunningCheck();
+          return;
+      }
 
       let cancelled = false;
       (async () => {
           try {
               const res = await paymentService.checkPaymentStatus(pendingTxId);
               if (cancelled) return;
+              const pendingArticleId = res.article_id || sessionStorage.getItem(STORAGE_KEY_ARTICLE_ID);
+              if (!pendingArticleId) {
+                  sessionStorage.removeItem(STORAGE_KEY_TRANSACTION_ID);
+                  return;
+              }
               if (res.payment_status === 2) {
                   sessionStorage.removeItem(STORAGE_KEY_TRANSACTION_ID);
                   sessionStorage.removeItem(STORAGE_KEY_ARTICLE_ID);
@@ -232,9 +236,7 @@ const PlagiarismCheck: React.FC = () => {
                   setPendingPlagiarismPayment(null);
                   setPaymentVerifiedCompleted(true);
                   toast.success(t("To'lov tasdiqlandi. Antiplagiat tekshiruvi avtomatik boshlanmoqda..."));
-                  window.setTimeout(() => {
-                      void runPlagiarismAfterPayment(pendingArticleId);
-                  }, 300);
+                  void runPlagiarismAfterPayment(pendingArticleId);
                   return;
               }
               if (res.payment_status === -1) {
@@ -245,6 +247,7 @@ const PlagiarismCheck: React.FC = () => {
                   return;
               }
               // pending — bank callback kechikishi mumkin
+              sessionStorage.setItem(STORAGE_KEY_ARTICLE_ID, pendingArticleId);
               setArticleId(pendingArticleId);
               setPendingPlagiarismPayment({ transactionId: pendingTxId, articleId: pendingArticleId });
               toast.info(
@@ -258,8 +261,30 @@ const PlagiarismCheck: React.FC = () => {
           }
       })();
       return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat sahifa ochilganda to'lov qaytishini tekshiramiz
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- faqat sahifa ochilganda va to'lovdan qaytganda
+  }, [urlTransactionId]);
+
+  /**
+   * Sahifa yangilansa (F5) yoki boshqa joydan qaytilsa: serverda davom etayotgan tekshiruv bo'lsa — progressni
+   * qayta ko'rsatamiz (avval "Tekshirilmoqda" holati faqat brauzer xotirasida edi va refreshdan keyin yo'qolardi).
+   */
+  const resumeRunningCheck = async () => {
+      if (!user) return;
+      try {
+          const raw = await apiService.articles.listAllForRole(String(user.role || 'author'));
+          const list = (Array.isArray(raw) ? raw : []) as Array<{ id: string; antiplagiat_state?: string | null; submission_date?: string }>;
+          const running = list
+              .filter((a) => a.antiplagiat_state === 'checking')
+              .sort((a, b) => String(b.submission_date || '').localeCompare(String(a.submission_date || '')))[0];
+          if (running?.id) {
+              setArticleId(running.id);
+              setPaymentVerifiedCompleted(true);
+              void runPlagiarismAfterPayment(running.id);
+          }
+      } catch {
+          /* ro'yxat olinmasa — oddiy bo'sh forma */
+      }
+  };
 
   // Eski havolalar: ?article_id=...&view=1 → alohida natija sahifasiga
   React.useEffect(() => {
@@ -447,9 +472,10 @@ const PlagiarismCheck: React.FC = () => {
         return;
       }
       toast.info(t('Tekshiruv davom etmoqda. Serverda modullar skanerlanmoqda...'));
+      // force: false — server tekshiruv allaqachon ketayotgan bo'lsa ikkinchisini boshlamaydi
       await apiService.articles.checkPlagiarism(targetArticleId, {
         enabledModules: form.enabledModuleIds,
-        force: true,
+        force: false,
       });
       const readyAfter = await pollUntilPlagiarismReady(targetArticleId);
       if (!readyAfter) {
@@ -595,6 +621,15 @@ const PlagiarismCheck: React.FC = () => {
       setPaymentError(null);
   };
 
+  /** Server: "antiplagiat to'lovi allaqachon qilingan" — xato emas, to'langan hujjat tekshiruvini davom ettiramiz */
+  const isAlreadyPaidMessage = (msg: string) => /allaqachon/i.test(String(msg || ''));
+  const continueAlreadyPaid = (paidArticleId: string) => {
+      closePaymentModal();
+      setPaymentVerifiedCompleted(true);
+      toast.info(t("Bu hujjat uchun to'lov qilingan — tekshiruv natijasi ochilmoqda."));
+      void runPlagiarismAfterPayment(paidArticleId);
+  };
+
   const handlePay = async () => {
       if (!form.file || !user) return;
 
@@ -625,6 +660,10 @@ const PlagiarismCheck: React.FC = () => {
           } else {
               // Payment preparation failed
               const errorMsg = (result as any)?.user_message || result?.error_note || result?.error || "To'lovni amalga oshirishda xatolik yuz berdi.";
+              if (isAlreadyPaidMessage(errorMsg)) {
+                  continueAlreadyPaid(linkedArticleId);
+                  return;
+              }
               setPaymentStatus('failed');
               setPaymentError(formatPlagiarismPaymentMessage(errorMsg));
               addNotification({ 
@@ -634,6 +673,10 @@ const PlagiarismCheck: React.FC = () => {
       } catch (err: any) {
           console.error('Payment failed:', err);
           const errorMsg = err.message || err.error_note || err.user_message || "To'lovni amalga oshirishda xatolik yuz berdi.";
+          if (articleId && isAlreadyPaidMessage(errorMsg)) {
+              continueAlreadyPaid(articleId);
+              return;
+          }
           setPaymentStatus('failed');
           setPaymentError(formatPlagiarismPaymentMessage(errorMsg));
       }

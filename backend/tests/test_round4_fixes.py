@@ -16,13 +16,19 @@ from tests.test_qa_fixes import QaBase, _docx
 
 
 class JournalDeleteProtectionTests(QaBase):
-    def test_journal_with_articles_cannot_be_deleted(self):
+    def test_journal_with_articles_is_archived_not_deleted(self):
+        # Maqolasi bor jurnal butunlay o'chmaydi — arxivlanadi (maqolalar va to'lovlar saqlanadi)
         res = self.api(self.super_admin).delete(f'/api/v1/journals/journals/{self.journal.id}/')
-        self.assertEqual(res.status_code, 409)
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json()['archived'])
         self.assertEqual(res.json()['articles_count'], 1)
         self.assertTrue(Article.objects.filter(pk=self.article.pk).exists())
         data = self.api(self.super_admin).get(f'/api/v1/journals/journals/{self.journal.id}/').json()
+        self.assertTrue(data['is_archived'])
         self.assertEqual(data['articles_count'], 1)
+        # Bosh admin qayta tiklay oladi
+        res = self.api(self.super_admin).post(f'/api/v1/journals/journals/{self.journal.id}/restore/')
+        self.assertFalse(res.json()['is_archived'])
 
     def test_empty_journal_can_be_deleted_internal_cannot(self):
         empty = Journal.objects.create(name='Bo\'sh', issn='9999-0000', description='d', journal_admin=self.super_admin,

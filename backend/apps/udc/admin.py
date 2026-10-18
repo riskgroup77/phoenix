@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ServicePrice, UDKCertificate
+from .models import ServicePrice, UDKCertificate, UdcClass
 
 
 @admin.register(ServicePrice)
@@ -14,3 +14,10 @@ class UDKCertificateAdmin(admin.ModelAdmin):
     list_filter = ('udk_code',)
     search_fields = ('title', 'udk_code')
     raw_id_fields = ('user', 'transaction')
+
+
+@admin.register(UdcClass)
+class UdcClassAdmin(admin.ModelAdmin):
+    list_display = ('code', 'title_latin', 'parent_code', 'depth')
+    search_fields = ('code', 'title', 'title_latin')
+    list_filter = ('depth', 'source')

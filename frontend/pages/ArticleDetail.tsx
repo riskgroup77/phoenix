@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PageSkeleton } from '../components/ui/Skeleton';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
@@ -169,8 +169,8 @@ const findStatusReason = (
     return log ? { details: log.details || '', timestamp: log.timestamp } : undefined;
 };
 
-/** "Qabul haqida ma'lumotnoma" beriladigan holatlar va uni ko'radigan xodimlar */
-const ACCEPTED_STATUSES = new Set<string>([ArticleStatus.Accepted, ArticleStatus.NashrgaYuborilgan, ArticleStatus.Published]);
+/** "Qabul haqida ma'lumotnoma" berilmaydigan holatlar (qolgan barcha holatlarda — beriladi) va uni ko'radigan xodimlar */
+const NO_ACCEPTANCE_STATUSES = new Set<string>([ArticleStatus.Draft, ArticleStatus.Rejected]);
 const CERTIFICATE_STAFF_ROLES = new Set(['super_admin', 'journal_admin', 'operator']);
 
 /** Kitob buyurtmasi bosqichlari — ishlab chiqarish tartibida (backend ro'yxati alifbo bo'yicha keladi) */
@@ -202,7 +202,7 @@ const STAFF_ACTIONS: {
 const ArticleDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const { user } = useAuth();
-    const { t } = useT();
+    const { t, locale } = useT();
     const navigate = useNavigate();
     const isLargeScreen = useMediaMinWidth(ARTICLE_CHAT_DOCK_BREAKPOINT_PX);
     const [article, setArticle] = useState<ArticleApiResponse | null>(null);
@@ -211,6 +211,7 @@ const ArticleDetail: React.FC = () => {
     const [notAccessible, setNotAccessible] = useState(false);
     const [activityLogs, setActivityLogs] = useState<ActivityLogEvent[]>([]);
     const [showCertificate, setShowCertificate] = useState(false);
+    const [searchParams, setSearchParams] = useSearchParams();
     const [certificateData, setCertificateData] = useState<QabulCertificateData | null>(null);
     const [showPdfPreview, setShowPdfPreview] = useState(false);
     const [publicationCertificateFile, setPublicationCertificateFile] = useState<File | null>(null);
@@ -247,14 +248,16 @@ const ArticleDetail: React.FC = () => {
                 // Set certificate data
                 setCertificateData({
                     certificateNumber: `QBL-${articleData.id.substring(0, 8).toUpperCase()}`,
-                    issueDate: new Date().toLocaleDateString('uz-UZ'),
+                    // Sana — interfeys tilida; matnli qiymatlar o'zbekcha kalit bo'lib qoladi va
+                    // QabulCertificate ichida joriy tilga tarjima qilinadi (til almashsa ham to'g'ri chiqadi)
+                    issueDate: new Date().toLocaleDateString(locale),
                     // Sahifani ochgan xodim emas — maqola muallifi (avval muharrir/operator ismi chiqardi)
                     author: articleData.author_name || `${user.lastName} ${user.firstName}`,
-                    workType: 'Ilmiy maqola',
+                    workType: articleData.work_type === 'Tezis' ? 'Tezis' : 'Ilmiy maqola',
                     workTitle: articleData.title,
                     journalName: articleData.journal_name || 'Noma\'lum jurnal',
                     organization: (articleData.author === user.id ? user.affiliation : '') || 'Noma\'lum tashkilot',
-                    publishDate: articleData.submission_date ? new Date(articleData.submission_date).toLocaleDateString('uz-UZ') : undefined,
+                    publishDate: articleData.submission_date ? new Date(articleData.submission_date).toLocaleDateString(locale) : undefined,
                     currentStatus: articleData.status_label || articleData.status,
                     articleId: articleData.id
                 });
@@ -449,6 +452,15 @@ const ArticleDetail: React.FC = () => {
         }
     };
 
+    // "Ishlarim" ro'yxatidagi "Qabul ma'lumotnomasi" tugmasi: #/articles/<id>?qabul=1 — modal darhol ochiladi
+    useEffect(() => {
+        if (searchParams.get('qabul') !== '1' || !article || !certificateData) return;
+        const isBook = (article.title || '').trim().toUpperCase().startsWith('[KITOB]');
+        if (!isBook && !NO_ACCEPTANCE_STATUSES.has(article.status)) setShowCertificate(true);
+        searchParams.delete('qabul');
+        setSearchParams(searchParams, { replace: true });
+    }, [searchParams, setSearchParams, article, certificateData]);
+
     if (loading) {
         return <PageSkeleton />;
     }
@@ -509,7 +521,7 @@ const ArticleDetail: React.FC = () => {
     const isBookOrder = (article.title || '').trim().toUpperCase().startsWith('[KITOB]');
     const canShowAcceptanceCertificate =
         !isBookOrder &&
-        ACCEPTED_STATUSES.has(article.status) &&
+        !NO_ACCEPTANCE_STATUSES.has(article.status) &&
         (String(article.author) === String(user?.id) || CERTIFICATE_STAFF_ROLES.has(String(user?.role || '').toLowerCase()));
     const extraTransitions = [...allowedTransitions]
         .filter((s) => s !== ArticleStatus.Published && !STAFF_ACTIONS.some((a) => a.status === s))
@@ -616,7 +628,7 @@ const ArticleDetail: React.FC = () => {
                         </Card>
                     )}
                     {showPlagiarismForAdmin && article.plagiarism_checked_at && (() => {
-                        const view = buildAntiplagiatViewFromArticle(article as any);
+                        const view = buildAntiplagiatViewFromArticle(article as any, t);
                         const paragraphs = view?.fullReportData.annotatedDocument || [];
                         if (!view || paragraphs.length === 0) return null;
                         return (

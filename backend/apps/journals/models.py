@@ -60,6 +60,11 @@ class Journal(models.Model):
     # Ichki (texnik) jurnal: kitob nashri buyurtmalari shu yerga biriktiriladi. Katalogda, mualliflar
     # ro'yxatida va qidiruvda ko'rinmaydi; egasi — bosh admin (apps/journals/internal.py).
     is_internal = models.BooleanField(default=False)
+    # Jurnal sohasi (fan yo'nalishlari) — rukn (nashr turi: OAK / xalqaro / konferensiya ...) dan alohida
+    scientific_fields = models.ManyToManyField('ScientificField', blank=True, related_name='journals')
+    # Arxiv: maqolasi bor jurnal "o'chirilganda" arxivlanadi — katalog va maqola yuborishda ko'rinmaydi,
+    # lekin nashr etilgan maqolalar va to'lovlar tarixi saqlanadi
+    is_archived = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

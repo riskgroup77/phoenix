@@ -53,8 +53,10 @@ def _verify_antiplagiat(code: str):
 
 
 def _verify_acceptance(prefix: str):
-    qs = _uuid_prefix_filter(Article.objects, prefix).filter(
-        status__in=('Accepted', 'NashrgaYuborilgan', 'Published'),
+    from .works_report import ACCEPTANCE_EXCLUDED_STATUSES
+
+    qs = _uuid_prefix_filter(Article.objects, prefix).exclude(
+        status__in=ACCEPTANCE_EXCLUDED_STATUSES,
     ).select_related('author', 'journal')
     if qs.count() != 1:
         return None
@@ -119,19 +121,47 @@ def _verify_udk(num: int):
 
 
 def _verify_publications_report(prefix: str):
+    """HSB-xxxxxxxx — barcha ilmiy ishlar bo'yicha ma'lumotnoma."""
+    from .works_report import collect_rows
+
     qs = _uuid_prefix_filter(User.objects, prefix)
     if qs.count() != 1:
         return None
     user = qs.first()
-    published = Article.objects.filter(author=user, status='Published').count()
     return {
         'type': 'publications_report',
-        'type_label': 'Nashrlar hisoboti',
+        'type_label': "Barcha ilmiy ishlar bo'yicha ma'lumotnoma",
         'document_number': f'HSB-{prefix.upper()}',
-        'title': 'Muallif nashrlari hisoboti',
+        'title': "Barcha ilmiy ishlar bo'yicha ma'lumotnoma",
         'author': user.get_full_name(),
         'date': '',
-        'details': {'published_articles': published},
+        'details': {'works_count': len(collect_rows(user))},
+    }
+
+
+def _verify_work_report(prefix: str, lang: str = 'uz'):
+    """ISH-xxxxxxxx — bitta ilmiy ish bo'yicha ma'lumotnoma. Ish turi va nashr shakli so'rov tilida."""
+    from .works_report import ACCEPTANCE_EXCLUDED_STATUSES, collect_rows
+
+    qs = _uuid_prefix_filter(Article.objects, prefix).exclude(
+        status__in=ACCEPTANCE_EXCLUDED_STATUSES,
+    ).select_related('author', 'journal')
+    if qs.count() != 1:
+        return None
+    article = qs.first()
+    row = collect_rows(article.author, article=article, lang=lang)[0]
+    return {
+        'type': 'work_report',
+        'type_label': "Ilmiy ish bo'yicha ma'lumotnoma",
+        'document_number': f'ISH-{prefix.upper()}',
+        'title': row.title,
+        'author': (article.submitted_author_name or '').strip() or article.author.get_full_name(),
+        'date': timezone.localtime(article.submission_date).strftime('%d.%m.%Y') if article.submission_date else '',
+        'details': {
+            'work_type': row.work_type,
+            'publication': row.publish,
+            'status': dict(Article.STATUS_CHOICES).get(article.status, article.status),
+        },
     }
 
 
@@ -141,7 +171,8 @@ def _verify_publications_report(prefix: str):
 def verify_document(request, code):
     """
     Sertifikatdagi QR kod orqali hujjat haqiqiyligini tekshirish (login talab qilinmaydi).
-    Kodlar: <raqam> (antiplagiat), QBL-xxxxxxxx (qabul), UDK-000123, HSB-xxxxxxxx (nashrlar hisoboti).
+    Qiymatlar (type_label, status, ...) o'zbekcha qaytadi — frontend ularni interfeys tiliga tarjima qiladi.
+    Kodlar: <raqam> (antiplagiat), QBL-xxxxxxxx (qabul), UDK-000123, HSB-xxxxxxxx (barcha ilmiy ishlar), ISH-xxxxxxxx (bitta ish).
     """
     import re as _re
 
@@ -156,6 +187,10 @@ def verify_document(request, code):
         result = _verify_udk(int(up[4:]))
     elif _re.fullmatch(r'HSB-[0-9A-F]{8}', up):
         result = _verify_publications_report(up[4:].lower())
+    elif _re.fullmatch(r'ISH-[0-9A-F]{8}', up):
+        from config.doc_i18n import request_lang
+
+        result = _verify_work_report(up[4:].lower(), request_lang(request))
     elif _re.fullmatch(r'CHK-[0-9A-F]{8}', up):
         result = _verify_receipt(up[4:].lower())
     if not result:

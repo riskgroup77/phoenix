@@ -96,6 +96,8 @@ export interface User {
   telegramUsername?: string; // For Telegram notifications
   /** Telefon raqami Telegram orqali tasdiqlanganmi */
   phoneVerified?: boolean;
+  /** Server talabi: maqola yuborishdan oldin telefonni tasdiqlash shart (faqat mualliflar) */
+  phoneVerificationRequired?: boolean;
 }
 
 export interface PlagiarismCheckResults {
@@ -149,6 +151,13 @@ export interface ArticleVersion {
 }
 
 export interface JournalCategory {
+  id: string;
+  name: string;
+  /** type — nashr turi; subject — eski "soha" rukni (soha endi alohida: scientific_fields) */
+  kind?: 'type' | 'subject' | 'other';
+}
+
+export interface ScientificFieldItem {
   id: string;
   name: string;
 }

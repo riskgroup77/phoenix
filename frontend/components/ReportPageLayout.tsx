@@ -1,5 +1,6 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useT } from '../i18n/LanguageContext';
 
 export const REPORT_COLOR_DARK = '#17306f';
 export const REPORT_COLOR_NAVY = '#1f3f8f';
@@ -73,7 +74,9 @@ export const ReportCoverFrame: React.FC<{ children: React.ReactNode }> = ({ chil
 );
 
 /** hisobot2.jpg — davomiy sahifalar ramkasi */
-export const ReportInnerFrame: React.FC<{ children: React.ReactNode; pageNum?: number }> = ({ children, pageNum }) => (
+export const ReportInnerFrame: React.FC<{ children: React.ReactNode; pageNum?: number }> = ({ children, pageNum }) => {
+    const { t } = useT();
+    return (
     <div className="relative overflow-hidden bg-white a4-portrait-page" style={A4_PORTRAIT_STYLE}>
         <WaveLinesPattern />
         <div className="absolute top-0 left-0 right-0 z-10 h-12 flex items-stretch">
@@ -86,7 +89,7 @@ export const ReportInnerFrame: React.FC<{ children: React.ReactNode; pageNum?: n
                 }}
             >
                 <span className="text-[10px] font-medium text-white/90">Phoenix Antiplagiat — ilmiyfaoliyat.uz</span>
-                {pageNum != null && <span className="text-[10px] text-white/80">Sahifa {pageNum}</span>}
+                {pageNum != null && <span className="text-[10px] text-white/80">{t('Sahifa {pageNum}', { pageNum })}</span>}
             </div>
         </div>
         <div className="absolute bottom-0 left-0 right-0 z-10 h-12 flex items-stretch">
@@ -96,7 +99,8 @@ export const ReportInnerFrame: React.FC<{ children: React.ReactNode; pageNum?: n
         </div>
         <div className="relative z-20 h-full flex flex-col pt-14 pb-14 px-6 sm:px-8">{children}</div>
     </div>
-);
+    );
+};
 
 /** sertifikat.jpg — o'ng tomondagi geometrik chiziqlar */
 export const CertificateSideStripes: React.FC = () => (
@@ -157,6 +161,7 @@ export const PhoenixLogoMark: React.FC<{ size?: 'sm' | 'md' | 'lg'; showText?: b
     size = 'md',
     showText = true,
 }) => {
+    const { t } = useT();
     const imgH = size === 'sm' ? 52 : size === 'lg' ? 88 : 68;
     return (
         <div className="flex flex-col items-center gap-1">
@@ -172,7 +177,7 @@ export const PhoenixLogoMark: React.FC<{ size?: 'sm' | 'md' | 'lg'; showText?: b
                         Phoenix
                     </span>
                     <span className="text-[10px] font-semibold tracking-[0.35em] -mt-0.5" style={{ color: REPORT_COLOR_TEAL }}>
-                        NASHRIYOTI
+                        {t('NASHRIYOTI')}
                     </span>
                 </>
             )}
@@ -181,10 +186,10 @@ export const PhoenixLogoMark: React.FC<{ size?: 'sm' | 'md' | 'lg'; showText?: b
 };
 
 /** QR + dafna novdasi */
-export const LaurelQRBlock: React.FC<{ qrValue: string; label?: string }> = ({
-    qrValue,
-    label = 'TEKSHIRISH UCHUN QR KODDAN FOYDALANING',
-}) => (
+/** label — o'zbekcha (lotin) matn, joriy interfeys tiliga tarjima qilinadi */
+export const LaurelQRBlock: React.FC<{ qrValue: string; label?: string }> = ({ qrValue, label }) => {
+    const { t } = useT();
+    return (
     <div className="flex flex-col items-center gap-2">
         <div className="relative w-20 h-20 flex items-center justify-center">
             <svg viewBox="0 0 80 80" className="absolute inset-0 w-full h-full" aria-hidden>
@@ -200,7 +205,8 @@ export const LaurelQRBlock: React.FC<{ qrValue: string; label?: string }> = ({
             </div>
         </div>
         <p className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-center max-w-[130px] leading-tight" style={{ color: REPORT_COLOR_TEAL }}>
-            {label}
+            {label ? t(label) : t('TEKSHIRISH UCHUN QR KODDAN FOYDALANING')}
         </p>
     </div>
-);
+    );
+};

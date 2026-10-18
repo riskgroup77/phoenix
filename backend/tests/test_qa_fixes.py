@@ -297,7 +297,9 @@ class UdkFixesTests(QaBase):
         self.assertEqual(res.status_code, 400)
 
     @override_settings(UDK_PAYMENT_ENABLED=False)
+    @override_settings(UDK_AUTO_CLASSIFY=False)
     def test_new_free_request_notifies_reviewers(self):
+        # Avtomatik aniqlash o'chirilganda — eski tartib: xodimlarga xabar (yoqilgani: test_antiplag_udk_auto.py)
         res = self.api(self.author).post('/api/v1/udc/request/', {
             'author_first_name': 'A', 'author_last_name': 'B', 'title': 'Mavzu', 'abstract': 'Annotatsiya',
         }, format='json')

@@ -54,7 +54,7 @@ const AntiplagiatResultPage: React.FC = () => {
           return;
         }
 
-        const built = buildAntiplagiatViewFromArticle(article);
+        const built = buildAntiplagiatViewFromArticle(article, t);
         if (!built) {
           setError(t("Tekshiruv natijalarini yuklab bo'lmadi. Keyinroq qayta urinib ko'ring."));
           return;

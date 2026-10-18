@@ -5,7 +5,7 @@ import { Role } from '../types';
 import {
   PUBLICATION_TYPES,
   SUBJECT_AREAS,
-  categoryToSlug,
+  isPublicationType,
   slugToCategory,
 } from '../constants/authorCategories';
 import { BookOpen, Layers, Filter, X } from 'lucide-react';
@@ -17,37 +17,25 @@ const AuthorCategoryBar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isBrowse = location.pathname === '/browse';
-  const categoryParam = new URLSearchParams(location.search).get('category');
-  const currentCategory = categoryParam ? slugToCategory(categoryParam) : '';
+  // Rukn (nashr turi) va soha — ikki mustaqil filtr: /browse?type=...&field=... (ikkalasi birga ham ishlaydi).
+  // Eski havolalar (?category=...) ham qo'llab-quvvatlanadi.
+  const params = new URLSearchParams(location.search);
+  const legacy = params.get('category') ? slugToCategory(params.get('category') as string) : '';
+  const selectedType = params.get('type') ? slugToCategory(params.get('type') as string)
+    : (legacy && isPublicationType(legacy) ? legacy : '');
+  const selectedSubject = params.get('field') ? slugToCategory(params.get('field') as string)
+    : (legacy && !isPublicationType(legacy) ? legacy : '');
 
-  const isPublicationType = (name: string) =>
-    PUBLICATION_TYPES.includes(name as any);
-  const isSubjectArea = (name: string) => SUBJECT_AREAS.includes(name as any);
-
-  const selectedType =
-    currentCategory && isPublicationType(currentCategory)
-      ? currentCategory
-      : '';
-  const selectedSubject =
-    currentCategory && isSubjectArea(currentCategory) ? currentCategory : '';
-
-  const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    if (!value) {
-      navigate('/browse');
-      return;
-    }
-    navigate(`/browse?category=${categoryToSlug(value)}`);
+  const go = (type: string, field: string) => {
+    const next = new URLSearchParams();
+    if (type) next.set('type', type);
+    if (field) next.set('field', field);
+    const qs = next.toString();
+    navigate(qs ? `/browse?${qs}` : '/browse');
   };
 
-  const handleSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    if (!value) {
-      navigate('/browse');
-      return;
-    }
-    navigate(`/browse?category=${categoryToSlug(value)}`);
-  };
+  const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => go(e.target.value, selectedSubject);
+  const handleSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => go(selectedType, e.target.value);
 
   const clearFilter = () => {
     navigate('/browse');

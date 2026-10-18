@@ -364,7 +364,7 @@ class UserViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
 
-        # 2c. UDK so'rovi (alohida buyurtma: to'lov → taqrizchi). Oldin faqat UDKCertificate qo'shilardi —
+        # 2c. UDK so'rovi (alohida buyurtma: to'lov → avtomatik aniqlash). Oldin faqat UDKCertificate qo'shilardi —
         # sertifikat taqrizchi yakunlaganda yaratiladi, shuning uchun "to'lov bo'ldi, arxiv bo'sh" muammosi bo'lardi.
         try:
             from apps.udc.models import (
@@ -390,7 +390,7 @@ class UserViewSet(viewsets.ModelViewSet):
                 date_str = req.created_at.isoformat() if req.created_at else None
                 status_label = {
                     UDK_REQUEST_STATUS_PENDING_PAYMENT: "To'lov kutilmoqda",
-                    UDK_REQUEST_STATUS_SUBMITTED: 'Taqrizchida',
+                    UDK_REQUEST_STATUS_SUBMITTED: 'Aniqlanmoqda',  # UDK avtomatik aniqlanadi (apps/udc/auto_complete.py)
                     UDK_REQUEST_STATUS_COMPLETED: 'Yakunlangan (PDF kutilmoqda)',
                 }.get(req.status, 'Jarayonda')
 

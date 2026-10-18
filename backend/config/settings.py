@@ -352,7 +352,8 @@ FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://localhost:3000').rstr
 
 # Telegram: bildirishnomalarni botga yuborish (apps/notifications/telegram.py)
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
-# true — telefon raqami Telegram orqali tasdiqlanmagan muallif maqola yubora / to'lov qila olmaydi
+# true — telefon raqami Telegram orqali tasdiqlanmagan muallif maqola yubora / to'lov qila olmaydi.
+# Standart: false (tasdiqlash ixtiyoriy). Xodimlar (admin, operator, ...) hech qachon cheklanmaydi.
 PHONE_VERIFICATION_REQUIRED = os.getenv('PHONE_VERIFICATION_REQUIRED', 'false').lower() in ('1', 'true', 'yes', 'on')
 # Monitoring ogohlantirishlari (server 500 xatolari, brauzer xatolari, zaxira, sayt ishlamay qolsa) shu chatga
 PHONIX_ALERT_CHAT_ID = (os.getenv('PHONIX_ALERT_CHAT_ID') or '').strip()
@@ -365,6 +366,17 @@ TERMS_ACCEPTANCE_REQUIRED = os.getenv('TERMS_ACCEPTANCE_REQUIRED', 'true').lower
 PHONIX_DEMO_ENABLED = os.getenv('PHONIX_DEMO_ENABLED', 'true').lower() in ('1', 'true', 'yes', 'on')
 # Profil sahifasidagi "Botni ochish" havolasi uchun (masalan: IlmiyFaoliyatBot, @ belgisiz)
 TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME', '').lstrip('@')
+# /reklama (ommaviy xabar) yuborishga ruxsat berilgan Telegram ID'lar (vergul bilan). super_admin roli bilan
+# botga kirgan foydalanuvchilarga bu ro'yxatsiz ham ruxsat bor.
+TELEGRAM_ADMIN_IDS = [
+    int(x) for x in (os.getenv('TELEGRAM_ADMIN_IDS') or '').replace(' ', '').split(',') if x.lstrip('-').isdigit()
+]
+
+# UDK so'rovi to'lovdan keyin avtomatik aniqlanadi (apps/udc/auto_complete.py). false — eski tartib (taqrizchi qo'lda).
+UDK_AUTO_CLASSIFY = os.getenv('UDK_AUTO_CLASSIFY', 'true').lower() in ('1', 'true', 'yes', 'on')
+UDK_AUTO_ASYNC = os.getenv('UDK_AUTO_ASYNC', 'true').lower() in ('1', 'true', 'yes', 'on')
+# perviy-vestnik.ru UDK bazasi (436 ming kod, ruscha) — avtomatik aniqlashda qo'shimcha nomzodlar uchun
+UDK_PERVIY_SEARCH_ENABLED = os.getenv('UDK_PERVIY_SEARCH_ENABLED', 'true').lower() in ('1', 'true', 'yes', 'on')
 
 # Crossref DOI depozit (apps/articles/crossref.py). Bo'sh bo'lsa XML faqat yuklab olinadi.
 CROSSREF_DEPOSITOR_NAME = os.getenv('CROSSREF_DEPOSITOR_NAME', 'Phoenix Ilmiy Nashrlar Markazi')

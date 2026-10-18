@@ -222,6 +222,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
     def receipt(self, request, pk=None):
         """To'lov cheki (PDF). Faqat yakunlangan to'lov; egasi, bosh admin yoki buxgalter."""
         from django.http import HttpResponse
+        from config.doc_i18n import request_lang
         from .labels import receipt_number
         from .receipt_pdf import build_receipt_pdf
 
@@ -232,7 +233,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
-            pdf = build_receipt_pdf(tx)
+            pdf = build_receipt_pdf(tx, request_lang(request))
         except Exception as exc:
             logger.exception('Receipt PDF failed for %s: %s', tx.pk, exc)
             return Response({'detail': 'Chekni yaratib bo\'lmadi.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -12,10 +12,10 @@ UDK_REQUEST_STATUS_REJECTED = 'rejected'
 
 
 class UdkRequest(models.Model):
-    """UDK raqami olish so'rovi: muallif mavzu va fayl yuboradi, to'lovdan keyin taqrizchiga boradi."""
+    """UDK raqami olish so'rovi: muallif mavzu va fayl yuboradi, to'lovdan keyin UDK avtomatik aniqlanadi."""
     STATUS_CHOICES = (
         (UDK_REQUEST_STATUS_PENDING_PAYMENT, 'To\'lov kutilmoqda'),
-        (UDK_REQUEST_STATUS_SUBMITTED, 'Taqrizchida'),
+        (UDK_REQUEST_STATUS_SUBMITTED, 'Aniqlanmoqda'),
         (UDK_REQUEST_STATUS_COMPLETED, 'Yakunlangan'),
         (UDK_REQUEST_STATUS_REJECTED, 'Rad etilgan'),
     )
@@ -41,6 +41,9 @@ class UdkRequest(models.Model):
     udk_description = models.CharField(max_length=500, blank=True)
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default=UDK_REQUEST_STATUS_PENDING_PAYMENT)
     reject_reason = models.TextField(blank=True)
+    # Avtomatik aniqlash (apps/udc/auto_classify.py): usul (ai / lexical / perviy / manual) va ko'rib chiqilgan nomzodlar
+    auto_method = models.CharField(max_length=20, blank=True)
+    auto_candidates = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
@@ -97,3 +100,24 @@ class ServicePrice(models.Model):
 
     def __str__(self):
         return f"{self.service_key}: {self.amount} {self.currency}"
+
+
+class UdcClass(models.Model):
+    """
+    UDK klassifikatori (kitobdan: "Universal o'nli klassifikatsiya. Qisqartirilgan nashr", O'zMK, 2023).
+    Avtomatik UDK aniqlash (apps/udc/auto_classify.py) shu jadvaldan foydalanadi.
+    """
+    code = models.CharField(max_length=60, unique=True)
+    title = models.TextField(help_text="Tavsif (kitobdagidek, kirillda)")
+    title_latin = models.TextField(blank=True, help_text='Tavsif lotinda')
+    parent_code = models.CharField(max_length=60, blank=True, db_index=True)
+    depth = models.PositiveSmallIntegerField(default=0)
+    source = models.CharField(max_length=30, default='book')
+
+    class Meta:
+        ordering = ['code']
+        verbose_name = 'UDK klassi'
+        verbose_name_plural = 'UDK klassifikatori'
+
+    def __str__(self):
+        return f'{self.code} — {self.title_latin or self.title}'

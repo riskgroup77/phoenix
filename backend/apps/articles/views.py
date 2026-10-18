@@ -106,10 +106,10 @@ class ArticleViewSet(
     def get_queryset(self):
         # Ro'yxat: og'ir prefetchsiz — ba'zi maqolalarda 500 va bo'sh ro'yxat muammosini oldini oladi.
         if getattr(self, 'action', None) in ('list', 'mine', 'staff'):
-            base_queryset = Article.objects.select_related('author', 'journal', 'published_by')
+            base_queryset = Article.objects.select_related('author', 'journal__category', 'published_by')
         else:
             base_queryset = Article.objects.select_related(
-                'author', 'journal', 'published_by'
+                'author', 'journal__category', 'published_by'
             ).prefetch_related(
                 'versions', 'activity_logs', 'peer_reviews', 'co_authors'
             )

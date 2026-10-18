@@ -23,6 +23,10 @@ export interface ArticleApiResponse {
     ai_content_percentage?: number;
     plagiarism_checked_at?: string | null;
     pending_payment_transaction_id?: string | null;
+    /** Ish turi: Maqola / Tezis / Kitob */
+    work_type?: string;
+    /** Mustaqil antiplagiat hujjati holati (oddiy maqolada null) */
+    antiplagiat_state?: 'awaiting_payment' | 'checking' | 'failed' | 'done' | null;
     /** Joriy foydalanuvchi o'tkaza oladigan holatlar (backend workflow.py) */
     allowed_transitions?: string[];
     /** Muallif: qoralama nashr to'lovini kutyapti (yangi to'lov boshlash mumkin) */

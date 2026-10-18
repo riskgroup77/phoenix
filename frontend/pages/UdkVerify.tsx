@@ -108,12 +108,12 @@ const UdkVerify: React.FC = () => {
               <h1 className="text-xl font-bold text-slate-900">{t('Tekshirish natijasi')}</h1>
             </div>
             <p className="text-slate-600">
-              {data?.detail || t("Ma'lumotnoma topilmadi yoki haqiqiy emas.")}
+              {data?.detail ? t(data.detail) : t("Ma'lumotnoma topilmadi yoki haqiqiy emas.")}
             </p>
           </>
         )}
         <p className="text-xs text-slate-500 mt-6">
-          www.ilmiyfaoliyat.uz — Phoenix Ilmiy Nashrlar Markazi
+          www.ilmiyfaoliyat.uz — {t('Phoenix Ilmiy Nashrlar Markazi')}
         </p>
       </Card>
     </div>

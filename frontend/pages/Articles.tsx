@@ -3,19 +3,18 @@ import EmptyState from '../components/EmptyState';
 import { ListSkeleton } from '../components/ui/Skeleton';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ArticleStatus, Role, TranslationStatus, User } from '../types';
+import { ArticleStatus, Role, TranslationStatus } from '../types';
 import Card from '../components/ui/Card';
 import EditorialTabs from '../components/EditorialTabs';
 import EditorialPageHeader from '../components/EditorialPageHeader';
-import { Search, FileText, Printer, Filter, X, BookOpen, FileDown } from 'lucide-react';
+import { Search, FileText, Filter, X } from 'lucide-react';
 import Button from '../components/ui/Button';
-import AuthorArticleReport from '../components/AuthorArticleReport';
-import NashrHisobotCertificate, { NashrHisobotData } from '../components/NashrHisobotCertificate';
+import WorksReportModal from '../components/WorksReportModal';
 import { apiService } from '../services/apiService';
-import { toast } from 'react-toastify';
 import { isStandalonePlagiarismArticle } from '../utils/antiplagiatFromArticle';
 import { ArticleApiResponse, TranslationRequestApiResponse, JournalApiResponse, getArticleJournalId } from './articles/types';
-import { journalAdminTabsBase, authorArticleTabs, convertToArticleType, BOOK_ORDERS_TAB } from './articles/helpers';
+import { journalAdminTabsBase, authorArticleTabs, BOOK_ORDERS_TAB, matchesAuthorTab, SERVICE_DOCS_TAB } from './articles/helpers';
+import ServiceDocItem, { ServiceDoc, SERVICE_DOC_TYPES } from '../components/ServiceDocItem';
 import { isBookTitle } from '../utils/articleAuthorWorkflow';
 
 /** Taqrizchining o'z taqrizi hali tugamagan (taklif / qabul qilingan / yozilmoqda) */
@@ -40,6 +39,7 @@ const Articles: React.FC = () => {
     const isReviewer = userRole === 'reviewer' || user?.role === Role.Reviewer;
     const isOperator = userRole === 'operator' || user?.role === Role.Operator;
 
+    const isAuthorUser = userRole === Role.Author || userRole === 'author';
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState(() => {
         if (isReviewer) return 'reviews';
@@ -47,7 +47,6 @@ const Articles: React.FC = () => {
         return 'all';
     });
     const [showReportModal, setShowReportModal] = useState(false);
-    const [showNashrHisobotModal, setShowNashrHisobotModal] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const [filterJournal, setFilterJournal] = useState('');
     const [filterPlagiarism, setFilterPlagiarism] = useState('');
@@ -57,6 +56,8 @@ const Articles: React.FC = () => {
     const [articles, setArticles] = useState<ArticleApiResponse[]>([]);
     const [translations, setTranslations] = useState<TranslationRequestApiResponse[]>([]);
     const [journals, setJournals] = useState<JournalApiResponse[]>([]);
+    /** Muallifning UDK / DOI hujjatlari (arxivdan) — "Ishlarim" da ham ko'rinadi */
+    const [serviceDocs, setServiceDocs] = useState<ServiceDoc[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const hasActiveFilters = !!(filterJournal || filterPlagiarism || filterDateFrom || filterDateTo);
@@ -134,10 +135,7 @@ const Articles: React.FC = () => {
         if (userRole === Role.Author || userRole === 'author') {
             const selectedTab = authorArticleTabs.find(t => t.id === activeTab);
             if (!selectedTab) return articles;
-            const list =
-                selectedTab.id === 'all'
-                    ? articles
-                    : articles.filter(a => selectedTab.statuses.includes(a.status as ArticleStatus));
+            const list = articles.filter((a) => matchesAuthorTab(selectedTab, a));
             return list.sort((a, b) => (b.fast_track ? 1 : 0) - (a.fast_track ? 1 : 0));
         }
         if (isReviewer) {
@@ -177,7 +175,8 @@ const Articles: React.FC = () => {
     }, [searchQuery, translationsToShow]);
 
     const filteredArticles = useMemo(() => {
-        let result = articlesToShow.filter((a) => !isStandalonePlagiarismArticle(a));
+        // Muallif o'z antiplagiat hujjatlarini ham holati bilan ko'radi; xodimlar ro'yxatida ular aralashmaydi
+        let result = isAuthorUser ? articlesToShow : articlesToShow.filter((a) => !isStandalonePlagiarismArticle(a));
 
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
@@ -213,7 +212,7 @@ const Articles: React.FC = () => {
         }
 
         return result;
-    }, [searchQuery, articlesToShow, filterJournal, filterPlagiarism, filterDateFrom, filterDateTo]);
+    }, [searchQuery, articlesToShow, filterJournal, filterPlagiarism, filterDateFrom, filterDateTo, isAuthorUser]);
 
     // Calculate tab counts using useMemo to ensure hooks are always called
     const reviewerTabCounts = useMemo(() => {
@@ -264,20 +263,21 @@ const Articles: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [articles, journalAdminTabs]);
 
-    const authorTabCounts = useMemo(() => {
-        // Ro'yxatda ko'rinmaydigan mustaqil antiplagiat hujjatlari sanalmaydi (avval "Barchasi" ularni ham
-        // qo'shib, bosh sahifadagi sondan farq qilardi)
-        const listed = articles.filter((a) => !isStandalonePlagiarismArticle(a));
-        return authorArticleTabs.map(tab => {
-            const count =
-                tab.id === 'all'
-                    ? listed.length
-                    : listed.filter(a => tab.statuses.includes(a.status as ArticleStatus)).length;
-            return { id: tab.id, count };
-        });
-    }, [articles]);
+    const authorTabCounts = useMemo(
+        () => authorArticleTabs.map((tab) => ({
+            id: tab.id,
+            count: articles.filter((a) => matchesAuthorTab(tab, a)).length
+                + (tab.id === 'all' || tab.id === SERVICE_DOCS_TAB ? serviceDocs.length : 0),
+        })),
+        [articles, serviceDocs],
+    );
 
-    const isAuthorUser = userRole === Role.Author || userRole === 'author';
+    const visibleServiceDocs = useMemo(() => {
+        if (!isAuthorUser || (activeTab !== 'all' && activeTab !== SERVICE_DOCS_TAB)) return [];
+        const q = searchQuery.trim().toLowerCase();
+        return q ? serviceDocs.filter((d) => (d.title || '').toLowerCase().includes(q)) : serviceDocs;
+    }, [isAuthorUser, activeTab, serviceDocs, searchQuery]);
+
     /** Rol bo'yicha to'liq ro'yxat (staff / mine / paginatsiyali list) */
     const fetchAllArticlesPages = useCallback(async (): Promise<ArticleApiResponse[]> => {
         const raw = await apiService.articles.listAllForRole(String(userRole || user?.role || ''));
@@ -331,13 +331,22 @@ const Articles: React.FC = () => {
             
             setArticles(articlesArray);
             setTranslations(translationsArray);
+            if (isAuthorUser) {
+                try {
+                    const archive: any = await apiService.auth.getArchive();
+                    const items = (archive?.data ?? archive)?.items;
+                    setServiceDocs((Array.isArray(items) ? items : []).filter((it: ServiceDoc) => SERVICE_DOC_TYPES.has(it.type)));
+                } catch {
+                    setServiceDocs([]);
+                }
+            }
             setJournals(journalsMerged);
         } catch (error: any) {
             setError(error?.message || tt("Maqolalar ma'lumotlarini yuklashda xatolik. Iltimos, keyinroq urinib ko'ring."));
         } finally {
             setLoading(false);
         }
-    }, [user, fetchAllArticlesPages, fetchAllJournalsPages]);
+    }, [user, fetchAllArticlesPages, fetchAllJournalsPages, isAuthorUser]);
 
     useEffect(() => {
         fetchData();
@@ -393,10 +402,6 @@ const Articles: React.FC = () => {
         />
     );
     
-    const handlePrintReport = () => {
-        window.print();
-    };
-
     const renderContent = () => {
         if (isReviewer && activeTab === 'translations') {
             return (
@@ -443,7 +448,7 @@ const Articles: React.FC = () => {
             ))
         );
 
-        if (filteredArticles.length === 0) {
+        if (filteredArticles.length === 0 && visibleServiceDocs.length === 0) {
             return (
                 <div className="space-y-4">
                     {searchQuery ? (
@@ -498,6 +503,16 @@ const Articles: React.FC = () => {
         return (
             <div className="space-y-4">
                 {renderArticleList(filteredArticles)}
+                {visibleServiceDocs.length > 0 && (
+                    <>
+                        {activeTab === 'all' && filteredArticles.length > 0 && (
+                            <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--editorial-primary)] pt-2">
+                                {tt('UDK va DOI hujjatlari')}
+                            </h3>
+                        )}
+                        {visibleServiceDocs.map((doc) => <ServiceDocItem key={doc.id} doc={doc} />)}
+                    </>
+                )}
             </div>
         );
     }
@@ -508,20 +523,32 @@ const Articles: React.FC = () => {
                 title={tt(title)}
                 actions={
                     user.role === Role.Author ? (
-                        <>
-                            <Button onClick={() => setShowReportModal(true)} variant="secondary">
-                                <FileText className="mr-2 h-4 w-4" /> {tt("Barcha maqolalar bo'yicha ma'lumotnoma")}
-                            </Button>
-                            <Button onClick={() => setShowNashrHisobotModal(true)} variant="primary">
-                                <BookOpen className="mr-2 h-4 w-4" /> {tt('Nashri haqida hisobot')}
-                            </Button>
-                        </>
+                        <Button onClick={() => setShowReportModal(true)} variant="primary">
+                            <FileText className="mr-2 h-4 w-4" /> {tt("Barcha ilmiy ishlar bo'yicha ma'lumotnoma")}
+                        </Button>
                     ) : undefined
                 }
             />
             <Card>
                 {isReviewer && renderTabs(reviewerTabs, reviewerTabCounts)}
-                {(userRole === Role.Author || userRole === 'author') && renderTabs(authorArticleTabs, authorTabCounts)}
+                {(userRole === Role.Author || userRole === 'author') && (
+                    <div className="mb-4">
+                        <label htmlFor="author-status-filter" className="text-xs text-slate-500 mb-1 block">{tt("Holat bo'yicha")}</label>
+                        <select
+                            id="author-status-filter"
+                            value={activeTab}
+                            onChange={(e) => setActiveTab(e.target.value)}
+                            className="w-full sm:w-auto min-w-[240px] bg-white/50 border border-slate-200/90 rounded-lg px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500"
+                        >
+                            {/* "Barchasi" — birinchi va default */}
+                            {[...authorArticleTabs.filter((tab) => tab.id === 'all'), ...authorArticleTabs.filter((tab) => tab.id !== 'all')].map((tab) => (
+                                <option key={tab.id} value={tab.id}>
+                                    {tt(tab.label)} ({authorTabCounts.find((tc) => tc.id === tab.id)?.count ?? 0})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
                 {isJournalAdmin && renderTabs(journalAdminTabs, journalAdminTabCounts)}
                 {isSuperAdminUser && renderTabs(journalAdminTabs, superAdminTabCounts)}
                 {isOperator && renderTabs(journalAdminTabs, superAdminTabCounts)}
@@ -604,95 +631,8 @@ const Articles: React.FC = () => {
             </Card>
 
             {showReportModal && user && (
-                <div className="fixed inset-0 bg-slate-900/35 backdrop-blur-sm z-50 flex justify-center items-center p-4 no-print">
-                    <div className="w-full max-w-4xl h-[90vh] bg-white/50 rounded-lg shadow-2xl flex flex-col">
-                        <div className="p-4 border-b border-slate-200/90 flex justify-between items-center">
-                            <h3 className="text-lg font-semibold text-slate-900">{tt("Maqolalar bo'yicha ma'lumotnoma")}</h3>
-                            <div className="flex gap-2">
-                                <Button onClick={handlePrintReport} variant="primary">
-                                    <Printer className="mr-2 h-4 w-4"/> {tt('Chop Etish')}
-                                </Button>
-                                <Button onClick={() => setShowReportModal(false)} variant="secondary">
-                                    {tt('Yopish')}
-                                </Button>
-                            </div>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-4">
-                            <div id="author-report-print-area">
-                                <AuthorArticleReport articles={articles.map(convertToArticleType)} author={user as User} />
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <WorksReportModal onClose={() => setShowReportModal(false)} />
             )}
-
-            {showNashrHisobotModal && user && (() => {
-                // Faqat nashr etilgan maqolalarni olamiz (muallifda tab filtri emas — barcha nashrlar)
-                const publishedArticles = articles.filter(a => a.status === ArticleStatus.Published);
-                
-                const nashrHisobotData: NashrHisobotData = {
-                    documentNumber: user.id
-                        ? `HSB-${String(user.id).replace(/-/g, '').slice(0, 8).toUpperCase()}`
-                        : `HSB-${Date.now().toString(36).toUpperCase()}`,
-                    documentDate: new Date().toLocaleDateString('uz-UZ'),
-                    authorFullName: `${user.lastName || ''} ${user.firstName || ''}`.trim() || user.email,
-                    authorWorkplace: user.affiliation || "Ko'rsatilmagan",
-                    authorPosition: (user as any).degree || (user as any).position || "Muallif",
-                    articles: publishedArticles.map((article, index) => ({
-                        id: index + 1,
-                        title: article.title,
-                        publishName: article.journal_name || 'Noma\'lum jurnal',
-                        publishDate: article.submission_date ? new Date(article.submission_date).toLocaleDateString('uz-UZ') : undefined,
-                        internetLink: `https://ilmiyfaoliyat.uz/public/article/${article.id}`,
-                        coAuthors: [] // API dan kelgan bo'lsa qo'shish mumkin
-                    }))
-                };
-
-                return (
-                    <div className="fixed inset-0 bg-slate-900/35 backdrop-blur-sm z-50 flex justify-center items-center p-4 print:p-0 print:bg-white no-print">
-                        <div className="w-full max-w-6xl h-[95vh] bg-white/55 rounded-lg shadow-2xl flex flex-col print:max-w-none print:h-auto print:bg-white print:rounded-none print:shadow-none">
-                            <div className="p-4 border-b border-slate-200/90 flex justify-between items-center no-print">
-                                <h3 className="text-lg font-semibold text-slate-900">{tt('Maqolalar nashri haqida hisobot')}</h3>
-                                <div className="flex gap-2">
-                                    <Button
-                                        onClick={async () => {
-                                            try {
-                                                await (await import('../utils/exportNashrHisobotDocx')).downloadNashrHisobotDocx(nashrHisobotData);
-                                                toast.success(tt('Hisobot .docx fayl sifatida yuklandi'));
-                                            } catch (e) {
-                                                toast.error(tt('Yuklab olishda xatolik'));
-                                            }
-                                        }}
-                                        variant="primary"
-                                        className="flex items-center gap-2"
-                                    >
-                                        <FileDown className="h-4 w-4" /> {tt('Yuklab olish (.docx)')}
-                                    </Button>
-                                    <Button onClick={() => window.print()} variant="primary">
-                                        <Printer className="mr-2 h-4 w-4"/> {tt('Chop Etish / PDF')}
-                                    </Button>
-                                    <Button onClick={() => setShowNashrHisobotModal(false)} variant="secondary">
-                                        {tt('Yopish')}
-                                    </Button>
-                                </div>
-                            </div>
-                            <div className="flex-1 overflow-y-auto p-6 print:p-0 print:overflow-visible">
-                                {publishedArticles.length > 0 ? (
-                                    <NashrHisobotCertificate data={nashrHisobotData} />
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center h-full text-center">
-                                        <BookOpen size={64} className="text-gray-600 mb-4" />
-                                        <h4 className="text-xl font-semibold text-slate-900 mb-2">{tt("Nashr etilgan maqolalar yo'q")}</h4>
-                                        <p className="text-slate-500 max-w-md">
-                                            {tt("Sizda hali nashr etilgan maqolalar mavjud emas. Maqolangiz nashr etilgandan so'ng bu yerda hisobot yaratishingiz mumkin bo'ladi.")}
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                );
-            })()}
         </>
     );
 };

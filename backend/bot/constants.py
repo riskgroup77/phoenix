@@ -60,3 +60,6 @@ STATUS_LABELS = {
     'Published': 'Nashr etilgan',
     'Rejected': 'Rad etilgan',
 }
+
+# Reklama (ommaviy xabar, faqat adminlar)
+BC_MESSAGE, BC_BUTTON, BC_CONFIRM = range(3)

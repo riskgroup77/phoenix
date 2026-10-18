@@ -106,7 +106,7 @@ const UdkRequests: React.FC = () => {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'pending_payment': return 'To\'lov kutilmoqda';
-      case 'submitted': return 'Taqrizchida';
+      case 'submitted': return "Qo'lda ko'rib chiqish";
       case 'completed': return 'Yakunlangan';
       case 'rejected': return 'Rad etilgan';
       default: return status;
@@ -130,7 +130,7 @@ const UdkRequests: React.FC = () => {
           isReviewer
             ? t("Mualliflar UDK raqami olish uchun yuborgan so'rovlar. Mavzu va annotatsiyani o'qib, mos UDK kodini kiriting.")
             : isOperator
-            ? t("Mualliflarning UDK so'rovlari (faqat ko'rish). UDK kodini taqrizchi kiritadi.")
+            ? t("Mualliflarning UDK so'rovlari (faqat ko'rish). UDK kodi avtomatik aniqlanadi; aniqlanmaganlari shu yerda qo'lda yakunlanadi.")
             : t("Sizning UDK so'rovlaringiz. Taqrizchi UDK kodini kiritgach bu yerda ko'rinadi.")
         }
       />

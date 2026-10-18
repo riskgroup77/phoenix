@@ -8,8 +8,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+# Loyiha bilan birga keladigan DejaVu (kirill/rus harflari uchun) — tizimda shrift bo'lmasa ham Helvetica'ga tushmaydi
+_BUNDLED = Path(__file__).resolve().parent.parent / 'assets' / 'hisobot_template' / 'fonts'
+
 _CANDIDATES = (
     ('DejaVuSans', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'),
+    ('DejaVuSansBundled', str(_BUNDLED / 'DejaVuSans.ttf'), str(_BUNDLED / 'DejaVuSans-Bold.ttf')),
     ('LiberationSans', '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf', '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf'),
     ('Arial', r'C:\Windows\Fonts\arial.ttf', r'C:\Windows\Fonts\arialbd.ttf'),
 )

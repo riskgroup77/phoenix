@@ -3,9 +3,13 @@ import AntiplagJpgPage from './AntiplagTemplateOverlay';
 import { REPORT_COVER_TEMPLATE } from '../constants/antiplagTemplateLayout';
 import type { PlagiarismFullReportData } from './PlagiarismFullReport';
 import { verifyUrl } from '../utils/verifyLink';
+import { localizedTemplateUrl } from '../constants/localizedTemplate';
+import { useT } from '../i18n/LanguageContext';
 
 /** Antiplagiat hisobot — 1-sahifa (hisobot1.jpg shablon). */
 export const AntiplagiatReportTitleCover: React.FC<{ data: PlagiarismFullReportData }> = ({ data }) => {
+    // Yorliqlar shablon rasmida — interfeys tiliga mos nusxa olinadi
+    const { lang } = useT();
 
     const values: Record<string, string> = {
         upload_date: data.uploadDate,
@@ -17,7 +21,7 @@ export const AntiplagiatReportTitleCover: React.FC<{ data: PlagiarismFullReportD
 
     return (
         <AntiplagJpgPage
-            imageUrl={REPORT_COVER_TEMPLATE.image}
+            imageUrl={localizedTemplateUrl(REPORT_COVER_TEMPLATE.image, lang)}
             baseWidth={REPORT_COVER_TEMPLATE.width}
             aspectRatio={REPORT_COVER_TEMPLATE.aspect}
             fields={REPORT_COVER_TEMPLATE.fields}

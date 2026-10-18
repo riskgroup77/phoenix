@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import { Download, FileText, ExternalLink, Filter } from 'lucide-react';
-import { apiService } from '../services/apiService';
+import { apiService, uiLang } from '../services/apiService';
 import { getAccessToken, isCookieMode } from '../utils/authTokens';
 import { toast } from 'react-toastify';
 import { Role } from '../types';
@@ -137,7 +137,8 @@ const ArxivHujjatlar: React.FC = () => {
                 try {
                     const response = await fetch(url, {
                         credentials: 'include',
-                        headers: token ? { Authorization: `Bearer ${token}` } : {},
+                        // Hujjat interfeys tilida (UDK ma'lumotnoma qayta yaratiladi)
+                        headers: { 'Accept-Language': uiLang(), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
                     });
                     if (!response.ok) throw new Error('Yuklab olish amalga oshmadi');
                     const blob = await response.blob();

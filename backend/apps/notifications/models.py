@@ -43,3 +43,36 @@ class Notification(models.Model):
             link=link,
             metadata=metadata or {},
         )
+
+
+class BroadcastLog(models.Model):
+    """Telegram bot orqali yuborilgan ommaviy reklama xabari (/reklama) jurnali."""
+
+    STATUS_CHOICES = (
+        ('running', 'Yuborilmoqda'),
+        ('done', 'Yakunlandi'),
+        ('failed', 'Xato bilan tugadi'),
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='broadcasts',
+    )
+    created_by_telegram_id = models.BigIntegerField(null=True, blank=True)
+    text_preview = models.CharField(max_length=500, blank=True)
+    content_type = models.CharField(max_length=30, blank=True)
+    button_text = models.CharField(max_length=64, blank=True)
+    button_url = models.URLField(max_length=500, blank=True)
+    total = models.PositiveIntegerField(default=0)
+    sent_count = models.PositiveIntegerField(default=0)
+    failed_count = models.PositiveIntegerField(default=0)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='running')
+    created_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Reklama xabari'
+        verbose_name_plural = 'Reklama xabarlari'
+
+    def __str__(self):
+        return f'Reklama #{self.pk} ({self.sent_count}/{self.total})'

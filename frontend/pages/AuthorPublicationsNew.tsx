@@ -7,8 +7,7 @@ import EditorialPageHeader from '../components/EditorialPageHeader';
 import EditorialTabs from '../components/EditorialTabs';
 import Button from '../components/ui/Button';
 import { Plus, Search, Filter, Download, Edit, Trash2, QrCode, BookOpen, Users, FileText, ExternalLink, FileDown } from 'lucide-react';
-import NashrHisobotModal from '../components/NashrHisobotModal';
-import { buildNashrHisobotData } from '../utils/buildNashrHisobotData';
+import WorksReportModal from '../components/WorksReportModal';
 import apiService from '../services/apiService';
 import { asApiList } from '../utils/apiList';
 import { ARTICLE_STATUS_LABELS, ArticleStatus, Role } from '../types';
@@ -255,25 +254,6 @@ const AuthorPublications: React.FC = () => {
         (s.requirements || '').toLowerCase().includes(q),
     );
   }, [sampleOrders, searchTerm]);
-
-  const nashrHisobotData = useMemo(() => {
-    if (!user) {
-      return buildNashrHisobotData({ user: {}, platformArticles: [], externalPublications: [] });
-    }
-    return buildNashrHisobotData({
-      user: {
-        id: user.id ? String(user.id) : undefined,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        affiliation: user.affiliation,
-        degree: (user as { degree?: string }).degree,
-        position: (user as { position?: string }).position,
-      },
-      platformArticles,
-      externalPublications: publications,
-    });
-  }, [user, platformArticles, publications]);
 
   const filteredPublications = publications.filter(pub => {
     const matchesSearch = pub.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -679,11 +659,8 @@ const AuthorPublications: React.FC = () => {
       </>
       )}
 
-      <NashrHisobotModal
-        open={showNashrHisobotModal}
-        onClose={() => setShowNashrHisobotModal(false)}
-        data={nashrHisobotData}
-      />
+      {/* Platforma maqolalari + tashqi nashrlar — yagona ma'lumotnoma (Phoenix shabloni, interfeys tilida) */}
+      {showNashrHisobotModal && <WorksReportModal onClose={() => setShowNashrHisobotModal(false)} />}
 
       {/* Add/Edit Form Modal */}
       {showAddForm && (

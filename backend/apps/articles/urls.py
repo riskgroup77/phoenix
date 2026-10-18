@@ -2,6 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
 from . import author_report_pdf
+from . import works_report_views
 
 router = DefaultRouter()
 router.register('', views.ArticleViewSet, basename='article')
@@ -20,6 +21,7 @@ urlpatterns = [
         'reports/author-malumotnoma-signed-url/',
         author_report_pdf.author_ma_lumotnoma_signed_url,
     ),
+    path('reports/works/', works_report_views.works_report_view, name='works_report'),
     path('public/<uuid:pk>/', views.public_article_detail, name='public_article_detail'),
     path('verify/<str:code>/', views.verify_document, name='verify_document'),
     path('antiplagiat-modules/', views.antiplagiat_modules, name='antiplagiat_modules'),

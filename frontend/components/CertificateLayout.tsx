@@ -1,5 +1,6 @@
 import React, { useId } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useT } from '../i18n/LanguageContext';
 
 /**
  * Unified design for all certificates and ma'lumotnomas.
@@ -138,13 +139,15 @@ export const CertificateBackground: React.FC = () => {
 };
 
 /** Brand block: Phoenix Ilmiy Nashrlar Markazi + ilmiyfaoliyat.uz — barcha hujjatlar uchun */
-export const CertificateBrandBlock: React.FC = () => (
+export const CertificateBrandBlock: React.FC = () => {
+    const { t } = useT();
+    return (
     <div className="relative z-10 flex flex-col items-center gap-0.5 text-center">
         <p
             className="text-sm font-bold tracking-wide"
             style={{ color: CERT_COLOR_DARK, fontFamily: 'Georgia, serif' }}
         >
-            Phoenix Ilmiy Nashrlar Markazi
+            {t('Phoenix Ilmiy Nashrlar Markazi')}
         </p>
         <a
             href="https://ilmiyfaoliyat.uz"
@@ -156,14 +159,18 @@ export const CertificateBrandBlock: React.FC = () => (
             ilmiyfaoliyat.uz
         </a>
     </div>
-);
+    );
+};
 
 /** QR block: QR image + text. Ramka yo'q. */
 export const CertificateQRBlock: React.FC<{
     /** QR ichidagi matn (havola) — kod brauzerda yaratiladi */
     qrValue: string;
+    /** O'zbekcha (lotin) matn — joriy interfeys tiliga tarjima qilinadi */
     label?: string;
-}> = ({ qrValue, label = 'TEKSHIRISH UCHUN QR KODDAN FOYDALANING' }) => (
+}> = ({ qrValue, label }) => {
+    const { t } = useT();
+    return (
     <div className="flex flex-col items-center gap-2 relative z-10">
         <div role="img" aria-label="QR" className="w-14 h-14 sm:w-16 sm:h-16 bg-white [&>svg]:block [&>svg]:w-full [&>svg]:h-full">
             <QRCodeSVG value={qrValue} size={128} level="M" fgColor={CERT_COLOR_DARK} bgColor="#ffffff" marginSize={1} />
@@ -172,7 +179,8 @@ export const CertificateQRBlock: React.FC<{
             className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider leading-tight text-center max-w-[120px]"
             style={{ color: CERT_COLOR_TEAL }}
         >
-            {label}
+            {label ? t(label) : t('TEKSHIRISH UCHUN QR KODDAN FOYDALANING')}
         </p>
     </div>
-);
+    );
+};

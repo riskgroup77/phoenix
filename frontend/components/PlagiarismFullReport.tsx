@@ -1,5 +1,6 @@
 import React from 'react';
 import { verifyUrl } from '../utils/verifyLink';
+import { useT, type TFunction } from '../i18n/LanguageContext';
 import AntiplagiatReportTitleCover from './AntiplagiatReportTitleCover';
 import AntiplagReportInnerPage from './AntiplagReportInnerPage';
 import {
@@ -75,6 +76,18 @@ const InfoRow: React.FC<{ label: string; value: string | number }> = ({ label, v
     </div>
 );
 
+/** "X qidiruv moduli" → joriy tilda ("Модуль поиска X" / "X search module"); modul nomining o'zi tarjima qilinmaydi */
+export function translateSearchModule(t: TFunction, value: string): string {
+    const m = /^(.*?)\s*qidiruv moduli$/.exec((value || '').trim());
+    return m ? t('{module} qidiruv moduli', { module: m[1] }) : value;
+}
+
+/** Hujjat ma'lumotlaridagi standart (o'zbekcha) qiymatlar: hujjat turi, "Muallif"/"Hujjat" o'rinbosarlari */
+function translateDefault(t: TFunction, value: string, defaults: string[]): string {
+    return defaults.includes(value) ? t(value) : value;
+}
+
+/** Matn kalitlari o'zbekcha (lotin) — ko'rsatishda t() bilan tarjima qilinadi */
 export const ANTIPLAG_REPORT_LEGEND = [
     {
         title: "O'zlashtirib olish",
@@ -115,21 +128,23 @@ const SourceRefBadges: React.FC<{ refs: number[] }> = ({ refs }) => {
     );
 };
 
-export const SourcesTable: React.FC<{ sources: PlagiarismSource[]; compact?: boolean }> = ({ sources, compact }) => (
+export const SourcesTable: React.FC<{ sources: PlagiarismSource[]; compact?: boolean }> = ({ sources, compact }) => {
+    const { t } = useT();
+    return (
     <table className={`w-full border-collapse ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
         <thead>
             <tr style={{ backgroundColor: REPORT_COLOR_TEAL, color: '#fff' }}>
                 <th className="border border-teal-700 px-1 py-1 w-10 text-center">№</th>
-                <th className="border border-teal-700 px-1 py-1 w-14 text-center">Ulushi</th>
-                <th className="border border-teal-700 px-1 py-1 text-left">Manba</th>
-                <th className="border border-teal-700 px-1 py-1 w-[30%] text-left">Qidirish moduli</th>
+                <th className="border border-teal-700 px-1 py-1 w-14 text-center">{t('Ulushi')}</th>
+                <th className="border border-teal-700 px-1 py-1 text-left">{t('Manba')}</th>
+                <th className="border border-teal-700 px-1 py-1 w-[30%] text-left">{t('Qidirish moduli')}</th>
             </tr>
         </thead>
         <tbody>
             {sources.length === 0 ? (
                 <tr>
                     <td colSpan={4} className="border border-slate-200 px-3 py-4 text-center text-slate-500">
-                        Manbalar topilmadi
+                        {t('Manbalar topilmadi')}
                     </td>
                 </tr>
             ) : (
@@ -174,7 +189,7 @@ export const SourcesTable: React.FC<{ sources: PlagiarismSource[]; compact?: boo
                                 )}
                             </td>
                             <td className="border border-slate-200 px-1 py-0.5 text-slate-600 leading-snug">
-                                {source.searchModule}
+                                {translateSearchModule(t, source.searchModule)}
                             </td>
                         </tr>
                     );
@@ -182,25 +197,29 @@ export const SourcesTable: React.FC<{ sources: PlagiarismSource[]; compact?: boo
             )}
         </tbody>
     </table>
-);
+    );
+};
 
 export const PlagiarismReportCoverPage: React.FC<{
     data: PlagiarismFullReportData;
     coverSources: PlagiarismSource[];
+    /** O'zbekcha (lotin) sarlavha — joriy tilga tarjima qilinadi */
     title?: string;
-}> = ({ data, coverSources, title = 'Hujjat tekshirish natijalari' }) => (
+}> = ({ data, coverSources, title = 'Hujjat tekshirish natijalari' }) => {
+    const { t, locale } = useT();
+    return (
     <AntiplagReportInnerPage>
         <div className="flex justify-between items-start gap-4 mb-3 text-[11px] shrink-0">
             <PhoenixLogoMark size="sm" showText={false} />
             <div className="text-right flex-1">
                 <p className="font-bold uppercase tracking-wide text-[9px]" style={{ color: REPORT_COLOR_NAVY }}>
-                    Hisobot &quot;Phoenix Antiplagiat&quot; servisi tomonidan taqdim etilgan
+                    {t('Hisobot "Phoenix Antiplagiat" servisi tomonidan taqdim etilgan')}
                 </p>
                 <p className="text-[11px] mt-1" style={{ color: REPORT_COLOR_TEXT }}>
-                    Tekshiruvchi: <strong>{data.checkerName}</strong> (ID: {data.checkerId})
+                    {t('Tekshiruvchi:')} <strong>{translateDefault(t, data.checkerName, ['Muallif'])}</strong> (ID: {data.checkerId})
                 </p>
                 {data.checkerOrganization && (
-                    <p className="text-[11px] text-slate-500">Tashkilot: {data.checkerOrganization}</p>
+                    <p className="text-[11px] text-slate-500">{t('Tashkilot:')} {data.checkerOrganization}</p>
                 )}
             </div>
         </div>
@@ -210,7 +229,7 @@ export const PlagiarismReportCoverPage: React.FC<{
                 className="text-xl sm:text-2xl font-bold uppercase tracking-wide"
                 style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}
             >
-                {title}
+                {t(title)}
             </h1>
         </div>
 
@@ -220,16 +239,16 @@ export const PlagiarismReportCoverPage: React.FC<{
                     className="text-[9px] font-bold uppercase tracking-wider mb-1.5 pb-1 border-b"
                     style={{ color: REPORT_COLOR_TEAL, borderColor: '#e2e8f0' }}
                 >
-                    Hujjat to&apos;g&apos;risidagi ma&apos;lumotlar
+                    {t("Hujjat to'g'risidagi ma'lumotlar")}
                 </h3>
-                <InfoRow label="Hujjat raqami" value={data.documentNumber} />
-                <InfoRow label="Yuklangan vaqti" value={data.uploadDate} />
-                <InfoRow label="Dastlabki fayl nomi" value={data.originalFileName} />
-                <InfoRow label="Hujjat nomi" value={data.documentName} />
-                <InfoRow label="Hujjat turi" value={data.documentType} />
-                <InfoRow label="Matndagi belgilar" value={data.characterCount.toLocaleString('uz-UZ')} />
-                <InfoRow label="Gaplar soni" value={data.sentenceCount.toLocaleString('uz-UZ')} />
-                <InfoRow label="Matn o&apos;lchami" value={data.fileSize} />
+                <InfoRow label={t('Hujjat raqami')} value={data.documentNumber} />
+                <InfoRow label={t('Yuklangan vaqti')} value={data.uploadDate} />
+                <InfoRow label={t('Dastlabki fayl nomi')} value={translateDefault(t, data.originalFileName, ['Hujjat'])} />
+                <InfoRow label={t('Hujjat nomi')} value={translateDefault(t, data.documentName, ['Hujjat'])} />
+                <InfoRow label={t('Hujjat turi')} value={data.documentType ? t(data.documentType) : '—'} />
+                <InfoRow label={t('Matndagi belgilar')} value={data.characterCount.toLocaleString(locale)} />
+                <InfoRow label={t('Gaplar soni')} value={data.sentenceCount.toLocaleString(locale)} />
+                <InfoRow label={t("Matn o'lchami")} value={data.fileSize} />
             </div>
 
             <div className="rounded-lg border border-slate-200 p-2.5 bg-white/90">
@@ -237,19 +256,19 @@ export const PlagiarismReportCoverPage: React.FC<{
                     className="text-[9px] font-bold uppercase tracking-wider mb-1.5 pb-1 border-b"
                     style={{ color: REPORT_COLOR_TEAL, borderColor: '#e2e8f0' }}
                 >
-                    Hisobot to&apos;g&apos;risidagi ma&apos;lumotlar
+                    {t("Hisobot to'g'risidagi ma'lumotlar")}
                 </h3>
-                <p className="text-[8px] text-slate-500 mb-1.5">Qidirish oralig&apos;i: ko&apos;rsatilmagan</p>
+                <p className="text-[8px] text-slate-500 mb-1.5">{t("Qidirish oralig'i: ko'rsatilmagan")}</p>
                 <div className="flex gap-1.5 mb-2">
-                    <MetricBox value={data.plagiarismPercent} label="O'zlashtirib olishlar" color="#dc2626" bg="#fef2f2" />
-                    <MetricBox value={data.selfCitationPercent} label="O'z-o'zidan iqtibos" color="#ca8a04" bg="#fefce8" />
-                    <MetricBox value={data.citationPercent} label="Iqtibos keltirishlar" color="#2563eb" bg="#eff6ff" />
-                    <MetricBox value={data.originalityPercent} label="Originallik" color="#16a34a" bg="#f0fdf4" />
+                    <MetricBox value={data.plagiarismPercent} label={t("O'zlashtirib olishlar")} color="#dc2626" bg="#fef2f2" />
+                    <MetricBox value={data.selfCitationPercent} label={t("O'z-o'zidan iqtibos")} color="#ca8a04" bg="#fefce8" />
+                    <MetricBox value={data.citationPercent} label={t('Iqtibos keltirishlar')} color="#2563eb" bg="#eff6ff" />
+                    <MetricBox value={data.originalityPercent} label={t('Originallik')} color="#16a34a" bg="#f0fdf4" />
                 </div>
                 <p className="text-[7.5px] leading-relaxed text-slate-600 line-clamp-4">
                     {data.searchModules.length
-                        ? data.searchModules.map((m) => `${m} qidiruv moduli`).join(', ')
-                        : "Modullar ko'rsatilmagan"}
+                        ? data.searchModules.map((m) => t('{module} qidiruv moduli', { module: m })).join(', ')
+                        : t("Modullar ko'rsatilmagan")}
                 </p>
             </div>
         </div>
@@ -257,7 +276,7 @@ export const PlagiarismReportCoverPage: React.FC<{
         <div className="rounded-lg border p-2 mb-2 text-[7px] leading-relaxed text-slate-600 bg-slate-50/90 shrink-0" style={{ borderColor: '#99f6e4' }}>
             {ANTIPLAG_REPORT_LEGEND.map((item) => (
                 <p key={item.title} className="mb-1">
-                    <strong style={{ color: item.color }}>{item.title}</strong> — {item.text}
+                    <strong style={{ color: item.color }}>{t(item.title)}</strong> — {t(item.text)}
                 </p>
             ))}
         </div>
@@ -276,7 +295,8 @@ export const PlagiarismReportCoverPage: React.FC<{
             <PhoenixLogoMark size="sm" />
         </div>
     </AntiplagReportInnerPage>
-);
+    );
+};
 
 const SourcesPage: React.FC<{
     data: PlagiarismFullReportData;
@@ -284,15 +304,16 @@ const SourcesPage: React.FC<{
     startIdx: number;
     endIdx: number;
 }> = ({ data, pageNum, startIdx, endIdx }) => {
+    const { t } = useT();
     const pageSources = data.sources.slice(startIdx, endIdx);
 
     return (
         <AntiplagReportInnerPage>
             <h2 className="text-sm font-bold uppercase tracking-wide mb-2" style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}>
-                Manbalar ro&apos;yxati
+                {t("Manbalar ro'yxati")}
             </h2>
             <p className="text-[9px] text-slate-500 mb-2">
-                Hujjat: {data.documentNumber} · {data.uploadDate}
+                {t('Hujjat:')} {data.documentNumber} · {data.uploadDate}
             </p>
             <div className="flex-1 overflow-hidden min-h-0">
                 <SourcesTable sources={pageSources} />
@@ -304,55 +325,60 @@ const SourcesPage: React.FC<{
 const FragmentDetailPage: React.FC<{
     fragment: PlagiarismFragmentDetail;
     pageNum: number;
-}> = ({ fragment, pageNum }) => (
+}> = ({ fragment, pageNum }) => {
+    const { t } = useT();
+    return (
     <AntiplagReportInnerPage>
         <div className="flex items-start justify-between gap-3 mb-3">
             <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}>
-                Matnli kesishma — [{String(fragment.sourceIndex).padStart(2, '0')}]
+                {t('Matnli kesishma')} — [{String(fragment.sourceIndex).padStart(2, '0')}]
             </h2>
             <span className="text-sm font-bold shrink-0" style={{ color: '#dc2626' }}>{fragment.percentage}</span>
         </div>
 
         <div className="rounded border border-slate-200 p-2 mb-2 bg-white">
-            <p className="text-[8px] font-bold uppercase mb-1" style={{ color: REPORT_COLOR_TEAL }}>Manba</p>
+            <p className="text-[8px] font-bold uppercase mb-1" style={{ color: REPORT_COLOR_TEAL }}>{t('Manba')}</p>
             <p className="text-[9px] font-semibold break-words" style={{ color: REPORT_COLOR_TEXT }}>{fragment.title}</p>
             {fragment.sourceUrl && (
                 <a href={fragment.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[8px] break-all mt-0.5 block" style={{ color: REPORT_COLOR_TEAL }}>
                     {fragment.sourceUrl}
                 </a>
             )}
-            <p className="text-[8px] text-slate-500 mt-1">{fragment.searchModule}</p>
+            <p className="text-[8px] text-slate-500 mt-1">{translateSearchModule(t, fragment.searchModule)}</p>
         </div>
 
         <div className="grid grid-cols-1 gap-2 flex-1 min-h-0">
             <div className="rounded border p-2" style={{ borderColor: '#fecaca', backgroundColor: '#fffbfb' }}>
                 <p className="text-[8px] font-bold uppercase mb-1" style={{ color: '#b91c1c' }}>
-                    Tekshirilayotgan hujjat matni
+                    {t('Tekshirilayotgan hujjat matni')}
                 </p>
                 <p className="text-[9px] leading-relaxed" style={{ color: REPORT_COLOR_TEXT }}>{fragment.documentFragment}</p>
             </div>
             <div className="rounded border p-2" style={{ borderColor: '#bfdbfe', backgroundColor: '#f8fbff' }}>
                 <p className="text-[8px] font-bold uppercase mb-1" style={{ color: '#1d4ed8' }}>
-                    Manba matni
+                    {t('Manba matni')}
                 </p>
                 <p className="text-[9px] leading-relaxed" style={{ color: REPORT_COLOR_TEXT }}>{fragment.sourceFragment}</p>
             </div>
         </div>
     </AntiplagReportInnerPage>
-);
+    );
+};
 
 const DocumentTextPage: React.FC<{
     paragraphs: AnnotatedParagraph[];
     pageNum: number;
     documentName: string;
-}> = ({ paragraphs, pageNum, documentName }) => (
+}> = ({ paragraphs, pageNum, documentName }) => {
+    const { t } = useT();
+    return (
     <AntiplagReportInnerPage>
         <h2 className="text-sm font-bold uppercase tracking-wide mb-1" style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}>
-            Tekshirilayotgan hujjat matni
+            {t('Tekshirilayotgan hujjat matni')}
         </h2>
-        <p className="text-[9px] text-slate-500 mb-3">{documentName}</p>
+        <p className="text-[9px] text-slate-500 mb-3">{translateDefault(t, documentName, ['Hujjat'])}</p>
         <p className="text-[8px] text-slate-500 mb-2 italic">
-            Qizil raqamlar mos manba indeksini ko&apos;rsatadi (manbalar jadvalidagi [01], [02], …).
+            {t("Qizil raqamlar mos manba indeksini ko'rsatadi (manbalar jadvalidagi [01], [02], …).")}
         </p>
         <div className="flex-1 min-h-0 space-y-2 overflow-hidden">
             {paragraphs.map((para, idx) => (
@@ -363,7 +389,8 @@ const DocumentTextPage: React.FC<{
             ))}
         </div>
     </AntiplagReportInnerPage>
-);
+    );
+};
 
 const PlagiarismFullReport: React.FC<{ data: PlagiarismFullReportData }> = ({ data }) => {
     const COVER_SOURCES = 10;

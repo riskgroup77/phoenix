@@ -10,6 +10,38 @@ def _normalize_keywords(keywords) -> list[str]:
     return [str(k).strip() for k in keywords if str(k).strip()]
 
 
+def looks_like_standalone_antiplagiat(article) -> bool:
+    """Bazaga murojaatsiz tezkor tekshiruv (ro'yxat serializerlari uchun): sarlavha, kalit so'z, izoh, hisobot belgisi."""
+    title = (getattr(article, 'title', None) or '').strip().lower()
+    if title.startswith('plagiarism check'):
+        return True
+    if 'plagiarism' in [k.lower() for k in _normalize_keywords(getattr(article, 'keywords', None))]:
+        return True
+    abstract = (getattr(article, 'abstract', '') or '').lower()
+    if 'tekshiruv uchun yuborilgan' in abstract or 'hujjat turi:' in abstract:
+        return True
+    report = getattr(article, 'plagiarism_report', None) or {}
+    return isinstance(report, dict) and bool(report.get('is_standalone'))
+
+
+def standalone_antiplagiat_state(article) -> str | None:
+    """
+    Mustaqil antiplagiat hujjatining holati ("Ishlarim" uchun): awaiting_payment / checking / failed / done.
+    Oddiy maqola bo'lsa — None.
+    """
+    if not looks_like_standalone_antiplagiat(article):
+        return None
+    report = getattr(article, 'plagiarism_report', None) or {}
+    check_status = report.get('check_status') if isinstance(report, dict) else None
+    if check_status == 'failed':
+        return 'failed'
+    if getattr(article, 'plagiarism_checked_at', None) and check_status != 'processing':
+        return 'done'
+    if getattr(article, 'status', '') == 'Draft':
+        return 'awaiting_payment'
+    return 'checking'
+
+
 def is_standalone_antiplagiat(article) -> bool:
     """
     Jurnalga yuborilgan haqiqiy maqoladan farqlash:

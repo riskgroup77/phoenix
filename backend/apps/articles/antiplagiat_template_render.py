@@ -26,6 +26,23 @@ _FONT_CANDIDATES = (
 )
 
 
+def localized_template_path(base_dir: Path, image: str, lang: str = 'uz') -> Path:
+    """Shablon rasmining til nusxasi: sertifikat.jpg → sertifikat.ru.jpg / .en.jpg / .uz-cyrl.jpg.
+
+    Yorliqlar rasmga «pishirilgan» — nusxalar scripts/build_localized_templates.py bilan yaratiladi.
+    'uz' (yoki nusxa topilmasa) — asl o'zbekcha rasm.
+    """
+    from config.doc_i18n import normalize_lang
+
+    code = normalize_lang(lang)
+    if code != 'uz':
+        stem, _, ext = image.rpartition('.')
+        candidate = base_dir / f'{stem}.{code}.{ext}'
+        if candidate.is_file():
+            return candidate
+    return base_dir / image
+
+
 def _load_layout() -> dict[str, Any]:
     return json.loads(LAYOUT_PATH.read_text(encoding='utf-8'))
 
@@ -136,9 +153,9 @@ def _paste_qr(base: Image.Image, verify_url: str, spec: dict[str, Any]) -> None:
     base.paste(qr_img, (x, y), qr_img)
 
 
-def render_certificate(values: dict[str, str], *, verify_id: str = '') -> Image.Image:
+def render_certificate(values: dict[str, str], *, verify_id: str = '', lang: str = 'uz') -> Image.Image:
     layout = _load_layout()['certificate']
-    path = ASSETS_DIR / layout['image']
+    path = localized_template_path(ASSETS_DIR, layout['image'], lang)
     img = Image.open(path).convert('RGBA')
     draw = ImageDraw.Draw(img)
     w, h = img.size
@@ -164,9 +181,9 @@ def render_certificate(values: dict[str, str], *, verify_id: str = '') -> Image.
     return img
 
 
-def render_report_cover(values: dict[str, str], *, verify_id: str = '') -> Image.Image:
+def render_report_cover(values: dict[str, str], *, verify_id: str = '', lang: str = 'uz') -> Image.Image:
     layout = _load_layout()['report_cover']
-    path = ASSETS_DIR / layout['image']
+    path = localized_template_path(ASSETS_DIR, layout['image'], lang)
     img = Image.open(path).convert('RGBA')
     draw = ImageDraw.Draw(img)
     w, h = img.size

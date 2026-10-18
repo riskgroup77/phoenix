@@ -348,6 +348,17 @@ class ActivityLogListSerializer(serializers.ListSerializer):
 ActivityLogSerializer.Meta.list_serializer_class = ActivityLogListSerializer
 
 
+def _article_work_type(obj) -> str:
+    """Ish turi: konferensiya — Tezis, jurnal — Maqola, kitob — Kitob, mustaqil tekshiruv — Antiplagiat."""
+    from .antiplagiat_utils import looks_like_standalone_antiplagiat
+    from .works_report import work_type_label, is_book_title
+
+    if looks_like_standalone_antiplagiat(obj):
+        return 'Antiplagiat'
+    category = getattr(getattr(obj.journal, 'category', None), 'name', '') if obj.journal_id else ''
+    return work_type_label(category, is_book_title(obj.title))
+
+
 class ArticleListSerializer(serializers.ModelSerializer):
     """Minimal serializer for list action only — avoids nested/expensive fields that can cause 500."""
     author_name = serializers.SerializerMethodField()
@@ -355,6 +366,8 @@ class ArticleListSerializer(serializers.ModelSerializer):
     publication_link = serializers.SerializerMethodField()
     certificate_download_link = serializers.SerializerMethodField()
     pending_payment_transaction_id = serializers.SerializerMethodField()
+    work_type = serializers.SerializerMethodField()
+    antiplagiat_state = serializers.SerializerMethodField()
 
     class Meta:
         model = Article
@@ -364,8 +377,16 @@ class ArticleListSerializer(serializers.ModelSerializer):
             'downloads_count', 'citations_count', 'page_count', 'fast_track',
             'plagiarism_percentage', 'ai_content_percentage', 'originality_percentage', 'plagiarism_checked_at',
             'publication_url', 'publication_link', 'certificate_download_link',
-            'pending_payment_transaction_id',
+            'pending_payment_transaction_id', 'work_type', 'antiplagiat_state',
         )
+
+    def get_work_type(self, obj):
+        return _article_work_type(obj)
+
+    def get_antiplagiat_state(self, obj):
+        from .antiplagiat_utils import standalone_antiplagiat_state
+
+        return standalone_antiplagiat_state(obj)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -446,6 +467,10 @@ class ArticleSerializer(serializers.ModelSerializer):
     workflow_steps = serializers.SerializerMethodField()
     status_timeline = serializers.SerializerMethodField()
     publication_payment = serializers.SerializerMethodField()
+    work_type = serializers.SerializerMethodField()
+
+    def get_work_type(self, obj):
+        return _article_work_type(obj)
 
     def get_publication_payment(self, obj):
         """
@@ -999,6 +1024,8 @@ class CreateArticleSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Bu namuna (demo) jurnal — haqiqiy maqolalar qabul qilinmaydi. Boshqa jurnalni tanlang."
             )
+        if self.instance is None and journal is not None and getattr(journal, 'is_archived', False):
+            raise serializers.ValidationError("Bu jurnal arxivlangan — maqola qabul qilinmaydi. Boshqa jurnalni tanlang.")
         return journal
 
     def create(self, validated_data):

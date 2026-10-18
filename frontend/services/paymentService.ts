@@ -36,6 +36,8 @@ interface PaymentStatusResponse {
   error_code: number;
   error_note: string;
   payment_status?: number;
+  /** Tranzaksiya bog'langan maqola/hujjat (masalan antiplagiat) — boshqa oynada qaytganda ham topiladi */
+  article_id?: string | null;
 }
 
 class PaymentService {
@@ -124,6 +126,7 @@ class PaymentService {
 
       const st = transaction.status as string;
       return {
+        article_id: transaction.article ? String(transaction.article) : null,
         error_code: syncResult?.error_code ?? 0,
         error_note: syncResult?.error_note || 'Success',
         payment_status:

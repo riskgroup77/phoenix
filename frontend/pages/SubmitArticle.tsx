@@ -3,9 +3,11 @@ import { useAiPrefill, str, num } from '../contexts/AiPrefillContext';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
+import PhoneVerifyCard from '../components/PhoneVerifyCard';
 import Button from '../components/ui/Button';
 import { UploadCloud, CheckCircle, Loader2, XCircle, FileText, Users, Eye, BookOpen, Filter, Layers, X, History, Check, CreditCard, Search as SearchIcon, ShieldCheck, BadgeCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { journalMatchesSubject, journalMatchesType } from '../utils/journalTaxonomy';
 import { PUBLICATION_TYPES, SUBJECT_AREAS } from '../constants/authorCategories';
 import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
@@ -42,6 +44,8 @@ const hhmm = (ms: number) => {
 
 const SubmitArticle: React.FC = () => {
   const { user } = useAuth();
+  // Telefon Telegram orqali tasdiqlanmagan muallif maqola yubora olmaydi (backend ham rad etadi)
+  const phoneBlocked = !!user && !user.phoneVerified && user.phoneVerificationRequired === true;
   const { t } = useT();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
@@ -202,6 +206,7 @@ const SubmitArticle: React.FC = () => {
           payment_model: j.payment_model || undefined,
           image_url: j.image_url || null,
           category_name: j.category_name || '',
+          scientific_field_names: Array.isArray(j.scientific_field_names) ? j.scientific_field_names : [],
           admin_name: j.admin_name || '',
           issues: Array.isArray(j.issues) ? j.issues : [],
         })));
@@ -294,17 +299,18 @@ const SubmitArticle: React.FC = () => {
   };
 
   const filteredJournals = journals.filter((j) => {
-    if (journalFilterType && (j.category_name || '') !== journalFilterType) return false;
-    if (journalFilterSubject) {
-      const sub = journalFilterSubject.toLowerCase();
-      const name = (j.name || '').toLowerCase();
-      const desc = (j.description || '').toLowerCase();
-      if (!name.includes(sub) && !desc.includes(sub)) return false;
-    }
+    // Rukn (nashr turi) va soha alohida; apostrof turlari (’ ‘ ') farq qilmaydi
+    if (!journalMatchesType(j, journalFilterType)) return false;
+    if (!journalMatchesSubject(j, journalFilterSubject)) return false;
+    const q = journalSearch.trim().toLowerCase();
+    if (!q) return true;
+    const qIssn = q.replace(/[^0-9x]/g, '');
+    const issn = (j.issn || '').toLowerCase().replace(/[^0-9x]/g, '');
     return (
-      !journalSearch.trim() ||
-      (j.name || '').toLowerCase().includes(journalSearch.trim().toLowerCase()) ||
-      (j.description || '').toLowerCase().includes(journalSearch.trim().toLowerCase())
+      (j.name || '').toLowerCase().includes(q) ||
+      (j.description || '').toLowerCase().includes(q) ||
+      (j.category_name || '').toLowerCase().includes(q) ||
+      (qIssn.length >= 4 && issn.includes(qIssn))
     );
   });
 
@@ -396,6 +402,11 @@ const SubmitArticle: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    if (phoneBlocked) {
+      toast.error(t('Maqola yuborishdan oldin telefon raqamingizni Telegram orqali tasdiqlang.'));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     if (!formData.title.trim()) {
       toast.error(t('Maqola mavzusini kiriting.'));
       setErrors(e => ({ ...e, title: 'Maqola mavzusini kiriting (majburiy)' }));
@@ -556,6 +567,15 @@ const SubmitArticle: React.FC = () => {
         }
       />
 
+      {phoneBlocked && (
+        <div className="mb-6 space-y-2">
+          <PhoneVerifyCard />
+          <p className="text-sm text-amber-900">
+            {t("Maqola yuborish uchun avval telefon raqamingizni Telegram orqali tasdiqlang. Tasdiqlangach, bu sahifadan davom etishingiz mumkin.")}
+          </p>
+        </div>
+      )}
+
       {draftNotice && (
         <div className="mb-6 flex flex-wrap items-center gap-3 rounded-[12px] border border-[var(--editorial-border)] bg-[var(--milliy-firuza-soft)] px-4 py-3 text-sm">
           <History className="w-5 h-5 text-[var(--milliy-firuza)] shrink-0" aria-hidden />
@@ -655,7 +675,7 @@ const SubmitArticle: React.FC = () => {
               type="text"
               value={journalSearch}
               onChange={(e) => setJournalSearch(e.target.value)}
-              placeholder={t('Jurnal nomi yoki tavsifi bo\'yicha qidirish...')}
+              placeholder={t("Jurnal, konferensiya nomi yoki ISSN bo'yicha qidirish...")}
               className="w-full px-3 py-2 bg-slate-100/70 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 mb-4"
             />
             <p className="text-sm text-slate-500 mb-4">{t("Jurnallar: {total} | Ko'rsatilmoqda: {shown}", { total: journals.length, shown: filteredJournals.length })}</p>
@@ -1014,7 +1034,7 @@ const SubmitArticle: React.FC = () => {
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={loading || !!paymentPendingTransactionId}
+              disabled={loading || !!paymentPendingTransactionId || phoneBlocked}
               className="flex items-center gap-2"
             >
               {loading && !paymentPendingTransactionId && <Loader2 className="w-4 h-4 animate-spin" />}

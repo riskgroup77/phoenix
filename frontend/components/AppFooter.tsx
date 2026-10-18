@@ -8,10 +8,6 @@ const AppFooter: React.FC = () => {
   return (
   <footer className="editorial-footer hidden lg:block shrink-0 border-t border-[var(--editorial-border)] bg-[var(--milliy-surface)]">
     <div className="max-w-[1264px] mx-auto px-8 py-5 flex flex-wrap items-center justify-between gap-4 text-xs text-[var(--editorial-muted)]">
-      <div className="flex flex-wrap gap-2">
-        <span className="editorial-issn-badge">{t('ISSN 2181-0325 (Print)')}</span>
-        <span className="editorial-issn-badge">{t('ISSN 2181-0333 (Online)')}</span>
-      </div>
       <p className="text-center">{t('© {value} Phoenix Ilmiy nashrlar markazi. Barcha huquqlar himoyalangan.', { value: new Date().getFullYear() })}</p>
       <div className="flex flex-wrap gap-3">
         <Link to="/services" className="editorial-footer-link">

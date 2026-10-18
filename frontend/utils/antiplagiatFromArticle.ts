@@ -6,6 +6,11 @@ import type {
   PlagiarismFullReportData,
   PlagiarismSource,
 } from '../components/PlagiarismFullReport';
+import type { TFunction } from '../i18n/LanguageContext';
+
+/** Tarjimasiz (o'zbekcha) — t berilmasa */
+const identityT: TFunction = (key, vars) =>
+  vars ? key.replace(/\{(\w+)\}/g, (m, name) => (name in vars ? String(vars[name]) : m)) : key;
 
 export interface AntiplagiatArticlePayload {
   id?: string;
@@ -145,7 +150,14 @@ export function formatDotDate(d: Date): string {
   return `${dd}.${mm}.${d.getFullYear()}`;
 }
 
-export function buildAntiplagiatViewFromArticle(article: AntiplagiatArticlePayload): AntiplagiatViewState | null {
+/**
+ * `t` — joriy interfeys tili tarjimachisi (useT().t). U sertifikat ma'lumotlaridagi standart matnlarga qo'llanadi;
+ * to'liq/qisqa hisobot (fullReportData) o'zbekcha kalitlarni saqlaydi va ko'rsatishda tarjima qilinadi.
+ */
+export function buildAntiplagiatViewFromArticle(
+  article: AntiplagiatArticlePayload,
+  t: TFunction = identityT,
+): AntiplagiatViewState | null {
   if (!article?.plagiarism_checked_at) {
     return null;
   }
@@ -189,9 +201,9 @@ export function buildAntiplagiatViewFromArticle(article: AntiplagiatArticlePaylo
   const certificateData: AntiplagiatCertificateData = {
     certificateNumber: certNumber,
     checkDate,
-    author,
-    workType: documentType,
-    fileName: documentName,
+    author: author === 'Muallif' ? t(author) : author,
+    workType: t(documentType),
+    fileName: documentName === 'Hujjat' ? t(documentName) : documentName,
     citations: `${citationPct.toFixed(1)}%`,
     selfCitation: `${selfCitationPct.toFixed(1)}%`,
     plagiarism: `${plagiarismPercentage.toFixed(2)}%`,
@@ -204,8 +216,8 @@ export function buildAntiplagiatViewFromArticle(article: AntiplagiatArticlePaylo
         : [];
       if (names.length) return names.join(', ');
       const executed = Array.isArray(report.executed_module_ids) ? (report.executed_module_ids as string[]) : null;
-      if (executed) return `${executed.length} ta bazada tekshirilgan`;
-      return `${enabledCount} ta modul`;
+      if (executed) return t('{n} ta bazada tekshirilgan', { n: executed.length });
+      return t('{n} ta modul', { n: enabledCount });
     })(),
   };
 

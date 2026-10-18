@@ -60,3 +60,15 @@ export function categoryToSlug(name: string): string {
 export function slugToCategory(slug: string): string {
   return decodeURIComponent(slug);
 }
+
+/** Taqqoslash uchun normal shakl: kichik harf, apostrof turlari olib tashlangan (’ ‘ ʻ ' bir xil) */
+export function normCategory(name: string | null | undefined): string {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/[\u2018\u2019\u02bb\u02bc'`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export const isPublicationType = (name: string | null | undefined): boolean =>
+  PUBLICATION_TYPES.some((p) => normCategory(p) === normCategory(name));

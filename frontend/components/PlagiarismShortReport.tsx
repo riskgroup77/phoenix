@@ -1,5 +1,6 @@
 import React from 'react';
 import AntiplagReportInnerPage from './AntiplagReportInnerPage';
+import { useT } from '../i18n/LanguageContext';
 import { REPORT_COLOR_NAVY } from './ReportPageLayout';
 import AntiplagiatReportTitleCover from './AntiplagiatReportTitleCover';
 import {
@@ -17,22 +18,25 @@ const ShortSourcesPage: React.FC<{
     data: PlagiarismFullReportData;
     pageNum: number;
     sources: PlagiarismFullReportData['sources'];
-}> = ({ data, pageNum, sources }) => (
+}> = ({ data, pageNum, sources }) => {
+    const { t } = useT();
+    return (
     <AntiplagReportInnerPage>
         <h2
             className="text-sm font-bold uppercase tracking-wide mb-2"
             style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}
         >
-            Topilgan manbalar
+            {t('Topilgan manbalar')}
         </h2>
         <p className="text-[9px] text-slate-500 mb-2">
-            Hujjat: {data.documentNumber} · {data.uploadDate}
+            {t('Hujjat:')} {data.documentNumber} · {data.uploadDate}
         </p>
         <div className="flex-1 overflow-hidden min-h-0">
             <SourcesTable sources={sources} compact />
         </div>
     </AntiplagReportInnerPage>
-);
+    );
+};
 
 const PlagiarismShortReport: React.FC<{ data: PlagiarismFullReportData }> = ({ data }) => {
     const coverSources = data.sources.slice(0, SOURCES_FIRST_PAGE);

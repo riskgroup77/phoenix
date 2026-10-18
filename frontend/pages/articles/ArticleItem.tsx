@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ArticleStatus, Role } from '../../types';
-import { Rocket, ChevronDown, Check, Filter, Share2 } from 'lucide-react';
+import { Rocket, ChevronDown, Check, Filter, Share2, FileText, Award } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { PlagiarismBadges } from '../../components/PlagiarismReport';
 import { getAuthorWorkflowStepsFromStatus, getAuthorWorkflowStageLabel, isBookTitle } from '../../utils/articleAuthorWorkflow';
@@ -11,9 +11,13 @@ import { apiService } from '../../services/apiService';
 import { paymentService } from '../../services/paymentService';
 import { toast } from 'react-toastify';
 import { ArticleApiResponse } from './types';
-import { getStatusDisplayData } from './helpers';
+import { getStatusDisplayData, isAntiplagiatDoc, ANTIPLAGIAT_STATE_LABELS } from './helpers';
 import { useT } from '../../i18n/LanguageContext';
 import { askStatusReason } from '../../utils/statusReason';
+import WorksReportModal from '../../components/WorksReportModal';
+
+/** Bu holatlarda ma'lumotnoma berilmaydi (backend: works_report.ACCEPTANCE_EXCLUDED_STATUSES) */
+const NO_DOCUMENT_STATUSES = new Set<string>([ArticleStatus.Draft, ArticleStatus.Rejected]);
 
 const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, isJournalAdmin?: boolean, userId?: string, journalIds?: string[], onStatusUpdate?: () => void }> = ({ 
     article, 
@@ -29,18 +33,30 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
     const [currentStatus, setCurrentStatus] = useState(article.status);
     const [isUpdating, setIsUpdating] = useState(false);
-    const statusData = getStatusDisplayData(currentStatus);
+    const [showReport, setShowReport] = useState(false);
+    /** Mustaqil antiplagiat hujjati: o'z holati, bosilganda — natija / tekshiruv sahifasi */
+    const isPlagDoc = isAntiplagiatDoc(article);
+    const plagState = article.antiplagiat_state || (currentStatus === ArticleStatus.Draft ? 'awaiting_payment' : 'checking');
+    const statusData = isPlagDoc
+        ? ANTIPLAGIAT_STATE_LABELS[plagState] || ANTIPLAGIAT_STATE_LABELS.checking
+        : getStatusDisplayData(currentStatus);
+    const openTarget = isPlagDoc
+        ? plagState === 'done'
+            ? `/plagiarism-check/result/${article.id}`
+            : '/plagiarism-check'
+        : `/articles/${article.id}`;
 
     // Determine if user can update status
     const canUpdateStatus = isAdmin || (isJournalAdmin && journalIds && journalIds.includes(article.journal));
     const isAuthor = (userId || user?.id) === article.author;
     const isAuthorRole =
         user?.role === Role.Author || String(user?.role ?? '').toLowerCase() === 'author';
-    const authorWorkflowSteps = isAuthor && isAuthorRole ? getAuthorWorkflowStepsFromStatus(currentStatus, isBookTitle(article.title)) : [];
+    const authorWorkflowSteps = isAuthor && isAuthorRole && !isAntiplagiatDoc(article) ? getAuthorWorkflowStepsFromStatus(currentStatus, isBookTitle(article.title)) : [];
     const authorStageHint = isAuthor && isAuthorRole ? getAuthorWorkflowStageLabel(currentStatus, isBookTitle(article.title)) : '';
     const viewerRoleNorm =
         typeof user?.role === 'string' ? user.role.toLowerCase() : String(user?.role ?? '');
     // Kitob buyurtmasi antiplagiatdan o'tmaydi — "Tekshirilmagan" belgisi chalg'itardi
+    const canGetDocuments = isAuthor && isAuthorRole && !isPlagDoc && !NO_DOCUMENT_STATUSES.has(String(currentStatus));
     const showPlagiarismBadges =
         (viewerRoleNorm === 'journal_admin' || viewerRoleNorm === 'super_admin') && !isBookTitle(article.title);
 
@@ -113,7 +129,7 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
     return (
         <div 
             className="editorial-card cursor-pointer hover:border-[var(--editorial-primary)]/35 transition-colors"
-            onClick={() => navigate(`/articles/${article.id}`)}
+            onClick={() => navigate(openTarget)}
         >
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4">
                 <h4 className="text-base sm:text-lg font-semibold text-[var(--editorial-text)] leading-snug">{article.title}</h4>
@@ -128,7 +144,7 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                             <span className={`text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap ${statusData.color}`}>
                                 {t(statusData.text)}
                             </span>
-                            {isAuthor && currentStatus === ArticleStatus.Published && (
+                            {isAuthor && !isPlagDoc && currentStatus === ArticleStatus.Published && (
                                 <button
                                     onClick={handleShare}
                                     className="p-1.5 rounded-lg bg-green-600/20 text-emerald-800 hover:bg-green-500/30 transition-colors"
@@ -181,7 +197,7 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                 </div>
             </div>
             <p className="text-sm text-slate-500 mt-2 line-clamp-2">{article.abstract}</p>
-            {isAuthor && currentStatus === ArticleStatus.Draft && (pendingTxId || article.needs_publication_payment) && (
+            {isAuthor && !isPlagDoc && currentStatus === ArticleStatus.Draft && (pendingTxId || article.needs_publication_payment) && (
                 <div
                     className="mt-3 p-3 rounded-lg bg-amber-500/15 border border-amber-500/30"
                     onClick={(e) => e.stopPropagation()}
@@ -242,8 +258,36 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                     />
                 </div>
             )}
+            {canGetDocuments && (
+                <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                        type="button"
+                        onClick={() => setShowReport(true)}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--editorial-border)] text-[var(--editorial-primary)] hover:bg-slate-100/80"
+                    >
+                        <FileText size={14} /> {t('Hisobot olish')}
+                    </button>
+                    {!isBookTitle(article.title) && (
+                        <button
+                            type="button"
+                            onClick={() => navigate(`/articles/${article.id}?qabul=1`)}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--editorial-border)] text-[var(--editorial-primary)] hover:bg-slate-100/80"
+                        >
+                            <Award size={14} /> {t("Qabul ma'lumotnomasi")}
+                        </button>
+                    )}
+                </div>
+            )}
+            {showReport && (
+                <div onClick={(e) => e.stopPropagation()}>
+                    <WorksReportModal articleId={article.id} articleTitle={article.title} onClose={() => setShowReport(false)} />
+                </div>
+            )}
             <div className="flex flex-wrap justify-between items-center mt-4 text-xs text-slate-500 gap-1">
-                <span className="truncate max-w-[60%]">{article.author_name || t("Noma'lum muallif")}</span>
+                <span className="truncate max-w-[60%]">
+                    {article.work_type && <span className="font-medium text-[var(--editorial-teal)] mr-1.5">{t(article.work_type)} ·</span>}
+                    {article.author_name || t("Noma'lum muallif")}
+                </span>
                 <span>{new Date(article.submission_date).toLocaleDateString()}</span>
             </div>
         </div>

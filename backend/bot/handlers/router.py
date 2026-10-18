@@ -41,6 +41,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             from asgiref.sync import sync_to_async
             profile = await sync_to_async(client.profile)()
             apply_client_to_context(context, client, profile)
+            if profile.get('role') == 'super_admin':
+                from telegram import ReplyKeyboardRemove
+
+                from bot.handlers.auth import ADMIN_WELCOME
+
+                await update.message.reply_text(ADMIN_WELCOME, reply_markup=ReplyKeyboardRemove())
+                return
             name = f"{profile.get('first_name', '')} {profile.get('last_name', '')}".strip()
             await update.message.reply_text(
                 f"Salom, {name}! 👋\n\n"

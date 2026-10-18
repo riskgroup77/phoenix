@@ -15,6 +15,7 @@ from PIL import Image
 from apps.articles.antiplagiat_template_render import (
     ASSETS_DIR,
     format_source_lines,
+    localized_template_path,
     render_certificate,
     render_report_cover,
     render_report_inner_page,
@@ -42,11 +43,11 @@ def _blank_docx_with_fullpage_image(image_path: Path, *, landscape: bool = False
     return doc
 
 
-def build_empty_template_docx(kind: str) -> bytes:
-    """kind: certificate | report_cover | report_inner"""
+def build_empty_template_docx(kind: str, lang: str = 'uz') -> bytes:
+    """kind: certificate | report_cover | report_inner; lang — shablon yorliqlari tili"""
     mapping = {
-        'certificate': (ASSETS_DIR / 'sertifikat.jpg', True),
-        'report_cover': (ASSETS_DIR / 'hisobot1.jpg', False),
+        'certificate': (localized_template_path(ASSETS_DIR, 'sertifikat.jpg', lang), True),
+        'report_cover': (localized_template_path(ASSETS_DIR, 'hisobot1.jpg', lang), False),
         'report_inner': (ASSETS_DIR / 'hisobot2.jpg', False),
     }
     path, landscape = mapping[kind]
@@ -56,9 +57,9 @@ def build_empty_template_docx(kind: str) -> bytes:
     return buf.getvalue()
 
 
-def build_filled_certificate_docx(values: dict[str, str]) -> bytes:
+def build_filled_certificate_docx(values: dict[str, str], lang: str = 'uz') -> bytes:
     """Tayyor JPG ustiga yozilgan — Word ga bitta rasm (1:1 ko'rinish)."""
-    img = render_certificate(values, verify_id=values.get('document_number', ''))
+    img = render_certificate(values, verify_id=values.get('document_number', ''), lang=lang)
     tmp = BytesIO()
     img.convert('RGB').save(tmp, format='JPEG', quality=95)
     tmp.seek(0)
@@ -79,6 +80,7 @@ def build_filled_certificate_docx(values: dict[str, str]) -> bytes:
 def build_filled_report_docx(
     cover_values: dict[str, str],
     inner_sections: list[tuple[str, list[str]]],
+    lang: str = 'uz',
 ) -> bytes:
     """
     1-sahifa hisobot1, keyingi har bir bo'lim hisobot2 fonida.
@@ -87,7 +89,7 @@ def build_filled_report_docx(
     doc = Document()
     first = True
     for img in (
-        render_report_cover(cover_values, verify_id=cover_values.get('document_number', '')),
+        render_report_cover(cover_values, verify_id=cover_values.get('document_number', ''), lang=lang),
         *[render_report_inner_page(lines, title=title) for title, lines in inner_sections],
     ):
         section = doc.sections[0] if first else doc.add_section()

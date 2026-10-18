@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import { apiService } from '../services/apiService';
-import { slugToCategory } from '../constants/authorCategories';
+import { isPublicationType, slugToCategory } from '../constants/authorCategories';
+import { journalMatchesSubject, journalMatchesType } from '../utils/journalTaxonomy';
 import Button from '../components/ui/Button';
 import { BookOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -14,6 +15,7 @@ interface JournalItem {
   description?: string;
   issn?: string;
   category_name?: string;
+  scientific_field_names?: string[];
   publication_fee?: number;
   price_per_page?: number;
   pricing_type?: string;
@@ -22,8 +24,13 @@ interface JournalItem {
 const BrowseByCategory: React.FC = () => {
   const { t } = useT();
   const [searchParams] = useSearchParams();
-  const categorySlug = searchParams.get('category');
-  const categoryName = categorySlug ? slugToCategory(categorySlug) : null;
+  // ?type= (nashr turi) va ?field= (soha) — mustaqil; eski ?category= ham ishlaydi
+  const legacy = searchParams.get('category') ? slugToCategory(searchParams.get('category') as string) : '';
+  const typeName = searchParams.get('type') ? slugToCategory(searchParams.get('type') as string)
+    : (legacy && isPublicationType(legacy) ? legacy : '');
+  const fieldName = searchParams.get('field') ? slugToCategory(searchParams.get('field') as string)
+    : (legacy && !isPublicationType(legacy) ? legacy : '');
+  const categoryName = [typeName, fieldName].filter(Boolean).map((n) => t(n)).join(' · ') || null;
 
   const [journals, setJournals] = useState<JournalItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +48,7 @@ const BrowseByCategory: React.FC = () => {
         description: j.description,
         issn: j.issn,
         category_name: j.category_name || j.category?.name,
+        scientific_field_names: Array.isArray(j.scientific_field_names) ? j.scientific_field_names : [],
         publication_fee: j.publication_fee != null ? Number(j.publication_fee) : undefined,
         price_per_page: j.price_per_page != null ? Number(j.price_per_page) : undefined,
         pricing_type: j.pricing_type,
@@ -59,13 +67,7 @@ const BrowseByCategory: React.FC = () => {
     load();
   }, [load]);
 
-  const filtered = categoryName
-    ? journals.filter(
-        (j) =>
-          j.category_name &&
-          j.category_name.trim().toLowerCase() === categoryName.trim().toLowerCase()
-      )
-    : journals;
+  const filtered = journals.filter((j) => journalMatchesType(j, typeName) && journalMatchesSubject(j, fieldName));
 
   const priceText = (j: JournalItem) => {
     const fixed =

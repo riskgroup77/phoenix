@@ -2,6 +2,8 @@ import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { verifyUrl } from '../utils/verifyLink';
 import { UDK_TEMPLATE_IMAGE, UDK_TEMPLATE_LAYOUT, type UdkFieldSpec } from '../constants/udkTemplateLayout';
+import { localizedTemplateUrl } from '../constants/localizedTemplate';
+import { useT } from '../i18n/LanguageContext';
 
 export interface UDKCertificateData {
     certificateNumber: string;
@@ -121,6 +123,8 @@ const TemplateValue: React.FC<{ spec: UdkFieldSpec; value: string }> = ({ spec, 
 /** UDK HAQIDA MA'LUMOTNOMA — asl dizayn rasmi ustida qiymatlar (backend PDF bilan bir xil joylashuv). */
 const UDKCertificate: React.FC<{ data: UDKCertificateData }> = ({ data }) => {
     const { fields, qr } = UDK_TEMPLATE_LAYOUT;
+    // Yorliqlar shablon rasmida — interfeys tiliga mos nusxa (backend PDF bilan bir xil)
+    const { lang } = useT();
     const values: Record<string, string> = {
         document_number: data.certificateNumber,
         document_date: data.issueDate,
@@ -139,7 +143,7 @@ const UDKCertificate: React.FC<{ data: UDKCertificateData }> = ({ data }) => {
         >
             {/* Shablon <img> sifatida: CSS fon rasmi chop etishda ko'pincha tushib qoladi */}
             <img
-                src={UDK_TEMPLATE_IMAGE}
+                src={localizedTemplateUrl(UDK_TEMPLATE_IMAGE, lang)}
                 alt=""
                 aria-hidden="true"
                 draggable={false}

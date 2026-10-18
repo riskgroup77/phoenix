@@ -91,6 +91,10 @@ export const apiFetch = async (
   if (token && !headers.has('Authorization') && !publicAuth) {
     headers.set('Authorization', `Bearer ${token}`);
   }
+  // Interfeys tili: backend hujjatlarni (ma'lumotnoma, sertifikat, chek) shu tilda shakllantiradi
+  if (!headers.has('Accept-Language')) {
+    headers.set('Accept-Language', uiLang());
+  }
   // CSRF himoyasi: cookie bilan autentifikatsiyada backend o'zgartiruvchi so'rovlarda shu sarlavhani talab qiladi
   // (boshqa saytdagi forma yoki skript uni qo'ya olmaydi — CORS preflight bloklaydi)
   if (!publicAuth && !headers.has('X-Requested-With')) {
@@ -236,11 +240,22 @@ export const apiFetch = async (
  * Autentifikatsiyali fayl yuklab olish (PDF chek, Crossref XML va h.k.).
  * 401 bo'lsa tokenni bir marta yangilab qayta urinadi.
  */
-export const downloadAuthed = async (endpoint: string, filename: string): Promise<void> => {
+/** Joriy interfeys tili (LanguageContext bilan bir xil kalit) — hujjatlar shu tilda yaratiladi */
+export const uiLang = (): string => {
+  try {
+    const v = localStorage.getItem('phoenix-lang');
+    if (v === 'uz' || v === 'uz-Cyrl' || v === 'ru' || v === 'en') return v;
+  } catch {
+    /* localStorage yopiq */
+  }
+  return 'uz';
+};
+
+export const fetchAuthedBlob = async (endpoint: string): Promise<Blob> => {
   const run = () => {
     const token = getToken();
     return fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: { 'Accept-Language': uiLang(), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       credentials: 'include',
     });
   };
@@ -258,7 +273,10 @@ export const downloadAuthed = async (endpoint: string, filename: string): Promis
     }
     throw new Error(detail || "Faylni yuklab bo'lmadi");
   }
-  const blob = await res.blob();
+  return res.blob();
+};
+
+export const saveBlob = (blob: Blob, filename: string): void => {
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -267,6 +285,10 @@ export const downloadAuthed = async (endpoint: string, filename: string): Promis
   a.click();
   a.remove();
   window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+};
+
+export const downloadAuthed = async (endpoint: string, filename: string): Promise<void> => {
+  saveBlob(await fetchAuthedBlob(endpoint), filename);
 };
 
 /** Sahifalash havolasi (`next` — to'liq URL) → apiFetch endpointi */
@@ -578,6 +600,15 @@ export const apiService = {
       const form = new FormData();
       form.append('file', file);
       return apiUpload('/articles/page-count/', form);
+    },
+
+    /** Barcha ilmiy ishlar (articleId bo'lsa — bitta ish) bo'yicha ma'lumotnoma: PDF yoki DOCX */
+    worksReport: (params: { format: 'pdf' | 'docx'; articleId?: string; workplace?: string; position?: string }) => {
+      const q = new URLSearchParams({ fmt: params.format, lang: uiLang() });
+      if (params.articleId) q.set('article', params.articleId);
+      if (params.workplace) q.set('workplace', params.workplace);
+      if (params.position) q.set('position', params.position);
+      return fetchAuthedBlob(`/articles/reports/works/?${q.toString()}`);
     },
 
     /** Muallif maqolalar ro'yxati PDF — QR uchun imzoli to'g'ridan-to'g'ri PDF havolasi */
@@ -931,10 +962,14 @@ export const apiService = {
       }
     },
     
+    /** Maqolasi bor jurnal o'chirilmaydi — arxivlanadi: javob { archived: true, message } */
     delete: (id: string) =>
       apiFetch(`/journals/journals/${id}/`, {
         method: 'DELETE',
       }),
+
+    /** Arxivlangan jurnalni qayta faollashtirish (bosh admin) */
+    restore: (id: string) => apiFetch(`/journals/journals/${id}/restore/`, { method: 'POST' }),
     
     createCategory: (categoryData: any) =>
       apiFetch('/journals/categories/', {

@@ -11,12 +11,60 @@ from telegram import KeyboardButton, ReplyKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from apps.users import phone_verification as pv
-from bot.keyboards import guest_keyboard
+from bot.keyboards import author_main_keyboard, guest_keyboard
 
 logger = logging.getLogger(__name__)
 
 PENDING_KEY = 'phone_challenge'
 DIRECT_RESET = 'direct_reset'
+FROM_BOT_KEY = 'phone_verify_from_bot'
+
+
+def _menu_keyboard(context):
+    authed = context.user_data.get('authenticated') if context.user_data else False
+    return author_main_keyboard() if authed else guest_keyboard()
+
+
+def _bot_verify_state_sync(telegram_id: int) -> tuple[str, str]:
+    """(xabar, kod): xabar bo'sh — ruxsat. Aks holda yangi tasdiqlash kodi yaratiladi."""
+    from apps.users.models import TelegramSession
+
+    row = TelegramSession.objects.select_related('user').filter(telegram_id=telegram_id).first()
+    if row is None:
+        return '', ''
+    user = row.user
+    blocked = pv.verification_required_message(user)
+    if not blocked:
+        return '', ''
+    return blocked, pv.start_verification_in_bot(user)
+
+
+async def ensure_phone_verified(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """
+    Maqola/kitob yuborishdan oldin: telefon tasdiqlanmagan muallifdan kontakt so'raladi (o'sha tasdiqlash oqimi).
+    True — davom etish mumkin.
+    """
+    tg_user = update.effective_user
+    if not tg_user:
+        return True
+    try:
+        blocked, code = await sync_to_async(_bot_verify_state_sync)(tg_user.id)
+    except Exception:
+        logger.exception('phone verification gate failed')
+        return True  # backend baribir tekshiradi
+    if not blocked:
+        return True
+    context.user_data[PENDING_KEY] = (pv.PhoneChallenge.PURPOSE_VERIFY, code)
+    context.user_data[FROM_BOT_KEY] = True
+    if update.effective_chat:
+        await context.bot.send_message(
+            update.effective_chat.id,
+            "🔐 Maqola yoki kitob yuborishdan oldin telefon raqamingizni tasdiqlash kerak (bir martalik, bepul).\n\n"
+            "Pastdagi «📱 Raqamni ulashish» tugmasini bosing — Telegram'dagi raqamingiz saytdagi "
+            "raqamingiz bilan solishtiriladi.",
+            reply_markup=contact_keyboard(),
+        )
+    return False
 
 
 def contact_keyboard() -> ReplyKeyboardMarkup:
@@ -83,17 +131,26 @@ async def contact_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             code, purpose, telegram_id=tg_id, contact_user_id=contact.user_id, contact_phone=contact.phone_number,
         )
     except pv.VerificationError as exc:
-        await msg.reply_text(f'❌ {exc}', reply_markup=guest_keyboard())
+        await msg.reply_text(f'❌ {exc}', reply_markup=_menu_keyboard(context))
         return
     except Exception:
         logger.exception('contact verification failed')
-        await msg.reply_text("❌ Xatolik yuz berdi. Birozdan keyin qayta urinib ko'ring.", reply_markup=guest_keyboard())
+        await msg.reply_text("❌ Xatolik yuz berdi. Birozdan keyin qayta urinib ko'ring.",
+                             reply_markup=_menu_keyboard(context))
         return
     context.user_data.pop(PENDING_KEY, None)
-    if result.purpose == 'verify':
+    from_bot = context.user_data.pop(FROM_BOT_KEY, False)
+    if result.purpose == 'verify' and from_bot:
+        if isinstance(context.user_data.get('user'), dict):
+            context.user_data['user']['phone_verified'] = True
+        await msg.reply_text(
+            "✅ Telefon raqamingiz tasdiqlandi! Endi amalni qayta boshlang (masalan, «📝 Maqola yuborish»).",
+            reply_markup=_menu_keyboard(context),
+        )
+    elif result.purpose == 'verify':
         await msg.reply_text(
             "✅ Telefon raqamingiz tasdiqlandi! Saytga qayting — sahifa o'zi yangilanadi.",
-            reply_markup=guest_keyboard(),
+            reply_markup=_menu_keyboard(context),
         )
     else:
         await msg.reply_text(
@@ -107,5 +164,6 @@ async def contact_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def cancel_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     context.user_data.pop(PENDING_KEY, None)
+    context.user_data.pop(FROM_BOT_KEY, None)
     if update.message:
-        await update.message.reply_text('Bekor qilindi.', reply_markup=guest_keyboard())
+        await update.message.reply_text('Bekor qilindi.', reply_markup=_menu_keyboard(context))

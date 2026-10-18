@@ -147,7 +147,10 @@ def author_ma_lumotnoma_signed_url(request):
     rel = reverse('author_ma_lumotnoma_pdf')
     base = request.build_absolute_uri(rel)
     sep = '&' if '?' in base else '?'
-    url = f"{base}{sep}sig={quote(sig, safe='')}"
+    from config.doc_i18n import request_lang
+
+    # QR ni skanerlagan odamda sessiya yo'q — hujjat tili havolaga yoziladi (yaratgan foydalanuvchi tili)
+    url = f"{base}{sep}sig={quote(sig, safe='')}&lang={request_lang(request)}"
     return Response({'url': url, 'expires_in_seconds': MAX_AGE_SECONDS})
 
 
@@ -170,20 +173,19 @@ def author_ma_lumotnoma_pdf(request):
         return HttpResponseBadRequest('Noto\'g\'ri havola.')
 
     from apps.users.models import User
-    from .models import Article
-
     user = User.objects.filter(pk=user_id).first()
     if not user:
         raise Http404()
 
-    articles = (
-        Article.objects.filter(author=user)
-        .select_related('journal')
-        .order_by('-submission_date')
-    )
+    from . import works_report
 
     try:
-        buffer = _build_pdf_buffer(user, articles)
+        # Eski QR havolalari ham yangi (shablon dizaynidagi) ma'lumotnomani ochadi
+        from config.doc_i18n import normalize_lang
+
+        lang = normalize_lang(request.GET.get('lang'))
+        buffer = io.BytesIO(works_report.build_pdf(works_report.build_meta(user, lang=lang),
+                                                   works_report.collect_rows(user, lang=lang)))
     except Exception as e:
         logger.exception('author_ma_lumotnoma_pdf: %s', e)
         return HttpResponseBadRequest('PDF yaratishda xatolik.')
