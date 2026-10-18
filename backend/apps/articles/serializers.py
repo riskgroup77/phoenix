@@ -148,7 +148,7 @@ ANONYMOUS_AUTHOR = 'Anonim muallif'
 # Taqrizchidan yashiriladigan, muallifni aniqlaydigan maydonlar
 _AUTHOR_IDENTITY_KEYS = ('author', 'co_authors')
 _AUTHOR_NAME_KEYS = ('submitted_author_name',)
-_REPORT_IDENTITY_KEYS = ('author_first_name', 'author_last_name')
+_REPORT_IDENTITY_KEYS = ('author_first_name', 'author_last_name', 'author_workplace', 'author_position')
 
 
 def hide_author_from_viewer(context, article) -> bool:

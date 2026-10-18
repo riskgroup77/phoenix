@@ -38,8 +38,10 @@ const ClickMark: React.FC = () => (
 );
 
 /**
- * Barcha to'lovlar uchun yagona oyna (ModalPortal #root dan tashqarida — shuning uchun ranglar aniq beriladi,
- * sayt CSS o'zgaruvchilariga tayanilmaydi; avval prod'da "Click orqali to'lash" tugmasi oq fonda ko'rinmasdi).
+ * Barcha to'lovlar uchun yagona oyna. Ranglar aniq beriladi (sayt CSS o'zgaruvchilariga tayanilmaydi; avval prod'da
+ * "Click orqali to'lash" tugmasi oq fonda ko'rinmasdi). Oyna HAMMA narsaning ustida (z-[120]: header z-60, mobil
+ * menyu z-80, boshqa modallar z-100, "Operator chat" z-40) — to'liq ekranli qorong'i fon ortidagi sahifa bosilmaydi,
+ * ko'rinishda faqat to'lov oynasi; ekran tepasiga yaqin turadi (mobil/uzun sahifada pastda yashirinib qolmaydi).
  *  1) to'lov ma'lumotlari + "Click orqali to'lash" / "Ortga";
  *  2) Click yangi tabda ochiladi, oyna o'zida "To'lov tekshirilmoqda" (boshqa sahifaga o'tmaydi);
  *  3) to'lov tasdiqlansa — Click tabi yopiladi va natija shu oynada ko'rinadi.
@@ -181,6 +183,11 @@ const PaymentConfirmModal: React.FC = () => {
       navigate(`/plagiarism-check?payment_return=1&transaction_id=${encodeURIComponent(id)}`);
       return;
     }
+    if (st === 'udk_request') {
+      // UDK sahifasi so'rovni topib, "UDK aniqlanmoqda → Tayyor" holatini o'zi kuzatadi
+      navigate(`/udk-olish?payment_return=1&transaction_id=${encodeURIComponent(id)}`);
+      return;
+    }
     if (st === 'publication_fee') {
       sessionStorage.removeItem('phonix_submit_article_pending');
       navigate('/articles?tab=journal');
@@ -197,14 +204,20 @@ const PaymentConfirmModal: React.FC = () => {
   const border = 'border-slate-200 dark:border-slate-700';
 
   return (
-    <ModalPortal open>
-      <div className={`w-full sm:w-[28rem] rounded-2xl border ${border} bg-white p-6 text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-slate-100`}>
+    <ModalPortal
+      open
+      align="top"
+      zIndexClass="z-[120]"
+      backdropClassName="bg-slate-950/80 backdrop-blur-sm"
+      labelledBy="payment-modal-title"
+    >
+      <div className={`relative w-full max-w-full sm:w-[28rem] rounded-2xl border ${border} bg-white p-5 sm:p-6 text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-slate-100`}>
         <div className="mb-4 flex items-center gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600/10 text-blue-700 dark:text-blue-300">
             <CreditCard className="h-6 w-6" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h3 className="m-0 text-lg font-bold">{t("To'lov")}</h3>
+            <h3 id="payment-modal-title" className="m-0 text-lg font-bold">{t("To'lov")}</h3>
             <p className={`m-0 text-sm ${muted}`}>
               {phase === 'confirm' && t("To'lov ma'lumotlarini tekshiring")}
               {phase === 'waiting' && t("Click sahifasida to'lovni yakunlang")}

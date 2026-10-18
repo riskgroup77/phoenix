@@ -1,16 +1,9 @@
 import React from 'react';
-import { verifyUrl } from '../utils/verifyLink';
 import { useT, type TFunction } from '../i18n/LanguageContext';
 import AntiplagiatReportTitleCover from './AntiplagiatReportTitleCover';
-import AntiplagReportInnerPage from './AntiplagReportInnerPage';
-import {
-    LaurelQRBlock,
-    PhoenixLogoMark,
-    REPORT_COLOR_DARK,
-    REPORT_COLOR_NAVY,
-    REPORT_COLOR_TEAL,
-    REPORT_COLOR_TEXT,
-} from './ReportPageLayout';
+import AntiplagReportInnerPage, { ReportSheet } from './AntiplagReportInnerPage';
+import FlowPages, { type FlowSection } from './ReportFlow';
+import './antiplagReport.css';
 
 export interface PlagiarismSource {
     id: number;
@@ -20,6 +13,8 @@ export interface PlagiarismSource {
     searchModule: string;
     documentFragment?: string;
     sourceFragment?: string;
+    /** Shu manbadan topilgan parchalar soni (takrorlar birlashtirilgandan keyin) */
+    fragmentCount?: number;
 }
 
 export interface PlagiarismFragmentDetail {
@@ -62,20 +57,6 @@ export interface PlagiarismFullReportData {
     annotatedDocument?: AnnotatedParagraph[];
 }
 
-export const MetricBox: React.FC<{ value: number; label: string; color: string; bg: string }> = ({ value, label, color, bg }) => (
-    <div className="rounded-md p-2.5 text-center border flex-1 min-w-0" style={{ backgroundColor: bg, borderColor: `${color}44` }}>
-        <p className="text-xl sm:text-2xl font-bold leading-none" style={{ color }}>{value.toFixed(2)}%</p>
-        <p className="text-[8px] font-bold uppercase tracking-wide mt-1.5 leading-tight" style={{ color: REPORT_COLOR_DARK }}>{label}</p>
-    </div>
-);
-
-const InfoRow: React.FC<{ label: string; value: string | number }> = ({ label, value }) => (
-    <div className="flex gap-2 text-[10px] leading-snug py-0.5">
-        <span className="text-slate-500 shrink-0">{label}:</span>
-        <span className="font-medium break-words" style={{ color: REPORT_COLOR_TEXT }}>{value}</span>
-    </div>
-);
-
 /** "X qidiruv moduli" → joriy tilda ("Модуль поиска X" / "X search module"); modul nomining o'zi tarjima qilinmaydi */
 export function translateSearchModule(t: TFunction, value: string): string {
     const m = /^(.*?)\s*qidiruv moduli$/.exec((value || '').trim());
@@ -91,386 +72,405 @@ function translateDefault(t: TFunction, value: string, defaults: string[]): stri
 export const ANTIPLAG_REPORT_LEGEND = [
     {
         title: "O'zlashtirib olish",
-        color: '#dc2626',
+        color: '#c81e1e',
         text: "topilgan barcha matnli kesishmalar ulushi, tizim hujjatning umumiy hajmiga nisbatan iqtibos keltirishga kiritganlaridan tashqari.",
     },
     {
         title: "O'z-o'zidan iqtibos keltirishlar",
-        color: '#ca8a04',
+        color: '#a16207',
         text: "tekshirilayotgan hujjatdagi muallifi yoki hammuallifi tekshirilayotgan hujjatning muallifi bo'lgan manba matni fragmenti bilan mos tushuvchi yoki deyarli mos tushuvchi matn fragmentlarining hujjatning umumiy hajmiga nisbatan ulushi.",
     },
     {
         title: 'Iqtibos keltirish',
-        color: '#2563eb',
+        color: '#1d4ed8',
         text: "muallifniki bo'lmagan, biroq tizim ulardan foydalanishni to'g'ri deb hisoblagan matnli kesishmalarning hujjatning umumiy hajmiga nisbatan ulushi.",
     },
     {
         title: 'Originallik',
-        color: '#16a34a',
+        color: '#15803d',
         text: "tekshirilayotgan hujjat matnidagi tekshiruv borgan birorta ham manbada topilmagan fragmentlarning hujjatning umumiy hajmiga nisbatan ulushi.",
     },
 ];
 
-const SourceRefBadges: React.FC<{ refs: number[] }> = ({ refs }) => {
-    if (!refs.length) return null;
-    return (
-        <span className="inline-flex flex-wrap gap-0.5 ml-1 align-super">
-            {refs.map((r) => (
-                <span
-                    key={r}
-                    className="inline-block text-[7px] font-bold px-1 py-px rounded-sm leading-none"
-                    style={{ backgroundColor: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}
-                >
-                    {r}
-                </span>
-            ))}
-        </span>
-    );
-};
+const pad2 = (n: number) => String(n).padStart(2, '0');
 
-export const SourcesTable: React.FC<{ sources: PlagiarismSource[]; compact?: boolean }> = ({ sources, compact }) => {
+function pctColor(pct: number): string {
+    if (pct > 5) return '#c81e1e';
+    if (pct > 0) return '#a16207';
+    return '#5b6475';
+}
+
+function clip(text: string, max: number): string {
+    const s = (text || '').replace(/\s+/g, ' ').trim();
+    return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
+}
+
+/* ------------------------------------------------------------------ */
+/* Bloklar                                                             */
+/* ------------------------------------------------------------------ */
+
+export const MetricBox: React.FC<{ value: number; label: string; color: string; bg: string }> = ({ value, label, color, bg }) => (
+    <div className="ap-metric" style={{ backgroundColor: bg, borderColor: `${color}55` }}>
+        <div className="ap-metric-value" style={{ color }}>{value.toFixed(2)}%</div>
+        <div className="ap-metric-label">{label}</div>
+    </div>
+);
+
+const MetricsRow: React.FC<{ data: PlagiarismFullReportData }> = ({ data }) => {
     const { t } = useT();
     return (
-    <table className={`w-full border-collapse ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
-        <thead>
-            <tr style={{ backgroundColor: REPORT_COLOR_TEAL, color: '#fff' }}>
-                <th className="border border-teal-700 px-1 py-1 w-10 text-center">№</th>
-                <th className="border border-teal-700 px-1 py-1 w-14 text-center">{t('Ulushi')}</th>
-                <th className="border border-teal-700 px-1 py-1 text-left">{t('Manba')}</th>
-                <th className="border border-teal-700 px-1 py-1 w-[30%] text-left">{t('Qidirish moduli')}</th>
-            </tr>
-        </thead>
-        <tbody>
-            {sources.length === 0 ? (
-                <tr>
-                    <td colSpan={4} className="border border-slate-200 px-3 py-4 text-center text-slate-500">
-                        {t('Manbalar topilmadi')}
-                    </td>
-                </tr>
-            ) : (
-                sources.map((source) => {
-                    const pct = parseFloat(source.percentage) || 0;
-                    return (
-                        <tr key={source.id} className="align-top">
-                            <td className="border border-slate-200 px-1 py-0.5 text-center font-bold" style={{ color: REPORT_COLOR_TEAL }}>
-                                [{String(source.id).padStart(2, '0')}]
-                            </td>
-                            <td
-                                className="border border-slate-200 px-1 py-0.5 text-center font-semibold"
-                                style={{ color: pct > 5 ? '#dc2626' : pct > 0 ? '#ca8a04' : '#64748b' }}
-                            >
-                                {source.percentage}
-                            </td>
-                            <td className="border border-slate-200 px-1 py-0.5">
-                                <div className="font-medium break-words leading-snug" style={{ color: REPORT_COLOR_TEXT }}>
-                                    {source.sourceName}
-                                </div>
-                                {source.sourceUrl && (
-                                    <a
-                                        href={source.sourceUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-[10px] break-all hover:underline mt-0.5 block font-medium"
-                                        style={{ color: REPORT_COLOR_TEAL }}
-                                    >
-                                        {source.sourceUrl}
-                                    </a>
-                                )}
-                                {!source.sourceUrl && source.sourceName.startsWith('http') && (
-                                    <a
-                                        href={source.sourceName}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-[10px] break-all hover:underline mt-0.5 block font-medium"
-                                        style={{ color: REPORT_COLOR_TEAL }}
-                                    >
-                                        {source.sourceName}
-                                    </a>
-                                )}
-                            </td>
-                            <td className="border border-slate-200 px-1 py-0.5 text-slate-600 leading-snug">
-                                {translateSearchModule(t, source.searchModule)}
-                            </td>
-                        </tr>
-                    );
-                })
-            )}
-        </tbody>
-    </table>
+        <div className="ap-metrics">
+            <MetricBox value={data.plagiarismPercent} label={t("O'zlashtirib olishlar")} color="#c81e1e" bg="#fef2f2" />
+            <MetricBox value={data.selfCitationPercent} label={t("O'z-o'zidan iqtibos")} color="#a16207" bg="#fefce8" />
+            <MetricBox value={data.citationPercent} label={t('Iqtibos keltirishlar')} color="#1d4ed8" bg="#eff6ff" />
+            <MetricBox value={data.originalityPercent} label={t('Originallik')} color="#15803d" bg="#f0fdf4" />
+        </div>
     );
 };
 
-export const PlagiarismReportCoverPage: React.FC<{
-    data: PlagiarismFullReportData;
-    coverSources: PlagiarismSource[];
-    /** O'zbekcha (lotin) sarlavha — joriy tilga tarjima qilinadi */
-    title?: string;
-}> = ({ data, coverSources, title = 'Hujjat tekshirish natijalari' }) => {
-    const { t, locale } = useT();
+const Issuer: React.FC<{ data: PlagiarismFullReportData }> = ({ data }) => {
+    const { t } = useT();
     return (
-    <AntiplagReportInnerPage>
-        <div className="flex justify-between items-start gap-4 mb-3 text-[11px] shrink-0">
-            <PhoenixLogoMark size="sm" showText={false} />
-            <div className="text-right flex-1">
-                <p className="font-bold uppercase tracking-wide text-[9px]" style={{ color: REPORT_COLOR_NAVY }}>
-                    {t('Hisobot "Phoenix Antiplagiat" servisi tomonidan taqdim etilgan')}
-                </p>
-                <p className="text-[11px] mt-1" style={{ color: REPORT_COLOR_TEXT }}>
-                    {t('Tekshiruvchi:')} <strong>{translateDefault(t, data.checkerName, ['Muallif'])}</strong> (ID: {data.checkerId})
-                </p>
-                {data.checkerOrganization && (
-                    <p className="text-[11px] text-slate-500">{t('Tashkilot:')} {data.checkerOrganization}</p>
+        <div className="ap-issuer">
+            <strong>{t('Hisobot "Phoenix Antiplagiat" servisi tomonidan taqdim etilgan')}</strong>
+            <span className="ap-issuer-right">
+                {t('Tekshiruvchi:')} <b>{translateDefault(t, data.checkerName, ['Muallif'])}</b>{' '}
+                <span className="ap-nowrap">(ID: {data.checkerId})</span>
+            </span>
+        </div>
+    );
+};
+
+const InfoList: React.FC<{ rows: [string, React.ReactNode][] }> = ({ rows }) => (
+    <dl className="ap-info">
+        {rows.map(([label, value]) => (
+            <React.Fragment key={label}>
+                <dt>{label}:</dt>
+                <dd>{value}</dd>
+            </React.Fragment>
+        ))}
+    </dl>
+);
+
+const SummaryHead: React.FC<{ data: PlagiarismFullReportData; title: string }> = ({ data, title }) => {
+    const { t, locale } = useT();
+    const fileName = translateDefault(t, data.originalFileName, ['Hujjat']);
+    const docName = translateDefault(t, data.documentName, ['Hujjat']);
+    const docRows: [string, React.ReactNode][] = [
+        [t('Hujjat raqami'), data.documentNumber],
+        [t('Yuklangan vaqti'), data.uploadDate],
+        [t('Hujjat nomi'), docName],
+    ];
+    if (fileName && fileName !== docName) docRows.push([t('Dastlabki fayl nomi'), fileName]);
+    docRows.push([t('Hujjat turi'), data.documentType ? t(data.documentType) : '—']);
+    docRows.push([t('Matndagi belgilar'), data.characterCount.toLocaleString(locale)]);
+    docRows.push([t('Gaplar soni'), data.sentenceCount.toLocaleString(locale)]);
+    if (data.fileSize && data.fileSize !== '—') docRows.push([t("Matn o'lchami"), data.fileSize]);
+
+    const authorRows: [string, React.ReactNode][] = [
+        [t('Muallif'), translateDefault(t, data.checkerName, ['Muallif'])],
+    ];
+    if (data.checkerOrganization?.trim()) authorRows.push([t('Tashkilot'), data.checkerOrganization.trim()]);
+    if (data.authorPosition?.trim()) authorRows.push([t('Lavozimi'), data.authorPosition.trim()]);
+    authorRows.push([t('Manbalar soni'), data.sources.length.toLocaleString(locale)]);
+
+    return (
+        <div>
+            <Issuer data={data} />
+            <h1 className="ap-h1">{t(title)}</h1>
+            <MetricsRow data={data} />
+            <div className="ap-info-grid">
+                <div className="ap-card">
+                    <h3 className="ap-card-title">{t("Hujjat to'g'risidagi ma'lumotlar")}</h3>
+                    <InfoList rows={docRows} />
+                </div>
+                <div className="ap-card">
+                    <h3 className="ap-card-title">{t("Hisobot to'g'risidagi ma'lumotlar")}</h3>
+                    <InfoList rows={authorRows} />
+                    <p className="ap-modules">
+                        <b>{t('Qidiruv modullari')}:</b>{' '}
+                        {data.searchModules.length
+                            ? data.searchModules.map((m) => translateSearchModule(t, m)).join(', ')
+                            : t("Modullar ko'rsatilmagan")}
+                    </p>
+                </div>
+            </div>
+            <div className="ap-legend">
+                {ANTIPLAG_REPORT_LEGEND.map((item) => (
+                    <p key={item.title}>
+                        <strong style={{ color: item.color }}>{t(item.title)}</strong> — {t(item.text)}
+                    </p>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const SourcesHeaderRow: React.FC = () => {
+    const { t } = useT();
+    return (
+        <div className="ap-trow ap-thead" role="row">
+            <div role="columnheader">№</div>
+            <div role="columnheader">{t('Ulushi')}</div>
+            <div role="columnheader">{t('Manba')}</div>
+            <div role="columnheader">{t('Qidirish moduli')}</div>
+        </div>
+    );
+};
+
+export const SourceRow: React.FC<{ source: PlagiarismSource }> = ({ source }) => {
+    const { t } = useT();
+    const pct = parseFloat(source.percentage) || 0;
+    const url = source.sourceUrl || (source.sourceName.startsWith('http') ? source.sourceName : '');
+    const showTitle = !(url && source.sourceName === url);
+    return (
+        <div className="ap-trow" role="row">
+            <div className="ap-num">[{pad2(source.id)}]</div>
+            <div className="ap-pct" style={{ color: pctColor(pct) }}>{source.percentage}</div>
+            <div>
+                {showTitle && <div className="ap-src-title">{source.sourceName}</div>}
+                {url && (
+                    <a className="ap-link" href={url} target="_blank" rel="noopener noreferrer">
+                        {url}
+                    </a>
+                )}
+            </div>
+            <div className="ap-module">
+                {translateSearchModule(t, source.searchModule)}
+                {(source.fragmentCount ?? 1) > 1 && (
+                    <div className="ap-src-count">{t('{count} ta parcha', { count: source.fragmentCount as number })}</div>
                 )}
             </div>
         </div>
+    );
+};
 
-        <div className="text-center mb-3 shrink-0">
-            <h1
-                className="text-xl sm:text-2xl font-bold uppercase tracking-wide"
-                style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}
-            >
+const EmptySources: React.FC = () => {
+    const { t } = useT();
+    return <div className="ap-empty">{t('Manbalar topilmadi')}</div>;
+};
+
+const SectionHead: React.FC<{ title: string; cont?: boolean; sub?: React.ReactNode; children?: React.ReactNode }> = ({
+    title,
+    cont,
+    sub,
+    children,
+}) => {
+    const { t } = useT();
+    return (
+        <div className="ap-section-head">
+            <h2 className="ap-h2">
                 {t(title)}
-            </h1>
+                {cont && <span className="ap-cont"> {t('(davomi)')}</span>}
+            </h2>
+            {sub && <p className="ap-sub">{sub}</p>}
+            {children}
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3 shrink-0">
-            <div className="rounded-lg border border-slate-200 p-2.5 bg-white/90">
-                <h3
-                    className="text-[9px] font-bold uppercase tracking-wider mb-1.5 pb-1 border-b"
-                    style={{ color: REPORT_COLOR_TEAL, borderColor: '#e2e8f0' }}
-                >
-                    {t("Hujjat to'g'risidagi ma'lumotlar")}
-                </h3>
-                <InfoRow label={t('Hujjat raqami')} value={data.documentNumber} />
-                <InfoRow label={t('Yuklangan vaqti')} value={data.uploadDate} />
-                <InfoRow label={t('Dastlabki fayl nomi')} value={translateDefault(t, data.originalFileName, ['Hujjat'])} />
-                <InfoRow label={t('Hujjat nomi')} value={translateDefault(t, data.documentName, ['Hujjat'])} />
-                <InfoRow label={t('Hujjat turi')} value={data.documentType ? t(data.documentType) : '—'} />
-                <InfoRow label={t('Matndagi belgilar')} value={data.characterCount.toLocaleString(locale)} />
-                <InfoRow label={t('Gaplar soni')} value={data.sentenceCount.toLocaleString(locale)} />
-                <InfoRow label={t("Matn o'lchami")} value={data.fileSize} />
-            </div>
-
-            <div className="rounded-lg border border-slate-200 p-2.5 bg-white/90">
-                <h3
-                    className="text-[9px] font-bold uppercase tracking-wider mb-1.5 pb-1 border-b"
-                    style={{ color: REPORT_COLOR_TEAL, borderColor: '#e2e8f0' }}
-                >
-                    {t("Hisobot to'g'risidagi ma'lumotlar")}
-                </h3>
-                <p className="text-[8px] text-slate-500 mb-1.5">{t("Qidirish oralig'i: ko'rsatilmagan")}</p>
-                <div className="flex gap-1.5 mb-2">
-                    <MetricBox value={data.plagiarismPercent} label={t("O'zlashtirib olishlar")} color="#dc2626" bg="#fef2f2" />
-                    <MetricBox value={data.selfCitationPercent} label={t("O'z-o'zidan iqtibos")} color="#ca8a04" bg="#fefce8" />
-                    <MetricBox value={data.citationPercent} label={t('Iqtibos keltirishlar')} color="#2563eb" bg="#eff6ff" />
-                    <MetricBox value={data.originalityPercent} label={t('Originallik')} color="#16a34a" bg="#f0fdf4" />
-                </div>
-                <p className="text-[7.5px] leading-relaxed text-slate-600 line-clamp-4">
-                    {data.searchModules.length
-                        ? data.searchModules.map((m) => t('{module} qidiruv moduli', { module: m })).join(', ')
-                        : t("Modullar ko'rsatilmagan")}
-                </p>
-            </div>
-        </div>
-
-        <div className="rounded-lg border p-2 mb-2 text-[7px] leading-relaxed text-slate-600 bg-slate-50/90 shrink-0" style={{ borderColor: '#99f6e4' }}>
-            {ANTIPLAG_REPORT_LEGEND.map((item) => (
-                <p key={item.title} className="mb-1">
-                    <strong style={{ color: item.color }}>{t(item.title)}</strong> — {t(item.text)}
-                </p>
-            ))}
-        </div>
-
-        {coverSources.length > 0 && (
-            <div className="flex-1 min-h-0 overflow-hidden mt-2">
-                <SourcesTable sources={coverSources} compact />
-            </div>
-        )}
-
-        <div className="mt-2 flex items-end justify-between gap-4 shrink-0">
-            <LaurelQRBlock
-                qrValue={verifyUrl(data.documentNumber)}
-                label="HUJJATNI TEKSHIRISH UCHUN QR KODDAN FOYDALANING"
-            />
-            <PhoenixLogoMark size="sm" />
-        </div>
-    </AntiplagReportInnerPage>
     );
 };
 
-const SourcesPage: React.FC<{
-    data: PlagiarismFullReportData;
-    pageNum: number;
-    startIdx: number;
-    endIdx: number;
-}> = ({ data, pageNum, startIdx, endIdx }) => {
+const FragmentCard: React.FC<{ fragment: PlagiarismFragmentDetail }> = ({ fragment }) => {
     const { t } = useT();
-    const pageSources = data.sources.slice(startIdx, endIdx);
-
+    const pct = parseFloat(fragment.percentage) || 0;
     return (
-        <AntiplagReportInnerPage>
-            <h2 className="text-sm font-bold uppercase tracking-wide mb-2" style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}>
-                {t("Manbalar ro'yxati")}
-            </h2>
-            <p className="text-[9px] text-slate-500 mb-2">
-                {t('Hujjat:')} {data.documentNumber} · {data.uploadDate}
-            </p>
-            <div className="flex-1 overflow-hidden min-h-0">
-                <SourcesTable sources={pageSources} />
+        <div className="ap-frag">
+            <div className="ap-frag-head">
+                <span className="ap-src-title">
+                    <span style={{ color: '#2c6a7c' }}>[{pad2(fragment.sourceIndex)}]</span> {fragment.title}
+                </span>
+                <span style={{ color: pctColor(pct), fontWeight: 800, whiteSpace: 'nowrap' }}>{fragment.percentage}</span>
             </div>
-        </AntiplagReportInnerPage>
-    );
-};
-
-const FragmentDetailPage: React.FC<{
-    fragment: PlagiarismFragmentDetail;
-    pageNum: number;
-}> = ({ fragment, pageNum }) => {
-    const { t } = useT();
-    return (
-    <AntiplagReportInnerPage>
-        <div className="flex items-start justify-between gap-3 mb-3">
-            <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}>
-                {t('Matnli kesishma')} — [{String(fragment.sourceIndex).padStart(2, '0')}]
-            </h2>
-            <span className="text-sm font-bold shrink-0" style={{ color: '#dc2626' }}>{fragment.percentage}</span>
-        </div>
-
-        <div className="rounded border border-slate-200 p-2 mb-2 bg-white">
-            <p className="text-[8px] font-bold uppercase mb-1" style={{ color: REPORT_COLOR_TEAL }}>{t('Manba')}</p>
-            <p className="text-[9px] font-semibold break-words" style={{ color: REPORT_COLOR_TEXT }}>{fragment.title}</p>
             {fragment.sourceUrl && (
-                <a href={fragment.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[8px] break-all mt-0.5 block" style={{ color: REPORT_COLOR_TEAL }}>
+                <a className="ap-link" href={fragment.sourceUrl} target="_blank" rel="noopener noreferrer">
                     {fragment.sourceUrl}
                 </a>
             )}
-            <p className="text-[8px] text-slate-500 mt-1">{translateSearchModule(t, fragment.searchModule)}</p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-2 flex-1 min-h-0">
-            <div className="rounded border p-2" style={{ borderColor: '#fecaca', backgroundColor: '#fffbfb' }}>
-                <p className="text-[8px] font-bold uppercase mb-1" style={{ color: '#b91c1c' }}>
-                    {t('Tekshirilayotgan hujjat matni')}
-                </p>
-                <p className="text-[9px] leading-relaxed" style={{ color: REPORT_COLOR_TEXT }}>{fragment.documentFragment}</p>
-            </div>
-            <div className="rounded border p-2" style={{ borderColor: '#bfdbfe', backgroundColor: '#f8fbff' }}>
-                <p className="text-[8px] font-bold uppercase mb-1" style={{ color: '#1d4ed8' }}>
-                    {t('Manba matni')}
-                </p>
-                <p className="text-[9px] leading-relaxed" style={{ color: REPORT_COLOR_TEXT }}>{fragment.sourceFragment}</p>
+            <div className="ap-frag-cols">
+                <div className="ap-frag-col ap-frag-col--doc">
+                    <span className="ap-frag-label" style={{ color: '#b91c1c' }}>{t('Tekshirilayotgan hujjat matni')}</span>
+                    {clip(fragment.documentFragment, 700) || '—'}
+                </div>
+                <div className="ap-frag-col ap-frag-col--src">
+                    <span className="ap-frag-label" style={{ color: '#1d4ed8' }}>{t('Manba matni')}</span>
+                    {clip(fragment.sourceFragment, 700) || '—'}
+                </div>
             </div>
         </div>
-    </AntiplagReportInnerPage>
     );
 };
 
-const DocumentTextPage: React.FC<{
-    paragraphs: AnnotatedParagraph[];
-    pageNum: number;
-    documentName: string;
-}> = ({ paragraphs, pageNum, documentName }) => {
+type DocChunk = { segments: { text: string; source: number | null }[]; refs: number[] };
+
+/** Uzun xatboshilarni gaplar bo'yicha bo'laklarga ajratadi — har bo'lak sahifaga sig'adi. */
+export function chunkParagraphs(paragraphs: AnnotatedParagraph[], maxChars = 900): DocChunk[] {
+    const out: DocChunk[] = [];
+    for (const p of paragraphs) {
+        const segs = p.segments && p.segments.length ? p.segments : [{ text: p.text, source: null }];
+        const useBadges = !(p.segments && p.segments.length);
+        let cur: DocChunk = { segments: [], refs: [] };
+        let len = 0;
+        for (const s of segs) {
+            const text = (s.text || '').trim();
+            if (!text) continue;
+            if (len > 0 && len + text.length > maxChars) {
+                out.push(cur);
+                cur = { segments: [], refs: [] };
+                len = 0;
+            }
+            cur.segments.push({ text, source: s.source });
+            len += text.length + 1;
+        }
+        if (useBadges) cur.refs = p.sourceRefs || [];
+        if (cur.segments.length) out.push(cur);
+    }
+    return out;
+}
+
+const DocParagraph: React.FC<{ chunk: DocChunk }> = ({ chunk }) => (
+    <p className="ap-doc-p">
+        {chunk.segments.map((s, i) => (
+            <React.Fragment key={i}>
+                {i > 0 ? ' ' : null}
+                {s.source != null ? (
+                    <>
+                        <mark className="ap-hl" style={{ color: 'inherit' }}>{s.text}</mark>
+                        <span className="ap-ref">{pad2(s.source)}</span>
+                    </>
+                ) : (
+                    s.text
+                )}
+            </React.Fragment>
+        ))}
+        {chunk.refs.map((r) => (
+            <span key={r} className="ap-ref">{pad2(r)}</span>
+        ))}
+    </p>
+);
+
+/* ------------------------------------------------------------------ */
+/* Bo'limlar                                                           */
+/* ------------------------------------------------------------------ */
+
+export function buildSourcesSection(
+    data: PlagiarismFullReportData,
+    title: string,
+    sources: PlagiarismSource[],
+    overflowNote?: FlowSection['overflowNote'],
+): FlowSection {
+    return {
+        key: 'sources',
+        head: (
+            <>
+                <SummaryHead data={data} title={title} />
+                <TableTitle />
+                <SourcesHeaderRow />
+            </>
+        ),
+        contHead: (
+            <>
+                <SectionHead title="Manbalar ro'yxati" cont sub={`№ ${data.documentNumber} · ${data.uploadDate}`} />
+                <SourcesHeaderRow />
+            </>
+        ),
+        blocks: sources.length
+            ? sources.map((s, i) => ({ key: `s-${s.id}-${i}`, node: <SourceRow source={s} /> }))
+            : [{ key: 'empty', node: <EmptySources /> }],
+        overflowNote,
+    };
+}
+
+const TableTitle: React.FC = () => {
+    const { t } = useT();
+    return <h3 className="ap-table-title">{t("Manbalar ro'yxati")}</h3>;
+};
+
+export function reportFragments(data: PlagiarismFullReportData): PlagiarismFragmentDetail[] {
+    if (data.fragmentDetails && data.fragmentDetails.length > 0) return data.fragmentDetails;
+    return data.sources
+        .filter((s) => parseFloat(s.percentage) > 0 && (s.documentFragment || s.sourceFragment))
+        .map((s) => ({
+            sourceIndex: s.id,
+            title: s.sourceName,
+            sourceUrl: s.sourceUrl,
+            documentFragment: s.documentFragment || '',
+            sourceFragment: s.sourceFragment || '',
+            percentage: s.percentage,
+            searchModule: s.searchModule,
+        }));
+}
+
+const DocLegend: React.FC = () => {
     const { t } = useT();
     return (
-    <AntiplagReportInnerPage>
-        <h2 className="text-sm font-bold uppercase tracking-wide mb-1" style={{ color: REPORT_COLOR_NAVY, fontFamily: 'Georgia, serif' }}>
-            {t('Tekshirilayotgan hujjat matni')}
-        </h2>
-        <p className="text-[9px] text-slate-500 mb-3">{translateDefault(t, documentName, ['Hujjat'])}</p>
-        <p className="text-[8px] text-slate-500 mb-2 italic">
-            {t("Qizil raqamlar mos manba indeksini ko'rsatadi (manbalar jadvalidagi [01], [02], …).")}
+        <p className="ap-sub" style={{ marginTop: 4 }}>
+            <span className="ap-swatch" style={{ background: '#fde2e2', boxShadow: 'inset 0 -1px 0 #f87171' }} />
+            {t("Belgilangan matn manbalarda topilgan; raqam — manbalar ro'yxatidagi tartib raqami.")}
         </p>
-        <div className="flex-1 min-h-0 space-y-2 overflow-hidden">
-            {paragraphs.map((para, idx) => (
-                <p key={idx} className="text-[9px] leading-relaxed text-justify" style={{ color: REPORT_COLOR_TEXT }}>
-                    {para.text}
-                    <SourceRefBadges refs={para.sourceRefs} />
-                </p>
-            ))}
-        </div>
-    </AntiplagReportInnerPage>
     );
 };
 
-const PlagiarismFullReport: React.FC<{ data: PlagiarismFullReportData }> = ({ data }) => {
-    const COVER_SOURCES = 10;
-    const SOURCES_PER_PAGE = 14;
-    const PARAGRAPHS_PER_PAGE = 8;
+/** Sahifa ramkasi: hisobot2.jpg + pastki qatorda hujjat raqami va sahifa raqami (muqova — 1-sahifa). */
+export function useInnerPageRenderer(documentNumber: string) {
+    const { t } = useT();
+    return (content: React.ReactNode, index: number, total: number) => (
+        <AntiplagReportInnerPage
+            footerLeft={`Phoenix Antiplagiat · № ${documentNumber}`}
+            footerRight={t('Sahifa {pageNum}', { pageNum: `${index + 2} / ${total + 1}` })}
+        >
+            {content}
+        </AntiplagReportInnerPage>
+    );
+}
 
-    const coverSources = data.sources.slice(0, COVER_SOURCES);
-    const remainingSources = data.sources.slice(COVER_SOURCES);
-    const totalSourcePages = Math.max(0, Math.ceil(remainingSources.length / SOURCES_PER_PAGE));
+export const ReportCoverSheet: React.FC<{ data: PlagiarismFullReportData }> = ({ data }) => (
+    <ReportSheet>
+        <div className="ap-cover">
+            <AntiplagiatReportTitleCover data={data} />
+        </div>
+    </ReportSheet>
+);
 
-    const fragments: PlagiarismFragmentDetail[] =
-        data.fragmentDetails && data.fragmentDetails.length > 0
-            ? data.fragmentDetails
-            : data.sources
-                  .filter((s) => parseFloat(s.percentage) > 0 && (s.documentFragment || s.sourceFragment))
-                  .slice(0, 40)
-                  .map((s) => ({
-                      sourceIndex: s.id,
-                      title: s.sourceName,
-                      sourceUrl: s.sourceUrl,
-                      documentFragment: s.documentFragment || '',
-                      sourceFragment: s.sourceFragment || '',
-                      percentage: s.percentage,
-                      searchModule: s.searchModule,
-                  }));
+const PlagiarismFullReport: React.FC<{ data: PlagiarismFullReportData; id?: string }> = ({
+    data,
+    id = 'plagiarism-full-report',
+}) => {
+    const { t, lang } = useT();
+    const renderPage = useInnerPageRenderer(data.documentNumber);
+    const fragments = reportFragments(data);
+    const chunks = chunkParagraphs(data.annotatedDocument || []);
+    const docName = translateDefault(t, data.documentName, ['Hujjat']);
 
-    const annotated = data.annotatedDocument || [];
-    const totalDocPages = Math.ceil(annotated.length / PARAGRAPHS_PER_PAGE);
-
-    const sourcePageStart = 3;
-    const fragmentPageStart = sourcePageStart + totalSourcePages;
-    const documentPageStart = fragmentPageStart + fragments.length;
+    const sections: FlowSection[] = [buildSourcesSection(data, 'Hujjat tekshirish natijalari', data.sources)];
+    if (fragments.length) {
+        sections.push({
+            key: 'fragments',
+            head: (
+                <SectionHead
+                    title="Matnli kesishmalar"
+                    sub={t("Hujjatdagi matn va manbadagi mos fragment yonma-yon ko'rsatilgan.")}
+                />
+            ),
+            contHead: <SectionHead title="Matnli kesishmalar" cont />,
+            blocks: fragments.map((f, i) => ({ key: `f-${f.sourceIndex}-${i}`, node: <FragmentCard fragment={f} /> })),
+        });
+    }
+    if (chunks.length) {
+        sections.push({
+            key: 'document',
+            head: (
+                <SectionHead title="Tekshirilayotgan hujjat matni" sub={docName}>
+                    <DocLegend />
+                </SectionHead>
+            ),
+            contHead: <SectionHead title="Tekshirilayotgan hujjat matni" cont />,
+            blocks: chunks.map((c, i) => ({ key: `d-${i}`, node: <DocParagraph chunk={c} /> })),
+        });
+    }
 
     return (
-        <div className="space-y-6" id="plagiarism-full-report">
-            <div className="shadow-xl print:shadow-none">
-                <AntiplagiatReportTitleCover data={data} />
-            </div>
-            <div className="shadow-xl print:shadow-none page-break-before">
-                <PlagiarismReportCoverPage data={data} coverSources={coverSources} />
-            </div>
-
-            {Array.from({ length: totalSourcePages }).map((_, pageIndex) => {
-                const startIdx = pageIndex * SOURCES_PER_PAGE;
-                return (
-                    <div key={`src-${pageIndex}`} className="shadow-xl print:shadow-none page-break-before">
-                        <SourcesPage
-                            data={{
-                                ...data,
-                                sources: remainingSources.slice(startIdx, startIdx + SOURCES_PER_PAGE),
-                            }}
-                            pageNum={sourcePageStart + pageIndex}
-                            startIdx={0}
-                            endIdx={SOURCES_PER_PAGE}
-                        />
-                    </div>
-                );
-            })}
-
-            {fragments.map((frag, pageIndex) => (
-                <div key={`frag-${frag.sourceIndex}`} className="shadow-xl print:shadow-none page-break-before">
-                    <FragmentDetailPage fragment={frag} pageNum={fragmentPageStart + pageIndex} />
-                </div>
-            ))}
-
-            {Array.from({ length: totalDocPages }).map((_, pageIndex) => {
-                const chunk = annotated.slice(
-                    pageIndex * PARAGRAPHS_PER_PAGE,
-                    (pageIndex + 1) * PARAGRAPHS_PER_PAGE,
-                );
-                return (
-                    <div key={`doc-${pageIndex}`} className="shadow-xl print:shadow-none page-break-before">
-                        <DocumentTextPage
-                            paragraphs={chunk}
-                            pageNum={documentPageStart + pageIndex}
-                            documentName={data.documentName}
-                        />
-                    </div>
-                );
-            })}
+        <div className="ap-report ap-report-pages" id={id} data-paper>
+            <ReportCoverSheet data={data} />
+            <FlowPages sections={sections} renderPage={renderPage} layoutKey={lang} />
         </div>
     );
 };

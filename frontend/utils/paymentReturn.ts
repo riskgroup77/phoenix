@@ -22,7 +22,7 @@ const SERVICE_SUCCESS: Record<string, string> = {
   language_editing: "To'lov muvaffaqiyatli! Antiplagiat tekshiruvi boshlanmoqda.",
   book_publication: "To'lov muvaffaqiyatli! Kitob buyurtmangiz qabul qilindi.",
   translation: "To'lov muvaffaqiyatli! Tarjima buyurtmangiz ishga tushdi.",
-  udk_request: "To'lov muvaffaqiyatli! UDK so'rovingiz taqrizchiga yuborildi.",
+  udk_request: "To'lov muvaffaqiyatli! UDK kodi avtomatik aniqlanmoqda.",
   doi_request: "To'lov muvaffaqiyatli! DOI so'rovingiz qabul qilindi.",
   article_sample: "To'lov muvaffaqiyatli! Buyurtmangiz qabul qilindi.",
 };
@@ -39,7 +39,8 @@ export function paymentDestination(tx: Pick<ReturnTx, 'id' | 'service_type' | 'a
     case 'translation':
       return '/my-translations';
     case 'udk_request':
-      return '/udk-olish';
+      // UDK sahifasi so'rovni tranzaksiya orqali topib, aniqlash jarayoni va natijani ko'rsatadi
+      return `/udk-olish?payment_return=1&transaction_id=${encodeURIComponent(tx.id)}`;
     case 'doi_request':
       return '/doi-olish';
     case 'article_sample':
@@ -48,6 +49,9 @@ export function paymentDestination(tx: Pick<ReturnTx, 'id' | 'service_type' | 'a
       return '/payments';
   }
 }
+
+/** Bu xizmatlar sahifasi to'lov natijasini o'zi (holat kartasi bilan) ko'rsatadi — umumiy toast takrorlanmaydi */
+export const SELF_REPORTING_SERVICES = new Set(['language_editing', 'udk_request']);
 
 export function paymentSuccessMessage(serviceType?: string): string {
   return (serviceType && SERVICE_SUCCESS[serviceType]) || "To'lov muvaffaqiyatli amalga oshirildi!";

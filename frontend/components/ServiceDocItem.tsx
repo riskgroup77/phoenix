@@ -5,7 +5,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Award, Download, ExternalLink, FileBadge } from 'lucide-react';
+import { Award, CheckCircle2, Clock, CreditCard, Download, Eye, Hourglass, XCircle } from 'lucide-react';
+import Button from './ui/Button';
 import { fetchAuthedBlob, saveBlob } from '../services/apiService';
 import { useT } from '../i18n/LanguageContext';
 import { openReferencePdf, referenceTarget } from '../utils/referenceDoc';
@@ -18,7 +19,7 @@ export type ServiceDoc = {
   date: string | null;
   download_url: string | null;
   view_url?: string;
-  extra?: { status_label?: string; status?: string; udk_code?: string; doi_link?: string };
+  extra?: { status_label?: string; status?: string; payment_status?: string | null; udk_code?: string; doi_link?: string };
 };
 
 /** "Ishlarim" ga qo'shiladigan arxiv turlari (maqola bilan bog'liqlari ArticleItem da ko'rinadi) */
@@ -32,6 +33,8 @@ const TYPE_LABELS: Record<string, string> = {
 
 const statusColor = (doc: ServiceDoc) => {
   const st = doc.extra?.status;
+  const pay = doc.extra?.payment_status;
+  if (st === 'rejected' || (st === 'pending_payment' && (pay === 'failed' || pay === 'cancelled'))) return 'bg-red-500/15 text-red-800';
   if (doc.download_url || st === 'completed') return 'bg-green-500/20 text-emerald-900';
   if (st === 'pending_payment') return 'bg-gray-500/20 text-slate-600';
   return 'bg-amber-500/20 text-amber-900';
@@ -68,60 +71,60 @@ const ServiceDocItem: React.FC<{ doc: ServiceDoc }> = ({ doc }) => {
     }
   };
 
+  const tone = statusColor(doc);
+  const StatusIcon = tone.includes('red') ? XCircle : tone.includes('green') ? CheckCircle2 : tone.includes('gray') ? CreditCard : Hourglass;
+  const actionBtn = 'gap-1.5 !px-3 !py-1.5 text-sm';
+  const desc = (doc.extra as { udk_description?: string } | undefined)?.udk_description;
+
   return (
     <div className="editorial-card cursor-pointer hover:border-[var(--editorial-primary)]/35 transition-colors" onClick={open}>
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4">
-        <h4 className="text-base sm:text-lg font-semibold text-[var(--editorial-text)] leading-snug flex items-start gap-2">
-          <FileBadge size={18} className="mt-1 shrink-0 text-[var(--editorial-teal)]" />
-          <span>{doc.title || t(TYPE_LABELS[doc.type] || doc.label)}</span>
-        </h4>
-        {status && (
-          <span className={`text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap self-start ${statusColor(doc)}`}>
-            {t(status)}
-          </span>
-        )}
-      </div>
-      {(doc.extra?.udk_code || doc.extra?.doi_link) && (
-        <p className="text-sm text-slate-600 mt-2">
-          {doc.extra?.udk_code ? <>UDK: <span className="font-mono font-semibold">{doc.extra.udk_code}</span></> : null}
-          {doc.extra?.doi_link ? <>DOI: <span className="font-mono break-all">{doc.extra.doi_link}</span></> : null}
-        </p>
-      )}
-      <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
-        {doc.download_url && (
-          <button
-            type="button"
-            onClick={download}
-            disabled={busy}
-            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--editorial-border)] text-[var(--editorial-primary)] hover:bg-slate-100/80 disabled:opacity-50"
-          >
-            <Download size={14} /> {t('Yuklab olish')}
-          </button>
-        )}
-        {doc.view_url && (
-          <button
-            type="button"
-            onClick={open}
-            className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--editorial-border)] text-[var(--editorial-primary)] hover:bg-slate-100/80"
-          >
-            <ExternalLink size={14} /> {t('Ochish')}
-          </button>
-        )}
-      </div>
-      <div className="flex flex-wrap justify-between items-end mt-4 text-xs text-slate-500 gap-1">
-        <span className="font-medium text-[var(--editorial-teal)]">{t(TYPE_LABELS[doc.type] || doc.label)}</span>
-        <span className="flex flex-col items-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-          {doc.date && <span>{new Date(doc.date).toLocaleDateString(locale === 'uz-UZ' ? 'ru-RU' : locale)}</span>}
-          {reference && (
-            <button
-              type="button"
-              onClick={() => void openReferencePdf(reference.kind, reference.id, t("Ma'lumotnomani yaratib bo'lmadi"))}
-              className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-[var(--editorial-border)] text-[var(--editorial-primary)] hover:bg-slate-100/80 whitespace-nowrap"
-            >
-              <Award size={13} /> {t("Ma'lumotnoma")}
-            </button>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <h4 className="m-0 break-words text-base sm:text-lg font-semibold text-[var(--editorial-text)] leading-snug">
+            {doc.title || t(TYPE_LABELS[doc.type] || doc.label)}
+          </h4>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {status && (
+              <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${tone}`}>
+                <StatusIcon className="h-3.5 w-3.5" aria-hidden /> {t(status)}
+              </span>
+            )}
+          </div>
+          <p className="m-0 mt-1.5 text-sm text-[var(--editorial-teal)] break-words">
+            {t(TYPE_LABELS[doc.type] || doc.label)}
+            {doc.extra?.udk_code ? (
+              <> · UDK: <span className="font-mono font-semibold">{doc.extra.udk_code}</span>{desc ? <span className="text-slate-600"> — {desc}</span> : null}</>
+            ) : null}
+            {doc.extra?.doi_link ? <> · DOI: <span className="font-mono break-all">{doc.extra.doi_link}</span></> : null}
+          </p>
+          {doc.date && (
+            <p className="m-0 mt-1.5 flex items-center gap-1 text-xs text-slate-500">
+              <Clock className="h-3 w-3" aria-hidden /> {new Date(doc.date).toLocaleDateString(locale === 'uz-UZ' ? 'ru-RU' : locale)}
+            </p>
           )}
-        </span>
+        </div>
+        <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end" onClick={(e) => e.stopPropagation()}>
+          {doc.view_url && (
+            <Button type="button" variant="secondary" onClick={open} className={actionBtn}>
+              <Eye className="h-4 w-4" aria-hidden /> {t("Ko'rish")}
+            </Button>
+          )}
+          {doc.download_url && (
+            <Button type="button" variant="secondary" onClick={download} disabled={busy} className={actionBtn}>
+              <Download className="h-4 w-4" aria-hidden /> {t('Yuklab olish')}
+            </Button>
+          )}
+          {reference && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void openReferencePdf(reference.kind, reference.id, t("Ma'lumotnomani yaratib bo'lmadi"))}
+              className={actionBtn}
+            >
+              <Award className="h-4 w-4" aria-hidden /> {t("Ma'lumotnoma")}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

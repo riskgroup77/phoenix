@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ArticleStatus, Role } from '../../types';
-import { Rocket, ChevronDown, Check, Filter, Share2, FileText, Award } from 'lucide-react';
+import { Rocket, ChevronDown, Check, Filter, Share2, FileText, Award, Eye, Clock, CheckCircle2, XCircle, CreditCard, Hourglass } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { PlagiarismBadges } from '../../components/PlagiarismReport';
 import { getAuthorWorkflowStepsFromStatus, getAuthorWorkflowStageLabel, isBookTitle } from '../../utils/articleAuthorWorkflow';
@@ -127,77 +127,115 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
         }
     };
 
+    // Holat tonusi va ikonkasi ("Ishlarim" kartasi — UDK so'rovlari kartasi uslubida)
+    const tone: 'done' | 'bad' | 'pay' | 'progress' = isPlagDoc
+        ? plagState === 'done' ? 'done' : plagState === 'failed' ? 'bad' : plagState === 'awaiting_payment' ? 'pay' : 'progress'
+        : [ArticleStatus.Published, ArticleStatus.Accepted].includes(currentStatus as ArticleStatus) ? 'done'
+            : currentStatus === ArticleStatus.Rejected ? 'bad'
+                : currentStatus === ArticleStatus.Draft ? 'pay' : 'progress';
+    const StatusIcon = { done: CheckCircle2, bad: XCircle, pay: CreditCard, progress: Hourglass }[tone];
+    const dateLabel = new Date(article.submission_date).toLocaleDateString(locale === 'uz-UZ' ? 'ru-RU' : locale);
+    const metaParts = [
+        article.work_type ? t(article.work_type) : '',
+        isPlagDoc
+            ? (plagState === 'done' && article.plagiarism_percentage != null
+                ? t("O'xshashlik: {value}%", { value: Number(article.plagiarism_percentage).toFixed(2) })
+                : '')
+            : article.journal_name || '',
+        !isAuthor ? article.author_name || '' : '',
+    ].filter(Boolean);
+    const actionBtn = 'gap-1.5 !px-3 !py-1.5 text-sm';
+
     return (
-        <div 
+        <div
             className="editorial-card cursor-pointer hover:border-[var(--editorial-primary)]/35 transition-colors"
             onClick={() => navigate(openTarget)}
         >
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4">
-                <h4 className="text-base sm:text-lg font-semibold text-[var(--editorial-text)] leading-snug">{article.title}</h4>
-                <div className="flex items-center gap-2 shrink-0">
-                    {article.fast_track && (
-                        <span className="text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap bg-yellow-500/20 text-yellow-900 flex items-center gap-1.5">
-                            <Rocket size={14} /> TOP
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                    <h4 className="m-0 break-words text-base sm:text-lg font-semibold text-[var(--editorial-text)] leading-snug">{article.title}</h4>
+                    <div className="mt-2 flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${statusData.color}`}>
+                            <StatusIcon className="h-3.5 w-3.5" aria-hidden /> {t(statusData.text)}
                         </span>
-                    )}
-                    <div className="relative">
-                        <div className="flex items-center gap-2">
-                            <span className={`text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap ${statusData.color}`}>
-                                {t(statusData.text)}
+                        {article.fast_track && (
+                            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold bg-yellow-500/20 text-yellow-900">
+                                <Rocket size={13} /> TOP
                             </span>
-                            {isAuthor && !isPlagDoc && currentStatus === ArticleStatus.Published && (
+                        )}
+                        {canUpdateStatus && getAvailableStatusOptions().length > 0 && (
+                            <div className="relative">
                                 <button
-                                    onClick={handleShare}
-                                    className="p-1.5 rounded-lg bg-green-600/20 text-emerald-800 hover:bg-green-500/30 transition-colors"
-                                    title={t('Share — jurnal linki va sertifikat havolasini ulashish')}
+                                    onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                                    className="text-xs bg-slate-100/90 hover:bg-slate-200 rounded-full p-1.5 transition-colors"
+                                    aria-label={t("Holatni o'zgartirish")}
                                 >
-                                    <Share2 size={16} />
+                                    <ChevronDown size={14} />
                                 </button>
-                            )}
-                            {canUpdateStatus && getAvailableStatusOptions().length > 0 && (
-                                <div className="relative">
-                                    <button 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setIsStatusDropdownOpen(!isStatusDropdownOpen);
-                                        }}
-                                        className="text-xs bg-slate-100/90 hover:bg-gray-600 rounded-full p-1.5 transition-colors"
-                                    >
-                                        <ChevronDown size={14} />
-                                    </button>
-                                    
-                                    {isStatusDropdownOpen && (
-                                        <div className="absolute right-0 mt-1 w-48 bg-white/50 border border-slate-200 rounded-lg shadow-lg z-10">
-                                            <div className="py-1 max-h-60 overflow-y-auto">
-                                                {getAvailableStatusOptions().map((status) => (
-                                                    <button
-                                                        key={status}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            console.log('Status button clicked with status:', status);
-                                                            handleStatusUpdate(status);
-                                                        }}
-                                                        disabled={isUpdating}
-                                                        className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
-                                                            currentStatus === status 
-                                                                ? 'bg-blue-600/30 text-blue-900' 
-                                                                : 'text-slate-600 hover:bg-slate-100/80'
-                                                        }`}
-                                                    >
-                                                        <Check size={14} className={currentStatus === status ? 'opacity-100' : 'opacity-0'} />
-                                                        {getStatusDisplayData(status).text}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                {isStatusDropdownOpen && (
+                                    <div className="absolute left-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-10">
+                                        <div className="py-1 max-h-60 overflow-y-auto">
+                                            {getAvailableStatusOptions().map((status) => (
+                                                <button
+                                                    key={status}
+                                                    onClick={() => handleStatusUpdate(status)}
+                                                    disabled={isUpdating}
+                                                    className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
+                                                        currentStatus === status ? 'bg-blue-600/30 text-blue-900' : 'text-slate-600 hover:bg-slate-100/80'
+                                                    }`}
+                                                >
+                                                    <Check size={14} className={currentStatus === status ? 'opacity-100' : 'opacity-0'} />
+                                                    {getStatusDisplayData(status).text}
+                                                </button>
+                                            ))}
                                         </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
+                    {metaParts.length > 0 && (
+                        <p className="m-0 mt-1.5 text-sm text-[var(--editorial-teal)] break-words">{metaParts.join(' · ')}</p>
+                    )}
+                    {!isAuthor && article.abstract && (
+                        <p className="text-sm text-slate-500 mt-1.5 line-clamp-2">{article.abstract}</p>
+                    )}
+                    <p className="m-0 mt-1.5 flex items-center gap-1 text-xs text-slate-500">
+                        <Clock className="h-3 w-3" aria-hidden /> {dateLabel}
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end" onClick={(e) => e.stopPropagation()}>
+                    <Button type="button" variant="secondary" onClick={() => navigate(openTarget)} className={actionBtn}>
+                        <Eye className="h-4 w-4" aria-hidden /> {t("Ko'rish")}
+                    </Button>
+                    {canGetDocuments && (
+                        <Button type="button" variant="secondary" onClick={() => setShowReport(true)} className={actionBtn}>
+                            <FileText className="h-4 w-4" aria-hidden /> {t('Hisobot olish')}
+                        </Button>
+                    )}
+                    {isAuthor && isAuthorRole && (
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => void openReferencePdf('article', article.id, t("Ma'lumotnomani yaratib bo'lmadi"))}
+                            className={actionBtn}
+                        >
+                            <Award className="h-4 w-4" aria-hidden /> {t("Ma'lumotnoma")}
+                        </Button>
+                    )}
+                    {isAuthor && !isPlagDoc && currentStatus === ArticleStatus.Published && (
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={(e) => handleShare(e)}
+                            className={actionBtn}
+                            title={t('Share — jurnal linki va sertifikat havolasini ulashish')}
+                        >
+                            <Share2 className="h-4 w-4" aria-hidden /> {t('Ulashish')}
+                        </Button>
+                    )}
                 </div>
             </div>
-            <p className="text-sm text-slate-500 mt-2 line-clamp-2">{article.abstract}</p>
             {isAuthor && !isPlagDoc && currentStatus === ArticleStatus.Draft && (pendingTxId || article.needs_publication_payment) && (
                 <div
                     className="mt-3 p-3 rounded-lg bg-amber-500/15 border border-amber-500/30"
@@ -208,15 +246,15 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                     </p>
                     <Button
                         type="button"
-                        variant="secondary"
-                        className="w-full sm:w-auto"
+                        variant="accent"
+                        className={`w-full sm:w-auto ${actionBtn}`}
                         disabled={isPaying}
                         onClick={(e) => {
                             e.stopPropagation();
                             startPublicationPayment();
                         }}
                     >
-                        {isPaying ? '...' : t("To'lovni tugatish")}
+                        <CreditCard className="h-4 w-4" aria-hidden /> {isPaying ? '...' : t("To'lovni tugatish")}
                     </Button>
                 </div>
             )}
@@ -246,7 +284,6 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                             </div>
                         ))}
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-2">{t('Batafsil bosqichlar uchun maqolani oching.')}</p>
                 </div>
             )}
             {/* Antiplagiat foizlari faqat jurnal admin va super admin uchun (muallifda ko'rinmasin) */}
@@ -259,44 +296,11 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                     />
                 </div>
             )}
-            {canGetDocuments && (
-                <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
-                    <button
-                        type="button"
-                        onClick={() => setShowReport(true)}
-                        className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--editorial-border)] text-[var(--editorial-primary)] hover:bg-slate-100/80"
-                    >
-                        <FileText size={14} /> {t('Hisobot olish')}
-                    </button>
-                </div>
-            )}
             {showReport && (
                 <div onClick={(e) => e.stopPropagation()}>
                     <WorksReportModal articleId={article.id} articleTitle={article.title} onClose={() => setShowReport(false)} />
                 </div>
             )}
-            <div className="flex flex-wrap justify-between items-end mt-4 text-xs text-slate-500 gap-1">
-                <span className="truncate max-w-[60%]">
-                    {article.work_type && <span className="font-medium text-[var(--editorial-teal)] mr-1.5">{t(article.work_type)} ·</span>}
-                    {article.author_name || t("Noma'lum muallif")}
-                </span>
-                <span className="flex flex-col items-end gap-1.5">
-                    <span>{new Date(article.submission_date).toLocaleDateString(locale === 'uz-UZ' ? 'ru-RU' : locale)}</span>
-                    {/* Har qanday hujjat uchun holat haqida ma'lumotnoma (PDF, interfeys tilida) — sana ostida */}
-                    {isAuthor && isAuthorRole && (
-                        <button
-                            type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                void openReferencePdf('article', article.id, t("Ma'lumotnomani yaratib bo'lmadi"));
-                            }}
-                            className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-[var(--editorial-border)] text-[var(--editorial-primary)] hover:bg-slate-100/80 whitespace-nowrap"
-                        >
-                            <Award size={13} /> {t("Ma'lumotnoma")}
-                        </button>
-                    )}
-                </span>
-            </div>
         </div>
     );
 }

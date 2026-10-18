@@ -245,24 +245,61 @@ def _ai_search_terms(title: str, abstract: str, keywords: list[str]) -> list[str
     return [str(t).strip() for t in terms if str(t).strip()][:6]
 
 
-def _ai_pick(title: str, abstract: str, keywords: list[str], candidates: list[Candidate]) -> tuple[str, str] | None:
+def _ai_pick(title: str, abstract: str, keywords: list[str],
+             candidates: list[Candidate]) -> tuple[str, str, list[str]] | None:
+    """AI: asosiy kod + (ixtiyoriy) boshqa jihatlarni bildiruvchi qo'shimcha kodlar — faqat nomzodlar ichidan."""
     if not candidates:
         return None
     lines = '\n'.join(f'{c.code} — {c.title}' for c in candidates)
     data = _ai_json(
-        "Sen kutubxonachi-klassifikatorsan. Ilmiy ish uchun UDK (Universal o'nli klassifikatsiya) kodini tanla.\n\n"
+        "Sen tajribali kutubxonachi-klassifikatorsan. Ilmiy ish uchun to'liq UDK (Universal o'nli klassifikatsiya) "
+        "indeksini tuz.\n\n"
         f"{_work_block(title, abstract, keywords)}\n\n"
-        f"NOMZODLAR (faqat shulardan birini tanla):\n{lines}\n\n"
-        "Ishning asosiy mavzusiga eng aniq mos keladigan (iloji boricha batafsil) kodni tanla va uning tavsifini "
-        "o'zbek tilida (lotin yozuvida) qisqa yoz. "
-        'Faqat JSON: {"code": "<kod>", "description_uz": "<tavsif>"}'
+        f"NOMZODLAR (faqat shulardan tanla):\n{lines}\n\n"
+        "1) Ishning ASOSIY mavzusiga eng aniq (iloji boricha chuqur, batafsil) mos keladigan bitta kodni tanla.\n"
+        "2) Agar ish boshqa fan sohasining muhim jihatini ham qamrasa (masalan ta'limda sun'iy intellekt: "
+        "pedagogika + AI), shu jihat uchun 1-2 ta qo'shimcha kodni tanla — ular ':' bilan bog'lanadi "
+        "(37.013.2:004.8). Qo'shimcha kod asosiy kodning o'zi yoki uning ota-klassi bo'lmasin; kerak bo'lmasa bo'sh qoldir.\n"
+        "Tavsifni o'zbek tilida (lotin yozuvida) qisqa yoz.\n"
+        'Faqat JSON: {"code": "<asosiy kod>", "related": ["<kod>", ...], "description_uz": "<tavsif>"}'
     )
     if not data:
         return None
+    allowed = {c.code for c in candidates}
     code = str(data.get('code') or '').strip()
-    if code not in {c.code for c in candidates}:
+    if code not in allowed:
         return None
-    return code, str(data.get('description_uz') or '').strip()[:300]
+    related = []
+    for r in data.get('related') or []:
+        r = str(r).strip()
+        if r in allowed and r != code and not code.startswith(r) and not r.startswith(code) and r not in related:
+            related.append(r)
+    return code, str(data.get('description_uz') or '').strip()[:300], related[:2]
+
+
+def _main_class(code: str) -> str:
+    """Asosiy bo'lim: 37.013.2 → 37, 004.8 → 00, 811.512 → 81 (qo'shma kod uchun turli fan sohasi tekshiruvi)."""
+    return re.sub(r'[^0-9]', '', code)[:2]
+
+
+def _lexical_related(main: Candidate, candidates: list[Candidate], keywords: list[str]) -> list[str]:
+    """
+    AI siz qo'shma kod (ehtiyotkor): boshqa fan bo'limidagi nomzod faqat muallifning biror kalit so'zi to'liq shu
+    klass tavsifida bo'lsa va asosiy klass tavsifida bo'lmasa qo'shiladi — ishning ikkinchi jihati aniq bo'lganda.
+    Masalan kalit so'zlar "sun'iy intellekt", "pedagogika" → 004.89:37.013.2.
+    """
+    by_code = _index()[0]
+    main_stems = set(stems(by_code.get(main.code, ('', ''))[0]))
+    kw_sets = [set(stems(k)) for k in keywords if stems(k)]
+    for c in candidates:
+        if c.source != 'book' or c.code == main.code or _main_class(c.code) == _main_class(main.code):
+            continue
+        if c.score < 0.4 * main.score or '.' not in c.code:
+            continue
+        own = set(stems(by_code.get(c.code, ('', ''))[0]))
+        if any(kw <= own and not kw <= main_stems for kw in kw_sets):
+            return [c.code]
+    return []
 
 
 def classify(title: str, abstract: str = '', keywords=None, body_text: str = '') -> UdkResult | None:
@@ -294,16 +331,24 @@ def classify(title: str, abstract: str = '', keywords=None, body_text: str = '')
     by_code = {c.code: c for c in candidates}
     picked = _ai_pick(title, abstract, keywords, candidates)
     if picked:
-        code, description = picked
+        code, description, related = picked
         method = 'ai'
     else:
         book = [c for c in candidates if c.source == 'book']
         code = (book or candidates)[0].code
         description = ''
+        related = _lexical_related(by_code[code], candidates, keywords)
         method = 'lexical' if book else 'perviy'
     best = by_code[code]
     if best.source == 'book' or not description:
         description = _book_title(code) or description or best.title
+    while related and len(':'.join([code, *related])) > 50:  # UDKCertificate.udk_code max_length=50
+        related.pop()
+    if related:
+        # Qo'shma indeks: asosiy:qo'shimcha (UDK "munosabat" belgisi ':'), tavsiflar '; ' bilan
+        extra = [_book_title(r) or by_code[r].title for r in related]
+        code = ':'.join([code, *related])
+        description = '; '.join([description, *[e for e in extra if e]])[:500]
     return UdkResult(code=code, description=description, method=method,
                      candidates=[{'code': c.code, 'title': c.title, 'score': c.score, 'source': c.source}
                                  for c in candidates[:12]])

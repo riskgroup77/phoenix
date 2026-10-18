@@ -27,6 +27,11 @@ class UdkRequestSerializer(serializers.ModelSerializer):
     """UDK so'rovi serializer: taqrizchi va muallif uchun."""
     file_url = serializers.SerializerMethodField()
     author_short = serializers.SerializerMethodField()
+    # To'lov va natija: sahifa to'lovdan qaytganda so'rovni kuzatadi, to'lanmaganini qayta to'latadi (yangi
+    # buyurtma ochmasdan), tayyor bo'lsa ma'lumotnomani yuklaydi
+    transaction_id = serializers.SerializerMethodField()
+    payment_status = serializers.SerializerMethodField()
+    certificate_id = serializers.SerializerMethodField()
 
     class Meta:
         model = UdkRequest
@@ -34,8 +39,24 @@ class UdkRequestSerializer(serializers.ModelSerializer):
             'id', 'author_first_name', 'author_last_name', 'author_middle_name', 'author_short',
             'title', 'abstract', 'file', 'file_url', 'udk_code', 'udk_description',
             'status', 'reject_reason', 'created_at', 'completed_at', 'auto_method',
+            'transaction_id', 'payment_status', 'certificate_id',
         )
         read_only_fields = fields
+
+    def get_transaction_id(self, obj):
+        return str(obj.transaction_id) if obj.transaction_id else None
+
+    def get_payment_status(self, obj):
+        tx = obj.transaction if obj.transaction_id else None
+        return getattr(tx, 'status', None)
+
+    def get_certificate_id(self, obj):
+        if not obj.transaction_id:
+            return None
+        cert_map = self.context.get('certificate_ids')
+        if cert_map is not None:
+            return cert_map.get(obj.transaction_id)
+        return UDKCertificate.objects.filter(transaction_id=obj.transaction_id).values_list('id', flat=True).first()
 
     def get_file_url(self, obj):
         if not obj.file:
@@ -127,6 +148,35 @@ def udk_request_create(request):
     udk_payment_enabled = getattr(settings, 'UDK_PAYMENT_ENABLED', True)
     amount = 0 if not udk_payment_enabled else services.get_udk_service_amount()
 
+    # Ikki marta to'lamaslik: xuddi shu ish uchun to'lanmagan buyurtma bo'lsa (masalan, to'lov oynasi yopilib,
+    # forma qayta yuborildi) — yangi buyurtma/tranzaksiya ochilmaydi, o'sha tranzaksiya qayta to'lovga beriladi.
+    if amount:
+        existing = (
+            UdkRequest.objects.select_related('transaction')
+            .filter(
+                user=request.user, title=title, abstract=abstract,
+                status=UDK_REQUEST_STATUS_PENDING_PAYMENT, transaction__status='pending',
+            )
+            .order_by('-created_at')
+            .first()
+        )
+        if existing is not None and float(existing.transaction.amount) == float(amount):
+            existing.author_first_name = author_first_name
+            existing.author_last_name = author_last_name
+            existing.author_middle_name = author_middle_name
+            fields = ['author_first_name', 'author_last_name', 'author_middle_name']
+            if uploaded_file:
+                existing.file = uploaded_file
+                fields.append('file')
+            existing.save(update_fields=fields)
+            return Response({
+                'udk_request_id': str(existing.id),
+                'transaction_id': str(existing.transaction_id),
+                'amount': amount,
+                'currency': 'UZS',
+                'reused': True,
+            }, status=status.HTTP_200_OK)
+
     # UdkRequest yaratish
     udk_req = UdkRequest.objects.create(
         user=request.user,
@@ -190,12 +240,19 @@ def udk_request_list(request):
     
     if role in ['reviewer', 'super_admin', 'operator']:
         # Taqrizchi barcha so'rovlarni ko'radi; operator — kuzatish uchun (o'zgartira olmaydi)
-        qs = UdkRequest.objects.all().order_by('-created_at')[:1000]  # avval 100 — eng eski (eng kechikkan) so'rovlar ko'rinmay qolardi
+        qs = UdkRequest.objects.select_related('transaction').order_by('-created_at')[:1000]  # avval 100 — eng eski (eng kechikkan) so'rovlar ko'rinmay qolardi
     else:
         # Muallif faqat o'zini ko'radi
-        qs = UdkRequest.objects.filter(user=user).order_by('-created_at')[:50]
-    
-    serializer = UdkRequestSerializer(qs, many=True, context={'request': request})
+        qs = UdkRequest.objects.filter(user=user).select_related('transaction').order_by('-created_at')[:50]
+
+    rows = list(qs)
+    tx_ids = [r.transaction_id for r in rows if r.transaction_id]
+    certificate_ids = dict(
+        UDKCertificate.objects.filter(transaction_id__in=tx_ids).values_list('transaction_id', 'id')
+    ) if tx_ids else {}
+    serializer = UdkRequestSerializer(
+        rows, many=True, context={'request': request, 'certificate_ids': certificate_ids},
+    )
     return Response(serializer.data)
 
 

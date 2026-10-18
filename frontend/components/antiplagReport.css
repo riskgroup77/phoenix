@@ -1,0 +1,540 @@
+/*
+ * Antiplagiat hisoboti (hisobot1.jpg muqova + hisobot2.jpg ichki sahifalar).
+ * Sahifa har doim A4 (210×297 mm) o'lchamida chiziladi: ekranda kenglikka moslab kichraytiriladi (transform),
+ * chop etish/PDF da esa aynan 1:1 — shuning uchun ekrandagi va PDF dagi sahifalash bir xil.
+ * Ranglar tema (dark mode) qoidalaridan mustaqil — qog'oz doim oq.
+ */
+
+.ap-report {
+  --ap-ink: #172033;
+  --ap-muted: #5b6475;
+  --ap-line: #d5dde6;
+  --ap-teal: #2c6a7c;
+  --ap-teal-dark: #1f4f5e;
+  --ap-navy: #1f3f8f;
+  --ap-red: #c81e1e;
+  --ap-amber: #a16207;
+  --ap-blue: #1d4ed8;
+  --ap-green: #15803d;
+  color: var(--ap-ink);
+  font-family: 'Onest', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  color-scheme: light;
+}
+
+.ap-report-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+/* ---- Varaq (har bir sahifa) ---- */
+.ap-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 210mm;
+  aspect-ratio: 210 / 297;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.25), 0 8px 10px -6px rgb(0 0 0 / 0.2);
+  flex-shrink: 0;
+}
+.ap-sheet--landscape {
+  max-width: 297mm;
+  aspect-ratio: 297 / 210;
+}
+/* Muqova (AntiplagJpgPage) varaqni to'liq egallaydi */
+.ap-sheet > .ap-cover {
+  position: absolute;
+  inset: 0;
+}
+.ap-sheet > .ap-cover > div {
+  width: 100% !important;
+  max-width: none !important;
+  height: 100%;
+  aspect-ratio: auto !important;
+  box-shadow: none !important;
+}
+
+/* A4 sahna: 210×297 mm, ekranda kenglikka mos kichraytiriladi */
+.ap-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 210mm;
+  height: 297mm;
+  transform-origin: 0 0;
+}
+.ap-stage > img.ap-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  user-select: none;
+  pointer-events: none;
+}
+/* layout.json → report_inner.content_box: x .085, y .135, w .83, h .735 */
+.ap-content {
+  position: absolute;
+  left: 8.5%;
+  top: 13.5%;
+  width: 83%;
+  height: 73.5%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ap-flow {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.ap-page-footer {
+  flex: 0 0 auto;
+  height: 18px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--ap-muted);
+  border-top: 1px solid var(--ap-line);
+  padding-top: 3px;
+}
+
+/* O'lchash konteyneri (ekrandan tashqarida, ko'rinmaydi) */
+.ap-measure {
+  position: absolute;
+  left: -100000px;
+  top: 0;
+  width: calc(210mm * 0.83);
+  visibility: hidden;
+  pointer-events: none;
+}
+.ap-block {
+  display: flow-root;
+}
+
+/* ---- Tipografiya ---- */
+.ap-h1 {
+  margin: 0;
+  text-align: center;
+  font-size: 19px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ap-teal);
+}
+.ap-h2 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ap-teal);
+}
+.ap-h2 .ap-cont {
+  font-weight: 600;
+  text-transform: none;
+  color: var(--ap-muted);
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.ap-sub {
+  margin: 2px 0 0;
+  font-size: 10px;
+  color: var(--ap-muted);
+}
+.ap-section-head {
+  padding-bottom: 8px;
+}
+.ap-issuer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--ap-muted);
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ap-teal);
+  margin-bottom: 10px;
+}
+.ap-issuer strong {
+  flex: 1 1 auto;
+  font-size: 9px;
+  color: var(--ap-navy);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ap-issuer .ap-issuer-right {
+  flex: 0 1 auto;
+  max-width: 55%;
+  text-align: right;
+}
+.ap-issuer .ap-nowrap {
+  white-space: nowrap;
+}
+.ap-issuer .ap-issuer-right b {
+  color: var(--ap-ink);
+}
+
+/* ---- Ko'rsatkichlar ---- */
+.ap-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+.ap-metric {
+  border: 1px solid;
+  border-radius: 6px;
+  padding: 7px 4px 6px;
+  text-align: center;
+  min-width: 0;
+}
+.ap-metric-value {
+  font-size: 21px;
+  line-height: 1.1;
+  font-weight: 800;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ap-metric-label {
+  margin-top: 4px;
+  font-size: 8.5px;
+  line-height: 1.2;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ap-ink);
+}
+
+/* ---- Ma'lumot bloklari ---- */
+.ap-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.ap-card {
+  border: 1px solid var(--ap-line);
+  border-radius: 6px;
+  padding: 7px 9px;
+  background: rgba(255, 255, 255, 0.92);
+  min-width: 0;
+}
+.ap-card-title {
+  margin: 0 0 4px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--ap-line);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ap-teal);
+}
+.ap-info {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 2px;
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.35;
+}
+.ap-info dt {
+  color: var(--ap-muted);
+}
+.ap-info dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ap-ink);
+  overflow-wrap: anywhere;
+}
+.ap-modules {
+  margin: 4px 0 0;
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--ap-ink);
+}
+.ap-legend {
+  border: 1px solid #a7d3dc;
+  background: rgba(240, 249, 251, 0.92);
+  border-radius: 6px;
+  padding: 6px 9px;
+  margin-bottom: 10px;
+  font-size: 8.5px;
+  line-height: 1.4;
+  color: var(--ap-muted);
+}
+.ap-legend p {
+  margin: 0 0 2px;
+}
+.ap-legend p:last-child {
+  margin-bottom: 0;
+}
+
+/* ---- Manbalar jadvali (qatorlar alohida bloklar — sahifalarga bo'linadi) ---- */
+.ap-table-title {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ap-teal);
+}
+.ap-trow {
+  display: grid;
+  grid-template-columns: 44px 56px minmax(0, 1fr) 150px;
+  border-left: 1px solid var(--ap-line);
+  border-right: 1px solid var(--ap-line);
+  border-bottom: 1px solid var(--ap-line);
+  font-size: 10px;
+  line-height: 1.35;
+  background: rgba(255, 255, 255, 0.94);
+}
+.ap-trow > div {
+  padding: 3px 5px;
+  min-width: 0;
+}
+.ap-trow > div + div {
+  border-left: 1px solid var(--ap-line);
+}
+.ap-thead {
+  background: var(--ap-teal);
+  color: #ffffff;
+  font-weight: 700;
+  border-color: var(--ap-teal);
+}
+.ap-thead > div + div {
+  border-left-color: rgba(255, 255, 255, 0.35);
+}
+.ap-trow .ap-num {
+  text-align: center;
+  font-weight: 700;
+  color: var(--ap-teal);
+  font-variant-numeric: tabular-nums;
+}
+.ap-trow .ap-pct {
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.ap-trow .ap-src-title {
+  font-weight: 600;
+  color: var(--ap-ink);
+  overflow-wrap: anywhere;
+}
+.ap-link {
+  display: block;
+  color: var(--ap-teal);
+  font-size: 9px;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.ap-trow .ap-module {
+  color: var(--ap-muted);
+  font-size: 9px;
+}
+.ap-empty {
+  padding: 10px;
+  text-align: center;
+  color: var(--ap-muted);
+  font-size: 10px;
+  border: 1px solid var(--ap-line);
+  border-top: 0;
+}
+.ap-note {
+  margin-top: 6px;
+  font-size: 9.5px;
+  font-style: italic;
+  color: var(--ap-muted);
+}
+
+/* ---- Matnli kesishmalar ---- */
+.ap-frag {
+  border: 1px solid var(--ap-line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.94);
+}
+.ap-frag-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 10px;
+}
+.ap-frag-head .ap-src-title {
+  font-weight: 700;
+  color: var(--ap-ink);
+  overflow-wrap: anywhere;
+}
+.ap-frag-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 5px;
+}
+.ap-frag-col {
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 9.5px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.ap-frag-col--doc {
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+}
+.ap-frag-col--src {
+  background: #f5f9ff;
+  border: 1px solid #bfdbfe;
+}
+.ap-frag-label {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ---- Hujjat matni (o'xshash joylar belgilangan) ---- */
+.ap-doc-p {
+  margin: 0 0 7px;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: justify;
+  hyphens: auto;
+  overflow-wrap: anywhere;
+}
+.ap-hl {
+  background: #fde2e2;
+  box-shadow: inset 0 -1px 0 #f87171;
+  border-radius: 2px;
+}
+.ap-ref {
+  display: inline-block;
+  margin-left: 2px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 7.5px;
+  line-height: 1.3;
+  font-weight: 700;
+  vertical-align: super;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+.ap-swatch {
+  display: inline-block;
+  width: 18px;
+  height: 9px;
+  margin-right: 4px;
+  vertical-align: -1px;
+  border-radius: 2px;
+}
+
+/* ---- Hisobot oynasi (ekranda) ---- */
+.ap-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 23, 42, 0.92);
+}
+.ap-viewer-bar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+}
+.ap-viewer-bar h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.ap-viewer-body {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 24px 16px 48px;
+}
+
+/* Chop etish uchun ildiz: ekranda ko'rinmaydi, lekin sahifalash o'lchanishi uchun joylashtiriladi */
+#ap-print-root {
+  position: fixed;
+  left: -100000px;
+  top: 0;
+  width: 210mm;
+  pointer-events: none;
+}
+#ap-print-root.ap-print-landscape {
+  width: 297mm;
+}
+
+@media print {
+  body.ap-printing > *:not(#ap-print-root) {
+    display: none !important;
+  }
+  body.ap-printing #ap-print-root,
+  body.ap-printing #ap-print-root * {
+    visibility: visible !important;
+  }
+  body.ap-printing {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+  }
+  body.ap-printing #ap-print-root {
+    position: static !important;
+    left: auto !important;
+  }
+  body.ap-printing .ap-report-pages {
+    display: block;
+  }
+  body.ap-printing .ap-sheet {
+    width: 210mm !important;
+    max-width: none !important;
+    height: 297mm !important;
+    aspect-ratio: auto !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    break-after: page;
+    page-break-after: always;
+    break-inside: avoid;
+  }
+  body.ap-printing .ap-sheet--landscape {
+    width: 297mm !important;
+    height: 210mm !important;
+  }
+  body.ap-printing .ap-sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  body.ap-printing .ap-stage {
+    transform: none !important;
+  }
+  .ap-measure {
+    display: none !important;
+  }
+}
+
+/* Birlashtirilgan manba: "N ta parcha" */
+.ap-trow .ap-src-count {
+  margin-top: 2px;
+  font-weight: 600;
+  color: #286c81;
+}

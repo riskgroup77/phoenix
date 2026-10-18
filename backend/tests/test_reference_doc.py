@@ -48,7 +48,8 @@ class ReferenceDocTests(TestCase):
         self.assertEqual(reference_doc.for_article(self.article, 'uz').status, 'Redaktorda')
         self.assertEqual(reference_doc.for_article(self.plag, 'ru').status, 'Проверяется')
         self.assertEqual(reference_doc.for_article(self.plag, 'uz').work_type, 'Antiplagiat tekshiruvi')
-        self.assertEqual(reference_doc.for_udk_certificate(self.cert, 'en').status, 'Completed — UDC: 378')
+        self.assertEqual(reference_doc.for_udk_certificate(self.cert, 'en').status, 'Completed')
+        self.assertIn(('l_udk_code', '378'), reference_doc.for_udk_certificate(self.cert, 'en').rows)
 
     def test_only_owner(self):
         other = APIClient()

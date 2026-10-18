@@ -278,6 +278,28 @@ const Articles: React.FC = () => {
         return q ? serviceDocs.filter((d) => (d.title || '').toLowerCase().includes(q)) : serviceDocs;
     }, [isAuthorUser, activeTab, serviceDocs, searchQuery]);
 
+    /**
+     * Muallif: maqolalar va UDK/DOI hujjatlari bitta ro'yxatda — eng oxirgi yaratilgani eng yuqorida,
+     * 20 tadan sahifalanadi.
+     */
+    const AUTHOR_PAGE_SIZE = 20;
+    const [authorPage, setAuthorPage] = useState(1);
+    const authorItems = useMemo(() => {
+        if (!isAuthorUser) return [];
+        const items = [
+            ...filteredArticles.map((a) => ({ key: `a-${a.id}`, date: a.submission_date || '', article: a, doc: null as ServiceDoc | null })),
+            ...visibleServiceDocs.map((d) => ({ key: `d-${d.id}`, date: d.date || '', article: null as ArticleApiResponse | null, doc: d })),
+        ];
+        return items.sort((x, y) => new Date(y.date || 0).getTime() - new Date(x.date || 0).getTime());
+    }, [isAuthorUser, filteredArticles, visibleServiceDocs]);
+    const authorPageCount = Math.max(1, Math.ceil(authorItems.length / AUTHOR_PAGE_SIZE));
+    useEffect(() => {
+        setAuthorPage(1);
+    }, [activeTab, searchQuery, filterJournal, filterPlagiarism, filterDateFrom, filterDateTo]);
+    useEffect(() => {
+        if (authorPage > authorPageCount) setAuthorPage(authorPageCount);
+    }, [authorPage, authorPageCount]);
+
     /** Rol bo'yicha to'liq ro'yxat (staff / mine / paginatsiyali list) */
     const fetchAllArticlesPages = useCallback(async (): Promise<ArticleApiResponse[]> => {
         const raw = await apiService.articles.listAllForRole(String(userRole || user?.role || ''));
@@ -496,6 +518,58 @@ const Articles: React.FC = () => {
                             </div>
                         </div>
                     ))}
+                </div>
+            );
+        }
+
+        if (isAuthorUser) {
+            const from = (authorPage - 1) * AUTHOR_PAGE_SIZE;
+            const pageItems = authorItems.slice(from, from + AUTHOR_PAGE_SIZE);
+            const goTo = (p: number) => {
+                setAuthorPage(p);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+            const pages = Array.from({ length: authorPageCount }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === authorPageCount || Math.abs(p - authorPage) <= 2);
+            return (
+                <div className="space-y-4">
+                    {pageItems.map((it) => (it.article ? renderArticleList([it.article]) : <ServiceDocItem key={it.key} doc={it.doc as ServiceDoc} />))}
+                    {authorPageCount > 1 && (
+                        <nav className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2" aria-label={tt('Sahifalar')}>
+                            <p className="text-xs text-slate-500">
+                                {tt('Jami {total} ta · {from}–{to} ko\'rsatilmoqda', {
+                                    total: authorItems.length,
+                                    from: from + 1,
+                                    to: Math.min(from + AUTHOR_PAGE_SIZE, authorItems.length),
+                                })}
+                            </p>
+                            <div className="flex items-center gap-1">
+                                <Button type="button" variant="secondary" className="!px-3 !py-1.5 text-sm" disabled={authorPage === 1} onClick={() => goTo(authorPage - 1)}>
+                                    ‹ {tt('Oldingi')}
+                                </Button>
+                                {pages.map((p, i) => (
+                                    <React.Fragment key={p}>
+                                        {i > 0 && p - pages[i - 1] > 1 && <span className="px-1 text-slate-500">…</span>}
+                                        <button
+                                            type="button"
+                                            onClick={() => goTo(p)}
+                                            aria-current={p === authorPage ? 'page' : undefined}
+                                            className={`min-w-[2.25rem] rounded-lg px-2.5 py-1.5 text-sm font-medium border transition-colors ${
+                                                p === authorPage
+                                                    ? 'bg-[var(--editorial-primary)] text-white border-[var(--editorial-primary)]'
+                                                    : 'border-[var(--editorial-border)] text-[var(--editorial-primary)] hover:bg-slate-100/80'
+                                            }`}
+                                        >
+                                            {p}
+                                        </button>
+                                    </React.Fragment>
+                                ))}
+                                <Button type="button" variant="secondary" className="!px-3 !py-1.5 text-sm" disabled={authorPage === authorPageCount} onClick={() => goTo(authorPage + 1)}>
+                                    {tt('Keyingi')} ›
+                                </Button>
+                            </div>
+                        </nav>
+                    )}
                 </div>
             );
         }

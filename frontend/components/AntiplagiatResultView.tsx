@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Card from './ui/Card';
 import Button from './ui/Button';
 import { Printer, Download, FileText, X, Link as LinkIcon, ArrowLeft } from 'lucide-react';
@@ -8,7 +9,138 @@ import PlagiarismShortReport from './PlagiarismShortReport';
 import AntiplagiatHighlightView from './AntiplagiatHighlightView';
 import type { AntiplagiatCertificateData } from './AntiplagiatCertificate';
 import type { PlagiarismFullReportData } from './PlagiarismFullReport';
+import { ReportSheet } from './AntiplagReportInnerPage';
 import { useT } from '../i18n/LanguageContext';
+import './antiplagReport.css';
+
+type PrintKind = 'full' | 'short' | 'certificate';
+
+const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
+
+/**
+ * Chop etish / PDF uchun alohida ildiz (document.body ichida): ekranda ko'rinmaydi, chop etishda faqat u chiqadi.
+ * Hisobot xuddi oynadagi komponent bilan chiziladi — PDF ekrandagi to'liq hisobot bilan bir xil.
+ * `beforeprint`da body ga `ap-printing` klassi va @page (A4, chetlarsiz) qo'yiladi — Ctrl+P ham shu yo'l bilan ishlaydi.
+ */
+const ReportPrintRoot: React.FC<{
+  kind: PrintKind;
+  fullReportData: PlagiarismFullReportData;
+  certificateData: AntiplagiatCertificateData;
+  /** true — tayyor bo'lgach window.print() chaqiriladi */
+  printNow: boolean;
+  onPrinted: () => void;
+}> = ({ kind, fullReportData, certificateData, printNow, onPrinted }) => {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const landscape = kind === 'certificate';
+  const onPrintedRef = useRef(onPrinted);
+  onPrintedRef.current = onPrinted;
+
+  useEffect(() => {
+    let style: HTMLStyleElement | null = null;
+    const before = () => {
+      document.body.classList.add('ap-printing');
+      style = document.createElement('style');
+      style.setAttribute('data-ap-print', '');
+      style.textContent = `@page { size: A4 ${landscape ? 'landscape' : 'portrait'}; margin: 0; }`;
+      document.head.appendChild(style);
+    };
+    const after = () => {
+      document.body.classList.remove('ap-printing');
+      style?.remove();
+      style = null;
+    };
+    window.addEventListener('beforeprint', before);
+    window.addEventListener('afterprint', after);
+    return () => {
+      window.removeEventListener('beforeprint', before);
+      window.removeEventListener('afterprint', after);
+      after();
+    };
+  }, [landscape]);
+
+  useEffect(() => {
+    if (!printNow) return;
+    let cancelled = false;
+    (async () => {
+      const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
+      if (fonts) await fonts.ready;
+      await nextFrame();
+      await nextFrame();
+      const imgs = Array.from(rootRef.current?.querySelectorAll('img') ?? []);
+      await Promise.all(imgs.map((img) => (img.complete ? Promise.resolve() : img.decode().catch(() => undefined))));
+      await nextFrame();
+      if (cancelled) return;
+      const done = () => {
+        window.removeEventListener('afterprint', done);
+        onPrintedRef.current();
+      };
+      window.addEventListener('afterprint', done);
+      window.print();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [printNow, kind]);
+
+  return createPortal(
+    <div id="ap-print-root" ref={rootRef} className={landscape ? 'ap-print-landscape' : undefined} aria-hidden="true">
+      {kind === 'full' && <PlagiarismFullReport data={fullReportData} id="ap-print-report" />}
+      {kind === 'short' && <PlagiarismShortReport data={fullReportData} id="ap-print-report" />}
+      {kind === 'certificate' && (
+        <div className="ap-report ap-report-pages" data-paper>
+          <ReportSheet landscape>
+            <div className="ap-cover">
+              <AntiplagiatCertificate data={certificateData} />
+            </div>
+          </ReportSheet>
+        </div>
+      )}
+    </div>,
+    document.body,
+  );
+};
+
+/** Hisobotni ko'rish oynasi — #root ichiga portal (sayt sarlavhasi ustida, tema o'zgaruvchilari saqlanadi). */
+const ReportViewer: React.FC<{
+  title: string;
+  onPrint: () => void;
+  onClose: () => void;
+  children: React.ReactNode;
+}> = ({ title, onPrint, onClose, children }) => {
+  const { t } = useT();
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div className="ap-viewer no-print" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="ap-viewer-bar">
+        <h3>{title}</h3>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={onPrint} variant="primary">
+            <Printer className="mr-2 h-4 w-4" />
+            {t('Chop etish / PDF')}
+          </Button>
+          <Button onClick={onClose} variant="secondary">
+            <X className="mr-2 h-4 w-4" />
+            {t('Yopish')}
+          </Button>
+        </div>
+      </div>
+      <div className="ap-viewer-body">{children}</div>
+    </div>,
+    document.getElementById('root') || document.body,
+  );
+};
 
 const ScoreBar: React.FC<{ label: string; value: number; color: string }> = ({ label, value, color }) => (
   <div>
@@ -51,12 +183,21 @@ const AntiplagiatResultView: React.FC<Props> = ({
   backLabel = "Arxiv hujjatlarga qaytish",
 }) => {
   const { t } = useT();
-  const [showFullReport, setShowFullReport] = useState(false);
-  const [showShortReport, setShowShortReport] = useState(false);
+  const [viewer, setViewer] = useState<'full' | 'short' | null>(null);
+  /** Chop etish ildizi: oyna ochiq bo'lsa — o'sha hisobot; aks holda tugma bosilganda vaqtincha */
+  const [printJob, setPrintJob] = useState<{ kind: PrintKind; printNow: boolean } | null>(null);
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const startPrint = useCallback((kind: PrintKind) => setPrintJob({ kind, printNow: true }), []);
+  const closeViewer = useCallback(() => setViewer(null), []);
+  const onPrinted = useCallback(
+    () => setPrintJob((job) => (job && viewer ? { kind: viewer, printNow: false } : null)),
+    [viewer],
+  );
+
+  useEffect(() => {
+    // Oyna ochiq bo'lsa chop etish ildizi o'sha hisobotni tayyor tutadi (Ctrl+P ham to'g'ri chiqadi)
+    setPrintJob((job) => (job?.printNow ? job : viewer ? { kind: viewer, printNow: false } : null));
+  }, [viewer]);
 
   return (
     <>
@@ -102,19 +243,19 @@ const AntiplagiatResultView: React.FC<Props> = ({
         </div>
 
         <div className="flex flex-wrap gap-2 no-print">
-          <Button onClick={() => setShowShortReport(true)} variant="secondary">
+          <Button onClick={() => setViewer('short')} variant="secondary">
             <FileText className="mr-2 h-4 w-4" />
             {t('Qisqacha hisobot')}
           </Button>
-          <Button onClick={() => setShowFullReport(true)}>
+          <Button onClick={() => setViewer('full')}>
             <FileText className="mr-2 h-4 w-4" />
             {t("To'liq hisobot")}
           </Button>
-          <Button onClick={handlePrint} variant="secondary">
+          <Button onClick={() => startPrint('full')} variant="secondary">
             <Download className="mr-2 h-4 w-4" />
             {t('PDF yuklab olish')}
           </Button>
-          <Button onClick={handlePrint} variant="secondary">
+          <Button onClick={() => startPrint('certificate')} variant="secondary">
             <Printer className="mr-2 h-4 w-4" />
             {t('Chop etish')}
           </Button>
@@ -172,46 +313,28 @@ const AntiplagiatResultView: React.FC<Props> = ({
         </div>
       </div>
 
-      {showShortReport && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col print:bg-white">
-          <div className="flex justify-between items-center p-4 bg-white/55 border-b border-slate-200/90 no-print">
-            <h3 className="text-xl font-bold text-slate-900">{t('Qisqacha antiplagiat hisoboti')}</h3>
-            <div className="flex gap-3">
-              <Button onClick={() => window.print()} variant="primary">
-                <Printer className="mr-2 h-4 w-4" />
-                {t('Chop etish / PDF')}
-              </Button>
-              <Button onClick={() => setShowShortReport(false)} variant="secondary">
-                <X className="mr-2 h-4 w-4" />
-                {t('Yopish')}
-              </Button>
-            </div>
-          </div>
-          <div className="flex-1 overflow-auto p-6 print:p-0 print:overflow-visible">
+      {viewer && (
+        <ReportViewer
+          title={viewer === 'full' ? t("To'liq antiplagiat hisoboti") : t('Qisqacha antiplagiat hisoboti')}
+          onPrint={() => startPrint(viewer)}
+          onClose={closeViewer}
+        >
+          {viewer === 'full' ? (
+            <PlagiarismFullReport data={fullReportData} />
+          ) : (
             <PlagiarismShortReport data={fullReportData} />
-          </div>
-        </div>
+          )}
+        </ReportViewer>
       )}
 
-      {showFullReport && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col print:bg-white">
-          <div className="flex justify-between items-center p-4 bg-white/55 border-b border-slate-200/90 no-print">
-            <h3 className="text-xl font-bold text-slate-900">{t("To'liq antiplagiat hisoboti")}</h3>
-            <div className="flex gap-3">
-              <Button onClick={() => window.print()} variant="primary">
-                <Printer className="mr-2 h-4 w-4" />
-                {t('Chop etish / PDF')}
-              </Button>
-              <Button onClick={() => setShowFullReport(false)} variant="secondary">
-                <X className="mr-2 h-4 w-4" />
-                {t('Yopish')}
-              </Button>
-            </div>
-          </div>
-          <div className="flex-1 overflow-auto p-6 print:p-0 print:overflow-visible">
-            <PlagiarismFullReport data={fullReportData} />
-          </div>
-        </div>
+      {printJob && (
+        <ReportPrintRoot
+          kind={printJob.kind}
+          printNow={printJob.printNow}
+          fullReportData={fullReportData}
+          certificateData={certificateData}
+          onPrinted={onPrinted}
+        />
       )}
     </>
   );

@@ -4,6 +4,7 @@
  * Kirill yozuvi lug'atsiz — avtomatik transliteratsiya (translit.ts).
  */
 import { PAGE_ROWS } from './dictPages';
+import { ANTIPLAG_REPORT_ROWS } from './dictAntiplagReport';
 
 type Row = [uz: string, ru: string, en: string];
 
@@ -504,7 +505,7 @@ const ROWS: Row[] = [
   ['UDK, DOI, tarjima va kitob nashri xizmatlari', 'УДК, DOI, перевод и издание книг', 'UDC, DOI, translation and book publishing'],
 ];
 
-const ALL_ROWS: Row[] = [...ROWS, ...PAGE_ROWS];
+const ALL_ROWS: Row[] = [...ROWS, ...PAGE_ROWS, ...ANTIPLAG_REPORT_ROWS];
 
 function build(index: 1 | 2): Record<string, string> {
   const out: Record<string, string> = {};

@@ -38,6 +38,9 @@ interface PaymentStatusResponse {
   payment_status?: number;
   /** Tranzaksiya bog'langan maqola/hujjat (masalan antiplagiat) — boshqa oynada qaytganda ham topiladi */
   article_id?: string | null;
+  /** UDK buyurtmasi (service_type=udk_request) — UDK sahifasi to'lovdan qaytganda so'rovni shu orqali topadi */
+  udk_request_id?: string | null;
+  service_type?: string;
 }
 
 class PaymentService {
@@ -127,6 +130,12 @@ class PaymentService {
       const st = transaction.status as string;
       return {
         article_id: transaction.article ? String(transaction.article) : null,
+        udk_request_id: transaction.udk_request_id
+          ? String(transaction.udk_request_id)
+          : transaction.extra_data?.udk_request_id
+            ? String(transaction.extra_data.udk_request_id)
+            : null,
+        service_type: transaction.service_type,
         error_code: syncResult?.error_code ?? 0,
         error_note: syncResult?.error_note || 'Success',
         payment_status:

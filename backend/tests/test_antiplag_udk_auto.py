@@ -166,3 +166,32 @@ class UdkAutoClassifyTests(TestCase):
         req = self._paid_request('Qwzx vbnm', 'Plmk')
         self.assertEqual(req.status, 'submitted')
         self.assertEqual(req.auto_method, 'manual')
+
+
+@override_settings(MEDIA_ROOT=MEDIA)
+class UdkCompoundCodeTests(TestCase):
+    def setUp(self):
+        from apps.udc import auto_classify
+
+        auto_classify.reset_index()
+
+    def test_ai_compound_code_only_from_candidates(self):
+        from apps.udc import auto_classify
+
+        replies = iter([{'terms': []}, {'code': '37.013.2', 'related': ['004.8', '999.1', '37'],
+                                        'description_uz': "Ta'lim nazariyasi"}])
+        with mock.patch('apps.udc.auto_classify._ai_json', side_effect=lambda prompt: next(replies)):
+            res = auto_classify.classify("Ta'limda sun'iy intellektdan foydalanish pedagogika",
+                                         "Sun'iy intellekt va pedagogika", ["sun'iy intellekt", 'pedagogika'])
+        self.assertEqual(res.method, 'ai')
+        self.assertEqual(res.code, '37.013.2:004.8')  # uydirma (999.1) va ota-klass (37) qo'shilmaydi
+
+    def test_lexical_compound_requires_keyword(self):
+        from apps.udc import auto_classify
+
+        res = auto_classify.classify("Oliy ta'limda sun'iy intellekt texnologiyalaridan foydalanish",
+                                     "Maqolada talabalarni o'qitishda sun'iy intellekt vositalarini qo'llash tahlil "
+                                     "qilingan", ["sun'iy intellekt", "ta'lim", 'pedagogika'])
+        self.assertIn(':', res.code)
+        res = auto_classify.classify("Oliy ta'lim muassasalarida talabalarning mustaqil ishi", '', [])
+        self.assertNotIn(':', res.code)

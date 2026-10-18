@@ -190,6 +190,8 @@ TEMPLATES = {
     'malumotnoma': {
         'src': ROOT / 'backend' / 'assets' / 'reference_template' / 'malumotnoma.jpg',
         'dests': [ROOT / 'backend' / 'assets' / 'reference_template'],
+        # Hujjat holati ma'lumotnomasi: yozuvlar apps/articles/reference_doc.py da chiziladi → faqat .blank.jpg
+        'blank_only': True,
         'texture_src': (700, 320, 1300, 400),
         'erase': [(60, 45, 398, 100), (728, 45, 1054, 100), (188, 122, 1196, 296), (78, 440, 632, 846),
                   (408, 1280, 698, 1390)],
@@ -369,6 +371,20 @@ def _group_layout(labels: list[dict], lang: str) -> dict[str, tuple[str, int]]:
     return result
 
 
+def build_blank(name: str) -> Image.Image:
+    """Yorliqlari olib tashlangan fon (erase qutilari tozalanadi, hech narsa chizilmaydi)."""
+    tpl = TEMPLATES[name]
+    arr = np.array(Image.open(tpl['src']).convert('RGB'))
+    texture = None
+    if tpl.get('texture_src'):
+        x0, y0, x1, y1 = tpl['texture_src']
+        patch = arr[y0:y1, x0:x1].astype(np.float32)
+        texture = (patch - _box_blur(patch, 6)).mean(axis=2, keepdims=True)
+    for box in tpl['erase']:
+        erase_box(arr, box, texture=texture)
+    return Image.fromarray(arr)
+
+
 def build_variant(name: str, lang: str) -> Image.Image:
     tpl = TEMPLATES[name]
     arr = np.array(Image.open(tpl['src']).convert('RGB'))
@@ -394,6 +410,15 @@ def main() -> None:
     args = ap.parse_args()
     for name, tpl in TEMPLATES.items():
         if args.only and name != args.only:
+            continue
+        if tpl.get('blank_only'):
+            # Yozuvlar kodda chiziladi (hujjat turi va tiliga qarab) — faqat matnsiz fon kerak
+            img = build_blank(name)
+            dests = [Path(args.preview)] if args.preview else tpl['dests']
+            for d in dests:
+                d.mkdir(parents=True, exist_ok=True)
+                img.save(d / f'{name}.blank.jpg', format='JPEG', quality=92, optimize=True)
+            print('ok', f'{name}.blank.jpg')
             continue
         for lang in LANGS:
             img = build_variant(name, lang)

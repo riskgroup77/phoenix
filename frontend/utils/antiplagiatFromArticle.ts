@@ -142,6 +142,56 @@ function toReportSource(
   };
 }
 
+/**
+ * Takror manbalarni birlashtirish: kalit — URL (bo'lmasa nom). Foiz — parchalar ichidagi eng yuqorisi,
+ * fragmentCount — parchalar soni. Manba raqamlari qayta beriladi (foiz bo'yicha kamayish tartibida) va
+ * kesishma kartalari hamda belgilangan hujjat matnidagi havolalar yangi raqamlarga o'tkaziladi.
+ */
+export function dedupeReportSources(
+  sources: PlagiarismSource[],
+  fragmentDetails: PlagiarismFragmentDetail[],
+  annotatedDocument: AnnotatedParagraph[],
+): { sources: PlagiarismSource[]; fragmentDetails: PlagiarismFragmentDetail[]; annotatedDocument: AnnotatedParagraph[] } {
+  const keyOf = (s: PlagiarismSource) => (s.sourceUrl || s.sourceName || '').trim().toLowerCase().replace(/\/+$/, '');
+  const groups = new Map<string, { src: PlagiarismSource; pct: number; count: number; oldIds: number[] }>();
+  for (const s of sources) {
+    const key = keyOf(s) || `#${s.id}`;
+    const pct = parseFloat(s.percentage) || 0;
+    const g = groups.get(key);
+    if (g) {
+      g.count += 1;
+      g.oldIds.push(s.id);
+      if (pct > g.pct) g.pct = pct;
+    } else {
+      groups.set(key, { src: s, pct, count: 1, oldIds: [s.id] });
+    }
+  }
+  const merged = [...groups.values()].sort((a, b) => b.pct - a.pct);
+  const idMap = new Map<number, number>();
+  const out = merged.map((g, i) => {
+    g.oldIds.forEach((old) => idMap.set(old, i + 1));
+    return { ...g.src, id: i + 1, percentage: `${g.pct.toFixed(2)}%`, fragmentCount: g.count };
+  });
+  const remap = (n: number | null | undefined) => (n == null ? n : idMap.get(n) ?? n);
+  return {
+    sources: out,
+    fragmentDetails: fragmentDetails.map((f) => ({ ...f, sourceIndex: remap(f.sourceIndex) as number })),
+    annotatedDocument: annotatedDocument.map((p) => ({
+      ...p,
+      sourceRefs: [...new Set(p.sourceRefs.map((r) => remap(r) as number))],
+      segments: p.segments?.map((seg) => ({ ...seg, source: remap(seg.source) ?? null })),
+    })),
+  };
+}
+
+/** Fayl hajmi: 12.4 KB / 1.25 MB (baytlar noma'lum bo'lsa — '—') */
+export function formatFileSize(bytes: unknown): string {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n <= 0) return '—';
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+}
+
 /** 08.10.2026 — sertifikat va hisobotdagi sana formati */
 export function formatDotDate(d: Date): string {
   if (Number.isNaN(d.getTime())) return '';
@@ -228,12 +278,12 @@ export function buildAntiplagiatViewFromArticle(
     authorPosition: String(report.author_position || '').trim(),
     documentNumber: certNumber,
     uploadDate: checkDate,
-    originalFileName: documentName,
+    originalFileName: String(report.original_file_name || '').trim() || documentName,
     documentName,
     documentType,
     characterCount: Number(report.character_count) || 0,
     sentenceCount: Number(report.sentence_count) || 0,
-    fileSize: '—',
+    fileSize: formatFileSize(report.file_size_bytes),
     plagiarismPercent: plagiarismPercentage,
     selfCitationPercent: selfCitationPct,
     citationPercent: citationPct,
@@ -243,9 +293,13 @@ export function buildAntiplagiatViewFromArticle(
       : enabledIds
           .map((id) => ANTIPLAGIAT_MODULES.find((m) => m.id === id)?.label)
           .filter(Boolean) as string[],
-    sources: sources.map((s, idx) => toReportSource(s, idx)),
-    fragmentDetails: mapFragmentDetails(report, sources),
-    annotatedDocument: mapAnnotatedDocument(report),
+    // Bitta manba (bir URL) har bir mos parchasi uchun alohida qator bo'lib kelardi — hisobot o'nlab takror
+    // qatorlar bilan cho'zilardi. Endi har bir manba bir marta: eng yuqori foiz + "N ta parcha".
+    ...dedupeReportSources(
+      sources.map((s, idx) => toReportSource(s, idx)),
+      mapFragmentDetails(report, sources),
+      mapAnnotatedDocument(report),
+    ),
   };
 
   return { result, certificateData, fullReportData };

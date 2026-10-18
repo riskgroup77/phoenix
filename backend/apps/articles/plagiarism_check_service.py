@@ -29,6 +29,33 @@ def resolve_article_document_path(article) -> str | None:
     return None
 
 
+def _fill_report_document_meta(report: dict, article, file_path: str | None) -> None:
+    """Hisobot muqovasi/ma'lumotlari uchun: muallif ish joyi, asl fayl nomi va hajmi.
+
+    Ish joyi faqat hisobotdagi muallif — yuklagan foydalanuvchining o'zi bo'lsa (yoki muallif ko'rsatilmagan bo'lsa)
+    profildagi affiliation dan olinadi; boshqa shaxs nomi kiritilgan bo'lsa, begona tashkilot yozilmaydi.
+    """
+    author = getattr(article, 'author', None)
+    if author is not None and not str(report.get('author_workplace') or '').strip():
+        first = str(report.get('author_first_name') or '').strip().lower()
+        last = str(report.get('author_last_name') or '').strip().lower()
+        same_person = (not first and not last) or (
+            first == str(getattr(author, 'first_name', '') or '').strip().lower()
+            and last == str(getattr(author, 'last_name', '') or '').strip().lower()
+        )
+        affiliation = str(getattr(author, 'affiliation', '') or '').strip()
+        if same_person and affiliation:
+            report['author_workplace'] = affiliation[:255]
+    if file_path:
+        if not report.get('original_file_name'):
+            report['original_file_name'] = os.path.basename(file_path)
+        if not report.get('file_size_bytes'):
+            try:
+                report['file_size_bytes'] = os.path.getsize(file_path)
+            except OSError:
+                pass
+
+
 def extract_article_text(article) -> str:
     from apps.services import extract_plain_text_from_file
 
@@ -351,6 +378,7 @@ def run_plagiarism_check(
         ):
             if existing.get(key) and not result_report.get(key):
                 result_report[key] = existing[key]
+        _fill_report_document_meta(result_report, article, file_path)
         if not result_report.get('certificate_number'):
             result_report['certificate_number'] = _new_certificate_number()
         result_report['archive_ready'] = True

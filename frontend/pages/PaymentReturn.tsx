@@ -13,6 +13,7 @@ import {
   PAYMENT_RETURN_MAX_WAIT_MS,
   paymentDestination,
   paymentSuccessMessage,
+  SELF_REPORTING_SERVICES,
   type ReturnTx,
 } from '../utils/paymentReturn';
 
@@ -60,8 +61,8 @@ const PaymentReturn: React.FC = () => {
       if (tx?.status === 'completed') {
         sessionStorage.removeItem(SUBMIT_ARTICLE_PENDING_KEY);
         finish(paymentDestination(tx), () => {
-          // Antiplagiat sahifasi "To'lov tasdiqlandi, tekshiruv boshlanmoqda" deb o'zi xabar beradi — takrorlamaymiz
-          if (tx.service_type !== 'language_editing') {
+          // Antiplagiat / UDK sahifasi to'lov natijasini o'zi ko'rsatadi — takrorlamaymiz
+          if (!SELF_REPORTING_SERVICES.has(tx.service_type || '')) {
             toast.success(paymentSuccessMessage(tx.service_type), { toastId: `payment-${tx.id}` });
           }
         });

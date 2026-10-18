@@ -348,8 +348,17 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # 2. Standalone UDK ma'lumotnomalar (auth talab qilinadigan download endpoint)
         try:
+            from apps.udc.models import UdkRequest as _UdkRequest
+
+            # UdkRequest orqali yaratilgan ma'lumotnoma "UDK buyurtmasi" elementida (2c) ko'rinadi — bir buyurtma
+            # uchun ikki element (buyurtma + ma'lumotnoma) chiqmasligi uchun bu yerda o'tkazib yuboriladi
+            order_tx_ids = set(
+                _UdkRequest.objects.filter(user=user, transaction__isnull=False).values_list('transaction_id', flat=True)
+            )
             udk_certs = UDKCertificate.objects.filter(user=user).order_by('-created_at')
             for c in udk_certs:
+                if c.transaction_id and c.transaction_id in order_tx_ids:
+                    continue
                 url = f"{api_base}/udc/certificates/{c.id}/download/" if c.certificate_path else None
                 items.append({
                     'type': 'udk_standalone',
@@ -364,8 +373,9 @@ class UserViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
 
-        # 2c. UDK so'rovi (alohida buyurtma: to'lov → avtomatik aniqlash). Oldin faqat UDKCertificate qo'shilardi —
-        # sertifikat taqrizchi yakunlaganda yaratiladi, shuning uchun "to'lov bo'ldi, arxiv bo'sh" muammosi bo'lardi.
+        # 2c. UDK so'rovi (alohida buyurtma: to'lov → avtomatik aniqlash). Har bir buyurtma — aniq BITTA element,
+        # holati bilan: to'lov kutilmoqda / aniqlanmoqda / tayyor (yuklab olish) / rad etilgan.
+        # (Avval yakunlangan + PDF li buyurtma o'tkazib yuborilib, o'rniga holatsiz "UDK ma'lumotnoma" chiqardi.)
         try:
             from apps.udc.models import (
                 UdkRequest,
@@ -375,45 +385,52 @@ class UserViewSet(viewsets.ModelViewSet):
                 UDK_REQUEST_STATUS_REJECTED,
             )
 
-            for req in (
-                UdkRequest.objects.filter(user=user)
-                .exclude(status=UDK_REQUEST_STATUS_REJECTED)
-                .order_by('-created_at')
-            ):
-                cert = None
-                if getattr(req, 'transaction_id', None):
-                    cert = UDKCertificate.objects.filter(transaction_id=req.transaction_id).first()
-                if req.status == UDK_REQUEST_STATUS_COMPLETED and cert and cert.certificate_path:
-                    continue
+            reqs = list(UdkRequest.objects.filter(user=user).select_related('transaction').order_by('-created_at'))
+            cert_by_tx = {
+                c.transaction_id: c
+                for c in UDKCertificate.objects.filter(
+                    transaction_id__in=[r.transaction_id for r in reqs if r.transaction_id]
+                )
+            }
+            for req in reqs:
+                cert = cert_by_tx.get(req.transaction_id) if req.transaction_id else None
+                paid = bool(req.transaction_id and getattr(req.transaction, 'status', None) == 'completed')
+                if req.status == UDK_REQUEST_STATUS_COMPLETED:
+                    status_label = 'Tayyor' if cert else 'Yakunlangan (PDF kutilmoqda)'
+                elif req.status == UDK_REQUEST_STATUS_SUBMITTED:
+                    # avtomatik aniqlanmasa — xodim qo'lda ko'rib chiqadi (apps/udc/auto_complete.py)
+                    status_label = 'Mutaxassis ko\'rib chiqmoqda' if req.auto_method == 'manual' else 'Aniqlanmoqda'
+                elif req.status == UDK_REQUEST_STATUS_REJECTED:
+                    status_label = 'Rad etilgan'
+                elif req.status == UDK_REQUEST_STATUS_PENDING_PAYMENT and paid:
+                    status_label = 'Aniqlanmoqda'  # to'lov tasdiqlangan, holat hali yangilanmagan
+                elif getattr(req.transaction, 'status', None) in ('failed', 'cancelled'):
+                    status_label = "To'lov amalga oshmadi"
+                else:
+                    status_label = "To'lov kutilmoqda"
 
-                title_short = (req.title or '')[:200]
-                date_str = req.created_at.isoformat() if req.created_at else None
-                status_label = {
-                    UDK_REQUEST_STATUS_PENDING_PAYMENT: "To'lov kutilmoqda",
-                    UDK_REQUEST_STATUS_SUBMITTED: 'Aniqlanmoqda',  # UDK avtomatik aniqlanadi (apps/udc/auto_complete.py)
-                    UDK_REQUEST_STATUS_COMPLETED: 'Yakunlangan (PDF kutilmoqda)',
-                }.get(req.status, 'Jarayonda')
-
-                dl = None
-                if cert and cert.certificate_path:
-                    dl = f"{api_base}/udc/certificates/{cert.id}/download/"
-
+                # Yuklab olish endpointi PDF yo'q bo'lsa ham hujjatni talab bo'yicha yaratadi (udk_certificate_download)
+                dl = f"{api_base}/udc/certificates/{cert.id}/download/" if cert else None
                 items.append({
                     'type': 'udk_request_order',
                     'id': f"udkreq-{req.id}",
-                    'title': title_short,
+                    'certificate_id': cert.id if cert else None,
+                    'title': (req.title or '')[:200],
                     'label': "UDK buyurtmasi",
-                    'date': date_str,
+                    'date': req.created_at.isoformat() if req.created_at else None,
                     'download_url': dl,
-                    'view_url': '/udk-olish',
+                    'view_url': f'/udk-olish?request={req.id}',
                     'extra': {
                         'status_label': status_label,
                         'status': req.status,
+                        'payment_status': getattr(req.transaction, 'status', None) if req.transaction_id else None,
                         'udk_code': (req.udk_code or '')[:120],
+                        'udk_description': (req.udk_description or '')[:200] if req.status == 'completed' else '',
                     },
                 })
         except Exception:
-            pass
+            import logging
+            logging.getLogger(__name__).exception('Archive: UDK requests failed')
 
         # 2b. DOI so'rovlari (muallif doim holatini ko'rsin; link bo'lsa ochadi)
         try:

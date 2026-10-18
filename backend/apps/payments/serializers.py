@@ -12,6 +12,8 @@ class TransactionSerializer(serializers.ModelSerializer):
     receipt_number = serializers.SerializerMethodField()
     # Namuna (demo) to'lov — ro'yxatda ko'rinadi, lekin tushum summalariga qo'shilmaydi
     is_demo = serializers.SerializerMethodField()
+    # UDK buyurtmasi (UdkRequest) — to'lovdan qaytgan sahifa (boshqa tabda ham) so'rovni shu orqali topadi
+    udk_request_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Transaction
@@ -30,6 +32,20 @@ class TransactionSerializer(serializers.ModelSerializer):
         from config.demo import is_demo_user
 
         return is_demo_user(obj.user)
+
+    def get_udk_request_id(self, obj):
+        if getattr(obj, 'service_type', None) != 'udk_request':
+            return None
+        extra = self._extra_data(obj)
+        rid = extra.get('udk_request_id')
+        if rid:
+            return str(rid)
+        if obj.article_id or extra.get('standalone'):
+            return None  # eski (maqola / standalone) UDK oqimi — UdkRequest yo'q
+        from apps.udc.models import UdkRequest
+
+        found = UdkRequest.objects.filter(transaction_id=obj.pk).values_list('id', flat=True).first()
+        return str(found) if found else None
 
     def get_service_label(self, obj):
         from .labels import service_label
@@ -74,6 +90,16 @@ class TransactionSerializer(serializers.ModelSerializer):
             val = extra.get(key)
             if val and str(val).strip():
                 return str(val).strip()[:200]
+        if getattr(obj, 'service_type', None) == 'udk_request' and extra.get('udk_request_id'):
+            # UDK buyurtmasi: to'lov oynasida "Nima uchun" — ish mavzusi (avval umumiy "UDK ma'lumotnoma" chiqardi)
+            from apps.udc.models import UdkRequest
+
+            try:
+                title = UdkRequest.objects.filter(pk=extra['udk_request_id']).values_list('title', flat=True).first()
+            except Exception:  # noto'g'ri UUID
+                title = None
+            if title and title.strip():
+                return title.strip()[:200]
         return ''
 
     def get_context_label(self, obj):
