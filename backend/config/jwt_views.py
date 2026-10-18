@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -16,7 +17,12 @@ class CookieTokenRefreshView(TokenRefreshView):
             if c:
                 data = {**data, 'refresh': c}
         serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except get_user_model().DoesNotExist:
+            # Token egasi o'chirilgan — 500 emas, 401 (frontend qayta login so'raydi)
+            return Response({'detail': 'Foydalanuvchi topilmadi.', 'code': 'user_not_found'},
+                            status=status.HTTP_401_UNAUTHORIZED)
         validated = serializer.validated_data
         access = validated['access']
         new_refresh = validated.get('refresh')

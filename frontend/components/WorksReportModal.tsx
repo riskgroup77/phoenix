@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { FileDown, FileText, RefreshCw, X, ExternalLink } from 'lucide-react';
 import Button from './ui/Button';
+import ModalPortal from './ui/ModalPortal';
 import { apiService, saveBlob } from '../services/apiService';
 import { useAuth } from '../contexts/AuthContext';
 import { useT } from '../i18n/LanguageContext';
@@ -91,8 +92,10 @@ const WorksReportModal: React.FC<Props> = ({ articleId, articleTitle, onClose })
     'w-full bg-white border border-slate-200/90 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500';
 
   return (
-    <div className="fixed inset-0 bg-slate-900/35 backdrop-blur-sm z-50 flex justify-center items-center p-2 sm:p-4 no-print">
-      <div className="w-full max-w-5xl h-[95vh] bg-white rounded-lg shadow-2xl flex flex-col overflow-hidden">
+    // body ga portal: sahifa animatsiyasi (transform) stacking context yaratib, "Operator chat" tugmasi
+    // modal ustiga chiqib PDF tugmasini yopardi
+    <ModalPortal open backdropClassName="bg-slate-900/35 backdrop-blur-sm no-print" zIndexClass="z-[100]">
+      <div className="w-full max-w-5xl h-[95vh] bg-white rounded-lg shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="p-4 border-b border-slate-200/90 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
@@ -150,7 +153,7 @@ const WorksReportModal: React.FC<Props> = ({ articleId, articleTitle, onClose })
           </Button>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 };
 

@@ -65,3 +65,15 @@ class ReferenceDocTests(TestCase):
         self.assertEqual(res.data['details']['status'], 'Redaktorda')
         res = APIClient().get(f'/api/v1/articles/verify/MLN-U{self.cert.id}/')
         self.assertEqual(res.status_code, 200)
+
+
+class TokenRefreshDeletedUserTests(TestCase):
+    def test_refresh_for_deleted_user_returns_401_not_500(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        user = User.objects.create_user(phone='998900009101', password='x-parol-123', email='del@ref.uz',
+                                        first_name='D', last_name='U')
+        refresh = str(RefreshToken.for_user(user))
+        user.delete()
+        res = APIClient().post('/api/v1/token/refresh/', {'refresh': refresh}, format='json')
+        self.assertEqual(res.status_code, 401)

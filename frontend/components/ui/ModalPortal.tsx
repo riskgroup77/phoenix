@@ -38,7 +38,9 @@ const ModalPortal: React.FC<ModalPortalProps> = ({
     >
       {children}
     </div>,
-    document.body
+    // #root ichiga: tema o'zgaruvchilari (--editorial-primary va h.k.) #root da e'lon qilingan — body ga
+    // chiqarilganda tugmalar rangsiz qolardi. #root o'zi stacking context yaratmaydi, z-index ishlaydi.
+    document.getElementById('root') || document.body
   );
 };
 

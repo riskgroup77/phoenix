@@ -235,10 +235,18 @@ fi
 
 # Migratsiyadan oldin baza zaxirasi — xato migratsiyadan keyin tiklash mumkin bo'lsin.
 # Zaxira olinmasa deploy to'xtaydi (ataylab o'tkazib yuborish: PHONIX_SKIP_DB_BACKUP=true).
-if [ "${PHONIX_SKIP_DB_BACKUP:-false}" != "true" ]; then
+# Yangi (qo'llanmagan) migratsiya bo'lmasa zaxira shart emas — baza o'zgarmaydi; kunlik zaxira timer bilan olinadi.
+# Tekshiruvning o'zi xato bersa (masalan baza ulanmasa) — ehtiyot uchun zaxira olinadi.
+PENDING_MIGRATIONS=true
+if python manage.py migrate --check >/dev/null 2>&1; then
+    PENDING_MIGRATIONS=false
+fi
+if [ "${PHONIX_SKIP_DB_BACKUP:-false}" != "true" ] && [ "${PENDING_MIGRATIONS}" = "true" ]; then
     echo "   Baza zaxiralanmoqda (migratsiyadan oldin)..."
     PHONIX_DIR="${DEPLOY_DIR}" bash "${DEPLOY_DIR}/infrastructure/backup/phoenix-backup.sh" pre-deploy \
         || error_exit "Baza zaxirasi olinmadi — migratsiya bajarilmadi (PHONIX_SKIP_DB_BACKUP=true bilan o'tkazib yuborish mumkin)"
+elif [ "${PENDING_MIGRATIONS}" = "false" ]; then
+    echo "   Yangi migratsiya yo'q — migratsiyadan oldingi zaxira o'tkazib yuborildi"
 fi
 
 # Migrations
