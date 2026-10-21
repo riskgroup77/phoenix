@@ -114,7 +114,11 @@ const ReviewResult: React.FC<{ review: Review; forEditor: boolean }> = ({ review
   </div>
 );
 
-const ReviewerForm: React.FC<{ review: Review; onDone: () => void }> = ({ review, onDone }) => {
+/**
+ * Taqrizchi taqrizni yakunlagach maqolani nashrgacha o'zi olib boradi (jurnal admini tasdig'i shart emas):
+ * "Qabul qilish" tavsiyasi bilan yuborilsa maqola darhol qabul qilinadi, keyin «Nashr qilish» bloki ochiladi.
+ */
+const ReviewerForm: React.FC<{ review: Review; articleId: string; onDone: () => void }> = ({ review, articleId, onDone }) => {
   const [form, setForm] = useState({
     recommendation: '',
     review_content: '',
@@ -150,7 +154,22 @@ const ReviewerForm: React.FC<{ review: Review; onDone: () => void }> = ({ review
       toast.error('Tavsiya va taqriz matni majburiy.');
       return;
     }
-    run(() => apiService.reviews.submitReview(review.id, form), 'Taqriz yuborildi. Tahririyat va muallifga xabar berildi.');
+    if (form.recommendation !== 'accept') {
+      run(
+        () => apiService.reviews.submitReview(review.id, form),
+        "Taqriz yuborildi. Endi o'ng tomondagi «Boshqaruv» bo'limida qaror qiling (tahrirga qaytarish yoki rad etish).",
+      );
+      return;
+    }
+    run(async () => {
+      await apiService.reviews.submitReview(review.id, form);
+      try {
+        await apiService.articles.updateStatus(articleId, 'Accepted');
+      } catch (err: any) {
+        // Masalan, antiplagiat tekshiruvi hali tayyor emas — taqriz saqlandi, qabulni keyinroq «Boshqaruv» dan bosadi
+        toast.info(err?.message || "Maqolani «Boshqaruv» bo'limidan qabul qiling.", { autoClose: 8000 });
+      }
+    }, "Taqriz yuborildi. Maqola qabul qilindi — endi «Nashr qilish» bo'limida sertifikatni yuklang.");
   };
 
   return (
@@ -328,7 +347,11 @@ const AssignReviewer: React.FC<{ articleId: string; onAssigned: () => void }> = 
   );
 };
 
-const ArticleReviewsPanel: React.FC<{ articleId: string; canManage: boolean }> = ({ articleId, canManage }) => {
+const ArticleReviewsPanel: React.FC<{ articleId: string; canManage: boolean; onArticleChanged?: () => void }> = ({
+  articleId,
+  canManage,
+  onArticleChanged,
+}) => {
   const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -374,7 +397,14 @@ const ArticleReviewsPanel: React.FC<{ articleId: string; canManage: boolean }> =
   return (
     <Card title={isReviewer ? 'Mening taqrizim' : 'Taqrizlar'}>
       {isReviewer && myReview ? (
-        <ReviewerForm review={myReview} onDone={load} />
+        <ReviewerForm
+          review={myReview}
+          articleId={articleId}
+          onDone={() => {
+            load();
+            onArticleChanged?.();
+          }}
+        />
       ) : (
         <div className="space-y-3">
           {visible.length === 0 && <p className="text-sm text-slate-500">Hali taqrizchi tayinlanmagan.</p>}

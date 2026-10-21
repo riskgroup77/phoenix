@@ -207,6 +207,24 @@ def _allowed_transitions(context, article) -> list[str]:
     return allowed_transitions_for(user, article)
 
 
+def _can_publish(context, article) -> bool:
+    """«Nashr qilish» (sertifikat yuklash) bloki: bosh admin, jurnal admini yoki taqrizini yakunlagan taqrizchi."""
+    from .workflow import reviewer_can_manage
+
+    request = context.get('request') if context else None
+    user = getattr(request, 'user', None) if request else None
+    if not user or not getattr(user, 'is_authenticated', False):
+        return False
+    if article.status not in ('Accepted', 'NashrgaYuborilgan'):
+        return False
+    role = (getattr(user, 'role', '') or '').strip().lower()
+    if role == 'super_admin' or getattr(user, 'is_superuser', False):
+        return True
+    if role == 'journal_admin':
+        return getattr(article.journal, 'journal_admin_id', None) == user.id
+    return reviewer_can_manage(user, article)
+
+
 def _my_review_status_map(context):
     """
     Taqrizchi uchun: maqola → o'zining eng so'nggi taqriz holati (pending / accepted / in_progress / completed).
@@ -282,6 +300,9 @@ _STAFF_PLAGIARISM_REVIEW_LABEL = dict(Article.STATUS_CHOICES)['PlagiarismReview'
 def status_change_text(old_status: str, new_status: str) -> str:
     """Faoliyat jurnali uchun o'zbekcha matn (avval inglizcha 'Status changed from X to Y' yozilardi)."""
     labels = dict(Article.STATUS_CHOICES)
+    # "QabulQilingan" (taqrizda) va "Accepted" (qabul qilindi) model yorliqlari deyarli bir xil — jurnalda
+    # «"Qabul Qilingan" → "Qabul qilingan"» chalkash ko'rinardi. Sahifadagi holat nomlari ishlatiladi.
+    labels.update({'QabulQilingan': 'Ko‘rib chiqilmoqda', 'Accepted': 'Qabul qilindi', 'NashrgaYuborilgan': 'Nashrga tayyorlanmoqda'})
     return f'Holat: "{labels.get(old_status, old_status)}" → "{labels.get(new_status, new_status)}"'
 
 
@@ -574,6 +595,7 @@ class ArticleSerializer(serializers.ModelSerializer):
         data['needs_publication_payment'] = _needs_publication_payment(self.context, instance)
         # Muharrir "Qabul qilish" tugmasini faqat yakunlangan taqriz bo'lsa ko'radi (backend ham tekshiradi)
         data['has_completed_review'] = instance.peer_reviews.filter(status='completed').exists()
+        data['can_publish'] = _can_publish(self.context, instance)
         if hide_author_from_viewer(self.context, instance):
             anonymize_author(data, instance)
         return data

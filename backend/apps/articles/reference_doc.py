@@ -91,6 +91,7 @@ T = Dictionary({
     't_doi_2': ('MA’LUMOTNOMA', 'О ПРИСВОЕНИИ DOI', 'CERTIFICATE'),
     # yorliqlar
     'l_author': ('MUALLIF', 'АВТОР', 'AUTHOR'),
+    'anon_author': ('Anonim muallif', 'Анонимный автор', 'Anonymous author'),
     'l_work_type': ('ISH TURI', 'ВИД РАБОТЫ', 'WORK TYPE'),
     'l_work_title': ('ISH NOMI', 'НАЗВАНИЕ РАБОТЫ', 'TITLE'),
     'l_journal': ('JURNAL NOMI', 'НАЗВАНИЕ ЖУРНАЛА', 'JOURNAL'),
@@ -158,12 +159,16 @@ def _org(user) -> str:
 
 # ---------------------------------------------------------------- ma'lumot
 
-def for_article(article, lang: str) -> RefData:
+def for_article(article, lang: str, *, hide_author: bool = False) -> RefData:
+    """hide_author — yopiq taqrizdagi taqrizchi uchun: muallif kimligi oshkor qilinmaydi."""
     from .antiplagiat_utils import looks_like_standalone_antiplagiat, standalone_antiplagiat_state
     from .works_report import is_book_title, work_type_label
 
     lang = normalize_lang(lang)
-    author = (article.submitted_author_name or '').strip() or _person(article.author)
+    if hide_author:
+        author = T.t('anon_author', lang)
+    else:
+        author = (article.submitted_author_name or '').strip() or _person(article.author)
     if looks_like_standalone_antiplagiat(article):
         report = article.plagiarism_report if isinstance(article.plagiarism_report, dict) else {}
         state = standalone_antiplagiat_state(article) or 'checking'

@@ -219,7 +219,7 @@ class AuthorInternalNotesTests(QaBase):
         flat = str(data['status_timeline']) + str(data['activity_logs'])
         self.assertNotIn('Bosh administrator qarori kerak', flat)
         self.assertNotIn('Status changed from', flat)
-        self.assertIn('Holat: "Yangi" → "Qabul Qilingan"', flat)
+        self.assertIn('Holat: "Yangi" → "Ko‘rib chiqilmoqda"', flat)
         self.assertNotIn(self.journal_admin.get_full_name(), str(data['activity_logs']))
         staff = self.api(self.journal_admin).get(f'/api/v1/articles/{self.article.id}/').json()
         self.assertIn('Bosh administrator qarori kerak', str(staff['activity_logs']))

@@ -72,7 +72,8 @@ def reference_view(request):
     """
     Hujjat holati haqida ma'lumotnoma (PDF, interfeys tilida):
     GET /api/v1/articles/reports/reference/?kind=article|udk_request|udk_certificate|doi&id=<id>[&download=1]
-    Faqat hujjat egasi (maqolada — muallif yoki hammuallif).
+    Hujjat egasi; maqolada — uni ko'ra oladigan har kim (muallif, hammuallif, jurnal admini, taqrizchi, operator,
+    bosh admin — ArticleViewSet ko'rinish qoidalari bilan bir xil).
     """
     from apps.udc.models import UDKCertificate, UdkRequest
 
@@ -85,9 +86,19 @@ def reference_view(request):
     user = request.user
     try:
         if kind == 'article':
+            from .views import ArticleViewSet
+
+            viewset = ArticleViewSet(request=request, action='retrieve', format_kwarg=None)
+            visible = viewset.get_queryset().values('pk')
             obj = (Article.objects.select_related('author', 'journal__category', 'issue')
-                   .filter(Q(author=user) | Q(co_authors=user), pk=obj_id).distinct().first())
-            data = obj and reference_doc.for_article(obj, lang)
+                   .filter(pk=obj_id, pk__in=visible).first())
+            if obj:
+                from .serializers import hide_author_from_viewer
+
+                data = reference_doc.for_article(
+                    obj, lang, hide_author=hide_author_from_viewer({'request': request}, obj))
+            else:
+                data = None
         elif kind == 'udk_request':
             obj = UdkRequest.objects.select_related('user').filter(user=user, pk=obj_id).first()
             data = obj and reference_doc.for_udk_request(obj, lang)

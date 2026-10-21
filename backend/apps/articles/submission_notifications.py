@@ -216,3 +216,22 @@ def notify_article_resubmitted(article) -> None:
         message="Muallif tahrirdan keyin maqolani qayta yubordi. «Maqolalar» → «Yangi kelganlar» bo'limida ko'ring.",
         stage=f'resubmitted_{round_no}',
     )
+    # Taqrizni yakunlagan taqrizchi qayta yuborilgan maqola bo'yicha qarorni o'zi qiladi — u ham bilishi kerak
+    from apps.notifications.models import Notification
+    from apps.reviews.models import PeerReview
+
+    reviewer_ids = set(
+        PeerReview.objects.filter(article=article, status='completed').values_list('reviewer_id', flat=True)
+    )
+    for reviewer in User.objects.filter(pk__in=reviewer_ids):
+        try:
+            Notification.notify(
+                user=reviewer,
+                title='Maqola qayta yuborildi',
+                message=f'Muallif "{article.title}" maqolasini tahrirdan keyin qayta yubordi. Maqolani ochib qaror qiling.',
+                notification_type='review_assigned',
+                link=f'/articles/{article.id}',
+                metadata={'article_id': str(article.id), 'round': round_no},
+            )
+        except Exception:
+            logger.warning('resubmit reviewer notify failed %s', article.pk, exc_info=True)

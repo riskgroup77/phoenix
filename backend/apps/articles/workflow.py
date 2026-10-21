@@ -6,6 +6,8 @@ qilib, to'lov va antiplagiat chetlab o'tilardi. Endi:
   - "Nashr etilgan" faqat complete_publication (sertifikat bilan) orqali;
   - qoralama (to'lov kutilmoqda) faqat to'lov orqali chiqadi (bosh admin qo'lda tasdiqlashi mumkin);
   - antiplagiat chegarasi "Qabul qilish" va "Nashrga yuborish" da tekshiriladi (views_publication).
+Taqrizchi o'z taqrizini yakunlagach maqolani nashrgacha o'zi olib boradi (qabul, nashrni yakunlash,
+tahrirga qaytarish, rad etish) — jurnal admini tasdig'i shart emas.
 """
 from __future__ import annotations
 
@@ -32,6 +34,10 @@ BOOK_STATUSES = frozenset({
     'Yangi', 'ContractProcessing', 'IsbnProcessing', 'AuthorDataVerified', 'PaymentCompleted',
     'SentToPrint', 'Printing', 'Ready', 'Packaging', 'Shipping', 'Delivered', 'ProcessPaused', 'Rejected',
 })
+
+# Taqrizchi taqrizini yakunlagach bosishi mumkin bo'lgan holatlar (tahririyat ichki bosqichlari — admin ishi).
+# "Nashrga yuborish" oraliq bosqichi yo'q: qabul qilingan maqolani taqrizchi «Nashr qilish» blokida yakunlaydi.
+REVIEWER_TARGETS = frozenset({'Accepted', 'Revision', 'Rejected'})
 
 # Antiplagiat chegarasi tekshiriladigan holatlar (bosh admin qarorisiz)
 THRESHOLD_CHECKED_TARGETS = frozenset({'Accepted', 'NashrgaYuborilgan'})
@@ -71,6 +77,18 @@ def has_completed_review(article) -> bool:
     return article.peer_reviews.filter(status='completed').exists()
 
 
+def reviewer_can_manage(user, article) -> bool:
+    """Taqrizchi shu maqolaga o'z taqrizini yakunlagan bo'lsa — nashrgacha bo'lgan qarorlarni o'zi qiladi."""
+    role = (getattr(user, 'role', '') or '').strip().lower()
+    if role != 'reviewer' or is_book_submission(article):
+        return False
+    return article.peer_reviews.filter(reviewer_id=user.id, status='completed').exists()
+
+
+def reviewer_transitions(article) -> frozenset[str]:
+    return allowed_staff_transitions(article, super_admin=False) & REVIEWER_TARGETS
+
+
 def allowed_transitions_for(user, article) -> list[str]:
     """Serializer uchun: shu foydalanuvchi bosishi mumkin bo'lgan holatlar (UI tugmalari shunga qarab)."""
     role = (getattr(user, 'role', '') or '').strip().lower()
@@ -81,6 +99,8 @@ def allowed_transitions_for(user, article) -> list[str]:
         if journal is not None and journal.journal_admin_id == user.id:
             return sorted(allowed_staff_transitions(article, super_admin=False))
         return []
+    if reviewer_can_manage(user, article):
+        return sorted(reviewer_transitions(article))
     if article.author_id == getattr(user, 'id', None) and article.status == 'Revision':
         return ['Yangi']
     return []

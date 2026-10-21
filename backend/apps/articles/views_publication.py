@@ -7,7 +7,10 @@ from .serializers import ArticleSerializer, status_change_text
 from apps.notifications.models import Notification
 from .views_antiplagiat import _check_plagiarism_thresholds, start_plagiarism_check
 from config.upload_validation import validate_upload
-from .workflow import THRESHOLD_CHECKED_TARGETS, allowed_staff_transitions, has_completed_review, is_book_submission
+from .workflow import (
+    THRESHOLD_CHECKED_TARGETS, allowed_staff_transitions, has_completed_review, is_book_submission,
+    reviewer_can_manage, reviewer_transitions,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -35,10 +38,12 @@ class ArticlePublicationActionsMixin:
     
     @action(detail=True, methods=['post'])
     def update_status(self, request, pk=None):
-        """Update article status. Author: own; super_admin: any; journal_admin: only own journal."""
+        """Update article status. Author: own; super_admin: any; journal_admin: only own journal;
+        reviewer: o'z taqrizini yakunlagan maqola (nashrgacha qarorlar)."""
         article = self.get_object()
         new_status = request.data.get('status')
-        if self._is_super_admin():
+        is_reviewer = reviewer_can_manage(request.user, article)
+        if self._is_super_admin() or is_reviewer:
             pass
         elif request.user.role == 'journal_admin':
             if article.journal.journal_admin_id != request.user.id:
@@ -73,9 +78,10 @@ class ArticlePublicationActionsMixin:
             )
         
         old_status = article.status
-        is_staff_change = self._is_super_admin() or request.user.role == 'journal_admin'
+        is_staff_change = self._is_super_admin() or request.user.role == 'journal_admin' or is_reviewer
         if is_staff_change:
-            allowed = allowed_staff_transitions(article, super_admin=self._is_super_admin())
+            allowed = (reviewer_transitions(article) if is_reviewer
+                       else allowed_staff_transitions(article, super_admin=self._is_super_admin()))
             if new_status not in allowed:
                 labels = dict(Article.STATUS_CHOICES)
                 hint = ', '.join(labels.get(s, s) for s in sorted(allowed)) or "yo'q"
@@ -331,14 +337,14 @@ class ArticlePublicationActionsMixin:
     def complete_publication(self, request, pk=None):
         """
         Nashr qilish: sertifikat faylini yuklash, statusni Published qilish, muallifga bildirishnoma.
-        Only for journal_admin (own journal) or super_admin. Article must be Accepted.
+        journal_admin (own journal), super_admin yoki taqrizini yakunlagan taqrizchi. Article must be Accepted.
         Expects multipart: certificate (file, PDF or JPG), optional issue_id.
         """
         article = self.get_object()
         role_cp = getattr(request.user, 'role', None) or ''
         if isinstance(role_cp, str):
             role_cp = role_cp.strip().lower()
-        if role_cp == 'super_admin':
+        if role_cp == 'super_admin' or reviewer_can_manage(request.user, article):
             pass
         elif role_cp == 'journal_admin':
             if article.journal.journal_admin_id != request.user.id:

@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { PageSkeleton } from '../components/ui/Skeleton';
-import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { Role, ArticleStatus, ActivityLogEvent, ARTICLE_STATUS_LABELS } from '../types';
-import { Check, X, Award, UploadCloud, BookOpen, Download, Edit, Send, GitCommit, UserCheck, FileCheck2, BookUp, XCircle, Clock, FileInput, CheckCircle, Shield, Bot, ExternalLink, Printer, Eye, FileText, Inbox, RefreshCw } from 'lucide-react';
+import { Check, X, Award, UploadCloud, BookOpen, Download, Edit, Send, GitCommit, UserCheck, FileCheck2, BookUp, XCircle, Clock, FileInput, CheckCircle, Shield, Bot, ExternalLink, Eye, FileText, Inbox, RefreshCw } from 'lucide-react';
 import PlagiarismReport, { PlagiarismReportData } from '../components/PlagiarismReport';
-import QabulCertificate, { QabulCertificateData } from '../components/QabulCertificate';
 import { apiService } from '../services/apiService';
+import { openReferencePdf } from '../utils/referenceDoc';
 import { paymentService } from '../services/paymentService';
 import { toast } from 'react-toastify';
 import { getAuthorWorkflowStepsFromStatus, getAuthorWorkflowProgressPercent } from '../utils/articleAuthorWorkflow';
@@ -63,6 +63,8 @@ interface ArticleApiResponse {
     needs_publication_payment?: boolean;
     /** Kamida bitta yakunlangan taqriz bor (muharrir "Qabul qilish" uchun) */
     has_completed_review?: boolean;
+    /** «Nashr qilish» bloki: bosh admin, jurnal admini yoki taqrizini yakunlagan taqrizchi (backend hisoblaydi) */
+    can_publish?: boolean;
 }
 
 type PublicationPayment = {
@@ -169,9 +171,6 @@ const findStatusReason = (
     return log ? { details: log.details || '', timestamp: log.timestamp } : undefined;
 };
 
-/** "Qabul haqida ma'lumotnoma" berilmaydigan holatlar (qolgan barcha holatlarda — beriladi) va uni ko'radigan xodimlar */
-const NO_ACCEPTANCE_STATUSES = new Set<string>([ArticleStatus.Draft, ArticleStatus.Rejected]);
-const CERTIFICATE_STAFF_ROLES = new Set(['super_admin', 'journal_admin', 'operator']);
 
 /** Kitob buyurtmasi bosqichlari — ishlab chiqarish tartibida (backend ro'yxati alifbo bo'yicha keladi) */
 const BOOK_STAGE_ORDER = [
@@ -202,7 +201,7 @@ const STAFF_ACTIONS: {
 const ArticleDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const { user } = useAuth();
-    const { t, locale } = useT();
+    const { t } = useT();
     const navigate = useNavigate();
     const isLargeScreen = useMediaMinWidth(ARTICLE_CHAT_DOCK_BREAKPOINT_PX);
     const [article, setArticle] = useState<ArticleApiResponse | null>(null);
@@ -210,9 +209,6 @@ const ArticleDetail: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [notAccessible, setNotAccessible] = useState(false);
     const [activityLogs, setActivityLogs] = useState<ActivityLogEvent[]>([]);
-    const [showCertificate, setShowCertificate] = useState(false);
-    const [searchParams, setSearchParams] = useSearchParams();
-    const [certificateData, setCertificateData] = useState<QabulCertificateData | null>(null);
     const [showPdfPreview, setShowPdfPreview] = useState(false);
     const [publicationCertificateFile, setPublicationCertificateFile] = useState<File | null>(null);
     const [publicationUrl, setPublicationUrl] = useState('');
@@ -245,22 +241,6 @@ const ArticleDetail: React.FC = () => {
                 const logs = Array.isArray(articleData.activity_logs) ? articleData.activity_logs : [];
                 setActivityLogs(logs);
                 
-                // Set certificate data
-                setCertificateData({
-                    certificateNumber: `QBL-${articleData.id.substring(0, 8).toUpperCase()}`,
-                    // Sana — interfeys tilida; matnli qiymatlar o'zbekcha kalit bo'lib qoladi va
-                    // QabulCertificate ichida joriy tilga tarjima qilinadi (til almashsa ham to'g'ri chiqadi)
-                    issueDate: new Date().toLocaleDateString(locale),
-                    // Sahifani ochgan xodim emas — maqola muallifi (avval muharrir/operator ismi chiqardi)
-                    author: articleData.author_name || `${user.lastName} ${user.firstName}`,
-                    workType: articleData.work_type === 'Tezis' ? 'Tezis' : 'Ilmiy maqola',
-                    workTitle: articleData.title,
-                    journalName: articleData.journal_name || 'Noma\'lum jurnal',
-                    organization: (articleData.author === user.id ? user.affiliation : '') || 'Noma\'lum tashkilot',
-                    publishDate: articleData.submission_date ? new Date(articleData.submission_date).toLocaleDateString(locale) : undefined,
-                    currentStatus: articleData.status_label || articleData.status,
-                    articleId: articleData.id
-                });
             } catch (err: any) {
                 console.error('Failed to fetch article data:', err);
                 // 404/403 — maqola yo'q yoki bu rol uni ko'ra olmaydi (masalan, boshqa jurnal maqolasi): avval umumiy
@@ -452,14 +432,6 @@ const ArticleDetail: React.FC = () => {
         }
     };
 
-    // "Ishlarim" ro'yxatidagi "Qabul ma'lumotnomasi" tugmasi: #/articles/<id>?qabul=1 — modal darhol ochiladi
-    useEffect(() => {
-        if (searchParams.get('qabul') !== '1' || !article || !certificateData) return;
-        const isBook = (article.title || '').trim().toUpperCase().startsWith('[KITOB]');
-        if (!isBook && !NO_ACCEPTANCE_STATUSES.has(article.status)) setShowCertificate(true);
-        searchParams.delete('qabul');
-        setSearchParams(searchParams, { replace: true });
-    }, [searchParams, setSearchParams, article, certificateData]);
 
     if (loading) {
         return <PageSkeleton />;
@@ -519,10 +491,10 @@ const ArticleDetail: React.FC = () => {
     const statusData = getStatusDisplayData(article.status);
     const allowedTransitions = new Set<string>(article.allowed_transitions ?? []);
     const isBookOrder = (article.title || '').trim().toUpperCase().startsWith('[KITOB]');
-    const canShowAcceptanceCertificate =
-        !isBookOrder &&
-        !NO_ACCEPTANCE_STATUSES.has(article.status) &&
-        (String(article.author) === String(user?.id) || CERTIFICATE_STAFF_ROLES.has(String(user?.role || '').toLowerCase()));
+    // «Ma'lumotnoma» — ro'yxatdagi tugma bilan bir xil hujjat (hujjat holati PDF, interfeys tilida); maqolani
+    // ko'ra oladigan har kim oladi (muallif, admin, taqrizchi, operator). Moliyachi maqolalar bilan ishlamaydi.
+    const canGetReference = String(user?.role || '').toLowerCase() !== 'accountant';
+    const isReviewerViewer = user?.role === Role.Reviewer;
     const extraTransitions = [...allowedTransitions]
         .filter((s) => s !== ArticleStatus.Published && !STAFF_ACTIONS.some((a) => a.status === s))
         .sort((a, b) => stageOrder(a) - stageOrder(b));
@@ -613,6 +585,7 @@ const ArticleDetail: React.FC = () => {
                         <ArticleReviewsPanel
                             articleId={article.id}
                             canManage={user?.role === Role.JournalAdmin || user?.role === Role.SuperAdmin}
+                            onArticleChanged={reloadArticle}
                         />
                     )}
 
@@ -833,12 +806,21 @@ const ArticleDetail: React.FC = () => {
                     {/* Management actions */}
                     <Card title={t('Boshqaruv')}>
                         <div className="space-y-3">
-                            {/* Qabul ma'lumotnomasi: faqat maqola qabul qilingandan keyin, muallif va tahririyatga. Avval har
-                                qanday holatda (qoralama, rad etilgan) va har qanday rolga (taqrizchi, moliyachi) chiqardi. */}
-                            {canShowAcceptanceCertificate && (
-                                <Button onClick={() => setShowCertificate(true)} variant="secondary" className="w-full flex items-center justify-center gap-2">
-                                    <Award size={18} /> Qabul ma'lumotnomasi
+                            {canGetReference && (
+                                <Button
+                                    onClick={() => void openReferencePdf('article', article.id, t("Ma'lumotnomani yaratib bo'lmadi"))}
+                                    variant="secondary"
+                                    className="w-full flex items-center justify-center gap-2"
+                                >
+                                    <Award size={18} /> {t("Ma'lumotnoma")}
                                 </Button>
+                            )}
+                            {/* Taqrizchi: taqrizni yozadi, keyin maqolani nashrgacha o'zi olib boradi (admin tasdig'i shart emas) */}
+                            {isReviewerViewer && !isBookOrder && allowedTransitions.size === 0 && !article.can_publish
+                                && article.status !== ArticleStatus.Published && (
+                                <p className="m-0 text-xs text-[var(--editorial-muted)]">
+                                    {t("Avval «Mening taqrizim» bo'limida taqrizni yozing. «Qabul qilish» tavsiyasi bilan yuborsangiz, maqola qabul qilinadi va nashr qilishni o'zingiz yakunlaysiz.")}
+                                </p>
                             )}
                             
                             {/* Avval /submit/:id ga olib borardi — bunday sahifa yo'q (404), muallif qayta yubora olmasdi */}
@@ -955,8 +937,8 @@ const ArticleDetail: React.FC = () => {
                         </Card>
                     )}
 
-                    {/* Nashr qilish — faqat Accepted holatida, jurnal/bosh admin uchun */}
-                    {(user?.role === Role.JournalAdmin || user?.role === Role.SuperAdmin) && (article.status === ArticleStatus.Accepted || article.status === ArticleStatus.NashrgaYuborilgan) && (
+                    {/* Nashr qilish — Accepted/NashrgaYuborilgan holatida: jurnal/bosh admin yoki taqrizini yakunlagan taqrizchi */}
+                    {article.can_publish && (
                         <Card title="Nashr qilish">
                             <p className="text-sm text-slate-500 mb-4">
                                 {t('Sertifikat faylini yuklang va muallifga tayyor deb yuboring. Muallifga bildirishnoma keladi.')}
@@ -1087,25 +1069,6 @@ const ArticleDetail: React.FC = () => {
                 </div>
             )}
 
-            {/* Certificate modal */}
-            {showCertificate && certificateData && (
-                <div className="fixed inset-0 bg-slate-900/35 backdrop-blur-sm z-50 flex justify-center items-center p-4 print:p-0 print:bg-white">
-                    <div className="w-full max-w-6xl bg-white/55 rounded-lg shadow-2xl print:max-w-none print:bg-white print:rounded-none">
-                        <div className="p-4 border-b border-slate-200/90 flex justify-between items-center no-print">
-                            <h3 className="text-lg font-semibold text-slate-900">{t('Qabul haqida ma\'lumotnoma')}</h3>
-                            <div className="flex items-center gap-2">
-                                <Button onClick={() => window.print()} variant="secondary" className="flex items-center gap-2">
-                                    <Printer size={16} /> {t('Chop etish / PDF')}
-                                </Button>
-                                <Button onClick={() => setShowCertificate(false)} variant="secondary">{t('Yopish')}</Button>
-                            </div>
-                        </div>
-                        <div className="p-4 max-h-[80vh] overflow-y-auto print:p-0 print:max-h-none print:overflow-visible">
-                            <QabulCertificate data={certificateData} />
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

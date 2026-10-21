@@ -271,7 +271,11 @@ class PeerReviewViewSet(viewsets.ModelViewSet):
                 Notification.notify(
                     user=review.article.journal.journal_admin,
                     title='Taqriz yakunlandi',
-                    message=f'"{review.article.title}" maqolasi uchun taqriz yakunlandi. Tavsiya: {review.get_recommendation_display() if review.recommendation else "Belgilanmagan"}',
+                    message=(
+                        f'"{review.article.title}" maqolasi uchun taqriz yakunlandi. Tavsiya: '
+                        f'{review.get_recommendation_display() if review.recommendation else "Belgilanmagan"}. '
+                        "Taqrizchi maqolani nashrgacha o'zi olib boradi — sizning tasdig'ingiz shart emas."
+                    ),
                     notification_type='review_completed',
                     link=f'/articles/{review.article.id}',
                     metadata={'review_id': str(review.id)},
