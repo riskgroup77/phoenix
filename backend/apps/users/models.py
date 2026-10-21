@@ -124,10 +124,12 @@ class PhoneChallenge(models.Model):
     PURPOSE_VERIFY = 'verify'
     PURPOSE_RESET = 'reset'          # parolni tiklash so'rovi (telefon bo'yicha)
     PURPOSE_RESET_LINK = 'reset_link'  # kontakt tasdiqlangach saytdagi bir martalik havola
+    PURPOSE_REGISTER = 'register'      # ro'yxatdan o'tish: bot 4 xonali kod beradi, sayt kodni tasdiqlaydi
     PURPOSE_CHOICES = (
         (PURPOSE_VERIFY, 'Telefonni tasdiqlash'),
         (PURPOSE_RESET, 'Parolni tiklash'),
         (PURPOSE_RESET_LINK, 'Parolni tiklash havolasi'),
+        (PURPOSE_REGISTER, "Ro'yxatdan o'tish"),
     )
 
     code = models.CharField(max_length=64, unique=True, db_index=True)
@@ -138,6 +140,10 @@ class PhoneChallenge(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
     used_at = models.DateTimeField(null=True, blank=True)
+    # Ro'yxatdan o'tish: hisob ma'lumotlari (parol — xeshlangan) va bot yuborgan 4 xonali kod (xeshi)
+    payload = models.JSONField(default=dict, blank=True)
+    otp_hash = models.CharField(max_length=64, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         verbose_name = _('Telefon tasdiqlash kodi')

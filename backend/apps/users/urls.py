@@ -7,6 +7,8 @@ router.register('', views.UserViewSet, basename='user')
 
 urlpatterns = [
     path('register/', views.RegisterView.as_view(), name='register'),
+    path('register/start/', verification_views.register_start, name='register_start'),
+    path('register/confirm/', verification_views.register_confirm, name='register_confirm'),
     path('login/', views.LoginView.as_view(), name='login'),
     path('logout/', views.LogoutView.as_view(), name='logout'),
     path('phone-verify/start/', verification_views.phone_verify_start, name='phone_verify_start'),

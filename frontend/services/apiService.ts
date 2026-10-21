@@ -347,6 +347,20 @@ export const apiService = {
       return data;
     },
 
+    /** Ro'yxatdan o'tish (Telegram orqali): ma'lumotlar tekshiriladi, bot havolasi qaytadi */
+    registerStart: (userData: Record<string, unknown>): Promise<{ deep_link: string; token: string; expires_in: number }> =>
+      apiFetch('/auth/register/start/', { method: 'POST', body: JSON.stringify(userData) }),
+
+    /** Botdan olingan 4 xonali kod bilan hisobni yaratish (javobda login tokenlari) */
+    registerConfirm: async (token: string, code: string) => {
+      const data = await apiFetch('/auth/register/confirm/', {
+        method: 'POST',
+        body: JSON.stringify({ token, code }),
+      });
+      if (data.access || data.cookie_auth) storeLoginTokens(data);
+      return data;
+    },
+
     logout: async () => {
       const refresh = getRefreshToken();
       try {

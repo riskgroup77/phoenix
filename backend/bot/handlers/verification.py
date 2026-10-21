@@ -1,7 +1,8 @@
 """
 Telefonni tasdiqlash va parolni tiklash (Telegram kontakt ulashish orqali — bepul, SMS'siz).
 
-Saytdan: t.me/<bot>?start=v_<kod> (tasdiqlash) yoki r_<kod> (parolni tiklash).
+Saytdan: t.me/<bot>?start=v_<kod> (tasdiqlash), r_<kod> (parolni tiklash) yoki g_<kod> (ro'yxatdan o'tish —
+kontakt tasdiqlangach bot 4 xonali kod yuboradi, foydalanuvchi uni saytga kiritadi).
 Botning o'zidan: «🔑 Parolni tiklash» tugmasi.
 """
 import logging
@@ -87,7 +88,10 @@ async def handle_start_payload(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(f'❌ {exc}', reply_markup=guest_keyboard())
         return True
     context.user_data[PENDING_KEY] = (purpose, code)
-    what = 'telefon raqamingizni tasdiqlash' if purpose == 'verify' else 'parolingizni tiklash'
+    what = {
+        'verify': 'telefon raqamingizni tasdiqlash',
+        'register': "ro'yxatdan o'tish kodini olish",
+    }.get(purpose, 'parolingizni tiklash')
     await update.message.reply_text(
         f"🔐 Saytda {what} uchun pastdagi «📱 Raqamni ulashish» tugmasini bosing.\n\n"
         "Telegram sizning hisobingizga bog'langan raqamni yuboradi — u saytdagi raqam bilan solishtiriladi.",
@@ -140,7 +144,14 @@ async def contact_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
     context.user_data.pop(PENDING_KEY, None)
     from_bot = context.user_data.pop(FROM_BOT_KEY, False)
-    if result.purpose == 'verify' and from_bot:
+    if result.purpose == 'register':
+        await msg.reply_text(
+            f"✅ Raqamingiz tasdiqlandi.\n\nRo'yxatdan o'tish kodingiz: <b>{result.otp}</b>\n\n"
+            "Saytga qayting va shu kodni kiriting (15 daqiqa amal qiladi). Kodni hech kimga bermang.",
+            parse_mode='HTML',
+            reply_markup=guest_keyboard(),
+        )
+    elif result.purpose == 'verify' and from_bot:
         if isinstance(context.user_data.get('user'), dict):
             context.user_data['user']['phone_verified'] = True
         await msg.reply_text(

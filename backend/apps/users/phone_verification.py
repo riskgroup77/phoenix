@@ -10,14 +10,20 @@ Oqimlar:
           confirm_contact(kod, telegram_id, contact_user_id, phone) → user.phone_verified = True
   reset:  sayt (Parolni unutdim) → start_password_reset(phone) → t.me/<bot>?start=r_<kod> → kontakt →
           confirm_contact → bir martalik havola ( #/reset-password/<token> ) → reset_password(token, yangi parol)
+  register: sayt (Ro'yxatdan o'tish) → start_registration(ma'lumotlar) → t.me/<bot>?start=g_<kod> → kontakt →
+          confirm_contact → bot 4 xonali kod yuboradi → sayt confirm_registration(kod, otp) → hisob yaratiladi
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 import secrets
+import time
 from dataclasses import dataclass
 from datetime import timedelta
 
 from django.conf import settings
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from django.utils import timezone
@@ -27,7 +33,13 @@ from apps.users.models import PhoneChallenge, User
 VERIFY_TTL = timedelta(minutes=30)
 RESET_TTL = timedelta(minutes=20)
 RESET_LINK_TTL = timedelta(minutes=30)
-PREFIX = {PhoneChallenge.PURPOSE_VERIFY: 'v', PhoneChallenge.PURPOSE_RESET: 'r'}
+REGISTER_TTL = timedelta(minutes=15)
+OTP_MAX_ATTEMPTS = 5
+PREFIX = {
+    PhoneChallenge.PURPOSE_VERIFY: 'v',
+    PhoneChallenge.PURPOSE_RESET: 'r',
+    PhoneChallenge.PURPOSE_REGISTER: 'g',
+}
 
 
 class VerificationError(Exception):
@@ -132,6 +144,7 @@ class ContactResult:
     purpose: str
     user: User | None
     reset_link: str = ''
+    otp: str = ''
 
 
 def confirm_contact(code: str, purpose: str, *, telegram_id: int, contact_user_id: int | None,
@@ -142,6 +155,21 @@ def confirm_contact(code: str, purpose: str, *, telegram_id: int, contact_user_i
     phone = normalize_phone(contact_phone)
     with transaction.atomic():
         ch = get_active_challenge(code, purpose)
+        if purpose == PhoneChallenge.PURPOSE_REGISTER:
+            if normalize_phone(ch.phone) != phone:
+                raise VerificationError(
+                    "Telegram'dagi raqamingiz saytda kiritilgan raqamga mos kelmadi. "
+                    "Saytda to'g'ri raqam kiritilganini tekshiring."
+                )
+            if User.objects.filter(phone=ch.phone).exists():
+                raise VerificationError("Bu raqam bilan hisob allaqachon mavjud. Saytda «Kirish» ni bosing.")
+            otp = f'{secrets.randbelow(10000):04d}'
+            ch.otp_hash = _otp_hash(ch.code, otp)
+            ch.attempts = 0
+            ch.telegram_id = telegram_id
+            ch.save(update_fields=['otp_hash', 'attempts', 'telegram_id'])
+            return ContactResult(purpose, None, otp=otp)
+
         if purpose == PhoneChallenge.PURPOSE_VERIFY:
             user = ch.user
             if user is None or normalize_phone(user.phone) != phone:
@@ -179,6 +207,100 @@ def confirm_contact(code: str, purpose: str, *, telegram_id: int, contact_user_i
         site = (getattr(settings, 'PUBLIC_SITE_URL', '') or getattr(settings, 'FRONTEND_BASE_URL', '')
                 or 'https://ilmiyfaoliyat.uz').rstrip('/')
         return ContactResult(purpose, user, reset_link=f'{site}/#/reset-password/{link.code}')
+
+
+def _otp_hash(code: str, otp: str) -> str:
+    return hmac.new(settings.SECRET_KEY.encode(), f'{code}:{otp}'.encode(), hashlib.sha256).hexdigest()
+
+
+def start_registration(data) -> dict:
+    """
+    Ro'yxatdan o'tish ma'lumotlarini tekshiradi va saqlaydi (hisob hali yaratilmaydi), bot havolasini qaytaradi.
+    Xatolar DRF ValidationError (maydonlar bo'yicha) yoki VerificationError sifatida chiqadi.
+    """
+    from rest_framework import serializers as drf_serializers
+
+    from apps.users.serializers import RegisterSerializer
+
+    _require_bot()
+    _cleanup()
+    ser = RegisterSerializer(data=data)
+    ser.is_valid(raise_exception=True)
+    v = ser.validated_data
+    phone = normalize_phone(v['phone'])
+    if len(phone) != 12:
+        raise drf_serializers.ValidationError({'phone': ["Telefon raqam noto'g'ri formatda"]})
+    if User.objects.filter(phone=phone).exists():
+        raise drf_serializers.ValidationError({'phone': ["Bu telefon raqam allaqachon ro'yxatdan o'tgan"]})
+    recent = PhoneChallenge.objects.filter(
+        purpose=PhoneChallenge.PURPOSE_REGISTER, phone=phone, created_at__gte=timezone.now() - timedelta(hours=1),
+    ).count()
+    if recent >= 5:
+        raise VerificationError("Juda ko'p urinish. Bir soatdan keyin qayta urinib ko'ring.")
+    PhoneChallenge.objects.filter(
+        purpose=PhoneChallenge.PURPOSE_REGISTER, phone=phone, used_at__isnull=True,
+    ).update(expires_at=timezone.now())
+    ch = PhoneChallenge.objects.create(
+        code=_new_code(), purpose=PhoneChallenge.PURPOSE_REGISTER, phone=phone,
+        expires_at=timezone.now() + REGISTER_TTL,
+        payload={
+            'first_name': v['first_name'].strip(),
+            'last_name': v['last_name'].strip(),
+            'password': make_password(v['password']),
+            'terms_accepted': bool(v.get('terms_accepted')),
+            'terms_version': (v.get('terms_version') or '').strip(),
+        },
+    )
+    return {'deep_link': deep_link(ch.purpose, ch.code), 'token': ch.code,
+            'expires_in': int(REGISTER_TTL.total_seconds())}
+
+
+def confirm_registration(token: str, otp: str) -> User:
+    """Saytda kiritilgan 4 xonali kod to'g'ri bo'lsa — hisob yaratiladi (telefon tasdiqlangan holda)."""
+    otp = ''.join(c for c in str(otp or '') if c.isdigit())
+    error = ''
+    with transaction.atomic():
+        ch = PhoneChallenge.objects.select_for_update().filter(
+            code=str(token or ''), purpose=PhoneChallenge.PURPOSE_REGISTER,
+        ).first()
+        if ch is None or ch.used_at is not None or ch.expires_at < timezone.now():
+            raise VerificationError("Ro'yxatdan o'tish muddati tugagan. Qaytadan boshlang.")
+        if not ch.otp_hash:
+            raise VerificationError("Avval Telegram botda «📱 Raqamni ulashish» tugmasini bosib, kodni oling.")
+        if ch.attempts >= OTP_MAX_ATTEMPTS:
+            raise VerificationError("Urinishlar soni tugadi. Ro'yxatdan o'tishni qaytadan boshlang.")
+        if len(otp) != 4 or not hmac.compare_digest(ch.otp_hash, _otp_hash(ch.code, otp)):
+            # Urinish hisobi saqlanishi uchun xato tranzaksiyadan keyin chiqariladi
+            ch.attempts += 1
+            ch.save(update_fields=['attempts'])
+            left = OTP_MAX_ATTEMPTS - ch.attempts
+            error = (f"Kod noto'g'ri. Yana {left} ta urinish qoldi." if left > 0
+                     else "Urinishlar soni tugadi. Ro'yxatdan o'tishni qaytadan boshlang.")
+        else:
+            if User.objects.filter(phone=ch.phone).exists():
+                raise VerificationError("Bu raqam bilan hisob allaqachon mavjud. «Kirish» sahifasidan kiring.")
+            data = ch.payload or {}
+            now = timezone.now()
+            user = User(
+                phone=ch.phone,
+                email=f'{ch.phone}_{int(time.time())}@temp.phoenix.uz',
+                first_name=data.get('first_name', ''),
+                last_name=data.get('last_name', ''),
+                affiliation='N/A',
+                phone_verified=True,
+                phone_verified_at=now,
+            )
+            user.password = data.get('password', '')
+            if data.get('terms_accepted'):
+                user.terms_accepted_at = now
+                user.terms_version = (data.get('terms_version') or getattr(settings, 'LEGAL_TERMS_VERSION', ''))[:20]
+            user.save()
+            ch.used_at = now
+            ch.user = user
+            ch.payload = {}
+            ch.save(update_fields=['used_at', 'user', 'payload'])
+            return user
+    raise VerificationError(error)
 
 
 def verification_required_message(user) -> str:

@@ -2,7 +2,7 @@
 Telefonni Telegram orqali tasdiqlash va parolni tiklash API (apps/users/phone_verification.py).
 """
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -59,3 +59,40 @@ def password_reset_confirm(request):
     except pv.VerificationError as exc:
         return _error(exc)
     return Response({'detail': "Parol yangilandi. Endi yangi parol bilan kiring."})
+
+
+@api_view(['POST'])
+@authentication_classes([])
+@permission_classes([AllowAny])
+@throttle_classes([_AuthThrottle])
+def register_start(request):
+    """Ro'yxatdan o'tish 1-qadam: ma'lumotlar tekshiriladi, Telegram bot havolasi qaytadi (bot 4 xonali kod beradi)."""
+    try:
+        return Response(pv.start_registration(request.data))
+    except pv.VerificationError as exc:
+        return _error(exc)
+
+
+@api_view(['POST'])
+@authentication_classes([])
+@permission_classes([AllowAny])
+@throttle_classes([_AuthThrottle])
+def register_confirm(request):
+    """Ro'yxatdan o'tish 2-qadam: botdan olingan kod to'g'ri bo'lsa hisob yaratiladi va foydalanuvchi kiritiladi."""
+    from django.conf import settings
+    from rest_framework_simplejwt.tokens import RefreshToken
+
+    from config.jwt_cookies import attach_jwt_cookies, auth_body
+
+    from .serializers import UserSerializer
+
+    try:
+        user = pv.confirm_registration(request.data.get('token', ''), request.data.get('code', ''))
+    except pv.VerificationError as exc:
+        return _error(exc)
+    refresh = RefreshToken.for_user(user)
+    resp = Response(auth_body(UserSerializer(user, context={'request': request}).data, refresh),
+                    status=status.HTTP_201_CREATED)
+    if getattr(settings, 'JWT_USE_HTTPONLY_COOKIES', False):
+        attach_jwt_cookies(resp, str(refresh.access_token), str(refresh))
+    return resp
