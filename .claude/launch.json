@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend-local",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd backend && USE_SQLITE=True DEBUG=True JWT_USE_HTTPONLY_COOKIES=False CORS_ALLOW_ALL_ORIGINS=True ALLOWED_HOSTS=127.0.0.1,localhost venv/bin/python manage.py migrate --noinput && USE_SQLITE=True DEBUG=True JWT_USE_HTTPONLY_COOKIES=False CORS_ALLOW_ALL_ORIGINS=True ALLOWED_HOSTS=127.0.0.1,localhost venv/bin/python manage.py runserver 127.0.0.1:8050"],
+      "port": 8050
+    },
+    {
+      "name": "frontend-local",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd frontend && VITE_API_BASE_URL=http://127.0.0.1:8050 VITE_MEDIA_URL=http://127.0.0.1:8050 npx vite --port 3000 --strictPort"],
+      "port": 3000
+    }
+  ]
+}
