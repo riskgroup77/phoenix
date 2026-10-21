@@ -8,7 +8,7 @@ Ishga tushirish (backend/ papkasidan):
   python bot/bot.py
 
 .env:
-  TELEGRAM_BOT_TOKEN=...
+  TELEGRAM_BOT_TOKEN=....
   # Serverda: ichki loopback (nginx emas). api_client X-Forwarded-Proto yuboradi.
   API_BASE_URL=http://127.0.0.1:8050/api/v1
   FRONTEND_BASE_URL=https://ilmiyfaoliyat.uz
