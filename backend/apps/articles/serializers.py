@@ -25,7 +25,7 @@ def _normalize_journal_lookup_string(value: str) -> str:
 
 
 def _issn_alnum(value: str) -> str:
-    return ''.join(ch for ch in value if ch.isalnum())
+    return ''.join(ch for ch in (value or '') if ch.isalnum())
 
 
 def _article_author_display(obj) -> str:

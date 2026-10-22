@@ -1,6 +1,7 @@
 from django.conf import settings
 from rest_framework import serializers
 import json
+import re
 
 from .models import Journal, JournalCategory, Issue, ScientificField
 from .taxonomy import is_publication_type, match_subject
@@ -66,6 +67,30 @@ class JournalSerializer(serializers.ModelSerializer):
         model = Journal
         fields = '__all__'
         read_only_fields = ('is_archived',)
+        # Standart (inglizcha) unique xabari o'rniga validate_issn — o'zbekcha va bo'sh qiymat NULL bo'ladi
+        extra_kwargs = {'issn': {'validators': []}}
+
+    ISSN_RE = re.compile(r'^\d{4}-\d{3}[\dXx]$')
+
+    def validate_issn(self, value):
+        """
+        ISSN ixtiyoriy: bo'sh → NULL (bir nechta ISSN'siz jurnal bo'lishi mumkin). Kiritilgan bo'lsa — XXXX-XXXX
+        formatida va boshqa jurnalda ishlatilmagan bo'lishi kerak. Mavjud jurnalning o'zgarmagan ISSN'i
+        (eski / ichki qiymatlar) qayta tekshirilmaydi.
+        """
+        value = (value or '').strip().upper()
+        if not value:
+            return None
+        if self.instance is not None and value == (self.instance.issn or '').upper():
+            return self.instance.issn
+        if not self.ISSN_RE.match(value):
+            raise serializers.ValidationError("ISSN XXXX-XXXX formatida bo'lishi kerak (masalan, 2181-0001).")
+        clash = Journal.objects.filter(issn__iexact=value)
+        if self.instance is not None:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise serializers.ValidationError("Bu ISSN boshqa jurnalda allaqachon ishlatilgan.")
+        return value
 
     # FormData (rasm bilan) yuborilganda ro'yxat/obyektlar JSON satr bo'lib keladi
     JSON_FIELDS = ('scientific_fields', 'additional_document_config')

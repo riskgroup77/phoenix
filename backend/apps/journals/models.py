@@ -32,8 +32,11 @@ class Journal(models.Model):
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=300)
-    issn = models.CharField(max_length=20, unique=True)
-    description = models.TextField()
+    # ISSN va tavsif ixtiyoriy (bosh admin formasida majburiy emas; yangi jurnalda ISSN hali bo'lmasligi mumkin).
+    # Avval ikkalasi majburiy edi — formada bo'sh qoldirilsa jurnal qo'shilmasdi ("This field may not be blank").
+    # ISSN bo'sh bo'lsa NULL saqlanadi: unique cheklovi bir nechta ISSN'siz jurnalga ruxsat beradi.
+    issn = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    description = models.TextField(blank=True)
     journal_admin = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='managed_journals')
     category = models.ForeignKey(JournalCategory, on_delete=models.CASCADE, related_name='journals')
     rules = models.TextField(blank=True)
@@ -73,7 +76,7 @@ class Journal(models.Model):
         ordering = ['name']
     
     def __str__(self):
-        return f"{self.name} ({self.issn})"
+        return f"{self.name} ({self.issn})" if self.issn else self.name
 
 
 class Issue(models.Model):

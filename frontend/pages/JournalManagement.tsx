@@ -18,6 +18,28 @@ function optionalJournalPercent(v: unknown): number | null {
     return Number.isFinite(n) ? n : null;
 }
 
+/** Server maydon nomi → forma yorlig'i (xato xabari foydalanuvchiga tushunarli bo'lsin) */
+const JOURNAL_FIELD_LABELS: Record<string, string> = {
+    name: 'Jurnal Nomi',
+    issn: 'ISSN',
+    description: 'Tavsif',
+    journal_admin: 'Jurnal Admini',
+    category: 'Nashr turi (rukn)',
+    scientific_fields: 'Soha',
+    publication_fee: 'Narx',
+    price_per_page: 'Narx',
+    image_url: 'Rasm',
+};
+
+function journalFieldErrors(body: unknown, t: (s: string) => string): string | null {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+    const lines = Object.entries(body as Record<string, unknown>)
+        .filter(([, v]) => typeof v === 'string' || (Array.isArray(v) && v.every((x) => typeof x === 'string')))
+        .filter(([k]) => !['detail', 'error', 'message'].includes(k))
+        .map(([k, v]) => `${t(JOURNAL_FIELD_LABELS[k] || k)}: ${Array.isArray(v) ? v.join(' ') : v}`);
+    return lines.length ? lines.join('\n') : null;
+}
+
 const JournalManagement: React.FC = () => {
     const { t } = useT();
     const { user } = useAuth();
@@ -400,8 +422,12 @@ const JournalManagement: React.FC = () => {
         } catch (err: any) {
             console.error('Failed to save journal:', err);
             // Try to get more detailed error information
-            let errorMessage = 'Jurnalni saqlashda xatolik yuz berdi';
-            if (err.message) {
+            let errorMessage = t('Jurnalni saqlashda xatolik yuz berdi');
+            const fieldErrors = journalFieldErrors(err?.response, t);
+            if (fieldErrors) {
+                // Maydon xatolari forma yorliqlari bilan ("ISSN: ...", "Tavsif: ..."), API nomlari ("issn:") emas
+                errorMessage += `:\n${fieldErrors}`;
+            } else if (err.message) {
                 errorMessage += `: ${err.message}`;
             } else if (typeof err === 'string') {
                 errorMessage += `: ${err}`;
@@ -691,7 +717,7 @@ const JournalManagement: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-w-0">
                                 <div className="min-w-0">
-                                    <label className="block text-sm font-medium text-slate-600 mb-2">ISSN</label>
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">ISSN <span className="font-normal text-slate-400">{t('(ixtiyoriy)')}</span></label>
                                     <input type="text" name="issn" value={formData.issn} onChange={handleInputChange} className="w-full min-w-0 box-border" placeholder="XXXX-XXXX"/>
                                 </div>
                                 <div className="min-w-0">
@@ -748,7 +774,7 @@ const JournalManagement: React.FC = () => {
                                 </div>
                             </div>
                             <div className="min-w-0">
-                                <label className="block text-sm font-medium text-slate-600 mb-2">{t('Tavsif')}</label>
+                                <label className="block text-sm font-medium text-slate-600 mb-2">{t('Tavsif')} <span className="font-normal text-slate-400">{t('(ixtiyoriy)')}</span></label>
                                 <textarea name="description" value={formData.description} onChange={handleInputChange} className="w-full min-w-0 max-w-full box-border resize-y" rows={4} placeholder={t("Jurnal haqida qisqacha ma'lumot...")}></textarea>
                             </div>
 
