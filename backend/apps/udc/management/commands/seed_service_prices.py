@@ -56,8 +56,18 @@ class Command(BaseCommand):
             },
             {
                 'service_key': 'translation_per_word',
-                'label': "Tarjima xizmati (1 so'z)",
+                'label': "Tarjima — puxta, tarjimon (1 so'z)",
                 'amount': 100,
+            },
+            {
+                'service_key': 'translation_per_word_basic',
+                'label': "Tarjima — oddiy, AI (1 so'z)",
+                'amount': 30,
+            },
+            {
+                'service_key': 'translation_per_word_standard',
+                'label': "Tarjima — o'rta, AI (1 so'z)",
+                'amount': 60,
             },
             # Kitob nashr
             {

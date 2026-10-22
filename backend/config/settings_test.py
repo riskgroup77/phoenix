@@ -74,3 +74,4 @@ STORAGES = {
 # UDK avtomatik aniqlash testlarda sinxron va tashqi tarmoqsiz
 UDK_AUTO_ASYNC = False
 UDK_PERVIY_SEARCH_ENABLED = False
+TRANSLATION_AI_SYNC = True  # testlarda AI tarjima sinxron (thread/Celery emas)

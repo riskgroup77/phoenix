@@ -43,6 +43,7 @@ const MyCollections = lazyPage(() => import('./pages/MyCollections'));
 const TranslationService = lazyPage(() => import('./pages/TranslationService'));
 const MyTranslations = lazyPage(() => import('./pages/MyTranslations'));
 const TranslationDetail = lazyPage(() => import('./pages/TranslationDetail'));
+const TranslatorQueue = lazyPage(() => import('./pages/TranslatorQueue'));
 const PaymentTest = lazyPage(() => import('./pages/PaymentTest'));
 const JournalAdminPanel = lazyPage(() => import('./pages/JournalAdminPanel'));
 const JournalPrices = lazyPage(() => import('./pages/JournalPrices'));
@@ -157,6 +158,7 @@ const AppContent: React.FC = () => {
                     <Route path="articles" element={<RoleRoute allowedRoles={NON_ACCOUNTANT_ROLES}><Articles /></RoleRoute>} />
                     <Route path="articles/:id" element={<RoleRoute allowedRoles={NON_ACCOUNTANT_ROLES}><ArticleDetail /></RoleRoute>} />
                     <Route path="translations/:id" element={<TranslationDetail />} />
+                    <Route path="translator-queue" element={<RoleRoute allowedRoles={[Role.Translator, Role.SuperAdmin]}><TranslatorQueue /></RoleRoute>} />
                     <Route path="published-articles" element={<RoleRoute allowedRoles={[Role.JournalAdmin, Role.SuperAdmin]}><PublishedArticles /></RoleRoute>} />
                     <Route path="my-collections" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><MyCollections /></RoleRoute>} />
                     <Route path="my-translations" element={<RoleRoute allowedRoles={AUTHOR_SERVICE_ROLES}><MyTranslations /></RoleRoute>} />

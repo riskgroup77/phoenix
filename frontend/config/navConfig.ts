@@ -54,6 +54,7 @@ export const roleNames: Record<Role, string> = {
   [Role.SuperAdmin]: 'Bosh administrator',
   [Role.Accountant]: 'Moliyachi',
   [Role.Operator]: 'Operator',
+  [Role.Translator]: 'Tarjimon',
 };
 
 /** Sidebar: to'liq navigatsiya */
@@ -146,6 +147,15 @@ export const sidebarNavByRole: Record<Role, RoleNavSections> = {
       { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
     ],
   },
+  [Role.Translator]: {
+    primary: [
+      { to: '/translator-queue', icon: Languages, label: 'Tarjima navbati' },
+    ],
+    account: [
+      { to: '/profile?tab=notifications', icon: Bell, label: 'Bildirishnomalar' },
+      { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
+    ],
+  },
   [Role.Accountant]: {
     primary: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Boshqaruv paneli' },
@@ -191,6 +201,10 @@ export const bottomNavByRole: Partial<Record<Role, NavItem[]>> = {
     { to: '/all-requests', icon: FileText, label: "So'rovlar" },
     { to: '/articles', icon: MessageSquare, label: 'Chat' },
     { to: '/payments', icon: Receipt, label: "To'lovlarim" },
+    { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
+  ],
+  [Role.Translator]: [
+    { to: '/translator-queue', icon: Languages, label: 'Navbat' },
     { to: '/profile?tab=profile', icon: UserCircle, label: 'Profil' },
   ],
   [Role.Accountant]: [

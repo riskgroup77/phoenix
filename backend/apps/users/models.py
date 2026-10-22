@@ -41,6 +41,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         ('super_admin', 'Super Admin'),
         ('accountant', 'Accountant'),
         ('operator', 'Operator'),
+        ('translator', 'Translator'),  # Tarjimon: «Puxta» (qo'lda) tarjima buyurtmalarini bajaradi
     )
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

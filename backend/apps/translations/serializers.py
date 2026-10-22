@@ -22,6 +22,8 @@ class TranslationRequestSerializer(serializers.ModelSerializer):
     payment_completed = serializers.SerializerMethodField()
     payment_pending = serializers.SerializerMethodField()
     payment_status_label = serializers.SerializerMethodField()
+    quality_label = serializers.CharField(source='get_quality_display', read_only=True)
+    is_ai = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = TranslationRequest
@@ -35,6 +37,11 @@ class TranslationRequestSerializer(serializers.ModelSerializer):
             'source_file_path',
             'translated_file_path',
             'status',
+            'quality',
+            'quality_label',
+            'is_ai',
+            'ai_error',
+            'ai_model',
             'word_count',
             'cost',
             'submission_date',
@@ -54,6 +61,8 @@ class TranslationRequestSerializer(serializers.ModelSerializer):
             'payment_completed',
             'payment_pending',
             'payment_status_label',
+            'ai_error',
+            'ai_model',
         )
 
     def validate_source_file_path(self, value):
@@ -67,16 +76,18 @@ class TranslationRequestSerializer(serializers.ModelSerializer):
         So'zlar soni va narx FAYLDAN server tomonida hisoblanadi — mijoz yuborgan
         word_count/cost e'tiborsiz qoldiriladi (aks holda word_count=1 bilan 100 so'mga tarjima mumkin edi).
         """
-        from apps.udc.services import get_service_amount
-
+        from .pricing import price_per_word
         from .word_count import count_words_in_upload
 
+        if getattr(self, 'instance', None) is not None:
+            # Tarjima turi (va narxi) buyurtmadan keyin o'zgarmaydi
+            attrs.pop('quality', None)
         if getattr(self, 'instance', None) is None:
             source = attrs.get('source_file_path')
             if not source:
                 raise serializers.ValidationError({'source_file_path': 'Tarjima uchun fayl majburiy.'})
             word_count, _text, _is_estimate = count_words_in_upload(source)
-            rate = float(get_service_amount('translation_per_word', 100))
+            rate = price_per_word(attrs.get('quality') or TranslationRequest.QUALITY_EXPERT)
             attrs['word_count'] = word_count
             attrs['cost'] = Decimal(str(int(word_count * rate)))
             # Yangi so'rov har doim "Yangi" holatda, taqrizchisiz boshlanadi

@@ -132,7 +132,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           </button>
         </div>
 
-        <Link to={user.role === Role.Operator ? '/operator-dashboard' : '/dashboard'} className="milliy-brand">
+        <Link to={user.role === Role.Operator ? '/operator-dashboard' : user.role === Role.Translator ? '/translator-queue' : '/dashboard'} className="milliy-brand">
           <BrandMark />
           <span className="hidden sm:flex flex-col min-w-0">
             <span className="milliy-brand-title">{t('Phoenix')}</span>

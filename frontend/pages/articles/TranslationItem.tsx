@@ -49,6 +49,14 @@ const TranslationItem: React.FC<{ request: TranslationRequestApiResponse }> = ({
                 </span>
                 <span className="text-xs text-slate-600 truncate max-w-full">{paymentHint}</span>
             </div>
+            {request.quality_label && (
+                <p className="mt-2 text-xs font-medium text-slate-700">
+                    {t(request.quality_label)}
+                    {request.ai_error && (
+                        <span className="ml-2 text-amber-900">· {t("AI bajara olmadi — qo'lda tarjima kerak")}</span>
+                    )}
+                </p>
+            )}
             <div className="flex justify-between items-end mt-4">
                 <div>
                      <p className="text-sm text-slate-500 mt-2">

@@ -55,6 +55,12 @@ export interface TranslationRequestApiResponse {
     payment_completed?: boolean;
     payment_pending?: boolean;
     payment_status_label?: string;
+    /** basic / standard — AI, expert — tarjimon */
+    quality?: 'basic' | 'standard' | 'expert';
+    quality_label?: string;
+    is_ai?: boolean;
+    /** AI bajara olmagan bo'lsa — sababi (buyurtma tarjimonga o'tadi) */
+    ai_error?: string;
 }
 
 export interface JournalApiResponse {

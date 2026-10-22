@@ -22,6 +22,7 @@ export function setAuthorUi(mode: AuthorUi): void {
 /** Kirgandan keyingi bosh sahifa */
 export function homePathFor(role: string | undefined): string {
   if (role === 'operator') return '/operator-dashboard';
+  if (role === 'translator') return '/translator-queue';
   if (role === 'author' && getAuthorUi() === 'ai') return '/ai';
   return '/dashboard';
 }

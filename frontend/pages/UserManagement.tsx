@@ -272,6 +272,8 @@ const UserManagement: React.FC = () => {
         'journal_admin': 'Jurnal administratori',
         'super_admin': 'Bosh administrator',
         'accountant': 'Moliyachi',
+        'operator': 'Operator',
+        'translator': 'Tarjimon',
     };
 
     const roleColors: Record<string, string> = {
@@ -570,6 +572,7 @@ const UserManagement: React.FC = () => {
                                     <option value={Role.Reviewer}>{tr('Taqrizchi')}</option>
                                     <option value={Role.JournalAdmin}>{tr('Jurnal administratori')}</option>
                                     <option value={Role.Accountant}>{tr('Moliyachi')}</option>
+                                    <option value={Role.Translator}>{tr('Tarjimon')}</option>
                                     <option value={Role.SuperAdmin}>{tr('Bosh administrator')}</option>
                                 </select>
                             </div>

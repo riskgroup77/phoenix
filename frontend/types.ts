@@ -7,6 +7,8 @@ export enum Role {
   SuperAdmin = 'super_admin',
   Accountant = 'accountant',
   Operator = 'operator',
+  /** Tarjimon: «Puxta» (qo'lda) tarjima buyurtmalarini bajaradi */
+  Translator = 'translator',
 }
 
 /** Backend status keys (use these for API and comparisons). */

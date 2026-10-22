@@ -29,6 +29,10 @@ interface TranslationRequestApiResponse {
     payment_completed?: boolean;
     payment_pending?: boolean;
     payment_status_label?: string;
+    quality?: 'basic' | 'standard' | 'expert';
+    quality_label?: string;
+    is_ai?: boolean;
+    ai_error?: string;
 }
 
 const TranslationDetail: React.FC = () => {
@@ -45,8 +49,9 @@ const TranslationDetail: React.FC = () => {
     const [uploading, setUploading] = useState(false);
 
     const userRole = typeof user?.role === 'string' ? user.role.toLowerCase() : user?.role;
+    // Tarjimon (yangi rol) yoki o'zi olgan eski buyurtmada taqrizchi
     const isReviewer = useMemo(
-        () => userRole === 'reviewer' || user?.role === Role.Reviewer,
+        () => userRole === 'reviewer' || userRole === 'translator' || user?.role === Role.Reviewer || user?.role === Role.Translator,
         [user?.role, userRole]
     );
     const isSuperAdmin = useMemo(
@@ -131,7 +136,7 @@ const TranslationDetail: React.FC = () => {
             setRequest(updatedRequest as TranslationRequestApiResponse);
             addNotification({
                 message: `"${request.title}" tarjima so'rovi sizga biriktirildi.`,
-                link: '/articles',
+                link: '/translator-queue',
             });
         } catch (err: unknown) {
             console.error('Failed to accept translation request:', err);
@@ -169,7 +174,7 @@ const TranslationDetail: React.FC = () => {
             });
 
             alert(t("Tarjima muvaffaqiyatli yuborildi. Muallif tayyor faylni ko'ra oladi."));
-            navigate('/articles');
+            navigate(userRole === 'translator' ? '/translator-queue' : '/articles');
         } catch (err: unknown) {
             console.error('Failed to complete translation:', err);
             alert(t('Tarjimani yakunlashda xatolik yuz berdi.'));
@@ -185,13 +190,17 @@ const TranslationDetail: React.FC = () => {
     /** Muallif: to'lov hali tasdiqlanmagan (yoki API eski) */
     const showAuthorPayReminder = isAuthor && costNum > 0 && request.payment_completed !== true;
 
+    // AI bajarayotgan (xatosiz) oddiy/o'rta buyurtmaga tarjimon aralashmaydi
+    const aiOwned = !!request.is_ai && !request.ai_error;
     const canAccept =
         showReviewerActions &&
+        !aiOwned &&
         request.status === TranslationStatus.Yangi &&
         (!request.reviewer || String(request.reviewer) === String(user.id)) &&
         !translationNeedsPay;
     const canUpload =
         showReviewerActions &&
+        !aiOwned &&
         request.status === TranslationStatus.Jarayonda &&
         (!request.reviewer || String(request.reviewer) === String(user.id)) &&
         !translationNeedsPay;
@@ -238,9 +247,28 @@ const TranslationDetail: React.FC = () => {
                         </div>
                     )}
 
-                    {isAuthor && !canManage && (
+                    {request.quality_label && (
+                        <p className="mb-4 text-sm font-medium text-slate-800">
+                            {t('Tarjima turi:')} {t(request.quality_label)}
+                        </p>
+                    )}
+                    {request.is_ai && !request.ai_error && request.status !== TranslationStatus.Bajarildi && (
+                        <p className="text-sm text-slate-600 mb-4 p-3 rounded-lg bg-sky-500/10 border border-sky-400/30">
+                            {request.status === TranslationStatus.Jarayonda
+                                ? t("AI tarjima qilmoqda — odatda bir necha daqiqa. Tayyor bo'lganda bildirishnoma keladi.")
+                                : t("To'lov tasdiqlangach AI tarjimani avtomatik boshlaydi.")}
+                        </p>
+                    )}
+                    {request.ai_error && (
+                        <p className="text-sm text-amber-950 mb-4 p-3 rounded-lg bg-amber-400/15 border border-amber-400/60">
+                            {isAuthor && !canManage
+                                ? t("AI tarjima qila olmadi — buyurtmani tarjimon qo'shimcha to'lovsiz bajaradi.")
+                                : t('AI tarjima qila olmadi: {value}. Qo\'lda tarjima kerak.', { value: request.ai_error.replace(/[.\s]+$/, '') })}
+                        </p>
+                    )}
+                    {isAuthor && !canManage && !request.is_ai && (
                         <p className="text-sm text-slate-500 mb-4 p-3 rounded-lg bg-slate-100/70 border border-slate-200/90">
-                            {t("Bu sizning tarjima buyurtmangiz. Holat yangilanishi va tayyor fayl paydo bo'lishi taqrizchi tomonidan bajariladi.")}
+                            {t("Bu sizning tarjima buyurtmangiz. Holat yangilanishi va tayyor fayl paydo bo'lishi tarjimon tomonidan bajariladi.")}
                         </p>
                     )}
 

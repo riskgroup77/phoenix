@@ -37,6 +37,12 @@ def _fulfill_after_payment(transaction):
             fulfill_publication_fee(transaction)
         except Exception as e:
             logger.error('Publication fee fulfill failed: %s', e, exc_info=True)
+    if service_type == 'translation':
+        try:
+            from apps.translations.fulfill import fulfill_translation
+            fulfill_translation(transaction)
+        except Exception as e:
+            logger.error('Translation fulfill failed: %s', e, exc_info=True)
     if service_type == 'book_publication':
         try:
             from apps.articles.fulfill_book_publication import fulfill_book_publication

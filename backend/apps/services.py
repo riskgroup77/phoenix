@@ -296,6 +296,10 @@ class GeminiService:
             logger.error("Gemini generate_content failed: %s", e, exc_info=True)
             return None
 
+    def generate_text(self, prompt: str) -> str | None:
+        """Erkin matnli so'rov (masalan, tarjima) — faol provayder orqali; xato bo'lsa None."""
+        return self._generate_text(prompt)
+
     def generate_abstract_and_keywords(self, article_text):
         """Generate abstract and keywords from article text"""
         try:

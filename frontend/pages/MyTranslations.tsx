@@ -33,6 +33,9 @@ interface TranslationRequestApiResponse {
     payment_completed?: boolean;
     payment_pending?: boolean;
     payment_status_label?: string;
+    quality_label?: string;
+    is_ai?: boolean;
+    ai_error?: string;
 }
 
 const getStatusDisplayData = (status: TranslationStatus) => {
@@ -164,7 +167,14 @@ const MyTranslations: React.FC = () => {
                                         </h3>
                                         <p className="text-sm text-slate-500 mt-2">
                                             {t(req.source_language).toUpperCase()} → {t(req.target_language).toUpperCase()}
+                                            {req.quality_label && <span className="ml-2 font-medium text-slate-700">· {t(req.quality_label)}</span>}
                                         </p>
+                                        {req.is_ai && !req.ai_error && req.status === TranslationStatus.Jarayonda && (
+                                            <p className="mt-1 text-xs text-sky-900">{t("AI tarjima qilmoqda — tayyor bo'lganda bildirishnoma keladi.")}</p>
+                                        )}
+                                        {req.ai_error && req.status !== TranslationStatus.Bajarildi && (
+                                            <p className="mt-1 text-xs text-amber-900">{t("AI tarjima qila olmadi — buyurtmani tarjimon qo'shimcha to'lovsiz bajaradi.")}</p>
+                                        )}
                                         <div className="text-xs text-slate-500 mt-2">
                                             <span>{t('Yuborilgan sana: {value}', { value: new Date(req.submission_date).toLocaleDateString() })}</span>
                                             {req.status === TranslationStatus.Jarayonda && req.reviewer_name && (

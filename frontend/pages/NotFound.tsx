@@ -15,7 +15,7 @@ const NotFound: React.FC = () => {
   const { t } = useT();
   const navigate = useNavigate();
   const location = useLocation();
-  const home = user ? (user.role === Role.Operator ? '/operator-dashboard' : '/dashboard') : '/';
+  const home = user ? (user.role === Role.Operator ? '/operator-dashboard' : user.role === Role.Translator ? '/translator-queue' : '/dashboard') : '/';
 
   const suggestions = user
     ? [

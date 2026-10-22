@@ -3,7 +3,7 @@ import { useAiPrefill, str, num } from '../contexts/AiPrefillContext';
 import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import Button from '../components/ui/Button';
-import { Upload, Languages, FileText, Loader2, CheckCircle, AlertCircle, CreditCard } from 'lucide-react';
+import { Upload, Languages, FileText, Loader2, CheckCircle, AlertCircle, CreditCard, Bot, Sparkles, UserCheck, XCircle } from 'lucide-react';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
 import { TranslationStatus } from '../types';
 import { apiService } from '../services/apiService';
@@ -12,13 +12,43 @@ import { toast } from 'react-toastify';
 import { useT } from '../i18n/LanguageContext';
 import { DEFAULT_UPLOAD_BYTES, DEFAULT_UPLOAD_MB } from '../constants/upload';
 
+type Quality = 'basic' | 'standard' | 'expert';
+
+interface QualityOption {
+  quality: Quality;
+  pricePerWord: number;
+  cost: number;
+}
+
 interface FileAnalysis {
   wordCount: number;
-  cost: number;
   fileName: string;
-  /** Backenddan: ServicePrice translation_per_word */
-  pricePerWord: number;
+  /** Backenddan: har bir tarjima turi narxi (ServicePrice) */
+  qualities: QualityOption[];
 }
+
+/** Tarjima turlari: oddiy va o'rta — AI (to'lovdan keyin avtomatik), puxta — tarjimon */
+const QUALITY_INFO: Record<Quality, { title: string; who: string; hint: string; icon: typeof Bot }> = {
+  basic: {
+    title: 'Oddiy tarjima',
+    who: 'AI',
+    hint: "Tez, mazmunni to'liq yetkazadi. Odatda bir necha daqiqada tayyor.",
+    icon: Bot,
+  },
+  standard: {
+    title: "O'rta tarjima",
+    who: 'AI',
+    hint: "Ilmiy uslub va atamalar izchilligi; AI ikki bosqichda tarjima qilib, o'zi tahrirlaydi.",
+    icon: Sparkles,
+  },
+  expert: {
+    title: 'Puxta tarjima',
+    who: 'Tarjimon',
+    hint: "Professional tarjimon qo'lda tarjima qiladi. Nashr uchun eng ishonchli variant.",
+    icon: UserCheck,
+  },
+};
+const QUALITY_ORDER: Quality[] = ['basic', 'standard', 'expert'];
 
 const TranslationService: React.FC = () => {
   const { t } = useT();
@@ -27,8 +57,10 @@ const TranslationService: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [sourceLang, setSourceLang] = useState('uz');
   const [targetLang, setTargetLang] = useState('en');
+  const [quality, setQuality] = useState<Quality>('standard');
   const [analysisResult, setAnalysisResult] = useState<FileAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const selectedOption = (a: FileAnalysis | null) => a?.qualities.find((q) => q.quality === quality) ?? null;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -112,7 +144,7 @@ const TranslationService: React.FC = () => {
     try {
       // Create transaction and process payment via Click
       const result = await paymentService.createTransactionAndPay(
-        analysisResult.cost,
+        selectedOption(analysisResult)?.cost ?? 0,
         'UZS',
         'translation',
         undefined, // articleId
@@ -161,12 +193,14 @@ const TranslationService: React.FC = () => {
     try {
       const response = await apiService.translations.analyzeFile(file);
       
-      const ppw = Number(response.price_per_word ?? 100);
+      const rows: any[] = Array.isArray(response.qualities) ? response.qualities : [];
       setAnalysisResult({
         wordCount: response.word_count,
-        cost: response.cost,
         fileName: file.name,
-        pricePerWord: Number.isFinite(ppw) && ppw > 0 ? ppw : 100,
+        qualities: QUALITY_ORDER.map((q) => {
+          const row = rows.find((r) => r.quality === q);
+          return { quality: q, pricePerWord: Number(row?.price_per_word ?? 0), cost: Number(row?.cost ?? 0) };
+        }),
       });
 
       toast.success(t('Fayl tahlili tugallandi!'));
@@ -188,8 +222,9 @@ const TranslationService: React.FC = () => {
         source_language: sourceLang,
         target_language: targetLang,
         status: TranslationStatus.Yangi,
+        quality,
         word_count: analysisResult.wordCount,
-        cost: analysisResult.cost,
+        cost: selectedOption(analysisResult)?.cost ?? 0,
         submission_date: new Date().toISOString().split('T')[0],
       };
       
@@ -227,6 +262,17 @@ const TranslationService: React.FC = () => {
       // Save translation request ID for payment
       if (translationResult && translationResult.id) {
         setTranslationRequestId(translationResult.id);
+      }
+
+      // Bepul (narxi 0) buyurtma darhol ishga tushadi — to'lov oynasi kerak emas
+      if (!paymentCompleted && Number(translationResult?.cost ?? 0) <= 0) {
+        toast.success(t("Tarjima buyurtmasi qabul qilindi. Holatini «Tarjimalarim» bo'limida kuzating."));
+        setFile(null);
+        setAnalysisResult(null);
+        setTranslationRequestId(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        setIsSubmitting(false);
+        return;
       }
 
       // If payment is not completed, show payment modal
@@ -364,7 +410,7 @@ const TranslationService: React.FC = () => {
                     <Languages className="mr-2 h-5 w-5 text-blue-800" />
                     {t('Tahlil Natijalari')}
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="p-3 bg-blue-900/20 rounded border border-blue-700/30">
                       <p className="text-sm text-blue-900">{t('Fayl nomi')}</p>
                       <p className="font-medium text-slate-900 truncate">{analysisResult.fileName}</p>
@@ -373,12 +419,47 @@ const TranslationService: React.FC = () => {
                       <p className="text-sm text-emerald-900">{t("So'zlar soni")}</p>
                       <p className="font-medium text-slate-900">{analysisResult.wordCount.toLocaleString()}</p>
                     </div>
-                    <div className="p-3 bg-yellow-900/20 rounded border border-yellow-700/30">
-                      <p className="text-sm text-yellow-900">{t('Taxminiy narx')}</p>
-                      <p className="font-medium text-slate-900">{t("{value} so'm", { value: analysisResult.cost.toLocaleString() })}</p>
-                    </div>
                   </div>
-                  
+
+                  <p className="mt-5 mb-2 text-sm font-medium text-slate-700">{t('Tarjima turini tanlang')}</p>
+                  <div role="radiogroup" aria-label={t('Tarjima turi')} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {analysisResult.qualities.map((option) => {
+                      const info = QUALITY_INFO[option.quality];
+                      const Icon = info.icon;
+                      const active = option.quality === quality;
+                      return (
+                        <button
+                          key={option.quality}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => setQuality(option.quality)}
+                          className={`flex flex-col gap-2 rounded-xl border p-4 text-left transition-colors ${
+                            active
+                              ? 'border-[var(--editorial-primary)] bg-[rgba(31,63,143,0.08)] ring-2 ring-[rgba(31,63,143,0.25)]'
+                              : 'border-slate-200/90 bg-white/40 hover:border-[var(--editorial-primary)]/50'
+                          }`}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="flex items-center gap-2 font-semibold text-slate-900">
+                              <Icon className="h-4 w-4 text-[var(--editorial-primary)]" aria-hidden /> {t(info.title)}
+                            </span>
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                              option.quality === 'expert' ? 'bg-emerald-500/15 text-emerald-900' : 'bg-sky-500/15 text-sky-900'
+                            }`}>{t(info.who)}</span>
+                          </span>
+                          <span className="text-xs text-slate-600">{t(info.hint)}</span>
+                          <span className="mt-auto pt-1 text-lg font-bold text-slate-900">
+                            {t("{value} so'm", { value: option.cost.toLocaleString() })}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {t("{value} so'm / so'z", { value: option.pricePerWord.toLocaleString() })}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   <div className="mt-4 pt-4 border-t border-slate-200/90">
                     <div className="flex flex-col sm:flex-row gap-3">
                       <Button
@@ -425,11 +506,7 @@ const TranslationService: React.FC = () => {
               <div>
                 <h4 className="font-medium text-blue-900">{t("Muhim Ma'lumot")}</h4>
                 <p className="mt-1 text-sm text-slate-600">
-                  {t("Tarjima xizmati uchun narx so'zlar soniga qarab hisoblanadi. Hozirgi narx:")}{' '}
-                  <span className="font-semibold text-[var(--editorial-primary)]">
-                    {analysisResult ? analysisResult.pricePerWord.toLocaleString('uz-UZ') : '100'} {t("so'm")}
-                  </span>{' '}
-                  {t("har bir so'z uchun. Jami: so'zlar soni × bu narx. Sifatli tarjima mutaxassislarning qo'lidan chiqadi.")}
+                  {t("Narx so'zlar soni va tarjima turiga qarab hisoblanadi. Oddiy va o'rta tarjimani AI to'lovdan keyin avtomatik bajaradi; puxta tarjimani professional tarjimon qiladi. AI tarjima qila olmasa, buyurtmani qo'shimcha to'lovsiz tarjimon bajaradi.")}
                 </p>
               </div>
             </div>
@@ -449,7 +526,8 @@ const TranslationService: React.FC = () => {
                 </p>
                 <div className="p-3 bg-blue-900/20 rounded border border-blue-700/30 mb-4">
                   <p className="text-sm text-blue-900">{t("So'zlar soni: {value}", { value: analysisResult?.wordCount.toLocaleString() })}</p>
-                  <p className="text-lg font-bold text-slate-900 mt-1">{t("{value} so'm", { value: analysisResult?.cost.toLocaleString() })}</p>
+                  <p className="text-sm text-blue-900">{t(QUALITY_INFO[quality].title)}</p>
+                  <p className="text-lg font-bold text-slate-900 mt-1">{t("{value} so'm", { value: (selectedOption(analysisResult)?.cost ?? 0).toLocaleString() })}</p>
                 </div>
                 <div className="flex gap-3">
                   <Button onClick={handlePay} className="flex-1">
@@ -478,16 +556,20 @@ const TranslationService: React.FC = () => {
               </div>
             )}
             {paymentStatus === 'failed' && (
-              <div>
-                <div className="text-red-500 text-4xl mb-4 text-center">✗</div>
-                <p className="mt-4 text-lg font-medium text-slate-700 text-center">{t("To'lovda xatolik!")}</p>
-                <p className="text-sm text-slate-500 max-w-xs mx-auto text-center mb-4">{paymentError}</p>
-                <div className="flex gap-3">
-                  <Button onClick={handlePay} className="flex-1">
-                    {t('Qayta Urinish')}
-                  </Button>
+              <div className="text-center" role="alert">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10">
+                  <XCircle className="h-8 w-8 text-red-600" aria-hidden />
+                </div>
+                <h3 className="mt-4 text-lg font-semibold text-slate-950">{t("To'lovni boshlab bo'lmadi")}</h3>
+                <p className="mx-auto mt-2 max-w-sm break-words text-sm text-slate-600">
+                  {paymentError || t("To'lovni amalga oshirishda xatolik yuz berdi.")}
+                </p>
+                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:gap-3">
                   <Button variant="secondary" onClick={closePaymentModal} className="flex-1">
                     {t('Yopish')}
+                  </Button>
+                  <Button onClick={handlePay} className="flex-1">
+                    {t('Qayta urinish')}
                   </Button>
                 </div>
               </div>
