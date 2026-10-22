@@ -76,6 +76,9 @@ class ReviewerScopeTests(TestCase):
         self.assertNotEqual(data['author_name'], 'Anonim muallif')
 
     def test_unpaid_translations_hidden(self):
+        # Tarjimani endi tarjimon (translator) bajaradi; to'lanmagan buyurtma unga ham ko'rinmaydi.
+        # Taqrizchiga faqat o'zi olgan eski buyurtmalar ko'rinadi (tests/test_translation_ai.py).
+        self.client.force_authenticate(_user('998910000205', role='translator'))
         mk = lambda t, cost: TranslationRequest.objects.create(
             author=self.author, title=t, source_language='uz', target_language='en',
             source_file_path='translations/source/x.docx', cost=Decimal(cost),
