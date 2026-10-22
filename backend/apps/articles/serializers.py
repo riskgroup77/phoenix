@@ -3,6 +3,7 @@ import re
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from .models import Article, ArticleVersion, ActivityLog, DoiRequest, ArticleSampleRequest, ArticleOperatorMessage
+from .workflow import is_post_payment_journal
 from apps.users.serializers import UserSerializer
 from apps.users.models import User
 from apps.journals.models import Journal
@@ -172,13 +173,16 @@ def _needs_publication_payment(context, article) -> bool:
     Muallif uchun: qoralama nashr to'lovini kutyapti va hali to'lanmagan. Avval to'lov bekor qilinsa yoki
     Click'da xato bo'lsa (kutilayotgan tranzaksiya qolmasa) "To'lash" tugmasi yo'qolib, maqola qoralamada
     qotib qolardi — endi shu belgi bo'yicha yangi to'lov boshlanadi.
+    "Qabuldan keyin to'lov" jurnalida — maqola qabul qilingach (awaits_post_payment).
     """
-    if article.status != 'Draft':
-        return False
     request = context.get('request') if context else None
     user = getattr(request, 'user', None) if request else None
     if not user or article.author_id != getattr(user, 'id', None):
         return False
+    if article.status != 'Draft':
+        from .workflow import awaits_post_payment
+
+        return awaits_post_payment(article)
     journal = article.journal
     if journal is None or journal.payment_model != 'pre-payment':
         return False
@@ -209,13 +213,13 @@ def _allowed_transitions(context, article) -> list[str]:
 
 def _can_publish(context, article) -> bool:
     """«Nashr qilish» (sertifikat yuklash) bloki: bosh admin, jurnal admini yoki taqrizini yakunlagan taqrizchi."""
-    from .workflow import reviewer_can_manage
+    from .workflow import awaits_post_payment, reviewer_can_manage
 
     request = context.get('request') if context else None
     user = getattr(request, 'user', None) if request else None
     if not user or not getattr(user, 'is_authenticated', False):
         return False
-    if article.status not in ('Accepted', 'NashrgaYuborilgan'):
+    if article.status not in ('Accepted', 'NashrgaYuborilgan') or awaits_post_payment(article):
         return False
     role = (getattr(user, 'role', '') or '').strip().lower()
     if role == 'super_admin' or getattr(user, 'is_superuser', False):
@@ -303,6 +307,8 @@ def status_change_text(old_status: str, new_status: str) -> str:
     # "QabulQilingan" (taqrizda) va "Accepted" (qabul qilindi) model yorliqlari deyarli bir xil — jurnalda
     # «"Qabul Qilingan" → "Qabul qilingan"» chalkash ko'rinardi. Sahifadagi holat nomlari ishlatiladi.
     labels.update({'QabulQilingan': 'Ko‘rib chiqilmoqda', 'Accepted': 'Qabul qilindi', 'NashrgaYuborilgan': 'Nashrga tayyorlanmoqda'})
+    if old_status == 'Revision' and new_status == 'Yangi':
+        return 'Qayta yuborildi (kamchiliklar tuzatildi)'
     return f'Holat: "{labels.get(old_status, old_status)}" → "{labels.get(new_status, new_status)}"'
 
 
@@ -419,6 +425,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data['allowed_transitions'] = _allowed_transitions(self.context, instance)
         data['needs_publication_payment'] = _needs_publication_payment(self.context, instance)
+        data['post_payment'] = is_post_payment_journal(instance.journal)
         status_map = _my_review_status_map(self.context)
         if status_map is not None:
             data['my_review_status'] = status_map.get(instance.pk)
@@ -596,6 +603,10 @@ class ArticleSerializer(serializers.ModelSerializer):
         # Muharrir "Qabul qilish" tugmasini faqat yakunlangan taqriz bo'lsa ko'radi (backend ham tekshiradi)
         data['has_completed_review'] = instance.peer_reviews.filter(status='completed').exists()
         data['can_publish'] = _can_publish(self.context, instance)
+        from .workflow import awaits_post_payment
+
+        # Xodimlar uchun: qabul qilingan, muallif nashr to'lovini kutyapti (post-payment jurnal)
+        data['awaiting_post_payment'] = awaits_post_payment(instance)
         if hide_author_from_viewer(self.context, instance):
             anonymize_author(data, instance)
         return data
@@ -726,19 +737,50 @@ class ArticleSerializer(serializers.ModelSerializer):
         }
         return common_map.get(status_value, 0)
 
+    RESUBMITTED_LABEL = 'Qayta yuborildi'
+    RESUBMITTED_HINT = "Muallif kamchiliklarni tuzatib, maqolani qayta yubordi. Taqrizchi qayta ko'rib chiqadi."
+
+    @staticmethod
+    def _is_resubmitted(obj) -> bool:
+        """Hozirgi "Yangi" — tahrirdan keyin qayta yuborilgan (Revision → Yangi)."""
+        if obj.status != 'Yangi':
+            return False
+        last = obj.status_events.order_by('-created_at').first()
+        return bool(last and last.from_status == 'Revision' and last.to_status == 'Yangi')
+
     def get_status_label(self, obj):
+        if self._is_resubmitted(obj):
+            return self.RESUBMITTED_LABEL
+        if obj.status == 'Accepted':
+            from .workflow import awaits_post_payment
+
+            if awaits_post_payment(obj):
+                return "Qabul qilindi — to'lov kutilmoqda"
         return self._status_labels().get(obj.status, obj.status)
 
-    def get_workflow_stage(self, obj):
+    POST_PAYMENT_STEPS = ['Topshirildi', 'Tekshiruv', 'Muharrirlik', "To'lov", 'Nashr']
+
+    def _steps_and_index(self, obj):
+        """"Qabuldan keyin to'lov" jurnalida taqrizdan keyin alohida «To'lov» bosqichi bor."""
         is_book = self._is_book_submission(obj)
-        current_idx = self._stage_index_by_status(obj.status, is_book)
-        steps = self._workflow_steps_by_type(is_book)
+        if not is_book and is_post_payment_journal(obj.journal):
+            from .workflow import awaits_post_payment
+
+            if obj.status in ('Accepted', 'NashrgaYuborilgan'):
+                idx = 3 if awaits_post_payment(obj) else 4
+            elif obj.status == 'Published':
+                idx = 5
+            else:
+                idx = min(self._stage_index_by_status(obj.status, False), 3)
+            return list(self.POST_PAYMENT_STEPS), idx
+        return self._workflow_steps_by_type(is_book), self._stage_index_by_status(obj.status, is_book)
+
+    def get_workflow_stage(self, obj):
+        steps, current_idx = self._steps_and_index(obj)
         return steps[min(current_idx, len(steps) - 1)]
 
     def get_workflow_steps(self, obj):
-        is_book = self._is_book_submission(obj)
-        steps = self._workflow_steps_by_type(is_book)
-        current_idx = self._stage_index_by_status(obj.status, is_book)
+        steps, current_idx = self._steps_and_index(obj)
 
         items = []
         for idx, step in enumerate(steps):
@@ -812,18 +854,39 @@ class ArticleSerializer(serializers.ModelSerializer):
         items = []
 
         events = list(obj.status_events.select_related('actor').all())
+        post_payment = is_post_payment_journal(obj.journal)
+        if post_payment:
+            from .workflow import publication_fee_paid
+
+            fee_paid = publication_fee_paid(obj)
         for ev in events:
             internal = not staff_view and ev.to_status == 'PlagiarismReview'
+            resubmitted = ev.from_status == 'Revision' and ev.to_status == 'Yangi'
+            if resubmitted:
+                label = self.RESUBMITTED_LABEL
+            elif internal:
+                label = "Antiplagiat natijasi tahririyatda ko'rib chiqilmoqda"
+            else:
+                label = status_labels.get(ev.to_status, ev.to_status)
+            if resubmitted:
+                hint = self.RESUBMITTED_HINT
+            elif internal:
+                hint = "Tahririyat qarori bilan maqola keyingi bosqichga o'tadi."
+            elif ev.to_status == 'Accepted' and post_payment:
+                hint = ("Nashr to'lovi qilindi. Maqola nashrga tayyorlanmoqda." if fee_paid
+                        else "Maqola qabul qilindi. Muallif nashr to'lovini qilgach, maqola nashr qilinadi.")
+            else:
+                hint = self.STATUS_HINTS.get(ev.to_status, '')
             items.append({
                 'kind': 'status',
                 # Muallifga bosh admin qarori va chegara hisob-kitobi emas — umumiy holat ko'rsatiladi
-                'status': "Antiplagiat natijasi tahririyatda ko'rib chiqilmoqda" if internal else status_labels.get(ev.to_status, ev.to_status),
+                'status': label,
                 'to_status': ev.to_status,
                 'from_status': ev.from_status,
                 'date': ev.created_at,
                 'comment': '' if internal else (ev.note or ''),
                 'responsible': self._responsible_label(ev.actor, ev.actor_role, obj, staff_view),
-                'hint': "Tahririyat qarori bilan maqola keyingi bosqichga o'tadi." if internal else self.STATUS_HINTS.get(ev.to_status, ''),
+                'hint': hint,
                 'tone': self.STATUS_TONES.get(ev.to_status, 'info'),
             })
 

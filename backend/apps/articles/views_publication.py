@@ -9,7 +9,7 @@ from .views_antiplagiat import _check_plagiarism_thresholds, start_plagiarism_ch
 from config.upload_validation import validate_upload
 from .workflow import (
     THRESHOLD_CHECKED_TARGETS, allowed_staff_transitions, has_completed_review, is_book_submission,
-    reviewer_can_manage, reviewer_transitions,
+    awaits_post_payment, reviewer_can_manage, reviewer_transitions,
 )
 import logging
 
@@ -257,6 +257,13 @@ class ArticlePublicationActionsMixin:
 
             if Transaction.objects.filter(article=article, service_type='publication_fee', status='completed').exists():
                 notif_message += " Nashr to'lovini qaytarishni maqola sahifasidan so'rashingiz mumkin."
+        elif final_status == 'Accepted' and awaits_post_payment(article):
+            notif_title = "Maqola qabul qilindi — nashr to'lovini qiling"
+            notif_message = (
+                f'"{article.title}" maqolangiz taqrizdan o\'tdi va qabul qilindi. Nashr qilinishi uchun maqola '
+                "sahifasida «To'lash» tugmasini bosib, nashr to'lovini qiling."
+            )
+            notif_metadata['needs_payment'] = True
         else:
             notif_title = 'Maqola holati yangilandi'
             notif_message = f'"{article.title}" maqolangiz holati "{new_label}" ga o\'zgartirildi.'
@@ -361,6 +368,12 @@ class ArticlePublicationActionsMixin:
             return Response(
                 {'error': 'Faqat "Qabul qilingan" yoki "Nashrga yuborilgan" holatidagi maqolani nashr qilish mumkin'},
                 status=status.HTTP_400_BAD_REQUEST
+            )
+        if awaits_post_payment(article):
+            return Response(
+                {'error': "Muallif nashr to'lovini hali qilmagan. To'lovdan keyin nashr qilish mumkin — "
+                          "to'lov qilinganda sizga xabar keladi."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
         certificate_file = request.FILES.get('certificate')
         if not certificate_file:

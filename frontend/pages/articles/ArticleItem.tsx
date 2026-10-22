@@ -52,8 +52,9 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
     const isAuthor = (userId || user?.id) === article.author;
     const isAuthorRole =
         user?.role === Role.Author || String(user?.role ?? '').toLowerCase() === 'author';
-    const authorWorkflowSteps = isAuthor && isAuthorRole && !isAntiplagiatDoc(article) ? getAuthorWorkflowStepsFromStatus(currentStatus, isBookTitle(article.title)) : [];
-    const authorStageHint = isAuthor && isAuthorRole ? getAuthorWorkflowStageLabel(currentStatus, isBookTitle(article.title)) : '';
+    const workflowOpts = { postPayment: !!article.post_payment, awaitingPayment: !!article.needs_publication_payment };
+    const authorWorkflowSteps = isAuthor && isAuthorRole && !isAntiplagiatDoc(article) ? getAuthorWorkflowStepsFromStatus(currentStatus, isBookTitle(article.title), workflowOpts) : [];
+    const authorStageHint = isAuthor && isAuthorRole ? getAuthorWorkflowStageLabel(currentStatus, isBookTitle(article.title), workflowOpts) : '';
     const viewerRoleNorm =
         typeof user?.role === 'string' ? user.role.toLowerCase() : String(user?.role ?? '');
     // Kitob buyurtmasi antiplagiatdan o'tmaydi — "Tekshirilmagan" belgisi chalg'itardi
@@ -236,13 +237,16 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                     )}
                 </div>
             </div>
-            {isAuthor && !isPlagDoc && currentStatus === ArticleStatus.Draft && (pendingTxId || article.needs_publication_payment) && (
+            {/* To'lov: qoralama (oldindan to'lov) yoki qabul qilingan maqola ("qabuldan keyin to'lov" jurnali) */}
+            {isAuthor && !isPlagDoc && (currentStatus === ArticleStatus.Draft ? (pendingTxId || article.needs_publication_payment) : article.needs_publication_payment) && (
                 <div
                     className="mt-3 p-3 rounded-lg bg-amber-500/15 border border-amber-500/30"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <p className="text-sm text-amber-950 mb-2">
-                        {t("To'lov kutilmoqda — jurnalga yuborish uchun to'lovni tugating.")}
+                        {currentStatus === ArticleStatus.Draft
+                            ? t("To'lov kutilmoqda — jurnalga yuborish uchun to'lovni tugating.")
+                            : t("Maqolangiz qabul qilindi — nashr qilinishi uchun nashr to'lovini qiling.")}
                     </p>
                     <Button
                         type="button"
@@ -254,7 +258,7 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                             startPublicationPayment();
                         }}
                     >
-                        <CreditCard className="h-4 w-4" aria-hidden /> {isPaying ? '...' : t("To'lovni tugatish")}
+                        <CreditCard className="h-4 w-4" aria-hidden /> {isPaying ? '...' : currentStatus === ArticleStatus.Draft ? t("To'lovni tugatish") : t("To'lash")}
                     </Button>
                 </div>
             )}

@@ -73,6 +73,34 @@ def allowed_staff_transitions(article, *, super_admin: bool) -> frozenset[str]:
     return allowed
 
 
+def publication_fee_paid(article) -> bool:
+    from apps.payments.models import Transaction
+
+    return Transaction.objects.filter(article_id=article.pk, service_type='publication_fee', status='completed').exists()
+
+
+def is_post_payment_journal(journal) -> bool:
+    """Pullik "qabuldan keyin to'lov" jurnali (to'lov taqrizdan keyin)."""
+    return journal is not None and getattr(journal, 'payment_model', None) == 'post-payment' and (
+        float(journal.publication_fee or 0) > 0 or float(journal.price_per_page or 0) > 0)
+
+
+def awaits_post_payment(article) -> bool:
+    """
+    "Qabuldan keyin to'lov" (post-payment) jurnali: maqola qabul qilingan, nashr to'lovi hali qilinmagan.
+    Shu holatda muallifga «To'lash» chiqadi, nashrni yakunlash esa to'lovgacha yopiq.
+    """
+    if article.status not in ('Accepted', 'NashrgaYuborilgan'):
+        return False
+    if not is_post_payment_journal(getattr(article, 'journal', None)) or is_book_submission(article):
+        return False
+    from .antiplagiat_utils import is_standalone_antiplagiat
+
+    if is_standalone_antiplagiat(article):
+        return False
+    return not publication_fee_paid(article)
+
+
 def has_completed_review(article) -> bool:
     return article.peer_reviews.filter(status='completed').exists()
 

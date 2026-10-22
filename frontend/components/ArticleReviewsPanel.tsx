@@ -68,10 +68,21 @@ const STATUS_TONES: Record<Review['status'], string> = {
 };
 const RECOMMENDATIONS: { value: string; label: string }[] = [
   { value: 'accept', label: 'Qabul qilish' },
-  { value: 'minor_revision', label: 'Kichik tuzatish bilan' },
-  { value: 'major_revision', label: 'Katta tuzatish bilan' },
-  { value: 'reject', label: 'Rad etish' },
+  { value: 'minor_revision', label: 'Kichik tuzatish bilan (muallifga qaytariladi)' },
+  { value: 'major_revision', label: 'Katta tuzatish bilan (muallifga qaytariladi)' },
+  { value: 'reject', label: 'Butunlay rad etish (qayta yuborib bo\'lmaydi)' },
 ];
+
+/** Taqriz yuborilgach maqola o'tadigan holat: taqrizchi qarorini alohida tugma bilan takrorlamaydi */
+const RECOMMENDATION_STATUS: Record<string, { status: string; ok: string }> = {
+  accept: {
+    status: 'Accepted',
+    ok: "Taqriz yuborildi. Maqola qabul qilindi — nashr qilish (yoki to'lov kerak bo'lsa, muallif to'lovi) keyingi qadam.",
+  },
+  minor_revision: { status: 'Revision', ok: "Taqriz yuborildi. Maqola sabab bilan muallifga qaytarildi — u tuzatib qayta yuboradi." },
+  major_revision: { status: 'Revision', ok: "Taqriz yuborildi. Maqola sabab bilan muallifga qaytarildi — u tuzatib qayta yuboradi." },
+  reject: { status: 'Rejected', ok: 'Taqriz yuborildi. Maqola rad etildi, muallifga sabab bilan xabar berildi.' },
+};
 const REVIEW_TYPES: { value: Review['review_type']; label: string }[] = [
   { value: 'double_blind', label: 'Ikki tomonlama yopiq' },
   { value: 'single_blind', label: 'Bir tomonlama yopiq' },
@@ -154,22 +165,18 @@ const ReviewerForm: React.FC<{ review: Review; articleId: string; onDone: () => 
       toast.error('Tavsiya va taqriz matni majburiy.');
       return;
     }
-    if (form.recommendation !== 'accept') {
-      run(
-        () => apiService.reviews.submitReview(review.id, form),
-        "Taqriz yuborildi. Endi o'ng tomondagi «Boshqaruv» bo'limida qaror qiling (tahrirga qaytarish yoki rad etish).",
-      );
-      return;
-    }
+    const next = RECOMMENDATION_STATUS[form.recommendation];
+    // Qaytarish / rad etish sababi — muallifga izoh (bo'lmasa taqriz matni)
+    const reason = (form.comments_to_author || form.review_content).trim();
     run(async () => {
       await apiService.reviews.submitReview(review.id, form);
       try {
-        await apiService.articles.updateStatus(articleId, 'Accepted');
+        await apiService.articles.updateStatus(articleId, next.status, next.status === 'Accepted' ? undefined : reason);
       } catch (err: any) {
-        // Masalan, antiplagiat tekshiruvi hali tayyor emas — taqriz saqlandi, qabulni keyinroq «Boshqaruv» dan bosadi
-        toast.info(err?.message || "Maqolani «Boshqaruv» bo'limidan qabul qiling.", { autoClose: 8000 });
+        // Masalan, antiplagiat tekshiruvi hali tayyor emas — taqriz saqlandi, qarorni keyinroq «Boshqaruv» dan bosadi
+        toast.info(err?.message || "Qarorni «Boshqaruv» bo'limidan qiling.", { autoClose: 8000 });
       }
-    }, "Taqriz yuborildi. Maqola qabul qilindi — endi «Nashr qilish» bo'limida sertifikatni yuklang.");
+    }, next.ok);
   };
 
   return (

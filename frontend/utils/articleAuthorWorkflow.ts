@@ -24,6 +24,22 @@ const STATUS_TO_STEP: Partial<Record<ArticleStatus, number>> = {
 };
 
 /**
+ * "Qabuldan keyin to'lov" jurnali: to'lov taqrizdan keyin. Avval umumiy zanjirda "To'lov va qoralama" bajarilgan
+ * ko'rinib, qabul qilingan (to'lanmagan) maqola "Nashr" bosqichida turgandek chiqardi.
+ */
+const POST_PAYMENT_STEP_LABELS = ['Yuborildi', 'Jurnal tekshiruvi', 'Antiplagiat', 'Taqriz', "To'lov", 'Nashr'] as const;
+
+function postPaymentIndex(status: string, awaitingPayment: boolean): number {
+  if (status === ArticleStatus.Accepted || status === ArticleStatus.NashrgaYuborilgan) return awaitingPayment ? 4 : 5;
+  if (status === ArticleStatus.Published) return 6;
+  if (status === ArticleStatus.Rejected) return -1;
+  return Math.min(Math.max(STATUS_TO_STEP[status as ArticleStatus] ?? 1, 1), 3);
+}
+
+/** Zanjir variantlari: post-payment jurnal va muallif hali to'lamagani */
+export type WorkflowOptions = { postPayment?: boolean; awaitingPayment?: boolean };
+
+/**
  * Kitob buyurtmasi bosqichlari (backend ArticleSerializer.BOOK_STEPS bilan bir xil). Avval kitob kartasida
  * jurnal bosqichlari (Antiplagiat → Taqriz) ko'rinardi.
  */
@@ -67,18 +83,29 @@ export const isBookTitle = (title?: string | null): boolean =>
 /**
  * Builds the workflow for the author UI from backend status when workflow_steps is absent.
  */
-export function getAuthorWorkflowStepsFromStatus(status: ArticleStatus | string, isBook = false): Step[] {
+export function getAuthorWorkflowStepsFromStatus(
+  status: ArticleStatus | string,
+  isBook = false,
+  opts: WorkflowOptions = {},
+): Step[] {
   if (isBook) {
     return buildSteps(BOOK_STEP_LABELS, BOOK_STATUS_TO_STEP[status] ?? 1);
+  }
+  if (opts.postPayment) {
+    return buildSteps(POST_PAYMENT_STEP_LABELS, postPaymentIndex(String(status), !!opts.awaitingPayment));
   }
   return buildSteps(STEP_LABELS, STATUS_TO_STEP[status as ArticleStatus] ?? 0);
 }
 
-export function getAuthorWorkflowStageLabel(status: ArticleStatus | string, isBook = false): string {
+export function getAuthorWorkflowStageLabel(
+  status: ArticleStatus | string,
+  isBook = false,
+  opts: WorkflowOptions = {},
+): string {
   if (status === ArticleStatus.Rejected) return "Rad etilgan";
   if (status === ArticleStatus.Published) return "Nashr etilgan";
   if (isBook && status === 'Delivered') return 'Yetkazildi';
-  const steps = getAuthorWorkflowStepsFromStatus(status, isBook);
+  const steps = getAuthorWorkflowStepsFromStatus(status, isBook, opts);
   const cur = steps.find((s) => s.current);
   return cur?.name ?? (isBook ? BOOK_STEP_LABELS[0] : STEP_LABELS[0]);
 }

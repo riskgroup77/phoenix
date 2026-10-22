@@ -10,8 +10,8 @@
     {
       "name": "frontend-local",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd frontend && VITE_API_BASE_URL=http://127.0.0.1:8050 VITE_MEDIA_URL=http://127.0.0.1:8050 npx vite --port 3000 --strictPort"],
-      "port": 3000
+      "runtimeArgs": ["-c", "cd frontend && VITE_API_BASE_URL=http://127.0.0.1:8050 VITE_MEDIA_URL=http://127.0.0.1:8050 npx vite --port 3001 --strictPort"],
+      "port": 3001
     }
   ]
 }

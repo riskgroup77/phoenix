@@ -65,6 +65,8 @@ interface ArticleApiResponse {
     has_completed_review?: boolean;
     /** «Nashr qilish» bloki: bosh admin, jurnal admini yoki taqrizini yakunlagan taqrizchi (backend hisoblaydi) */
     can_publish?: boolean;
+    /** Qabul qilingan, muallif nashr to'lovini hali qilmagan ("qabuldan keyin to'lov" jurnali) */
+    awaiting_post_payment?: boolean;
 }
 
 type PublicationPayment = {
@@ -76,7 +78,9 @@ type PublicationPayment = {
     refund_note: string;
 };
 
-const PublicationPayCard: React.FC<{ articleId: string }> = ({ articleId }) => {
+/** Nashr to'lovi: qoralama (oldindan to'lov) yoki qabul qilingan maqola ("qabuldan keyin to'lov" jurnali) */
+const PublicationPayCard: React.FC<{ articleId: string; accepted?: boolean }> = ({ articleId, accepted }) => {
+    const { t } = useT();
     const [paying, setPaying] = useState(false);
     const pay = async () => {
         setPaying(true);
@@ -94,12 +98,14 @@ const PublicationPayCard: React.FC<{ articleId: string }> = ({ articleId }) => {
         }
     };
     return (
-        <Card title="Nashr to'lovi">
+        <Card title={t("Nashr to'lovi")}>
             <p className="text-sm text-slate-600 mb-3">
-                Maqola saqlangan, lekin nashr to'lovi hali qilinmagan. To'lovdan so'ng maqola tahririyatga yuboriladi.
+                {accepted
+                    ? t("Maqolangiz taqrizdan o'tdi va qabul qilindi. Nashr to'lovini qiling — to'lovdan so'ng maqola nashr qilinadi.")
+                    : t("Maqola saqlangan, lekin nashr to'lovi hali qilinmagan. To'lovdan so'ng maqola tahririyatga yuboriladi.")}
             </p>
             <Button onClick={pay} disabled={paying} className="w-full flex items-center justify-center gap-2">
-                <Send size={16} /> {paying ? 'Yo\'naltirilmoqda...' : "To'lovni tugatish"}
+                <Send size={16} /> {paying ? t("Yo'naltirilmoqda...") : accepted ? t("To'lash") : t("To'lovni tugatish")}
             </Button>
         </Card>
     );
@@ -771,7 +777,9 @@ const ArticleDetail: React.FC = () => {
 
                     {/* To'lanmagan qoralama: to'lovni shu sahifadan tugatish (avval tugma faqat "Maqolalarim" ro'yxatida
                         bor edi). Kutilayotgan to'lov bo'lsa server o'shani qaytaradi — yangi to'lov yaratilmaydi. */}
-                    {article.needs_publication_payment && <PublicationPayCard articleId={article.id} />}
+                    {article.needs_publication_payment && article.status === ArticleStatus.Draft && (
+                        <PublicationPayCard articleId={article.id} />
+                    )}
 
                     {/* Activity log */}
                     <Card title={t('Faoliyat jurnali')}>
@@ -803,6 +811,10 @@ const ArticleDetail: React.FC = () => {
 
                 {/* Right sidebar - 1/3 width */}
                 <div className="space-y-6">
+                    {/* Qabuldan keyin to'lov: maqola qabul qilingan — to'lov muallifning asosiy keyingi qadami */}
+                    {article.needs_publication_payment && article.status !== ArticleStatus.Draft && (
+                        <PublicationPayCard articleId={article.id} accepted />
+                    )}
                     {/* Management actions */}
                     <Card title={t('Boshqaruv')}>
                         <div className="space-y-3">
@@ -819,7 +831,7 @@ const ArticleDetail: React.FC = () => {
                             {isReviewerViewer && !isBookOrder && allowedTransitions.size === 0 && !article.can_publish
                                 && article.status !== ArticleStatus.Published && (
                                 <p className="m-0 text-xs text-[var(--editorial-muted)]">
-                                    {t("Avval «Mening taqrizim» bo'limida taqrizni yozing. «Qabul qilish» tavsiyasi bilan yuborsangiz, maqola qabul qilinadi va nashr qilishni o'zingiz yakunlaysiz.")}
+                                    {t("Avval «Mening taqrizim» bo'limida taqrizni yozing. Tavsiyangizga ko'ra maqola qabul qilinadi yoki sabab bilan muallifga qaytariladi; nashrni o'zingiz yakunlaysiz.")}
                                 </p>
                             )}
                             
@@ -934,6 +946,15 @@ const ArticleDetail: React.FC = () => {
                                     </div>
                                 )}
                             </div>
+                        </Card>
+                    )}
+
+                    {/* Qabuldan keyin to'lov: nashr qilish muallif to'lovidan keyin ochiladi */}
+                    {user?.role !== Role.Author && article.awaiting_post_payment && (
+                        <Card title={t("Nashr to'lovi kutilmoqda")}>
+                            <p className="m-0 text-sm text-slate-600">
+                                {t("Maqola qabul qilindi va muallifga to'lov uchun yuborildi. Muallif to'lagach sizga xabar keladi va shu yerda «Nashr qilish» ochiladi.")}
+                            </p>
                         </Card>
                     )}
 

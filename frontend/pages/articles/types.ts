@@ -31,6 +31,8 @@ export interface ArticleApiResponse {
     allowed_transitions?: string[];
     /** Muallif: qoralama nashr to'lovini kutyapti (yangi to'lov boshlash mumkin) */
     needs_publication_payment?: boolean;
+    /** "Qabuldan keyin to'lov" jurnali — zanjirda to'lov taqrizdan keyin */
+    post_payment?: boolean;
 }
 
 export interface TranslationRequestApiResponse {

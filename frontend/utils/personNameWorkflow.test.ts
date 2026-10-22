@@ -27,3 +27,19 @@ describe('kitob buyurtmasi bosqichlari', () => {
     expect(getAuthorWorkflowStageLabel(ArticleStatus.Published)).toBe('Nashr etilgan');
   });
 });
+
+describe("qabuldan keyin to'lov jurnali bosqichlari", () => {
+  const opts = (awaitingPayment: boolean) => ({ postPayment: true, awaitingPayment });
+
+  it("to'lov taqrizdan keyin keladi", () => {
+    const steps = getAuthorWorkflowStepsFromStatus(ArticleStatus.Yangi, false, opts(false));
+    expect(steps.map((s) => s.name)).toEqual(['Yuborildi', 'Jurnal tekshiruvi', 'Antiplagiat', 'Taqriz', "To'lov", 'Nashr']);
+    expect(steps.find((s) => s.done)?.name).toBe('Yuborildi');
+  });
+
+  it("qabul qilingan, to'lanmagan — «To'lov» bosqichida; to'langach — «Nashr»", () => {
+    expect(getAuthorWorkflowStageLabel(ArticleStatus.Accepted, false, opts(true))).toBe("To'lov");
+    expect(getAuthorWorkflowStageLabel(ArticleStatus.Accepted, false, opts(false))).toBe('Nashr');
+    expect(getAuthorWorkflowStepsFromStatus(ArticleStatus.Revision, false, opts(false)).find((s) => s.current)?.name).toBe('Taqriz');
+  });
+});
