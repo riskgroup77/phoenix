@@ -4,7 +4,7 @@ import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import { useAuth } from '../contexts/AuthContext';
 import { Role, Journal, JournalCategory, PaymentModel, JournalPricingType, AdditionalDocumentConfig, ScientificFieldItem } from '../types';
-import { PUBLICATION_TYPES, normCategory } from '../constants/authorCategories';
+import { PUBLICATION_TYPES, normCategory, publicationTypeKey, sameCategory } from '../constants/authorCategories';
 import Button from '../components/ui/Button';
 import { Edit, Trash2, PlusCircle, X, Check, UploadCloud, Archive, RotateCcw } from 'lucide-react';
 import { apiService } from '../services/apiService';
@@ -220,12 +220,13 @@ const JournalManagement: React.FC = () => {
         const opts: { value: string; label: string }[] = [];
         const used = new Set<string>();
         PUBLICATION_TYPES.forEach((name) => {
-            const existing = categories.find((c) => normCategory(c.name) === normCategory(name));
+            // "Mahalliy OAK jurnali" (eski yozuv) standart "Mahalliy OAK jurnallari" bilan bitta tur — dublikat chiqmasin
+            const existing = categories.find((c) => sameCategory(c.name, name));
             opts.push({ value: existing ? existing.id : `new:${name}`, label: name });
-            used.add(normCategory(name));
+            used.add(publicationTypeKey(name));
         });
         categories
-            .filter((c) => c.kind !== 'subject' && !used.has(normCategory(c.name)))
+            .filter((c) => c.kind !== 'subject' && !used.has(publicationTypeKey(c.name)))
             .sort((a, b) => a.name.localeCompare(b.name))
             .forEach((c) => opts.push({ value: c.id, label: c.name }));
         const current = categories.find((c) => c.id === formData.categoryId);

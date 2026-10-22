@@ -3,7 +3,7 @@
  * Soha — jurnalning scientific_field_names ro'yxati (admin formasida tanlanadi). Eski jurnallarda soha rukn
  * sifatida saqlangan bo'lishi mumkin ("Iqtisodiyot") — ular ham hisobga olinadi. Apostrof turlari farq qilmaydi.
  */
-import { normCategory } from '../constants/authorCategories';
+import { normCategory, sameCategory } from '../constants/authorCategories';
 
 export interface TaxonomyJournal {
   category_name?: string | null;
@@ -13,7 +13,7 @@ export interface TaxonomyJournal {
 }
 
 export const journalMatchesType = (j: TaxonomyJournal, typeName: string): boolean =>
-  !typeName || normCategory(j.category_name) === normCategory(typeName);
+  !typeName || sameCategory(j.category_name, typeName);
 
 const subjectHead = (subject: string) => normCategory(subject).split(' va ')[0].split(' (')[0];
 

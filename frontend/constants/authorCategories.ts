@@ -70,5 +70,19 @@ export function normCategory(name: string | null | undefined): string {
     .trim();
 }
 
+/**
+ * Nashr turini solishtirish kaliti: birlik/ko'plik va egalik qo'shimchalari farq qilmaydi.
+ * Bazada "Mahalliy OAK jurnali", filtr ro'yxatida "Mahalliy OAK jurnallari" — avval mos kelmay, filtr bo'sh chiqardi.
+ */
+export function publicationTypeKey(name: string | null | undefined): string {
+  return normCategory(name)
+    .split(' ')
+    .map((w) => (w.length > 5 ? w.replace(/(lari|lar|si|i)$/, '') : w))
+    .join(' ');
+}
+
+export const sameCategory = (a: string | null | undefined, b: string | null | undefined): boolean =>
+  publicationTypeKey(a) === publicationTypeKey(b);
+
 export const isPublicationType = (name: string | null | undefined): boolean =>
-  PUBLICATION_TYPES.some((p) => normCategory(p) === normCategory(name));
+  PUBLICATION_TYPES.some((p) => sameCategory(p, name));
