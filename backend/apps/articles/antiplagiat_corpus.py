@@ -120,11 +120,11 @@ def _load_platform_corpus() -> list[dict[str, Any]]:
 
     # Faqat jurnalga yuborilgan maqolalar. Qoralama, rad etilgan va mustaqil antiplagiat
     # tekshiruvlari (boshqa foydalanuvchilarning shaxsiy hujjatlari) korpusga kirmaydi.
-    from config.demo import demo_q
+    from config.demo import demo_journal_q, demo_q
 
     qs = (
         Article.objects.exclude(status__in=('Draft', 'Rejected'))
-        .exclude(demo_q('author__') | demo_q('journal__journal_admin__'))
+        .exclude(demo_q('author__') | demo_journal_q('journal__'))
         .only(
             'id', 'title', 'abstract', 'keywords', 'status', 'doi', 'author_id',
             'final_pdf_path', 'plagiarism_report',

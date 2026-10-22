@@ -124,11 +124,11 @@ def service_prices() -> dict[str, int]:
 
 def visible_journals(user):
     from apps.journals.models import Journal
-    from config.demo import demo_q, is_demo_user
+    from config.demo import demo_journal_q, is_demo_user
 
     qs = Journal.objects.select_related('category').filter(is_internal=False)
     if not is_demo_user(user):
-        qs = qs.exclude(demo_q('journal_admin__'))
+        qs = qs.exclude(demo_journal_q())
     return qs
 
 

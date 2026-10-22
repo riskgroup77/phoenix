@@ -743,8 +743,6 @@ export const PAGE_ROWS: [string, string, string][] = [
   ["To'lovni boshlab bo'lmadi", "Не удалось начать оплату", "Could not start the payment"],
   ["To'lovni amalga oshirishda xatolik yuz berdi.", "При оплате произошла ошибка.", "An error occurred during payment."],
   ["Namuna (demo) jurnal — haqiqiy mualliflarga ko'rsatilmaydi.", "Демо-журнал (образец) — реальным авторам не показывается.", "Sample (demo) journal — not shown to real authors."],
-  ["demo hisob, boshqasini tanlang", "демо-аккаунт, выберите другой", "demo account, choose another"],
-  ["Mualliflarga ko'rinmaydi: muharriri demo hisob. Tahrirlab, haqiqiy muharrirni tanlang.", "Не виден авторам: редактор — демо-аккаунт. Откройте редактирование и выберите настоящего редактора.", "Hidden from authors: the editor is a demo account. Edit the journal and choose a real editor."],
   ["Nashr to'lovi qilindi. Maqola nashrga tayyorlanmoqda.", "Публикационный сбор оплачен. Статья готовится к публикации.", "The publication fee has been paid. The article is being prepared for publication."],
   ["Yuborildi", "Отправлено", "Submitted"],
   ["Qayta yuborildi", "Отправлено повторно", "Resubmitted"],

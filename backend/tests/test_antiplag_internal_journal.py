@@ -33,10 +33,10 @@ class AntiplagInternalJournalTests(TestCase):
         demo = User.objects.create_user(phone='998900007103', password='x-parol-123',
                                         email=f'm@{DEMO_EMAIL_DOMAIN}', first_name='D', last_name='M',
                                         role='journal_admin')
-        # Yagona jurnal demo muharrirda — muallifga ko'rinmaydi (prod holati)
+        # Muallifga ko'rinadigan jurnal yo'q: yagona jurnal arxivlangan
         self.hidden = Journal.objects.create(name='YANGI', issn='3060-0001', description='d', journal_admin=demo,
                                              category=JournalCategory.objects.create(name='OAK'),
-                                             publication_fee=Decimal('0'))
+                                             publication_fee=Decimal('0'), is_archived=True)
         self.client = APIClient()
         self.client.force_authenticate(self.author)
 

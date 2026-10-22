@@ -67,10 +67,10 @@ class JournalViewSet(viewsets.ModelViewSet):
         if role == 'journal_admin':
             return base.filter(journal_admin=self.request.user)
         # Demo (namuna) jurnallar haqiqiy mualliflar ro'yxatida ko'rinmaydi — ularga maqola yuborib pul to'lamasin
-        from config.demo import demo_q, is_demo_user
+        from config.demo import demo_journal_q, is_demo_user
 
         if role in ('author', 'reviewer') and not is_demo_user(self.request.user):
-            return base.exclude(demo_q('journal_admin__'))
+            return base.exclude(demo_journal_q())
         return base.all()
     
     # Jurnal admini o'zgartira olmaydigan maydonlar: narx/to'lov modeli (tushumga ta'sir qiladi), jurnal egasi,

@@ -6,7 +6,9 @@ to'lovlari va boshqa yozuvlari ham "demo" hisoblanadi:
   - Google Scholar sahifalari va sitemap'ga chiqmaydi (soxta ilmiy yozuv indekslanmasin);
   - haqiqiy foydalanuvchilarning antiplagiat tekshiruvida manba bo'lmaydi;
   - demo to'lovlar tushum (daromad) hisobotlariga qo'shilmaydi;
-  - demo jurnallarga haqiqiy muallif maqola yubora olmaydi.
+  - namuna (demo skript yaratgan) jurnallarga haqiqiy muallif maqola yubora olmaydi.
+Namuna jurnal = muharriri demo hisob VA ISSN demo skript ro'yxatida. Admin qo'shgan haqiqiy jurnalga «Demo Muharrir»
+biriktirilgan bo'lsa ham u oddiy jurnal: mualliflarga ko'rinadi va maqola qabul qiladi.
 To'ldirish/o'chirish: python manage.py seed_demo_data [--purge].
 """
 from __future__ import annotations
@@ -29,14 +31,27 @@ def is_demo_user(user) -> bool:
     return bool(user is not None and (getattr(user, 'email', '') or '').lower().endswith('@' + DEMO_EMAIL_DOMAIN))
 
 
-def is_demo_article(article) -> bool:
-    author = getattr(article, 'author', None)
-    journal = getattr(article, 'journal', None)
-    return is_demo_user(author) or is_demo_user(getattr(journal, 'journal_admin', None) if journal else None)
+def _seed_journal_issns() -> frozenset:
+    from apps.analytics.demo_content import SEED_JOURNAL_ISSNS
+
+    return SEED_JOURNAL_ISSNS
+
+
+def demo_journal_q(journal_path: str = '') -> Q:
+    """Namuna jurnallar: demo_journal_q() — Journal uchun, demo_journal_q('journal__') — Article uchun."""
+    return demo_q(f'{journal_path}journal_admin__') & Q(**{f'{journal_path}issn__in': _seed_journal_issns()})
 
 
 def is_demo_journal(journal) -> bool:
-    return is_demo_user(getattr(journal, 'journal_admin', None))
+    return bool(
+        journal is not None
+        and is_demo_user(getattr(journal, 'journal_admin', None))
+        and getattr(journal, 'issn', None) in _seed_journal_issns()
+    )
+
+
+def is_demo_article(article) -> bool:
+    return is_demo_user(getattr(article, 'author', None)) or is_demo_journal(getattr(article, 'journal', None))
 
 
 @contextmanager

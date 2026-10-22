@@ -72,21 +72,6 @@ class JournalSerializer(serializers.ModelSerializer):
 
     ISSN_RE = re.compile(r'^\d{4}-\d{3}[\dXx]$')
 
-    def validate_journal_admin(self, value):
-        """
-        Demo hisob haqiqiy jurnal muharriri bo'la olmaydi: demo muharrirli jurnallar haqiqiy mualliflardan yashiriladi
-        (JournalViewSet.get_queryset). Avval admin «Demo Muharrir»ni tanlab qo'yar va jurnal mualliflarga chiqmasdi.
-        """
-        from config.demo import is_demo_user
-
-        request = self.context.get('request')
-        if is_demo_user(value) and not is_demo_user(getattr(request, 'user', None)):
-            raise serializers.ValidationError(
-                "Demo hisobni jurnal muharriri qilib bo'lmaydi — bunday jurnal mualliflarga ko'rinmaydi. "
-                "Haqiqiy muharrir hisobini tanlang."
-            )
-        return value
-
     def validate_issn(self, value):
         """
         ISSN ixtiyoriy: bo'sh → NULL (bir nechta ISSN'siz jurnal bo'lishi mumkin). Kiritilgan bo'lsa — XXXX-XXXX
@@ -178,14 +163,8 @@ class JournalSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         from config.demo import is_demo_journal
 
-        # Admin paneli uchun: muharriri demo hisob — jurnal haqiqiy mualliflarga ko'rinmaydi
-        from apps.analytics.demo_content import SEED_JOURNAL_ISSNS
-
-        # Namuna (demo skript) jurnali — ataylab yashirin; ichki kitob jurnali ham mualliflarga ko'rinmaydi.
-        # Ogohlantirish faqat haqiqiy jurnalga xato bilan demo muharrir biriktirilganda.
-        data['is_sample'] = instance.issn in SEED_JOURNAL_ISSNS
-        data['hidden_from_authors'] = (
-            is_demo_journal(instance) and not instance.is_internal and not data['is_sample'])
+        # Namuna (demo skript) jurnali — haqiqiy mualliflarga ko'rsatilmaydi; admin panelida belgi uchun
+        data['is_sample'] = is_demo_journal(instance)
         return data
     
     def get_additional_document_config(self, obj):
