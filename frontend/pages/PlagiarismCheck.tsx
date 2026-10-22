@@ -3,7 +3,7 @@ import { useAiPrefill, str, num } from '../contexts/AiPrefillContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import ModalPortal from '../components/ui/ModalPortal';
-import { CheckCircle2, CreditCard, X, XCircle } from 'lucide-react';
+import { CheckCircle2, CreditCard, Loader2, X, XCircle } from 'lucide-react';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
 import type { AntiplagiatCertificateData } from '../components/AntiplagiatCertificate';
 import type { PlagiarismFullReportData } from '../components/PlagiarismFullReport';
@@ -62,6 +62,92 @@ function formatPlagiarismPaymentMessage(raw: string): string {
   }
   return s;
 }
+
+/**
+ * To'lovdan keyin (yoki bepul tekshiruvda) forma o'rnida chiqadigan holat kartasi: foydalanuvchi qaysi bosqichda
+ * ekanini aniq ko'radi. Avval progress forma ostida, sahifa pastida chiqar va "hech narsa bo'lmayapti" tuyulardi.
+ */
+const CheckStatusCard: React.FC<{
+  stage: 'payment' | 'checking';
+  paid: boolean;
+  progress: number;
+  label: string;
+  documentName: string;
+  onRecheck: () => void;
+  onDismiss: () => void;
+}> = ({ stage, paid, progress, label, documentName, onRecheck, onDismiss }) => {
+  const { t } = useT();
+  type Step = { title: string; state: 'done' | 'active' | 'todo'; hint?: string };
+  const steps: Step[] = [
+    ...(paid ? [{
+      title: stage === 'payment' ? t("To'lov tasdiqlanishi kutilmoqda") : t("To'lov qabul qilindi"),
+      state: stage === 'payment' ? 'active' as const : 'done' as const,
+      hint: stage === 'payment' ? t("Click'dan tasdiq kelishi bilan tekshiruv o'zi boshlanadi (odatda 1 daqiqagacha).") : undefined,
+    }] : []),
+    {
+      title: t('Hujjat tekshirilmoqda'),
+      state: stage === 'checking' ? 'active' : 'todo',
+      hint: stage === 'checking' ? t("Ichki baza va ochiq ilmiy manbalar bo'yicha moslik qidirilmoqda — odatda bir necha daqiqa.") : undefined,
+    },
+    { title: t('Natija va sertifikat'), state: 'todo' },
+  ];
+  return (
+    <section
+      aria-live="polite"
+      className="rounded-2xl border border-[var(--editorial-border,#e2ddd4)] bg-[var(--editorial-bg-alt,#f5f0e8)] p-5 sm:p-6"
+    >
+      <h2 className="m-0 text-lg font-bold text-[var(--editorial-text,#1a1a1a)]">{t('Antiplagiat tekshiruvi')}</h2>
+      {documentName && <p className="m-0 mt-1 truncate text-sm text-[var(--editorial-muted,#64748b)]">{documentName}</p>}
+      <ol className="m-0 mt-5 flex list-none flex-col gap-4 p-0">
+        {steps.map((step) => (
+          <li key={step.title} className="flex items-start gap-3">
+            <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+              step.state === 'done' ? 'bg-emerald-600 text-white'
+                : step.state === 'active' ? 'bg-[var(--editorial-primary,#1f3f8f)] text-white'
+                  : 'border border-slate-300 bg-white text-slate-400'
+            }`}>
+              {step.state === 'done' ? <CheckCircle2 className="h-4 w-4" aria-hidden />
+                : step.state === 'active' ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  : <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className={`m-0 text-sm font-semibold ${step.state === 'todo' ? 'text-slate-400' : 'text-[var(--editorial-text,#1a1a1a)]'}`}>
+                {step.title}
+              </p>
+              {step.hint && <p className="m-0 mt-0.5 text-xs text-[var(--editorial-muted,#64748b)]">{step.hint}</p>}
+              {step.state === 'active' && stage === 'checking' && (
+                <div className="mt-3">
+                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-2.5 rounded-full bg-[var(--editorial-primary,#1f3f8f)] transition-[width] duration-500 ease-in-out"
+                      style={{ width: `${Math.max(3, Math.round(progress))}%` }}
+                    />
+                  </div>
+                  <p className="m-0 mt-1.5 text-xs text-[var(--editorial-muted,#64748b)]">
+                    {Math.round(progress)}%{label ? ` — ${t(label)}` : ''}
+                  </p>
+                </div>
+              )}
+              {step.state === 'active' && stage === 'payment' && (
+                <button type="button" onClick={onRecheck} className="mt-2 text-xs font-semibold text-[var(--editorial-primary,#1f3f8f)] underline">
+                  {t('Hozir tekshirish')}
+                </button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+      <p className="m-0 mt-5 rounded-xl bg-white/60 p-3 text-xs text-slate-600">
+        {t("Sahifani yopsangiz ham tekshiruv davom etadi. Tayyor bo'lganda bildirishnoma keladi, natija «Arxiv hujjatlar» bo'limida saqlanadi.")}
+      </p>
+      {stage === 'checking' && (
+        <button type="button" onClick={onDismiss} className="mt-3 text-sm font-semibold text-[var(--editorial-primary,#1f3f8f)] underline">
+          {t('Yangi hujjat tekshirish')}
+        </button>
+      )}
+    </section>
+  );
+};
 
 const PlagiarismCheck: React.FC = () => {
   const { t } = useT();
@@ -188,10 +274,7 @@ const PlagiarismCheck: React.FC = () => {
               sessionStorage.setItem(STORAGE_KEY_ARTICLE_ID, pendingArticleId);
               setArticleId(pendingArticleId);
               setPendingPlagiarismPayment({ transactionId: pendingTxId, articleId: pendingArticleId });
-              toast.info(
-                  t('To\'lov hali tizimda tasdiqlanmagan. Agar Clickda to\'lov qilgan bo\'lsangiz, 1–2 daqiqa kutib "To\'lov holatini tekshirish" tugmasini bosing.'),
-                  { autoClose: 9000 }
-              );
+              toast.info(t("To'lov tasdig'i kutilmoqda — tasdiqlanishi bilan tekshiruv o'zi boshlanadi."), { autoClose: 6000 });
           } catch {
               if (!cancelled) {
                   toast.warning(t("To'lov holatini tekshirib bo'lmadi. Internetni tekshirib, sahifani yangilang."));
@@ -207,52 +290,35 @@ const PlagiarismCheck: React.FC = () => {
    * formadan ALOHIDA bannerda ko'rsatiladi. Forma (yangi hujjat, yangi to'lov) bunga bog'lanmaydi: avval eski
    * to'langan/qotib qolgan hujjat formaga ulanib, yangi hujjat to'lovsiz "tekshirilmoqda" bo'lib qolardi.
    */
-  const [resumeDoc, setResumeDoc] = useState<{ id: string; title: string; progress: number; label: string; done: boolean } | null>(null);
+  /** Holat kartasidagi hujjat nomi (forma bo'sh bo'lganda — masalan, sahifaga qaytilganda) */
+  const [activeDocTitle, setActiveDocTitle] = useState('');
   const resumeRunningCheck = async () => {
       if (!user) return;
       try {
           const raw = await apiService.articles.listAllForRole(String(user.role || 'author'));
-          const list = (Array.isArray(raw) ? raw : []) as Array<{ id: string; title?: string; antiplagiat_check_active?: boolean; submission_date?: string }>;
-          const running = list
-              .filter((a) => a.antiplagiat_check_active === true)
-              .sort((a, b) => String(b.submission_date || '').localeCompare(String(a.submission_date || '')))[0];
-          if (running?.id) {
-              setResumeDoc({ id: running.id, title: running.title || '', progress: 5, label: '', done: false });
+          const list = (Array.isArray(raw) ? raw : []) as Array<{
+              id: string; title?: string; antiplagiat_check_active?: boolean; antiplagiat_state?: string; submission_date?: string;
+          }>;
+          const newestFirst = (a: { submission_date?: string }, b: { submission_date?: string }) =>
+              String(b.submission_date || '').localeCompare(String(a.submission_date || ''));
+          // Hozir ketayotgan tekshiruv, yoki to'langan-u boshlanmagan yangi hujjat (to'lovdan keyin sahifa yopilgan):
+          // forma o'rnida holat kartasi, tekshiruv tugagach natijaga o'tiladi. Boshlanmaganlar — faqat oxirgi 24 soat
+          // (eski qotib qolganlar har safar ochilmasin); server ketayotgan tekshiruvni takrorlamaydi (force:false).
+          const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+          const target = list.filter((a) => a.antiplagiat_check_active === true).sort(newestFirst)[0]
+              || list
+                  .filter((a) => a.antiplagiat_state === 'checking' && !a.antiplagiat_check_active
+                      && Date.parse(a.submission_date || '') > dayAgo)
+                  .sort(newestFirst)[0];
+          if (target?.id) {
+              setActiveDocTitle(target.title || '');
+              void runPlagiarismAfterPayment(target.id);
           }
       } catch {
           /* ro'yxat olinmasa — oddiy bo'sh forma */
       }
   };
 
-  // Bannerdagi tekshiruv progressini kuzatish (asosiy forma holatiga tegmaydi)
-  const resumeId = resumeDoc?.id;
-  const resumeDone = resumeDoc?.done;
-  React.useEffect(() => {
-      if (!resumeId || resumeDone) return;
-      let stop = false;
-      const tick = async () => {
-          try {
-              const art: any = await apiService.articles.get(resumeId);
-              const data = art?.data || art;
-              const report = (data?.plagiarism_report || {}) as Record<string, unknown>;
-              const done = !!data?.plagiarism_checked_at && report.check_status !== 'processing';
-              const failed = report.check_status === 'failed';
-              if (stop) return;
-              setResumeDoc((prev) => prev && {
-                  ...prev,
-                  progress: done ? 100 : Math.max(prev.progress, Number(report.progress_percent ?? 0) || prev.progress),
-                  label: failed ? t('Tekshiruvda xatolik') : String(report.current_module_label || ''),
-                  done: done || failed,
-              });
-          } catch {
-              /* keyingi urinishda */
-          }
-      };
-      void tick();
-      const timer = window.setInterval(() => void tick(), 4000);
-      return () => { stop = true; window.clearInterval(timer); };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumeId, resumeDone]);
 
   // Eski havolalar: ?article_id=...&view=1 → alohida natija sahifasiga
   React.useEffect(() => {
@@ -398,11 +464,14 @@ const PlagiarismCheck: React.FC = () => {
   // Natija tayyorligini har 2 s da tekshirish (avval 4 s); umumiy kutish o'sha 16 daqiqa
   const pollUntilPlagiarismReady = async (targetArticleId: string, maxAttempts = 480): Promise<boolean> => {
     for (let i = 0; i < maxAttempts; i++) {
+      if (!followCheckRef.current) return false;
       try {
         const art = await apiService.articles.get(targetArticleId);
         const data = art?.data || art;
         const report = (data?.plagiarism_report || {}) as Record<string, unknown>;
         applyProgressFromReport(report, i);
+        // Holat kartasida hujjat nomi (forma bo'sh bo'lsa — masalan, to'lovdan qaytib sahifa qayta yuklanganda)
+        if (data?.title) setActiveDocTitle((prev) => prev || String(data.title));
         if (report.check_status === 'failed') {
           throw new Error(String(report.check_error || 'Antiplagiat tekshiruvi muvaffaqiyatsiz yakunlandi.'));
         }
@@ -425,27 +494,40 @@ const PlagiarismCheck: React.FC = () => {
     return false;
   };
 
+  /** Holat kartasi yopilsa (yangi hujjat yuklash) — tekshiruv serverda davom etadi, sahifa natijaga sudramaydi */
+  const followCheckRef = useRef(true);
+  const dismissStatusCard = () => {
+    followCheckRef.current = false;
+    setIsChecking(false);
+    setPendingPlagiarismPayment(null);
+    setActiveDocTitle('');
+  };
+
   const runPlagiarismAfterPayment = async (targetArticleId: string) => {
+    followCheckRef.current = true;
     setIsChecking(true);
     setProgress(5);
     setCheckStatusLabel('To\'lovdan keyin chuqur tekshiruv boshlanmoqda...');
     setResult(null);
     setCertificateData(null);
     try {
-      const ready = await pollUntilPlagiarismReady(targetArticleId);
+      // Server to'lovdan keyin tekshiruvni o'zi boshlaydi. ~20 soniyada tayyor bo'lmasa — shu yerdan ishga tushiramiz
+      // (force:false — ketayotgan tekshiruv takrorlanmaydi). Avval 16 daqiqa kutilar, progress qotib turardi.
+      const ready = await pollUntilPlagiarismReady(targetArticleId, 10);
+      if (!followCheckRef.current) return;
       if (ready) {
         await fetchPlagiarismResults(targetArticleId);
         toast.success(t("Antiplagiat tekshiruvi yakunlandi. Arxivda ko'rishingiz mumkin."));
         goToResultView(targetArticleId);
         return;
       }
-      toast.info(t('Tekshiruv davom etmoqda. Serverda modullar skanerlanmoqda...'));
       // force: false — server tekshiruv allaqachon ketayotgan bo'lsa ikkinchisini boshlamaydi
       await apiService.articles.checkPlagiarism(targetArticleId, {
         enabledModules: form.enabledModuleIds,
         force: false,
       });
       const readyAfter = await pollUntilPlagiarismReady(targetArticleId);
+      if (!followCheckRef.current) return;
       if (!readyAfter) {
         throw new Error('Tekshiruv vaqti tugadi. Keyinroq «Arxiv hujjatlar» bo\'limidan natijani ko\'ring.');
       }
@@ -462,7 +544,7 @@ const PlagiarismCheck: React.FC = () => {
     }
   };
 
-  const recheckPlagiarismPayment = async () => {
+  const recheckPlagiarismPayment = async (silent = false) => {
       const txId = pendingPlagiarismPayment?.transactionId || sessionStorage.getItem(STORAGE_KEY_TRANSACTION_ID);
       const artId = pendingPlagiarismPayment?.articleId || sessionStorage.getItem(STORAGE_KEY_ARTICLE_ID);
       if (!txId || !artId) {
@@ -490,11 +572,29 @@ const PlagiarismCheck: React.FC = () => {
               toast.error(t("To'lov bekor qilindi yoki muvaffaqiyatsiz."));
               return;
           }
-          toast.info(t("To'lov hali tasdiqlanmagan. Bir ozdan keyin yana urinib ko'ring."));
+          if (!silent) toast.info(t("To'lov hali tasdiqlanmagan. Bir ozdan keyin yana urinib ko'ring."));
       } catch {
-          toast.error(t("Holatni tekshirishda xatolik. Qayta urinib ko'ring."));
+          if (!silent) toast.error(t("Holatni tekshirishda xatolik. Qayta urinib ko'ring."));
       }
   };
+
+  // To'lov tizimga kechikib kelsa — foydalanuvchi tugma izlamasin: har 5 soniyada o'zi tekshiriladi (10 daqiqagacha)
+  const pendingTx = pendingPlagiarismPayment?.transactionId;
+  React.useEffect(() => {
+      if (!pendingTx) return;
+      const started = Date.now();
+      const id = window.setInterval(() => {
+          if (Date.now() - started > 10 * 60 * 1000) return;
+          void recheckPlagiarismPayment(true);
+      }, 5000);
+      return () => window.clearInterval(id);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingTx]);
+
+  // Tekshiruv boshlanganda holat kartasi ko'rinsin (forma o'rnida, sahifa tepasida)
+  React.useEffect(() => {
+      if (isChecking || pendingTx) window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [isChecking, pendingTx]);
 
   const ensureArticleForPlagiarism = async (): Promise<string> => {
       if (!form.file || !user) {
@@ -668,6 +768,7 @@ const PlagiarismCheck: React.FC = () => {
           return;
       }
       
+      followCheckRef.current = true;
       setIsChecking(true);
       setCertificateData(null);
       setResult(null);
@@ -726,36 +827,17 @@ const PlagiarismCheck: React.FC = () => {
   return (
       <>
       <div className="no-print mx-auto max-w-4xl px-4 py-6">
-          {resumeDoc && (
-              <div className="mb-4 rounded-xl border border-amber-300/70 bg-amber-50 p-4 text-sm text-amber-950">
-                  <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                          <p className="font-semibold">
-                              {resumeDoc.done ? t('Oldingi hujjatingiz tekshiruvi yakunlandi') : t('Oldingi hujjatingiz tekshirilmoqda')}
-                          </p>
-                          <p className="truncate text-amber-900/80">{resumeDoc.title}</p>
-                      </div>
-                      <button type="button" onClick={() => setResumeDoc(null)} className="text-amber-900/70 hover:text-amber-950" aria-label={t('Yopish')}>×</button>
-                  </div>
-                  {!resumeDoc.done && (
-                      <div className="mt-3">
-                          <div className="h-2 rounded-full bg-amber-200/70 overflow-hidden">
-                              <div className="h-full bg-amber-500 transition-all" style={{ width: `${resumeDoc.progress}%` }} />
-                          </div>
-                          <p className="mt-1 text-xs text-amber-900/80">{resumeDoc.progress}%{resumeDoc.label ? ` — ${resumeDoc.label}` : ''}</p>
-                      </div>
-                  )}
-                  {resumeDoc.done && (
-                      <button
-                          type="button"
-                          onClick={() => goToResultView(resumeDoc.id)}
-                          className="mt-2 font-semibold text-amber-950 underline"
-                      >
-                          {t("Natijani ko'rish")}
-                      </button>
-                  )}
-              </div>
-          )}
+          {(isChecking || pendingPlagiarismPayment) ? (
+            <CheckStatusCard
+              stage={pendingPlagiarismPayment && !isChecking ? 'payment' : 'checking'}
+              paid={PLAGIARISM_CHECK_PRICE > 0}
+              progress={progress}
+              label={checkStatusLabel}
+              documentName={form.documentName || form.file?.name || activeDocTitle}
+              onRecheck={() => void recheckPlagiarismPayment()}
+              onDismiss={dismissStatusCard}
+            />
+          ) : (
           <AntiplagiatUploadPanel
             values={form}
             onChange={patchForm}
@@ -764,32 +846,10 @@ const PlagiarismCheck: React.FC = () => {
             onSubmit={onPanelSubmit}
             onFileSelect={handleFileSelect}
           />
+          )}
 
           {PLAGIARISM_CHECK_PRICE === 0 && (
             <p className="mt-3 text-center text-xs text-emerald-700">{t("Test rejimi — to'lovsiz tekshirish")}</p>
-          )}
-
-          {isChecking && (
-              <div className="mx-auto mt-8 max-w-lg rounded-lg border border-[var(--editorial-border,#e2ddd4)] bg-[var(--editorial-bg-alt,#f5f0e8)] p-4">
-                  <p className="mb-1 text-center font-serif font-semibold text-[var(--editorial-text,#1a1a1a)]">
-                    {t('Chuqur antiplagiat tekshiruvi')}
-                  </p>
-                  <p className="mb-3 text-center text-xs text-[var(--editorial-muted,#64748b)]">
-                    {t("Ichki baza va ochiq ilmiy manbalar bo'yicha haqiqiy moslik qidiriladi (bir necha daqiqa)")}
-                  </p>
-                  {checkStatusLabel && (
-                    <p className="mb-2 text-center text-sm text-[var(--editorial-primary,#1f3f8f)]">
-                      {checkStatusLabel}
-                    </p>
-                  )}
-                  <div className="h-2.5 w-full rounded-full bg-slate-200">
-                      <div
-                        className="h-2.5 rounded-full bg-[var(--editorial-primary,#1f3f8f)] transition-[width] duration-500 ease-in-out"
-                        style={{ width: `${progress}%` }}
-                      />
-                  </div>
-                  <p className="mt-2 text-center text-xs text-slate-500">{Math.round(progress)}%</p>
-              </div>
           )}
 
           {paymentVerifiedCompleted && !isChecking && !result && (
@@ -801,22 +861,6 @@ const PlagiarismCheck: React.FC = () => {
               </div>
           )}
 
-          {pendingPlagiarismPayment && !paymentVerifiedCompleted && (
-              <div className="mx-auto mt-4 max-w-md rounded-lg border border-amber-200 bg-amber-50 p-4 text-center">
-                  <p className="mb-3 text-sm text-amber-900">
-                      {t("To'lov Clickda qilingan bo'lsa, tizimga kelishi biroz vaqt olishi mumkin.")}
-                  </p>
-                  <Button type="button" variant="secondary" onClick={recheckPlagiarismPayment} className="w-full sm:w-auto">
-                      {t("To'lov holatini tekshirish")}
-                  </Button>
-              </div>
-          )}
-
-          {isChecking && (
-              <p className="mt-4 text-center text-sm text-slate-600">
-                {t("Tekshiruv yakunlangach natija «Arxiv hujjatlar» bo'limida saqlanadi.")}
-              </p>
-          )}
       </div>
 
       {/* Payment Modal */}

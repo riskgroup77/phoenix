@@ -21,6 +21,9 @@ type TxInfo = {
 type Phase = 'confirm' | 'waiting' | 'success' | 'failed';
 
 const POLL_INTERVAL_MS = 4000;
+/** To'lovdan keyin natija sahifasiga o'zi o'tadigan xizmatlar (foydalanuvchi "Davom etish"ni izlab qolmasin) */
+const AUTO_CONTINUE_SERVICES = new Set(['language_editing', 'udk_request']);
+const AUTO_CONTINUE_MS = 1500;
 const POLL_MAX_MS = 20 * 60 * 1000;
 
 const formatAmount = (amount: number | string | undefined) =>
@@ -197,6 +200,15 @@ const PaymentConfirmModal: React.FC = () => {
     window.location.reload();
   };
 
+  // Antiplagiat / UDK: to'lov tasdiqlangach o'zi davom etadi — tekshiruv holati xizmat sahifasida ko'rinadi
+  const autoContinue = phase === 'success' && AUTO_CONTINUE_SERVICES.has(String(tx?.service_type || ''));
+  useEffect(() => {
+    if (!autoContinue) return;
+    const id = window.setTimeout(finish, AUTO_CONTINUE_MS);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- finish har renderda yangi; faqat holat o'zgarganda
+  }, [autoContinue]);
+
   if (!request) return null;
 
   const purpose = tx?.article_title || tx?.context_label || '';
@@ -259,7 +271,13 @@ const PaymentConfirmModal: React.FC = () => {
         {phase === 'success' && (
           <div className="mt-4 flex items-start gap-2 rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
             <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-            <span>{t("To'lov qabul qilindi. Click oynasi yopildi — ochiq qolgan bo'lsa, uni yopishingiz mumkin.")}</span>
+            <span>
+              {tx?.service_type === 'language_editing'
+                ? t("To'lov qabul qilindi. Antiplagiat tekshiruvi boshlandi — holatiga o'tilmoqda...")
+                : autoContinue
+                  ? t("To'lov qabul qilindi. Buyurtma holatiga o'tilmoqda...")
+                  : t("To'lov qabul qilindi. Click oynasi yopildi — ochiq qolgan bo'lsa, uni yopishingiz mumkin.")}
+            </span>
           </div>
         )}
         {phase === 'failed' && (
