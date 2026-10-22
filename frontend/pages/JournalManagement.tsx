@@ -137,9 +137,13 @@ const JournalManagement: React.FC = () => {
         fetchData();
     }, [user]);
     
-    // Only journal admins (not reviewers) can be assigned as journal admin
+    // Only journal admins (not reviewers) can be assigned as journal admin.
+    // Demo hisob tanlanmaydi: demo muharrirli jurnal haqiqiy mualliflarga ko'rinmaydi (backend ham rad etadi).
+    // Tahrirlanayotgan jurnalning joriy demo muharriri ro'yxatda qoladi — u ogohlantirish bilan ko'rinadi.
+    const isDemoAccount = (u: { email?: string }) => (u.email || '').toLowerCase().endsWith('@demo.ilmiyfaoliyat.uz');
     const journalAdmins = users.filter(u =>
-        u.role === Role.JournalAdmin || u.role === 'journal_admin'
+        (u.role === Role.JournalAdmin || u.role === 'journal_admin')
+        && (!isDemoAccount(u) || u.id === formData.journalAdminId)
     );
     
 
@@ -575,6 +579,16 @@ const JournalManagement: React.FC = () => {
                                                 {t('Soha:')} <span className="text-[var(--editorial-text)]">{(journal as any).scientific_field_names.join(', ')}</span>
                                             </p>
                                         )}
+                                        {(journal as any).is_sample && (
+                                            <p className="mt-1 text-xs text-[var(--editorial-muted)]">
+                                                {t("Namuna (demo) jurnal — haqiqiy mualliflarga ko'rsatilmaydi.")}
+                                            </p>
+                                        )}
+                                        {(journal as any).hidden_from_authors && (
+                                            <p className="mt-1 text-xs font-medium text-red-700">
+                                                {t("Mualliflarga ko'rinmaydi: muharriri demo hisob. Tahrirlab, haqiqiy muharrirni tanlang.")}
+                                            </p>
+                                        )}
                                         {(journal as any).is_archived && (
                                             <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
                                                 <Archive size={12} /> {t('Arxivda — katalogda ko\'rinmaydi')}
@@ -663,7 +677,9 @@ const JournalManagement: React.FC = () => {
                                     <select name="journalAdminId" value={formData.journalAdminId} onChange={handleInputChange} className="w-full" required>
                                         <option value="" disabled>{t('Adminni tanlang')}</option>
                                         {journalAdmins.map(admin => (
-                                            <option key={admin.id} value={admin.id}>{personFullName(admin)}</option>
+                                            <option key={admin.id} value={admin.id}>
+                                                {personFullName(admin)}{isDemoAccount(admin) ? ` — ${t('demo hisob, boshqasini tanlang')}` : ''}
+                                            </option>
                                         ))}
                                     </select>
                                 </div>

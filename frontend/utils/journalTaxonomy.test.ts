@@ -1,29 +1,107 @@
 import { describe, expect, it } from 'vitest';
-import { journalMatchesSubject, journalMatchesType } from './journalTaxonomy';
-import { PUBLICATION_TYPES, isPublicationType, sameCategory } from '../constants/authorCategories';
+import { journalMatchesSearch, journalMatchesSubject, journalMatchesType } from './journalTaxonomy';
+import { PUBLICATION_TYPES, SUBJECT_AREAS, isPublicationType, sameCategory } from '../constants/authorCategories';
 
-describe('jurnal filtri: nashr turi', () => {
-  it("bazadagi birlik shakl («Mahalliy OAK jurnali») filtrdagi ko'plik bilan mos keladi", () => {
-    const j = { category_name: 'Mahalliy OAK jurnali', scientific_field_names: [] };
-    expect(journalMatchesType(j, 'Mahalliy OAK jurnallari')).toBe(true);
-    expect(journalMatchesType(j, 'Xalqaro OAK jurnallari')).toBe(false);
-    expect(journalMatchesType(j, 'Mahalliy jurnallar')).toBe(false);
-    expect(journalMatchesType(j, '')).toBe(true);
+const ALL_FIELDS = [
+  'Arxitektura va qurilish', 'Axborot texnologiyalari', 'Axborot texnologiyalari (IT)', 'Biologiya', 'Dinshunoslik',
+  'Ekologiya va atrof-muhit muhofazasi', 'Energetika', 'Falsafa', 'Filologiya', 'Filologiya va tilshunoslik', 'Fizika',
+  'Gender tadqiqotlari', 'Harbiy fanlar va xavfsizlik', 'Huquq', 'Iqtisodiyot', 'Jurnalistika va ommaviy kommunikatsiya',
+  'Kimyo', 'Matematika', 'Menejment va biznes', 'Multidissiplinar (fanlararo) yo‘nalishlar', 'Pedagogika',
+  'Pedagogika va ta’lim', 'Psixologiya', 'Qishloq xo‘jaligi', 'San’at va madaniyat', 'Siyosatshunoslik', 'Sotsiologiya',
+  'Sport va jismoniy tarbiya', 'Tarix', 'Texnika fanlari', 'Tibbiyot', 'Transport va logistika', 'Turizm va mehmondo‘stlik',
+];
+
+/** Productiondagi jurnallar (nomi, rukni, sohalari) — aynan bazadagi yozilishi bilan */
+const J = {
+  A: { name: 'Axborot texnologiyalari va raqamli tizimlar', category_name: 'Axborot texnologiyalari', scientific_field_names: ['Axborot texnologiyalari (IT)'] },
+  B: { name: 'Filologiya va tilshunoslik masalalari', category_name: 'Filologiya', scientific_field_names: ['Filologiya va tilshunoslik'] },
+  C: { name: 'INTERNATIONAL JOURNAL OF BUSINESS MANAGEMENT AND SCIENTIFIC RESEARCH', category_name: 'Xalqaro jurnallar', scientific_field_names: ['Sport va jismoniy tarbiya', 'Tarix', 'Texnika fanlari', 'Tibbiyot', 'Transport va logistika', 'Turizm va mehmondo‘stlik'] },
+  D: { name: 'INTERNATIONAL JOURNAL OF SCIENTIFIC & EDUCATIONAL RESEARCH', category_name: 'Xalqaro jurnallar', scientific_field_names: ALL_FIELDS },
+  E: { name: 'Iqtisodiyot va innovatsion texnologiyalar', category_name: 'Iqtisodiyot', scientific_field_names: ['Iqtisodiyot'] },
+  F: { name: 'TA’LIM, TARBIYA VA INNOVATSIYALAR JURNALI', category_name: 'Mahalliy OAK jurnali', scientific_field_names: [] },
+  G: { name: "Tibbiyot va sog'liqni saqlash", category_name: 'Tibbiyot', scientific_field_names: ['Tibbiyot'] },
+  H: { name: 'YANGI O‘ZBEKISTON, YANGI TADQIQOTLAR JURNALI', category_name: 'Mahalliy OAK jurnali', scientific_field_names: [], issn: '3060-4567' },
+  I: { name: "Zamonaviy ta'lim va pedagogika", category_name: 'Pedagogika', scientific_field_names: ['Pedagogika va ta’lim'] },
+};
+type Key = keyof typeof J;
+const KEYS = Object.keys(J) as Key[];
+const pick = (type = '', subject = '', q = '') =>
+  KEYS.filter((k) => journalMatchesType(J[k], type) && journalMatchesSubject(J[k], subject) && journalMatchesSearch(J[k], q)).join('');
+
+describe('maqola yuborish filtri — productiondagi jurnallar bilan', () => {
+  it('filtrsiz hamma jurnal chiqadi', () => {
+    expect(pick()).toBe('ABCDEFGHI');
   });
 
-  it('konferensiya shakllari ham mos keladi, turlar bir-biriga aralashmaydi', () => {
-    expect(sameCategory('Xalqaro konferensiya', 'Xalqaro konferensiyalar')).toBe(true);
-    expect(sameCategory('Scopus jurnali', 'Scopus jurnallari')).toBe(true);
-    expect(sameCategory('Scopus jurnallari', 'Scopus konferensiyalar')).toBe(false);
+  it.each([
+    ['Mahalliy OAK jurnallari', 'FH'],
+    ['Xalqaro OAK jurnallari', ''],
+    ['Mahalliy jurnallar', ''],
+    ['Xalqaro jurnallar', 'CD'],
+    ['Mahalliy konferensiyalar', ''],
+    ['Xalqaro konferensiyalar', ''],
+    ['Scopus jurnallari', ''],
+    ['Scopus konferensiyalar', ''],
+  ])('nashr turi: %s → %s', (type, expected) => {
+    expect(pick(type)).toBe(expected);
+  });
+
+  it.each([
+    ['Pedagogika va ta’lim', 'DI'],
+    ['Iqtisodiyot', 'DE'],
+    ['Tibbiyot', 'CDG'],
+    ['Axborot texnologiyalari (IT)', 'AD'],
+    ['Filologiya va tilshunoslik', 'BD'],
+    ['Tarix', 'CD'],
+    ['Huquq', 'D'],
+    ['Turizm va mehmondo‘stlik', 'CD'],
+    ['Multidissiplinar (fanlararo) yo‘nalishlar', 'D'],
+  ])('soha: %s → %s', (subject, expected) => {
+    expect(pick('', subject)).toBe(expected);
+  });
+
+  it('har bir soha uchun xato chiqmaydi va sohasi belgilangan jurnal (D) doim topiladi', () => {
+    for (const subject of SUBJECT_AREAS) expect(pick('', subject)).toContain('D');
+  });
+
+  it('nashr turi + soha birga', () => {
+    expect(pick('Xalqaro jurnallar', 'Tibbiyot')).toBe('CD');
+    expect(pick('Xalqaro jurnallar', 'Iqtisodiyot')).toBe('D');
+    expect(pick('Mahalliy OAK jurnallari', 'Tibbiyot')).toBe('');
+  });
+
+  it.each([
+    ["o'zbekiston", 'H'],
+    ['O‘ZBEKISTON', 'H'],
+    ['yangi tadqiqot', 'H'],
+    ["ta'lim", 'DFI'],
+    ['international', 'CD'],
+    ['tibbiyot', 'CDG'],
+    ['3060', 'H'],
+    ['3060-4567', 'H'],
+    ['  ', 'ABCDEFGHI'],
+    ['mavjud emas', ''],
+  ])('qidiruv: "%s" → %s', (q, expected) => {
+    expect(pick('', '', q)).toBe(expected);
+  });
+
+  it('qidiruv + filtr birga', () => {
+    expect(pick('Mahalliy OAK jurnallari', '', 'yangi')).toBe('H');
+    expect(pick('Xalqaro jurnallar', 'Tibbiyot', 'business')).toBe('C');
+  });
+});
+
+describe("ro'yxatlar o'zaro aralashmaydi", () => {
+  it('8 ta nashr turi bir-biridan farqli', () => {
+    for (const p of PUBLICATION_TYPES) expect(PUBLICATION_TYPES.filter((q) => sameCategory(p, q))).toEqual([p]);
     expect(isPublicationType('Mahalliy OAK jurnali')).toBe(true);
-    // 8 ta standart tur o'zaro farqli qoladi
-    const keys = new Set(PUBLICATION_TYPES.map((p) => PUBLICATION_TYPES.filter((q) => sameCategory(p, q)).length));
-    expect([...keys]).toEqual([1]);
+    expect(sameCategory('Xalqaro konferensiya', 'Xalqaro konferensiyalar')).toBe(true);
   });
 
-  it('soha filtri oʻzgarmagan', () => {
-    const j = { category_name: 'Xalqaro jurnallar', scientific_field_names: ['Tibbiyot', 'Tarix'] };
-    expect(journalMatchesSubject(j, 'Tibbiyot')).toBe(true);
-    expect(journalMatchesSubject(j, 'Huquq')).toBe(false);
+  it('30 ta soha bir-biridan farqli (qisqa shakl boshqa sohaga tegmaydi)', () => {
+    for (const s of SUBJECT_AREAS) {
+      const j = { category_name: '', scientific_field_names: [s] };
+      expect(SUBJECT_AREAS.filter((other) => journalMatchesSubject(j, other))).toEqual([s]);
+    }
   });
 });

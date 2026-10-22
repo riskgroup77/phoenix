@@ -7,7 +7,7 @@ import PhoneVerifyCard from '../components/PhoneVerifyCard';
 import Button from '../components/ui/Button';
 import { UploadCloud, CheckCircle, Loader2, XCircle, FileText, Users, Eye, BookOpen, Filter, Layers, X, History, Check, CreditCard, Search as SearchIcon, ShieldCheck, BadgeCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { journalMatchesSubject, journalMatchesType } from '../utils/journalTaxonomy';
+import { journalMatchesSearch, journalMatchesSubject, journalMatchesType } from '../utils/journalTaxonomy';
 import { PUBLICATION_TYPES, SUBJECT_AREAS } from '../constants/authorCategories';
 import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
@@ -302,16 +302,7 @@ const SubmitArticle: React.FC = () => {
     // Rukn (nashr turi) va soha alohida; apostrof turlari (’ ‘ ') farq qilmaydi
     if (!journalMatchesType(j, journalFilterType)) return false;
     if (!journalMatchesSubject(j, journalFilterSubject)) return false;
-    const q = journalSearch.trim().toLowerCase();
-    if (!q) return true;
-    const qIssn = q.replace(/[^0-9x]/g, '');
-    const issn = (j.issn || '').toLowerCase().replace(/[^0-9x]/g, '');
-    return (
-      (j.name || '').toLowerCase().includes(q) ||
-      (j.description || '').toLowerCase().includes(q) ||
-      (j.category_name || '').toLowerCase().includes(q) ||
-      (qIssn.length >= 4 && issn.includes(qIssn))
-    );
+    return journalMatchesSearch(j, journalSearch);
   });
 
   const nextStep = () => {

@@ -24,11 +24,15 @@ from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.analytics import demo_content as C
 from config.demo import DEMO_EMAIL_DOMAIN, demo_q, seeding
 
+# Faqat shu skript yaratgan namuna jurnallar. Avval "muharriri demo hisob" bo'yicha tanlanardi — admin haqiqiy
+# jurnalga «Demo Muharrir»ni biriktirsa, tozalash o'sha jurnalni haqiqiy maqolalari bilan o'chirib yuborardi.
+SEED_JOURNAL_ISSNS = C.SEED_JOURNAL_ISSNS
 SEED_PHONE_PREFIX = '998000'  # seed foydalanuvchilari: 998000xxxxxx (haqiqiy operator kodi emas)
 LOGIN_PHONES = {
     'author': '998911111111', 'reviewer': '998922222222', 'journal_admin': '998933333333', 'operator': '998955555555',
@@ -121,7 +125,8 @@ class Command(BaseCommand):
 
         out = {}
         with transaction.atomic():
-            arts = Article.objects.filter(demo_q('author__') | demo_q('journal__journal_admin__'))
+            arts = Article.objects.filter(
+                demo_q('author__') | (demo_q('journal__journal_admin__') & Q(journal__issn__in=SEED_JOURNAL_ISSNS)))
             for a in arts.exclude(final_pdf_path='').exclude(final_pdf_path__isnull=True):
                 _delete_file(a.final_pdf_path)
             out['maqolalar'] = arts.count()
@@ -142,7 +147,7 @@ class Command(BaseCommand):
                 qs = model.objects.filter(demo_q(path))
                 out[label] = qs.count()
                 qs.delete()
-            journals = Journal.objects.filter(demo_q('journal_admin__'))
+            journals = Journal.objects.filter(demo_q('journal_admin__'), issn__in=SEED_JOURNAL_ISSNS)
             out['jurnallar'] = journals.count()
             journals.delete()
             seeded_users = User.objects.filter(demo_q(), phone__startswith=SEED_PHONE_PREFIX)
@@ -160,6 +165,18 @@ class Command(BaseCommand):
         """Demo login hisoblari (faqat @demo... email bilan belgilanganlari) va ularning qolgan yozuvlari."""
         from apps.users.models import User
 
+        from django.core.management.base import CommandError
+
+        from apps.journals.models import Journal
+
+        # Journal.journal_admin CASCADE: demo hisob o'chsa, unga biriktirilgan HAQIQIY jurnal ham o'chib ketardi
+        real = Journal.objects.filter(demo_q('journal_admin__')).exclude(issn__in=SEED_JOURNAL_ISSNS)
+        if real.exists():
+            names = ', '.join(f'"{j.name}"' for j in real[:10])
+            raise CommandError(
+                f"Haqiqiy jurnallar demo hisobga biriktirilgan: {names}. Avval «Jurnallarni boshqarish» da ularga "
+                "haqiqiy muharrir tayinlang — aks holda demo hisob bilan birga o'chib ketadi."
+            )
         qs = User.objects.filter(demo_q())
         n = qs.count()
         with transaction.atomic():
@@ -638,7 +655,7 @@ class Command(BaseCommand):
     def make_publications(self, authors):
         from apps.journals.models import AuthorPublication, Journal, ScientificField
 
-        journals = list(Journal.objects.filter(demo_q('journal_admin__')))
+        journals = list(Journal.objects.filter(demo_q('journal_admin__'), issn__in=SEED_JOURNAL_ISSNS))
         for i, author in enumerate(authors[:7]):
             for k in range(5 if i == 0 else 2):
                 j = journals[(i + k) % len(journals)]

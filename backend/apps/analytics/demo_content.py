@@ -205,6 +205,9 @@ JOURNALS = [
     },
 ]
 
+# Skript yaratgan namuna jurnallar (ISSN bo'yicha) — haqiqiy jurnallardan ajratish uchun
+SEED_JOURNAL_ISSNS = frozenset(j['issn'] for j in JOURNALS)
+
 # Har jurnaldagi 14 ta maqola holati (tartib bo'yicha).
 # Platforma oqimi: to'lov → Yangi → WithEditor (jurnal tekshiruvi) → QabulQilingan (taqrizda)
 #                  → Revision / Accepted → NashrgaYuborilgan → Published
