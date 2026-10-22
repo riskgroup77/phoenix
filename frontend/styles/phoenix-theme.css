@@ -2706,7 +2706,9 @@ html.dark #root .input-bare {
   overscroll-behavior: contain;
   align-items: flex-start;
 }
-.fixed.inset-0.flex.items-center.justify-center > * {
+/* :where — nol ustunlik: oynaning o'z max-w-md / max-w-lg klasslari ustun turadi. Avval bu qoida (0,4,0) Tailwind
+   max-w-* (0,1,0) ni bosib, barcha modallar ekran kengligida cho'zilib chiqardi. */
+:where(.fixed.inset-0.flex.items-center.justify-center) > * {
   margin-top: auto;
   margin-bottom: auto;
   max-width: 100%;

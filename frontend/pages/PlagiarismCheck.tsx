@@ -3,7 +3,7 @@ import { useAiPrefill, str, num } from '../contexts/AiPrefillContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import ModalPortal from '../components/ui/ModalPortal';
-import { CreditCard } from 'lucide-react';
+import { CheckCircle2, CreditCard, X, XCircle } from 'lucide-react';
 import { useAuth, useNotifications } from '../contexts/AuthContext';
 import type { AntiplagiatCertificateData } from '../components/AntiplagiatCertificate';
 import type { PlagiarismFullReportData } from '../components/PlagiarismFullReport';
@@ -14,7 +14,7 @@ import AntiplagiatUploadPanel, {
 import { ANTIPLAGIAT_MODULES, DEFAULT_ENABLED_MODULE_IDS } from '../constants/antiplagiatModules';
 import { apiService } from '../services/apiService';
 import { paymentService } from '../services/paymentService';
-import { getUserFriendlyError } from '../utils/errorHandler';
+import { formatDrfValidationErrors, getUserFriendlyError } from '../utils/errorHandler';
 import { toast } from 'react-toastify';
 import { useServicePrices } from '../hooks/useServicePrices';
 import { MAX_UPLOAD_BYTES, formatMaxUploadLabel } from '../constants/upload';
@@ -48,7 +48,7 @@ interface PlagiarismCheckRequest {
 
 // Antiplagiat tekshiruvi narxi (API dan olinadi)
 
-/** Modal va toast uchun: HTML entity va texnik UUID xabarlarini soddalashtirish */
+/** Modal va toast uchun: HTML entity larni oddiy matnga aylantirish */
 function formatPlagiarismPaymentMessage(raw: string): string {
   let s = raw;
   if (typeof document !== 'undefined' && s.includes('&')) {
@@ -59,13 +59,6 @@ function formatPlagiarismPaymentMessage(raw: string): string {
     } catch {
       /* ignore */
     }
-  }
-  const low = s.toLowerCase();
-  if (
-    (low.includes('journal') || low.includes('jurnal')) &&
-    (low.includes('uuid') || low.includes('not a valid') || low.includes("to'g'ri"))
-  ) {
-    return 'Jurnal aniqlanmadi yoki server bilan bog\'lanishda nomuvofiqlik bo\'ldi. Sahifani yangilang (F5) va qayta urinib ko\'ring.';
   }
   return s;
 }
@@ -78,7 +71,6 @@ const PlagiarismCheck: React.FC = () => {
   const { addNotification } = useNotifications();
   const { getPrice } = useServicePrices();
   const [form, setForm] = useState<AntiplagiatFormValues>(createDefaultAntiplagiatForm);
-  const [availableJournals, setAvailableJournals] = useState<any[]>([]);
   const [isChecking, setIsChecking] = useState(false);
   const [progress, setProgress] = useState(0);
   const [checkStatusLabel, setCheckStatusLabel] = useState('');
@@ -125,39 +117,7 @@ const PlagiarismCheck: React.FC = () => {
   const STORAGE_KEY_TRANSACTION_ID = 'plagiarism_pending_transaction_id';
   const STORAGE_KEY_ARTICLE_ID = 'plagiarism_pending_article_id';
 
-  const JOURNAL_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-  const extractList = <T,>(raw: any): T[] => {
-    if (Array.isArray(raw)) return raw as T[];
-    if (!raw || typeof raw !== 'object') return [];
-    if (Array.isArray(raw.results)) return raw.results as T[];
-    if (Array.isArray(raw.items)) return raw.items as T[];
-    if (Array.isArray(raw.data)) return raw.data as T[];
-    if (raw.data && typeof raw.data === 'object') {
-      if (Array.isArray(raw.data.results)) return raw.data.results as T[];
-      if (Array.isArray(raw.data.items)) return raw.data.items as T[];
-    }
-    return [];
-  };
-
-  const journalIdValid = (j: any): string | null => {
-    const id = String(j?.id ?? j?.uuid ?? j?.pk ?? '').trim();
-    return JOURNAL_UUID_RE.test(id) ? id : null;
-  };
-
-  /** Jurnal tanlash: oldindan nashr to'lovi talab qilinmasa — antiplagiat uchun maqola yaratish osonlashadi */
-  const pickJournalForPlagiarism = (journals: any[]): any | null => {
-    if (!journals?.length) return null;
-    const valid = journals.filter((j) => journalIdValid(j));
-    if (!valid.length) return null;
-    const withoutPrepayFee = valid.find((j) => {
-      const fee = Number(j.publication_fee ?? 0) || 0;
-      const perPage = Number(j.price_per_page ?? 0) || 0;
-      const isPre = j.payment_model === 'pre-payment';
-      return !isPre || (fee <= 0 && perPage <= 0);
-    });
-    return withoutPrepayFee || valid[0];
-  };
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   // Cleanup timer on unmount
   React.useEffect(() => {
@@ -167,28 +127,6 @@ const PlagiarismCheck: React.FC = () => {
           }
       };
   }, []);
-
-  React.useEffect(() => {
-      const fetchJournals = async () => {
-          if (!user) return;
-          try {
-              // Turli API formatlarini qo'llab-quvvatlash (results/data/items)
-              const [paged, plain] = await Promise.all([
-                  apiService.journals.list({ pageSize: 500 }),
-                  apiService.journals.list(),
-              ]);
-              const merged = [...extractList<any>(paged), ...extractList<any>(plain)];
-              const dedup = Array.from(new Map(merged.map((j: any) => [String(j?.id ?? j?.uuid ?? j?.pk ?? ''), j])).values())
-                  .filter((j: any) => journalIdValid(j));
-              setAvailableJournals(dedup);
-          } catch (err) {
-              console.error('Failed to fetch journals for plagiarism check:', err);
-              setAvailableJournals([]);
-          }
-      };
-
-      fetchJournals();
-  }, [user]);
 
   React.useEffect(() => {
       if (!user) return;
@@ -565,7 +503,7 @@ const PlagiarismCheck: React.FC = () => {
 
       if (articleId) {
           const aid = String(articleId).trim();
-          if (JOURNAL_UUID_RE.test(aid)) {
+          if (UUID_RE.test(aid)) {
               try {
                 await apiService.articles.savePlagiarismConfig(aid, {
                   enabled_modules: form.enabledModuleIds,
@@ -581,31 +519,20 @@ const PlagiarismCheck: React.FC = () => {
           }
       }
 
-      console.log('[DEBUG] availableJournals:', availableJournals);
-      const selectedJournal = pickJournalForPlagiarism(availableJournals);
-      console.log('[DEBUG] selectedJournal:', selectedJournal);
-      console.log('[DEBUG] selectedJournal?.id:', selectedJournal?.id);
-      
-      const journalPk = journalIdValid(selectedJournal);
-      if (!journalPk) {
-          throw new Error('Jurnal topilmadi yoki jurnal ID noto\'g\'ri. Administratorga murojaat qiling.');
-      }
-
+      // Jurnal yuborilmaydi: server antiplagiat hujjatini ichki jurnalga bog'laydi (ochiq jurnal bo'lmasa ham ishlaydi)
       const articleData = {
           title: form.documentName.trim() || `Plagiarism Check - ${form.file.name}`,
           abstract: form.documentDescription.trim() || `Hujjat turi: ${form.documentType || '—'}. Tekshiruv uchun yuborilgan.`,
           keywords: ['plagiarism', 'check', form.documentType || 'document'],
-          journal: journalPk,
           page_count: 1,
           fast_track: false,
       };
-      console.log('[DEBUG] articleData:', articleData);
 
       const articleResponse = await apiService.articles.create(articleData, { mainFile: form.file });
       const createdArticle = articleResponse?.data || articleResponse;
       const newId = String(createdArticle?.id ?? '').trim();
 
-      if (!newId || !JOURNAL_UUID_RE.test(newId)) {
+      if (!newId || !UUID_RE.test(newId)) {
           throw new Error('Antiplagiat uchun maqola yaratilmadi yoki server noto\'g\'ri javob qaytardi.');
       }
 
@@ -702,7 +629,9 @@ const PlagiarismCheck: React.FC = () => {
           }
       } catch (err: any) {
           console.error('Payment failed:', err);
-          const errorMsg = err.message || err.error_note || err.user_message || "To'lovni amalga oshirishda xatolik yuz berdi.";
+          // Maydon xatosi (masalan, fayl formati) — aniq sababi ko'rsatiladi, umumiy "Xatolik yuz berdi" emas
+          const errorMsg = formatDrfValidationErrors(err?.response) || err.message || err.error_note || err.user_message
+              || "To'lovni amalga oshirishda xatolik yuz berdi.";
           if (articleId && isAlreadyPaidMessage(errorMsg)) {
               continueAlreadyPaid(articleId);
               return;
@@ -922,7 +851,9 @@ const PlagiarismCheck: React.FC = () => {
                   )}
                   {paymentStatus === 'success' && (
                       <div className="text-center">
-                          <div className="mb-4 text-4xl text-emerald-800">✓</div>
+                          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15">
+                              <CheckCircle2 className="h-8 w-8 text-emerald-600" aria-hidden />
+                          </div>
                           <p className="mt-4 text-lg font-semibold text-slate-950">{t("To'lov muvaffaqiyatli!")}</p>
                           <Button onClick={() => { closePaymentModal(); handleCheck(true); }} className="w-full mt-6">
                               {t('Tekshirishni Davom Ettirish')}
@@ -930,16 +861,28 @@ const PlagiarismCheck: React.FC = () => {
                       </div>
                   )}
                   {paymentStatus === 'failed' && (
-                      <div>
-                          <div className="mb-4 text-center text-4xl text-red-600">✗</div>
-                          <p className="mt-4 text-center text-lg font-bold text-slate-950">{t("To'lovda xatolik!")}</p>
-                          <p className="mx-auto mb-4 max-w-xs break-words rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-center text-sm font-medium text-slate-900">{paymentError}</p>
-                          <div className="flex gap-3">
-                              <Button onClick={handlePay} className="flex-1">
-                                  {t('Qayta Urinish')}
-                              </Button>
+                      <div className="relative text-center" role="alert">
+                          <button
+                              type="button"
+                              onClick={closePaymentModal}
+                              className="absolute -right-2 -top-2 rounded-full p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                              aria-label={t('Yopish')}
+                          >
+                              <X className="h-5 w-5" aria-hidden />
+                          </button>
+                          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10">
+                              <XCircle className="h-8 w-8 text-red-600" aria-hidden />
+                          </div>
+                          <h3 className="mt-4 text-lg font-semibold text-slate-950">{t("To'lovni boshlab bo'lmadi")}</h3>
+                          <p className="mx-auto mt-2 max-w-sm break-words text-sm text-slate-600">
+                              {paymentError || t("To'lovni amalga oshirishda xatolik yuz berdi.")}
+                          </p>
+                          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:gap-3">
                               <Button variant="secondary" onClick={closePaymentModal} className="flex-1">
                                   {t('Yopish')}
+                              </Button>
+                              <Button onClick={handlePay} className="flex-1">
+                                  {t('Qayta urinish')}
                               </Button>
                           </div>
                       </div>

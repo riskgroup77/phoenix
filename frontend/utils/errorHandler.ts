@@ -113,6 +113,7 @@ export function formatDrfValidationErrors(responseBody: Record<string, unknown> 
     affiliation: 'Tashkilot',
     journal: 'Jurnal',
     article: 'Maqola',
+    final_pdf_path: '', // xabarning o'zi "Fayl ..." bilan boshlanadi
     non_field_errors: '',
   };
   const parts: string[] = [];
@@ -123,11 +124,18 @@ export function formatDrfValidationErrors(responseBody: Record<string, unknown> 
   for (const [k, v] of Object.entries(responseBody)) {
     if (skip.has(k) || k === 'non_field_errors') continue;
     if (Array.isArray(v) && v.length > 0) {
-      const lab = label[k] || k;
+      const lab = k in label ? label[k] : k;
       parts.push(lab ? `${lab}: ${v[0]}` : String(v[0]));
     } else if (typeof v === 'string' && v.trim()) {
-      const lab = label[k] || k;
+      const lab = k in label ? label[k] : k;
       parts.push(lab ? `${lab}: ${v}` : v);
+    } else if (v && typeof v === 'object') {
+      // Fayl tekshiruvi ichma-ich keladi: {"final_pdf_path": {"final_pdf_path": "..."}}
+      const inner = Object.values(v as Record<string, unknown>).flat().find((x) => typeof x === 'string' && x.trim());
+      if (typeof inner === 'string') {
+        const lab = k in label ? label[k] : k;
+        parts.push(lab ? `${lab}: ${inner}` : inner);
+      }
     }
   }
   return parts.length ? parts.join(' · ') : null;

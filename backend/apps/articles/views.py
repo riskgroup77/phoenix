@@ -28,7 +28,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Maqola / kitob yubora olmaydigan xizmat rollari (frontend App.tsx SUBMITTER_ROLES bilan mos)
-NON_SUBMITTER_ROLES = frozenset({'journal_admin', 'operator', 'accountant'})
+NON_SUBMITTER_ROLES = frozenset({'journal_admin', 'operator', 'accountant', 'translator'})
 
 
 class ArticleViewSet(
@@ -235,8 +235,20 @@ class ArticleViewSet(
                 {'detail': "Bu rol maqola yoki kitob yubora olmaydi. Muallif hisobidan foydalaning."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        internal_journal = None
+        if is_antiplag_doc:
+            # Antiplagiat hujjati jurnalga yuborilmaydi — ichki jurnalga bog'lanadi. Avval muallifga ko'rinadigan
+            # birinchi jurnal olinardi: ochiq jurnal bo'lmasa tekshiruv umuman boshlanmasdi.
+            from apps.journals.internal import get_antiplagiat_journal
+
+            internal_journal = get_antiplagiat_journal()
         serializer = self.get_serializer(data=request.data)
+        if internal_journal is not None:
+            # Yuborilgan jurnal (eski frontend) e'tiborga olinmaydi va tekshirilmaydi
+            serializer.fields['journal'].read_only = True
         serializer.is_valid(raise_exception=True)
+        if internal_journal is not None:
+            serializer.validated_data['journal'] = internal_journal
         book_journal = None
         if (serializer.validated_data.get('title') or '').strip().upper().startswith('[KITOB]'):
             # Kitob buyurtmasi jurnal maqolasi emas: frontend ro'yxatdagi birinchi jurnalni yuborardi va o'sha
@@ -248,7 +260,7 @@ class ArticleViewSet(
             if book_journal is not None:
                 serializer.validated_data['journal'] = book_journal
         journal = serializer.validated_data.get('journal')
-        if book_journal is None and getattr(journal, 'is_internal', False):
+        if book_journal is None and internal_journal is None and getattr(journal, 'is_internal', False):
             return Response({'journal': ["Bu jurnalga maqola yuborib bo'lmaydi."]}, status=status.HTTP_400_BAD_REQUEST)
         page_count = serializer.validated_data.get('page_count')
         awaiting_payment = (
