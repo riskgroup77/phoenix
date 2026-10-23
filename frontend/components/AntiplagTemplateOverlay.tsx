@@ -48,18 +48,114 @@ const TemplateField: React.FC<{ spec: TemplateFieldSpec; value: string; baseWidt
   );
 };
 
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+
+/** Matn kengligi (shablon pikselida): brauzerda canvas bilan aniq, test muhitida (canvas yo'q) — taxminiy */
+function textWidth(text: string, size: number, bold: boolean): number {
+  if (measureCtx === undefined) {
+    try {
+      measureCtx = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+    } catch {
+      measureCtx = null;
+    }
+  }
+  if (measureCtx) {
+    measureCtx.font = `${bold ? 700 : 400} ${size}px Arial, Helvetica, sans-serif`;
+    return measureCtx.measureText(text).width;
+  }
+  return text.length * (bold ? 0.6 : 0.52) * size;
+}
+
+/**
+ * Bir nechta ism (mualliflar): avval bitta qatorga (shrift 70% gacha kichrayadi), sig'masa — ism o'rtasidan emas,
+ * mualliflar orasidan qatorlarga bo'linadi. Pastdagi qator (ISH TURI) band — blok yuqoriga o'sadi: oxirgi qator
+ * yorliq bilan bir tayanch chizig'ida, oldingilari undan yuqorida (sertifikatda bu joy bo'sh).
+ */
+export function layoutNameList(
+  names: string[],
+  spec: Pick<TemplateFieldSpec, 'size' | 'max_width' | 'bold'>,
+  baseWidth: number,
+  maxLines = 3,
+  measure: (text: string, size: number, bold: boolean) => number = textWidth,
+): { size: number; lines: string[] } {
+  const clean = names.map((n) => n.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const maxPx = spec.max_width * baseWidth;
+  const bold = !!spec.bold;
+  const joined = clean.join(', ');
+  // Bitta qator — boshqa maydonlar kabi 80% gacha kichrayadi
+  for (let size = spec.size; size >= spec.size * 0.8; size -= 1) {
+    if (measure(joined, size, bold) <= maxPx) return { size, lines: [joined] };
+  }
+  const pack = (size: number) => {
+    const lines: string[] = [];
+    clean.forEach((name, i) => {
+      const piece = i < clean.length - 1 ? `${name},` : name;
+      const last = lines[lines.length - 1];
+      if (last !== undefined && measure(`${last} ${piece}`, size, bold) <= maxPx) lines[lines.length - 1] = `${last} ${piece}`;
+      else lines.push(piece);
+    });
+    return lines;
+  };
+  // Ko'p qator: o'qilishi uchun imkon qadar katta shrift (80% dan), qatorlar soni maxLines dan oshmaguncha
+  let size = Math.floor(spec.size * 0.8);
+  let lines = pack(size);
+  while (lines.length > maxLines && size > spec.size * 0.5) {
+    size -= 1;
+    lines = pack(size);
+  }
+  if (lines.length > maxLines) {
+    // Juda ko'p muallif — oxirgi qator «…» bilan tugaydi (to'liq ro'yxat hisobot va QR tekshiruvida)
+    lines = [...lines.slice(0, maxLines - 1), `${lines.slice(maxLines - 1).join(' ').replace(/,$/, '')}`];
+  }
+  return { size, lines };
+}
+
+const NameListField: React.FC<{ spec: TemplateFieldSpec; names: string[]; baseWidth: number }> = ({
+  spec,
+  names,
+  baseWidth,
+}) => {
+  const { size, lines } = layoutNameList(names, spec, baseWidth);
+  const lineHeight = lines.length > 1 ? 1.2 : 1;
+  // Oxirgi qatorning tayanch chizig'i y da: qator qutisi pastidan (L - 1.117) / 2 + 0.212 em yuqorida (Arial)
+  const baselineFromBottom = (lineHeight - 1.117) / 2 + 0.212;
+  const style: React.CSSProperties = {
+    position: 'absolute',
+    left: `${spec.x * 100}%`,
+    bottom: `${(1 - spec.y) * 100}%`,
+    width: `${spec.max_width * 100}%`,
+    color: spec.color,
+    fontWeight: spec.bold ? 700 : 400,
+    fontSize: `calc(100cqw * ${size / baseWidth})`,
+    lineHeight,
+    fontFamily: 'Arial, Helvetica, sans-serif',
+    transform: `translateY(${baselineFromBottom}em)`,
+  };
+  return (
+    <span className="pointer-events-none select-none" style={style} data-testid="template-name-list">
+      {lines.map((line, i) => (
+        <span key={i} style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {line}
+        </span>
+      ))}
+    </span>
+  );
+};
+
 export const AntiplagJpgPage: React.FC<{
   imageUrl: string;
   aspectRatio: string;
   baseWidth: number;
   fields: Record<string, TemplateFieldSpec>;
   values: FieldMap;
+  /** Bir nechta ismli maydonlar (masalan mualliflar) — mualliflar orasidan qatorlarga bo'linadi */
+  nameLists?: Record<string, string[]>;
   /** QR ichidagi matn (tekshirish havolasi) — kod brauzerda yaratiladi */
   qrValue?: string;
   qrSpec?: QrSpec;
   className?: string;
   id?: string;
-}> = ({ imageUrl, aspectRatio, baseWidth, fields, values, qrValue, qrSpec, className = '', id }) => (
+}> = ({ imageUrl, aspectRatio, baseWidth, fields, values, nameLists, qrValue, qrSpec, className = '', id }) => (
   <div
     id={id}
     className={`relative mx-auto overflow-hidden bg-white shadow-xl print:shadow-none ${className}`}
@@ -79,9 +175,13 @@ export const AntiplagJpgPage: React.FC<{
       className="absolute inset-0 w-full h-full select-none pointer-events-none"
       style={{ objectFit: 'fill' }}
     />
-    {Object.entries(fields).map(([key, spec]) => (
-      <TemplateField key={key} spec={spec} value={values[key] || ''} baseWidth={baseWidth} />
-    ))}
+    {Object.entries(fields).map(([key, spec]) =>
+      (nameLists?.[key]?.length || 0) > 1 ? (
+        <NameListField key={key} spec={spec} names={nameLists![key]} baseWidth={baseWidth} />
+      ) : (
+        <TemplateField key={key} spec={spec} value={values[key] || ''} baseWidth={baseWidth} />
+      ),
+    )}
     {qrValue && qrSpec ? (
       <div
         role="img"

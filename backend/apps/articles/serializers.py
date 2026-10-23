@@ -149,7 +149,7 @@ ANONYMOUS_AUTHOR = 'Anonim muallif'
 # Taqrizchidan yashiriladigan, muallifni aniqlaydigan maydonlar
 _AUTHOR_IDENTITY_KEYS = ('author', 'co_authors')
 _AUTHOR_NAME_KEYS = ('submitted_author_name',)
-_REPORT_IDENTITY_KEYS = ('author_first_name', 'author_last_name', 'author_workplace', 'author_position')
+_REPORT_IDENTITY_KEYS = ('author_first_name', 'author_last_name', 'co_authors', 'author_workplace', 'author_position')
 
 
 def hide_author_from_viewer(context, article) -> bool:
@@ -539,6 +539,7 @@ class ArticleSerializer(serializers.ModelSerializer):
         'document_name',
         'author_first_name',
         'author_last_name',
+        'co_authors',
     )
 
     class Meta:
@@ -590,6 +591,11 @@ class ArticleSerializer(serializers.ModelSerializer):
             raw = value[key]
             if key == 'pending_enabled_modules':
                 merged[key] = [str(m)[:80] for m in raw][:300] if isinstance(raw, list) else []
+            elif key == 'co_authors':
+                # Hammualliflar: [{first_name, last_name}] — sertifikat, ma'lumotnoma va QR tekshiruvida chiqadi
+                from .antiplagiat_utils import clean_antiplagiat_co_authors
+
+                merged[key] = clean_antiplagiat_co_authors(raw)
             else:
                 merged[key] = str(raw or '')[:300]
         return merged

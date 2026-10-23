@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Shield, Sparkles, Layers } from 'lucide-react';
+import { Shield, Sparkles, Layers, Plus, Trash2 } from 'lucide-react';
 import {
   HUJJAT_TURI_OPTIONS,
   MODULE_PRESET_LABELS,
@@ -18,12 +18,18 @@ import { useT } from '../i18n/LanguageContext';
 
 type TabId = 'document' | 'modules';
 
+export type AntiplagiatCoAuthor = { firstName: string; lastName: string };
+
+/** Asosiy muallifdan tashqari hammualliflar soni (backend MAX_ANTIPLAGIAT_CO_AUTHORS bilan bir xil) */
+export const MAX_ANTIPLAGIAT_CO_AUTHORS = 9;
+
 export type AntiplagiatFormValues = {
   documentName: string;
   documentType: string;
   documentDescription: string;
   authorFirstName: string;
   authorLastName: string;
+  coAuthors: AntiplagiatCoAuthor[];
   file: File | null;
   enabledModuleIds: string[];
   checkMode: AntiplagiatCheckMode;
@@ -114,6 +120,18 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
     onChange({ enabledModuleIds: next, modulePreset: 'all' });
   };
 
+  const coAuthors = values.coAuthors || [];
+  const addCoAuthor = () => {
+    if (coAuthors.length >= MAX_ANTIPLAGIAT_CO_AUTHORS) return;
+    onChange({ coAuthors: [...coAuthors, { firstName: '', lastName: '' }] });
+  };
+  const updateCoAuthor = (index: number, patch: Partial<AntiplagiatCoAuthor>) => {
+    onChange({ coAuthors: coAuthors.map((c, i) => (i === index ? { ...c, ...patch } : c)) });
+  };
+  const removeCoAuthor = (index: number) => {
+    onChange({ coAuthors: coAuthors.filter((_, i) => i !== index) });
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const f = e.dataTransfer.files?.[0];
@@ -133,6 +151,7 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
     values.documentType &&
     values.authorFirstName.trim() &&
     values.authorLastName.trim() &&
+    !hasIncompleteCoAuthor(values.coAuthors) &&
     values.enabledModuleIds.length > 0 &&
     !isChecking;
 
@@ -220,6 +239,62 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
                     placeholder={tr('Familya')}
                   />
                 </div>
+              </div>
+
+              {coAuthors.map((co, i) => {
+                const incomplete = !!co.firstName.trim() !== !!co.lastName.trim();
+                return (
+                  <div key={i} className="antiplagiat-coauthor-row" data-testid="antiplagiat-coauthor-row">
+                    <p className="antiplagiat-label">{tr('{n}-hammuallif', { n: i + 1 })}</p>
+                    <div className="grid grid-cols-[1fr_1fr_auto] gap-2 sm:gap-3 items-center">
+                      <input
+                        className="antiplagiat-input min-w-0"
+                        value={co.firstName}
+                        onChange={(e) => updateCoAuthor(i, { firstName: e.target.value })}
+                        placeholder={tr('Ism')}
+                        aria-label={tr('{n}-hammuallif: ism', { n: i + 1 })}
+                        aria-invalid={incomplete && !co.firstName.trim()}
+                      />
+                      <input
+                        className="antiplagiat-input min-w-0"
+                        value={co.lastName}
+                        onChange={(e) => updateCoAuthor(i, { lastName: e.target.value })}
+                        placeholder={tr('Familya')}
+                        aria-label={tr('{n}-hammuallif: familiya', { n: i + 1 })}
+                        aria-invalid={incomplete && !co.lastName.trim()}
+                      />
+                      <button
+                        type="button"
+                        className="h-[38px] w-[38px] inline-flex items-center justify-center rounded border border-slate-300 text-slate-500 hover:text-red-600 hover:border-red-300 hover:bg-red-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-red-950/40"
+                        onClick={() => removeCoAuthor(i)}
+                        title={tr("Hammuallifni o'chirish")}
+                        aria-label={tr("Hammuallifni o'chirish")}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                    {incomplete && (
+                      <p className="mt-1 text-xs text-red-600">{tr('Hammuallifning ism va familiyasini kiriting.')}</p>
+                    )}
+                  </div>
+                );
+              })}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="antiplagiat-preset-btn inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={addCoAuthor}
+                  disabled={coAuthors.length >= MAX_ANTIPLAGIAT_CO_AUTHORS}
+                >
+                  <Plus size={14} />
+                  {tr("Hammuallif qo'shish")}
+                </button>
+                {coAuthors.length > 0 && (
+                  <span className="text-xs text-slate-500">
+                    {tr('{n} / {max} ta hammuallif', { n: coAuthors.length, max: MAX_ANTIPLAGIAT_CO_AUTHORS })}
+                  </span>
+                )}
               </div>
 
               <div>
@@ -403,6 +478,19 @@ const AntiplagiatUploadPanel: React.FC<Props> = ({
   );
 };
 
+/** Hammuallif qatorida faqat ism yoki faqat familiya kiritilgan (to'liq bo'sh qatorlar e'tiborga olinmaydi) */
+export function hasIncompleteCoAuthor(coAuthors: AntiplagiatCoAuthor[] | undefined): boolean {
+  return (coAuthors || []).some((c) => !!c.firstName.trim() !== !!c.lastName.trim());
+}
+
+/** Serverga yuboriladigan hammualliflar: bo'sh qatorlarsiz, ortiqcha bo'shliqlarsiz */
+export function coAuthorsPayload(coAuthors: AntiplagiatCoAuthor[] | undefined): { first_name: string; last_name: string }[] {
+  return (coAuthors || [])
+    .map((c) => ({ first_name: c.firstName.trim(), last_name: c.lastName.trim() }))
+    .filter((c) => c.first_name || c.last_name)
+    .slice(0, MAX_ANTIPLAGIAT_CO_AUTHORS);
+}
+
 export function createDefaultAntiplagiatForm(): AntiplagiatFormValues {
   return {
     documentName: '',
@@ -410,6 +498,7 @@ export function createDefaultAntiplagiatForm(): AntiplagiatFormValues {
     documentDescription: '',
     authorFirstName: '',
     authorLastName: '',
+    coAuthors: [],
     file: null,
     enabledModuleIds: loadEnabledModuleIds(),
     checkMode: 'both',

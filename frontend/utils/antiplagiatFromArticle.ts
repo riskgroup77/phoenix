@@ -227,12 +227,10 @@ export function buildAntiplagiatViewFromArticle(
     : DEFAULT_ENABLED_MODULE_IDS;
   const enabledCount = enabledIds.length || DEFAULT_ENABLED_MODULE_IDS.length;
 
-  const authorFirst = String(report.author_first_name || '').trim();
-  const authorLast = String(report.author_last_name || '').trim();
-  const author =
-    `${authorLast} ${authorFirst}`.trim() ||
-    String(article.author_name || '').trim() ||
-    'Muallif';
+  const mainAuthor = antiplagiatAuthor(report) || String(article.author_name || '').trim() || 'Muallif';
+  // Hammualliflar bilan: «Familiya Ism, Familiya Ism, ...» (sertifikatda yorliq «MUALLIFLAR»)
+  const authors = [mainAuthor === 'Muallif' ? t(mainAuthor) : mainAuthor, ...antiplagiatCoAuthors(report)];
+  const author = authors.join(', ');
 
   const documentName = String(report.document_name || article.title || '').trim() || 'Hujjat';
   const documentType = String(report.document_type || 'Ilmiy ish');
@@ -251,7 +249,8 @@ export function buildAntiplagiatViewFromArticle(
   const certificateData: AntiplagiatCertificateData = {
     certificateNumber: certNumber,
     checkDate,
-    author: author === 'Muallif' ? t(author) : author,
+    author,
+    authors,
     workType: t(documentType),
     fileName: documentName === 'Hujjat' ? t(documentName) : documentName,
     citations: `${citationPct.toFixed(1)}%`,
@@ -273,6 +272,7 @@ export function buildAntiplagiatViewFromArticle(
 
   const fullReportData: PlagiarismFullReportData = {
     checkerName: author,
+    authors,
     checkerId: String(article.id || '').slice(-5) || '00000',
     checkerOrganization: String(report.author_workplace || '').trim(),
     authorPosition: String(report.author_position || '').trim(),
@@ -303,6 +303,57 @@ export function buildAntiplagiatViewFromArticle(
   };
 
   return { result, certificateData, fullReportData };
+}
+
+type NamePair = { authorFirstName?: string | null; authorLastName?: string | null };
+type UserName = { firstName?: string | null; lastName?: string | null };
+
+const fullName = (last?: string | null, first?: string | null) =>
+  [last, first].map((x) => String(x || '').trim()).filter(Boolean).join(' ');
+
+/**
+ * Antiplagiat sertifikatidagi muallif ("Familiya Ism"): 1) serverda saqlangan (formada kiritilgan) ism —
+ * plagiarism_report.author_last_name / author_first_name; 2) forma; 3) foydalanuvchi profili. Avval sertifikat
+ * formani olardi — Click'dan qaytilganda forma profil ismi bilan qayta to'ldirilib, kiritilgan ism yo'qolardi.
+ */
+export function antiplagiatAuthor(
+  report?: Record<string, unknown> | null,
+  form?: NamePair | null,
+  user?: UserName | null,
+): string {
+  return (
+    fullName(report?.author_last_name as string, report?.author_first_name as string) ||
+    fullName(form?.authorLastName, form?.authorFirstName) ||
+    fullName(user?.lastName, user?.firstName)
+  );
+}
+
+type CoAuthorForm = { firstName?: string | null; lastName?: string | null };
+
+/** Serverda saqlangan hammualliflar (plagiarism_report.co_authors) — «Familiya Ism» ko'rinishida */
+export function antiplagiatCoAuthors(report?: Record<string, unknown> | null): string[] {
+  const raw = report?.co_authors;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((c) => (c && typeof c === 'object' ? (c as Record<string, unknown>) : {}))
+    .map((c) => fullName(c.last_name as string, c.first_name as string))
+    .filter(Boolean);
+}
+
+/**
+ * Sertifikatdagi barcha mualliflar: asosiy muallif (antiplagiatAuthor) + hammualliflar. Hammualliflar ham avval
+ * serverdan (Click'dan qaytilganda forma bo'shab qoladi), saqlanmagan bo'lsa — formadan olinadi.
+ */
+export function antiplagiatAuthors(
+  report?: Record<string, unknown> | null,
+  form?: (NamePair & { coAuthors?: CoAuthorForm[] | null }) | null,
+  user?: UserName | null,
+): string[] {
+  const main = antiplagiatAuthor(report, form, user);
+  const co = Array.isArray(report?.co_authors)
+    ? antiplagiatCoAuthors(report)
+    : (form?.coAuthors || []).map((c) => fullName(c.lastName, c.firstName)).filter(Boolean);
+  return [main, ...co].filter(Boolean);
 }
 
 export function isStandalonePlagiarismArticle(article: {

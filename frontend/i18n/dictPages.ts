@@ -1721,4 +1721,13 @@ export const PAGE_ROWS: [string, string, string][] = [
   ["O'xshashlik: {value}%", "Заимствования: {value}%", "Similarity: {value}%"],
   ["Jami {total} ta · {from}–{to} ko'rsatilmoqda", "Всего {total} · показаны {from}–{to}", "Total {total} · showing {from}–{to}"],
   ["{count} ta parcha", "фрагментов: {count}", "{count} fragments"],
+  // Antiplagiat: hammualliflar
+  ["Mualliflar:", "Авторы:", "Authors:"],
+  ["{n}-hammuallif", "Соавтор {n}", "Co-author {n}"],
+  ["{n}-hammuallif: ism", "Соавтор {n}: имя", "Co-author {n}: first name"],
+  ["{n}-hammuallif: familiya", "Соавтор {n}: фамилия", "Co-author {n}: last name"],
+  ["Hammuallifni o'chirish", "Удалить соавтора", "Remove co-author"],
+  ["Hammuallif qo'shish", "Добавить соавтора", "Add co-author"],
+  ["{n} / {max} ta hammuallif", "Соавторов: {n} / {max}", "{n} / {max} co-authors"],
+  ["Hammuallifning ism va familiyasini kiriting.", "Введите имя и фамилию соавтора.", "Enter the co-author's first and last name."],
 ];

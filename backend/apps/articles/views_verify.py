@@ -32,15 +32,17 @@ def _verify_antiplagiat(code: str):
     if not article:
         return None
     report = article.plagiarism_report if isinstance(article.plagiarism_report, dict) else {}
-    author = ' '.join(
-        x for x in (str(report.get('author_last_name') or '').strip(), str(report.get('author_first_name') or '').strip()) if x
-    ) or (article.author.get_full_name() if article.author_id else '')
+    from .antiplagiat_utils import antiplagiat_authors
+
+    # Formada kiritilgan muallif va hammualliflar (sertifikatdagi kabi)
+    authors = antiplagiat_authors(report, fallback=article.author.get_full_name() if article.author_id else '')
     return {
         'type': 'antiplagiat',
         'type_label': 'Antiplagiat sertifikati',
         'document_number': code,
         'title': str(report.get('document_name') or article.title or ''),
-        'author': author,
+        'author': ', '.join(authors),
+        'authors': authors,
         'date': timezone.localtime(article.plagiarism_checked_at).strftime('%d.%m.%Y'),
         'details': {
             'plagiarism_percent': round(float(article.plagiarism_percentage or 0), 2),
@@ -166,6 +168,7 @@ def _verify_reference(code: str):
         'document_number': data.number,
         'title': data.title,
         'author': data.author,
+        'authors': data.authors or ([data.author] if data.author else []),
         'date': timezone.localtime().strftime('%d.%m.%Y'),
         'details': {'work_type': data.work_type, 'status': data.status},
     }

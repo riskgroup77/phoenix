@@ -114,3 +114,48 @@ def is_standalone_antiplagiat(article) -> bool:
 # Eski nom — importlar buzilmasin
 def _is_standalone_antiplagiat(article) -> bool:
     return is_standalone_antiplagiat(article)
+
+
+def antiplagiat_author_name(report) -> str:
+    """
+    Antiplagiat formasida kiritilgan muallif: "Familiya Ism" (plagiarism_report.author_last_name / author_first_name).
+    Sertifikat, ma'lumotnoma va QR tekshiruvi shu ismni ko'rsatadi; bo'sh bo'lsa — '' (chaqiruvchi profil ismini oladi).
+    """
+    if not isinstance(report, dict):
+        return ''
+    parts = (str(report.get('author_last_name') or '').strip(), str(report.get('author_first_name') or '').strip())
+    return ' '.join(p for p in parts if p)
+
+
+# Formada asosiy muallifdan tashqari qo'shiladigan hammualliflar soni (sertifikatga 10 tagacha ism sig'adi)
+MAX_ANTIPLAGIAT_CO_AUTHORS = 9
+
+
+def clean_antiplagiat_co_authors(raw) -> list[dict]:
+    """Formadan kelgan hammualliflar: [{first_name, last_name}] — bo'sh qatorlar tashlanadi, ko'pi bilan 9 ta."""
+    if not isinstance(raw, list):
+        return []
+    out: list[dict] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        first = ' '.join(str(item.get('first_name') or '').split())[:150]
+        last = ' '.join(str(item.get('last_name') or '').split())[:150]
+        if first or last:
+            out.append({'first_name': first, 'last_name': last})
+        if len(out) >= MAX_ANTIPLAGIAT_CO_AUTHORS:
+            break
+    return out
+
+
+def antiplagiat_authors(report, fallback: str = '') -> list[str]:
+    """Asosiy muallif va hammualliflar ("Familiya Ism") — formadagi tartibda.
+
+    fallback — asosiy muallif ismi kiritilmagan bo'lsa (eski hujjatlar) o'rniga qo'yiladigan ism (profil).
+    """
+    if not isinstance(report, dict):
+        return [fallback] if fallback else []
+    names = [antiplagiat_author_name(report) or fallback]
+    for co in clean_antiplagiat_co_authors(report.get('co_authors')):
+        names.append(' '.join(p for p in (co['last_name'], co['first_name']) if p))
+    return [n for n in names if n]

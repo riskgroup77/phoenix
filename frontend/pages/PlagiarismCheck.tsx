@@ -9,7 +9,9 @@ import type { AntiplagiatCertificateData } from '../components/AntiplagiatCertif
 import type { PlagiarismFullReportData } from '../components/PlagiarismFullReport';
 import AntiplagiatUploadPanel, {
   AntiplagiatFormValues,
+  coAuthorsPayload,
   createDefaultAntiplagiatForm,
+  hasIncompleteCoAuthor,
 } from '../components/AntiplagiatUploadPanel';
 import { ANTIPLAGIAT_MODULES, DEFAULT_ENABLED_MODULE_IDS } from '../constants/antiplagiatModules';
 import { apiService } from '../services/apiService';
@@ -19,6 +21,7 @@ import { toast } from 'react-toastify';
 import { useServicePrices } from '../hooks/useServicePrices';
 import { MAX_UPLOAD_BYTES, formatMaxUploadLabel } from '../constants/upload';
 import { useT } from '../i18n/LanguageContext';
+import { antiplagiatAuthors } from '../utils/antiplagiatFromArticle';
 
 // New types for detailed results
 interface PlagiarismSource {
@@ -365,10 +368,14 @@ const PlagiarismCheck: React.FC = () => {
     setResult(finalResult);
 
     const certNumber = String(report?.certificate_number || '').trim() || '—';
+    // Formada kiritilgan muallif va hammualliflar serverda (plagiarism_report) saqlanadi — Click'dan qaytilganda
+    // forma qayta to'ldirilib, profil ismi tushardi va sertifikatda yuklagan foydalanuvchi ismi chiqardi
+    const authors = antiplagiatAuthors(report, form, user);
     const newCertificateData: AntiplagiatCertificateData = {
       certificateNumber: certNumber,
       checkDate: new Date().toLocaleDateString('uz-UZ'),
-      author: `${(form.authorLastName || user?.lastName || '').trim()} ${(form.authorFirstName || user?.firstName || '').trim()}`.trim(),
+      author: authors.join(', '),
+      authors,
       workType: form.documentType || 'Ilmiy ish',
       fileName: form.documentName.trim() || form.file?.name || '',
       citations: `${Number(citationPct || 0).toFixed(1)}%`,
@@ -382,6 +389,7 @@ const PlagiarismCheck: React.FC = () => {
 
     const fullReport: PlagiarismFullReportData = {
       checkerName: newCertificateData.author,
+      authors,
       checkerId: user?.id?.slice(-5) || '00000',
       checkerOrganization: user?.affiliation || '',
       documentNumber: newCertificateData.certificateNumber,
@@ -611,6 +619,7 @@ const PlagiarismCheck: React.FC = () => {
                   document_name: form.documentName.trim(),
                   author_first_name: form.authorFirstName.trim(),
                   author_last_name: form.authorLastName.trim(),
+                  co_authors: coAuthorsPayload(form.coAuthors),
                 });
               } catch {
                 /* non-blocking */
@@ -644,6 +653,7 @@ const PlagiarismCheck: React.FC = () => {
           document_name: form.documentName.trim(),
           author_first_name: form.authorFirstName.trim(),
           author_last_name: form.authorLastName.trim(),
+          co_authors: coAuthorsPayload(form.coAuthors),
         });
       } catch {
         /* non-blocking */
@@ -745,6 +755,10 @@ const PlagiarismCheck: React.FC = () => {
       if (!form.file || !user) return;
       if (!form.authorFirstName.trim() || !form.authorLastName.trim()) {
           toast.error(t('Ism va familyani kiriting.'));
+          return;
+      }
+      if (hasIncompleteCoAuthor(form.coAuthors)) {
+          toast.error(t('Hammuallifning ism va familiyasini kiriting.'));
           return;
       }
       if (!form.documentName.trim()) {

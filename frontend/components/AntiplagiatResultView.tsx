@@ -235,7 +235,7 @@ const AntiplagiatResultView: React.FC<Props> = ({
             </div>
           </div>
           <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-            <div><dt className="text-slate-500 inline">{t('Muallif:')} </dt><dd className="inline font-medium">{certificateData.author}</dd></div>
+            <div className={(certificateData.authors?.length || 0) > 1 ? 'sm:col-span-2' : undefined}><dt className="text-slate-500 inline">{(certificateData.authors?.length || 0) > 1 ? t('Mualliflar:') : t('Muallif:')} </dt><dd className="inline font-medium">{certificateData.author}</dd></div>
             <div><dt className="text-slate-500 inline">{t('Ish turi:')} </dt><dd className="inline font-medium">{certificateData.workType}</dd></div>
             <div><dt className="text-slate-500 inline">{t('Modullar:')} </dt><dd className="inline font-medium">{certificateData.searchModules}</dd></div>
             <div><dt className="text-slate-500 inline">{t('Manbalar:')} </dt><dd className="inline font-medium">{t('{length} ta', { length: result.sources.length })}</dd></div>

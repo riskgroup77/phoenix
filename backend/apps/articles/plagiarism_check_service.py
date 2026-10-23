@@ -374,6 +374,7 @@ def run_plagiarism_check(
             'document_name',
             'author_first_name',
             'author_last_name',
+            'co_authors',
             'pending_enabled_modules',
         ):
             if existing.get(key) and not result_report.get(key):

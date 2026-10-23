@@ -26,6 +26,7 @@ export const AntiplagiatReportTitleCover: React.FC<{ data: PlagiarismFullReportD
             aspectRatio={REPORT_COVER_TEMPLATE.aspect}
             fields={REPORT_COVER_TEMPLATE.fields}
             values={values}
+            nameLists={(data.authors?.length || 0) > 1 ? { author: data.authors! } : undefined}
             qrValue={verifyUrl(data.documentNumber)}
             qrSpec={REPORT_COVER_TEMPLATE.qr}
         />

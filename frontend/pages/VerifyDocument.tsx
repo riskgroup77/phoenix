@@ -13,6 +13,8 @@ type VerifyResponse = {
   document_number?: string;
   title?: string;
   author?: string;
+  /** Antiplagiat: muallif va hammualliflar */
+  authors?: string[];
   date?: string;
   details?: Record<string, unknown>;
   detail?: string;
@@ -108,7 +110,7 @@ const VerifyDocument: React.FC = () => {
                 [t('Hujjat raqami'), data.document_number],
                 // Chekda nom — xizmat nomi (o'zbekcha), ma'lumotnomada esa hujjat/ish nomi (tarjima qilinmaydi)
                 [data.type === 'receipt' ? t('Xizmat') : t('Nomi'), data.type === 'receipt' && data.title ? t(data.title) : data.title],
-                [data.type === 'receipt' ? t("To'lovchi") : t('Muallif'), data.author],
+                [data.type === 'receipt' ? t("To'lovchi") : (data.authors?.length || 0) > 1 ? t('Mualliflar') : t('Muallif'), data.author],
                 [data.type === 'receipt' ? t("To'lov sanasi") : t('Sana'), data.date],
               ]
                 .filter(([, v]) => v)

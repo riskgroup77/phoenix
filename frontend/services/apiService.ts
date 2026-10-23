@@ -825,6 +825,8 @@ export const apiService = {
         document_name?: string;
         author_first_name?: string;
         author_last_name?: string;
+        /** Hammualliflar — sertifikat, ma'lumotnoma va QR tekshiruvida asosiy muallifdan keyin chiqadi */
+        co_authors?: { first_name: string; last_name: string }[];
       },
     ) =>
       apiFetch(`/articles/${id}/`, {
@@ -836,6 +838,7 @@ export const apiService = {
             document_name: config.document_name || '',
             author_first_name: config.author_first_name || '',
             author_last_name: config.author_last_name || '',
+            co_authors: config.co_authors || [],
           },
         }),
       }),

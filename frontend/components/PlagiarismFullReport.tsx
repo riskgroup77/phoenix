@@ -36,6 +36,8 @@ export interface AnnotatedParagraph {
 
 export interface PlagiarismFullReportData {
     checkerName: string;
+    /** Muallif va hammualliflar (antiplagiat formasidan); bittadan ko'p bo'lsa yorliq «Mualliflar» */
+    authors?: string[];
     checkerId: string;
     checkerOrganization?: string;
     authorPosition?: string;
@@ -134,7 +136,8 @@ const Issuer: React.FC<{ data: PlagiarismFullReportData }> = ({ data }) => {
         <div className="ap-issuer">
             <strong>{t('Hisobot "Phoenix Antiplagiat" servisi tomonidan taqdim etilgan')}</strong>
             <span className="ap-issuer-right">
-                {t('Tekshiruvchi:')} <b>{translateDefault(t, data.checkerName, ['Muallif'])}</b>{' '}
+                {/* Tekshiruvchi — asosiy muallif (hammualliflar «Mualliflar» qatorida) */}
+                {t('Tekshiruvchi:')} <b>{translateDefault(t, data.authors?.[0] || data.checkerName, ['Muallif'])}</b>{' '}
                 <span className="ap-nowrap">(ID: {data.checkerId})</span>
             </span>
         </div>
@@ -168,7 +171,7 @@ const SummaryHead: React.FC<{ data: PlagiarismFullReportData; title: string }> =
     if (data.fileSize && data.fileSize !== '—') docRows.push([t("Matn o'lchami"), data.fileSize]);
 
     const authorRows: [string, React.ReactNode][] = [
-        [t('Muallif'), translateDefault(t, data.checkerName, ['Muallif'])],
+        [(data.authors?.length || 0) > 1 ? t('Mualliflar') : t('Muallif'), translateDefault(t, data.checkerName, ['Muallif'])],
     ];
     if (data.checkerOrganization?.trim()) authorRows.push([t('Tashkilot'), data.checkerOrganization.trim()]);
     if (data.authorPosition?.trim()) authorRows.push([t('Lavozimi'), data.authorPosition.trim()]);

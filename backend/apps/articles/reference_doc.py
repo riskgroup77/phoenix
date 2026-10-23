@@ -91,6 +91,7 @@ T = Dictionary({
     't_doi_2': ('MA’LUMOTNOMA', 'О ПРИСВОЕНИИ DOI', 'CERTIFICATE'),
     # yorliqlar
     'l_author': ('MUALLIF', 'АВТОР', 'AUTHOR'),
+    'l_authors': ('MUALLIFLAR', 'АВТОРЫ', 'AUTHORS'),
     'anon_author': ('Anonim muallif', 'Анонимный автор', 'Anonymous author'),
     'l_work_type': ('ISH TURI', 'ВИД РАБОТЫ', 'WORK TYPE'),
     'l_work_title': ('ISH NOMI', 'НАЗВАНИЕ РАБОТЫ', 'TITLE'),
@@ -130,6 +131,7 @@ class RefData:
     tone: str  # done | progress | bad
     rows: list = field(default_factory=list)  # [(yorliq kaliti, qiymat)] — 6 ta (holat va web-sayt alohida)
     lang: str = 'uz'
+    authors: list = field(default_factory=list)  # antiplagiat: muallif va hammualliflar (QR tekshiruvi uchun)
 
     @property
     def verify_url(self) -> str:
@@ -161,7 +163,11 @@ def _org(user) -> str:
 
 def for_article(article, lang: str, *, hide_author: bool = False) -> RefData:
     """hide_author — yopiq taqrizdagi taqrizchi uchun: muallif kimligi oshkor qilinmaydi."""
-    from .antiplagiat_utils import looks_like_standalone_antiplagiat, standalone_antiplagiat_state
+    from .antiplagiat_utils import (
+        antiplagiat_authors,
+        looks_like_standalone_antiplagiat,
+        standalone_antiplagiat_state,
+    )
     from .works_report import is_book_title, work_type_label
 
     lang = normalize_lang(lang)
@@ -171,6 +177,11 @@ def for_article(article, lang: str, *, hide_author: bool = False) -> RefData:
         author = (article.submitted_author_name or '').strip() or _person(article.author)
     if looks_like_standalone_antiplagiat(article):
         report = article.plagiarism_report if isinstance(article.plagiarism_report, dict) else {}
+        # Antiplagiat formasida kiritilgan muallif (boshqa shaxsning ishi ham tekshirilishi mumkin) — sertifikat va
+        # QR tekshiruvi bilan bir xil. Avval bu yerda doim yuklagan foydalanuvchining ismi chiqardi.
+        # Hammualliflar qo'shilgan bo'lsa — barchasi, yorliq «MUALLIFLAR».
+        authors = [author] if hide_author else antiplagiat_authors(report, fallback=author)
+        author = ', '.join(authors)
         state = standalone_antiplagiat_state(article) or 'checking'
         plag = round(float(article.plagiarism_percentage or 0), 2)
         orig = round(float(article.originality_percentage or 0), 2) if article.originality_percentage else round(
@@ -182,7 +193,7 @@ def for_article(article, lang: str, *, hide_author: bool = False) -> RefData:
             work_type=T.t('Antiplagiat', lang), title=title,
             status=T.t(f'ap_{state}', lang, pct=plag), tone={'done': 'done', 'failed': 'bad'}.get(state, 'progress'),
             rows=[
-                ('l_author', author),
+                ('l_authors' if len(authors) > 1 else 'l_author', author),
                 ('l_doc_type', str(report.get('document_type') or '') or T.t('Maqola', lang)),
                 ('l_doc_title', title),
                 ('l_cert_no', str(report.get('certificate_number') or '') if done else T.t('pending', lang)),
@@ -190,6 +201,7 @@ def for_article(article, lang: str, *, hide_author: bool = False) -> RefData:
                 ('l_check_date', _date(article.plagiarism_checked_at) or T.t('pending', lang)),
             ],
             lang=lang,
+            authors=authors,
         )
     cat = getattr(getattr(article.journal, 'category', None), 'name', '') if article.journal_id else ''
     book = is_book_title(article.title)
@@ -333,16 +345,19 @@ def render_image(data: RefData):
             text = text[:-2].rstrip() + '…'
         return text, f
 
-    def put(x, baseline, text, size, max_w, color=VALUE_COLOR, bold=False, min_size=23, wrap=True):
+    def put(x, baseline, text, size, max_w, color=VALUE_COLOR, bold=False, min_size=23, wrap=True, sep=' '):
         text = str(text or '—')
         s = size
         while s > min_size and d.textlength(text, font=_font_for(text, s, bold=bold)) > max_w:
             s -= 1
-        if wrap and d.textlength(text, font=_font_for(text, s, bold=bold)) > max_w and ' ' in text:
-            # Uzun qiymat (masalan hujjat nomi) — qator oralig'iga sig'adigan ikki qatorga bo'linadi
-            words = text.split()
-            best = min(range(1, len(words)), key=lambda i: abs(len(' '.join(words[:i])) - len(' '.join(words[i:]))))
-            lines = [' '.join(words[:best]), ' '.join(words[best:])]
+        if sep not in text:
+            sep = ' '
+        if wrap and d.textlength(text, font=_font_for(text, s, bold=bold)) > max_w and sep in text:
+            # Uzun qiymat (masalan hujjat nomi) — qator oralig'iga sig'adigan ikki qatorga bo'linadi.
+            # Mualliflar ro'yxati (sep=', ') ism o'rtasidan emas, mualliflar orasidan bo'linadi.
+            words = text.split(sep)
+            best = min(range(1, len(words)), key=lambda i: abs(len(sep.join(words[:i])) - len(sep.join(words[i:]))))
+            lines = [sep.join(words[:best]) + sep.rstrip(), sep.join(words[best:])]
             s2 = 22
             while s2 > 17 and max(d.textlength(t, font=_font_for(t, s2, bold=bold)) for t in lines) > max_w:
                 s2 -= 1
@@ -383,8 +398,8 @@ def render_image(data: RefData):
     for i, (key, label) in enumerate(zip(keys, labels)):
         color = STATUS_LABEL_COLOR if key == 'l_status' else LABEL_COLOR
         d.text((87, 486 + 50 * i), label, font=_sans(label, size), fill=color, anchor='ls')
-    for i, (_, value) in enumerate(data.rows):
-        put(700, 486 + 50 * i, value, 30, 680)
+    for i, (key, value) in enumerate(data.rows):
+        put(700, 486 + 50 * i, value, 30, 680, sep=', ' if key == 'l_authors' else ' ')
     put(700, 486 + 50 * len(data.rows), data.status, 30, 680, color=STATUS_COLORS.get(data.tone, VALUE_COLOR),
         bold=True)
     # web-sayt qiymati fonda bor (www.ilmiyfaoliyat.uz)
