@@ -99,6 +99,7 @@ INSTALLED_APPS = [
     'apps.udc',
     'apps.analytics',
     'apps.assistant',
+    'apps.tgstorage',
 ]
 
 # CorsMiddleware must be as high as possible (before WhiteNoise / CommonMiddleware) so
@@ -196,8 +197,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # Django 5.1+ da STATICFILES_STORAGE olib tashlangan — STORAGES orqali (avval whitenoise siqish ishlamasdi).
 # default — maxfiy fayllarga imzoli, muddatli havola beradigan saqlash (config/media_protection.py).
+# Telegram sozlansa (TG_STORAGE_*) fayllar kanalga ham yuboriladi va diskdan o'chirilsa qaytariladi (apps/tgstorage);
+# sozlanmasa — aynan ProtectedMediaStorage kabi.
 STORAGES = {
-    'default': {'BACKEND': 'config.media_protection.ProtectedMediaStorage'},
+    'default': {'BACKEND': 'apps.tgstorage.storage.TelegramBackedStorage'},
     # Manifestsiz siqish: shablonda yo'q statik faylga havola bo'lsa ham 500 bermaydi
     'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
 }
@@ -371,6 +374,33 @@ TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME', '').lstrip('@')
 TELEGRAM_ADMIN_IDS = [
     int(x) for x in (os.getenv('TELEGRAM_ADMIN_IDS') or '').replace(' ', '').split(',') if x.lstrip('-').isdigit()
 ]
+
+# Telegram fayl ombori (apps/tgstorage): media va baza zaxiralari yopiq kanalda, server diski — faqat kesh.
+# Local Bot API server (infrastructure/telegram-bot-api, TELEGRAM_API_ID/TELEGRAM_API_HASH) — fayl 2000 MB gacha.
+# Botlar (muallif botidan ALOHIDA, @BotFather) kanalga admin qilinadi; bir nechtasi navbat bilan ishlaydi.
+TG_STORAGE_BOT_TOKENS = [t.strip() for t in (os.getenv('TG_STORAGE_BOT_TOKENS') or '').split(',') if t.strip()]
+TG_STORAGE_CHAT_ID = (os.getenv('TG_STORAGE_CHAT_ID') or '').strip()  # yopiq kanal: -100...
+TG_STORAGE_MEDIA_ENABLED = os.getenv('TG_STORAGE_MEDIA_ENABLED', 'false').lower() in ('1', 'true', 'yes', 'on')
+TG_STORAGE_BACKUP_ENABLED = os.getenv('TG_STORAGE_BACKUP_ENABLED', 'false').lower() in ('1', 'true', 'yes', 'on')
+TG_BOT_API_URL = (os.getenv('TG_BOT_API_URL') or 'http://127.0.0.1:8081').strip()
+TG_BOT_API_LOCAL = os.getenv('TG_BOT_API_LOCAL', 'true').lower() in ('1', 'true', 'yes', 'on')
+# Konteynerdagi /var/lib/telegram-bot-api hostda qayerga ulangan (getFile yo'lini o'girish uchun)
+TG_BOT_API_DATA_DIR = (os.getenv('TG_BOT_API_DATA_DIR') or str(BASE_DIR.parent / 'telegram-bot-api')).strip()
+TG_BOT_API_CONTAINER_DIR = (os.getenv('TG_BOT_API_CONTAINER_DIR') or '/var/lib/telegram-bot-api').strip()
+TG_BOT_API_CONTAINER = (os.getenv('TG_BOT_API_CONTAINER') or 'phoenix-tg-bot-api').strip()
+# Shifrlangan zaxira bo'laklari vaqtincha shu yerda (konteynerga ham ulanadi)
+TG_STORAGE_SPOOL_DIR = (os.getenv('TG_STORAGE_SPOOL_DIR') or str(BASE_DIR.parent / 'tg-spool')).strip()
+TG_STORAGE_PART_MB = float(os.getenv('TG_STORAGE_PART_MB', '1900'))
+# N kun ochilmagan (va Telegram'da nusxasi bor) fayl diskdan o'chiriladi; 0 — hech qachon
+TG_STORAGE_EVICT_DAYS = int(os.getenv('TG_STORAGE_EVICT_DAYS', '30'))
+# Saytdan o'chirilgan faylning kanaldagi nusxasi shuncha kun saqlanadi
+TG_STORAGE_PURGE_DAYS = int(os.getenv('TG_STORAGE_PURGE_DAYS', '30'))
+TG_STORAGE_SYNC = os.getenv('TG_STORAGE_SYNC', 'false').lower() in ('1', 'true', 'yes', 'on')
+# Zaxira shifrlash kaliti: fayl (tavsiya, chmod 600) yoki to'g'ridan-to'g'ri parol. KALITSIZ ZAXIRANI TIKLAB BO'LMAYDI.
+TG_BACKUP_PASSPHRASE_FILE = (os.getenv('TG_BACKUP_PASSPHRASE_FILE') or '').strip()
+TG_BACKUP_PASSPHRASE = os.getenv('TG_BACKUP_PASSPHRASE') or ''
+TG_BACKUP_KEEP_DAYS = int(os.getenv('TG_BACKUP_KEEP_DAYS', '60'))
+TG_BACKUP_KEEP_WEEKLY_DAYS = int(os.getenv('TG_BACKUP_KEEP_WEEKLY_DAYS', '365'))
 
 # UDK so'rovi to'lovdan keyin avtomatik aniqlanadi (apps/udc/auto_complete.py). false — eski tartib (taqrizchi qo'lda).
 UDK_AUTO_CLASSIFY = os.getenv('UDK_AUTO_CLASSIFY', 'true').lower() in ('1', 'true', 'yes', 'on')

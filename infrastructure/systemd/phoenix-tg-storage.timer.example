@@ -1,0 +1,11 @@
+# Har 15 daqiqada Telegram fayl omborini sinxronlash.
+
+[Unit]
+Description=Phoenix — Telegram fayl ombori (har 15 daqiqa)
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+
+[Install]
+WantedBy=timers.target

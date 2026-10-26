@@ -97,6 +97,24 @@ services:
     volumes:
       - osdata:/usr/share/opensearch/data
 
+  # Telegram fayl ombori (apps/tgstorage) — faqat: docker compose --profile telegram up
+  # backend/.env: TELEGRAM_API_ID, TELEGRAM_API_HASH, TG_STORAGE_BOT_TOKENS, TG_STORAGE_CHAT_ID,
+  # TG_BOT_API_URL=http://telegram-bot-api:8081, TG_BOT_API_DATA_DIR=/app/telegram-bot-api,
+  # TG_STORAGE_SPOOL_DIR=/app/tg-spool. Media/spool yo'llari web konteyneridagi bilan bir xil (/app/...).
+  telegram-bot-api:
+    image: aiogram/telegram-bot-api:latest
+    profiles: ['telegram']
+    environment:
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID:-}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
+      TELEGRAM_LOCAL: '1'
+    ports:
+      - '127.0.0.1:8081:8081'
+    volumes:
+      - ./backend/telegram-bot-api:/var/lib/telegram-bot-api
+      - ./backend/media:/app/media:ro
+      - ./backend/tg-spool:/app/tg-spool:ro
+
 volumes:
   pgdata:
   osdata:

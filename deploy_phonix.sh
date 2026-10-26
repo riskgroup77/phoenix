@@ -114,6 +114,30 @@ ensure_redis_running() {
     echo "✅ phoenix-redis yaratildi va ishga tushirildi"
 }
 
+# Local Telegram Bot API (fayl ombori: media va zaxiralar Telegram kanalida, apps/tgstorage).
+# Faqat backend/.env da TELEGRAM_API_ID va TELEGRAM_API_HASH bo'lsa ishga tushiriladi.
+ensure_tg_bot_api_running() {
+    local env_file="${DEPLOY_DIR}/backend/.env"
+    if ! grep -qs "^TELEGRAM_API_ID=." "$env_file" || ! grep -qs "^TELEGRAM_API_HASH=." "$env_file"; then
+        echo "ℹ️  Telegram fayl ombori sozlanmagan (TELEGRAM_API_ID/TELEGRAM_API_HASH yo'q) — o'tkazib yuborildi"
+        return 0
+    fi
+    if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
+        echo "⚠️  docker compose topilmadi — Telegram Bot API ishga tushirilmadi"
+        return 0
+    fi
+    # Bind papkalar oldindan yaratiladi (aks holda docker ularni root nomidan yaratadi)
+    mkdir -p "${DEPLOY_DIR}/telegram-bot-api" "${DEPLOY_DIR}/tg-spool" "${DEPLOY_DIR}/backend/media"
+    chmod 755 "${DEPLOY_DIR}/tg-spool" 2>/dev/null || true
+    if PHONIX_DIR="${DEPLOY_DIR}" docker compose -p phoenix-tg \
+        -f "${DEPLOY_DIR}/infrastructure/telegram-bot-api/docker-compose.yml" \
+        --env-file "$env_file" up -d >/dev/null 2>&1; then
+        echo "✅ phoenix-tg-bot-api ishlayapti (127.0.0.1:8081)"
+    else
+        echo "⚠️  phoenix-tg-bot-api ishga tushmadi: docker logs phoenix-tg-bot-api"
+    fi
+}
+
 # Tekshirish - boshqa service'lar ishlayaptimi?
 check_other_services() {
     echo "🔍 Boshqa service'larni tekshirish..."
@@ -194,6 +218,9 @@ else
     # Avval bu yerda butun ${DEPLOY_DIR} (media, .env, zaxiralar bilan) o'chirilib qayta klonlanardi — xavfli
     error_exit "${DEPLOY_DIR} da .git yo'q, lekin fayllar bor (media/.env). Avtomatik o'chirilmaydi — qo'lda tekshiring."
 fi
+
+# Yangi kod kelgach (compose fayli repoda) — Telegram Bot API konteyneri
+ensure_tg_bot_api_running
 
 # 4. Backend
 echo "📦 Backend sozlanmoqda..."
@@ -394,7 +421,8 @@ install_phoenix_units() {
                 phoenix-backup.service phoenix-backup.timer \
                 phoenix-antiplag-index.service phoenix-antiplag-index.timer \
                 phoenix-reminders.service phoenix-reminders.timer \
-                phoenix-uptime.service phoenix-uptime.timer; do
+                phoenix-uptime.service phoenix-uptime.timer \
+                phoenix-tg-storage.service phoenix-tg-storage.timer; do
         local src="${DEPLOY_DIR}/infrastructure/systemd/${unit}.example" dst="/etc/systemd/system/${unit}"
         [ -f "$src" ] || continue
         if [ -f "$dst" ] && [ "${PHONIX_UPDATE_UNITS:-false}" != "true" ]; then
@@ -411,7 +439,8 @@ install_phoenix_units() {
     done
     if [ "$changed" = "1" ]; then
         sudo_cmd systemctl daemon-reload
-        for t in phoenix-backup.timer phoenix-antiplag-index.timer phoenix-reminders.timer phoenix-uptime.timer; do
+        for t in phoenix-backup.timer phoenix-antiplag-index.timer phoenix-reminders.timer phoenix-uptime.timer \
+                 phoenix-tg-storage.timer; do
             [ -f "/etc/systemd/system/$t" ] && sudo_cmd systemctl enable --now "$t" >/dev/null 2>&1 || true
         done
         [ -f /etc/systemd/system/phoenix-celery.service ] && sudo_cmd systemctl enable phoenix-celery >/dev/null 2>&1 || true

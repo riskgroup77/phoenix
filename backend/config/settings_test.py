@@ -58,6 +58,9 @@ PAYME_MERCHANT_KEY = ''
 PAYME_TEST_KEY = ''
 
 TELEGRAM_BOT_TOKEN = ''
+TG_STORAGE_BOT_TOKENS = []
+TG_STORAGE_CHAT_ID = ''
+TG_STORAGE_SYNC = True
 # Telefon tasdiqlash talabi kerakli testlarda override_settings(PHONE_VERIFICATION_REQUIRED=True) bilan yoqiladi
 PHONE_VERIFICATION_REQUIRED = False
 TELEGRAM_NOTIFY_SYNC = True
@@ -67,7 +70,7 @@ CROSSREF_PASSWORD = ''
 MEDIA_ROOT =os.path.join(BASE_DIR, 'test_media')  # noqa: F405
 # Testlarda collectstatic qilinmaydi — manifest talab qilmaydigan statik saqlash
 STORAGES = {
-    'default': {'BACKEND': 'config.media_protection.ProtectedMediaStorage'},
+    'default': {'BACKEND': 'apps.tgstorage.storage.TelegramBackedStorage'},
     'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
 }
 

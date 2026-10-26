@@ -29,13 +29,8 @@ def _keywords_text(keywords: Any) -> str:
 def _resolve_pdf_path(art) -> str | None:
     if not art.final_pdf_path:
         return None
-    try:
-        if hasattr(art.final_pdf_path, 'path'):
-            path = art.final_pdf_path.path
-            if path and os.path.isfile(path):
-                return path
-    except Exception:
-        pass
+    # Faqat diskdagi fayl: .path Telegram'dan qaytarardi (apps/tgstorage) — korpus yuzlab PDF ni o'qiydi,
+    # diskdan o'chirilgan eski fayllar uchun ularni ommaviy yuklab olish kerak emas
     from django.conf import settings as dj_settings
 
     rel = str(art.final_pdf_path).lstrip('/')

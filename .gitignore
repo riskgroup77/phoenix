@@ -48,3 +48,8 @@ backend/antiplag_vectors/
 
 # Server zaxiralari (infrastructure/backup/phoenix-backup.sh, deploy kod zaxiralari)
 /backups/
+# Telegram fayl ombori: Bot API server ma'lumotlari va zaxira bo'laklari (apps/tgstorage)
+/telegram-bot-api/
+/backend/telegram-bot-api/
+/tg-spool/
+/backend/tg-spool/

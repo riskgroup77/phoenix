@@ -97,7 +97,11 @@ def protected_media(request, path: str):
     if name.startswith('..') or '/../' in f'/{name}/':
         raise Http404
     full = os.path.join(settings.MEDIA_ROOT, name)
-    if not os.path.isfile(full):
+    from apps.tgstorage import services as tg_storage
+
+    # Diskdan o'chirilgan (Telegram'da saqlangan) fayl — ruxsat tekshirilgach qaytariladi
+    on_disk = os.path.isfile(full)
+    if not on_disk and not tg_storage.has_record(name):
         raise Http404
 
     allowed = (
@@ -112,8 +116,10 @@ def protected_media(request, path: str):
             "Sahifani yangilab, faylni qaytadan oching.",
             content_type='text/plain; charset=utf-8',
         )
+    if not on_disk and not tg_storage.ensure_local(name):
+        raise Http404
 
-    content_type, _ = mimetypes.guess_type(name)
+    content_type, _ =mimetypes.guess_type(name)
     # HTML/SVG/JS kabi faol kontent hech qachon api. domenida sahifa sifatida ochilmasin (XSS) — faqat yuklab olish
     active = is_active_content(name)
     if active:

@@ -27,6 +27,7 @@ Deploy demo hisoblarni (911111111/muallif …) yangilaydi — rasmiy ishga tushi
 | `phoenix-backup.timer` | `infrastructure/systemd/phoenix-backup.{service,timer}.example` | har kuni 02:30 — baza (`pg_dump`) + media zaxirasi |
 | `phoenix-uptime.timer` | `infrastructure/systemd/phoenix-uptime.{service,timer}.example` | har 5 daqiqada — sayt, disk, zaxira, xizmatlar, SSL; muammo bo'lsa Telegram |
 | `phoenix-antiplag-index.timer` | `infrastructure/systemd/phoenix-antiplag-index.{service,timer}.example` | har kecha — antiplagiat indeksi, OAI yig'ish, vektor indeksi |
+| `phoenix-tg-storage.timer` | `infrastructure/systemd/phoenix-tg-storage.{service,timer}.example` | har 15 daqiqada — media Telegram kanaliga, eski fayllar diskdan (14-bo'lim) |
 
 `deploy_phonix.sh` yetishmayotgan unitlarni avtomatik o'rnatadi (`User`/yo'llar `phoenix-backend` dan olinadi).
 Mavjud unitlar ustidan yozilmaydi; yangilash uchun: `PHONIX_UPDATE_UNITS=true bash deploy_phonix.sh`.
@@ -284,3 +285,49 @@ cd /phonix/backend && venv/bin/python manage.py check_ai   # haqiqiy so'rov bila
 - Xavfsizlik klassifikatori so'rovni rad etsa, API uni o'zi tavsiya etilgan modelda qayta ishlaydi (`fallbacks: "default"`).
 - Xarajat: Claude Opus 5.5 — 1M kiruvchi token $4, 1M chiquvchi $20. Muallif yordamchisi uchun kunlik limit `ASSISTANT_LLM_DAILY_LIMIT`.
 - Xatolar: `journalctl -u phoenix-backend | grep Claude` (yaroqsiz kalit, 429 limit, ulanish).
+
+## 14. Telegram fayl ombori (media va zaxiralar)
+
+Server diski faqat kesh: yuklangan har bir fayl yopiq Telegram kanaliga ham yuboriladi (`file_id` bazada —
+`apps/tgstorage`, jadval `TelegramStoredFile`), `TG_STORAGE_EVICT_DAYS` kun ochilmagan fayl diskdan o'chiriladi
+va kerak bo'lganda (sahifada ochilganda, `.path`/`open()`) Telegram'dan avtomatik qaytariladi. Kunlik baza dumpi
+shifrlanib (AES-256, kalit faqat serverda) kanalga yuboriladi; serverda 3 ta oxirgi dump qoladi.
+
+Local Bot API server (`infrastructure/telegram-bot-api/docker-compose.yml`, `127.0.0.1:8081`) — fayl 2000 MB gacha;
+katta dump avtomatik 1900 MB lik bo'laklarga bo'linadi.
+
+Sozlash (bir marta):
+1. https://my.telegram.org → API development tools → `api_id`, `api_hash`.
+2. @BotFather da 1–3 ta **yangi** bot (muallif boti emas — u oddiy API'da polling qiladi). Yopiq kanal ochib,
+   botlarni **admin** qiling (xabar yuborish va o'chirish huquqi). Kanal ID: `-100…`.
+3. Shifrlash kaliti: `openssl rand -base64 48 > /phonix/.tg-backup.key && chmod 600 /phonix/.tg-backup.key` —
+   **nusxasini serverdan tashqarida saqlang** (kalitsiz zaxirani tiklab bo'lmaydi).
+4. `backend/.env`:
+   ```
+   TELEGRAM_API_ID=123456
+   TELEGRAM_API_HASH=...
+   TG_STORAGE_BOT_TOKENS=111:AAA,222:BBB
+   TG_STORAGE_CHAT_ID=-1001234567890
+   TG_STORAGE_MEDIA_ENABLED=true
+   TG_STORAGE_BACKUP_ENABLED=true
+   TG_BACKUP_PASSPHRASE_FILE=/phonix/.tg-backup.key
+   ```
+5. `bash deploy_phonix.sh` (konteyner va `phoenix-tg-storage.timer` o'rnatiladi), so'ng:
+   ```bash
+   cd /phonix/backend && venv/bin/python manage.py tgstorage check    # botlar kanal adminimi
+   venv/bin/python manage.py tgstorage sync --limit 100000            # mavjud media'ni bir marta yuborish
+   venv/bin/python manage.py tgstorage status
+   ```
+   Hammasi yuborilgach eski ko'zgu kerak emas: `rm -rf /phonix/backups/media-mirror /phonix/backups/media-deleted`.
+
+Buyruqlar: `tgstorage status | sync [--evict] | evict --days 30 --dry-run | restore <yo'l>|--all | backup-list |
+backup-download <nom> <fayl> | backup-prune | cleanup-cache`.
+Bazani Telegram'dagi zaxiradan tiklash: `bash infrastructure/backup/phoenix-restore.sh tg:daily/phoenix_….dump.enc`.
+
+Eslatmalar:
+- Antiplagiat barmoq izlari dumpga kirmaydi (`PHONIX_BACKUP_EXCLUDE_ANTIPLAG_INDEX=true`) — tiklangach
+  `build_antiplag_index`. Antiplagiat korpusi diskdan o'chirilgan PDF'larni Telegram'dan yuklamaydi.
+- Kanal ma'lumotlari Telegram serverlarida (media shifrlanmagan) — kanal yopiq, botlar tokeni maxfiy.
+  Telegram kafolat bermaydi: imkon bo'lsa zaxiraning yana bir nusxasi (`PHONIX_BACKUP_RCLONE_REMOTE`).
+- Saytdan o'chirilgan faylning kanaldagi nusxasi `TG_STORAGE_PURGE_DAYS` (30) kun saqlanadi; eski zaxiralar —
+  `TG_BACKUP_KEEP_DAYS` (60) / `TG_BACKUP_KEEP_WEEKLY_DAYS` (365).

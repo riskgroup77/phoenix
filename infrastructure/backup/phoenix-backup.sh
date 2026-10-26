@@ -11,6 +11,11 @@
 #   PHONIX_BACKUP_KEEP_WEEKLY=8              nechta haftalik dump saqlansin
 #   PHONIX_BACKUP_KEEP_PREDEPLOY=10          nechta deploy oldi dump saqlansin
 #   PHONIX_BACKUP_RCLONE_REMOTE=gdrive:phoenix-backups   ixtiyoriy: rclone orqali boshqa joyga nusxa
+#   PHONIX_BACKUP_EXCLUDE_ANTIPLAG_INDEX=true            antiplagiat barmoq izlari dumpga kirmaydi (eng katta jadval;
+#                                                        tiklangach: python manage.py build_antiplag_index)
+#   TG_STORAGE_BACKUP_ENABLED=true          kunlik dump shifrlanib Telegram kanaliga yuboriladi (apps/tgstorage);
+#                                           serverda standart 3 ta kunlik / 3 ta deploy oldi dump qoladi
+#   TG_STORAGE_MEDIA_ENABLED=true           media nusxasi Telegram'da — serverdagi media-mirror ko'zgusi yuritilmaydi
 #   TELEGRAM_BOT_TOKEN + PHONIX_ALERT_CHAT_ID           ixtiyoriy: xato bo'lsa Telegram'ga xabar
 #
 # Tiklash: infrastructure/backup/phoenix-restore.sh <dump fayl>
@@ -30,9 +35,19 @@ env_get() {
 }
 
 BACKUP_ROOT="${PHONIX_BACKUP_DIR:-$(env_get PHONIX_BACKUP_DIR "${ROOT}/backups")}"
-KEEP_DAILY="${PHONIX_BACKUP_KEEP_DAILY:-$(env_get PHONIX_BACKUP_KEEP_DAILY 14)}"
-KEEP_WEEKLY="${PHONIX_BACKUP_KEEP_WEEKLY:-$(env_get PHONIX_BACKUP_KEEP_WEEKLY 8)}"
-KEEP_PREDEPLOY="${PHONIX_BACKUP_KEEP_PREDEPLOY:-$(env_get PHONIX_BACKUP_KEEP_PREDEPLOY 10)}"
+TG_BACKUP="$(env_get TG_STORAGE_BACKUP_ENABLED false)"
+TG_MEDIA="$(env_get TG_STORAGE_MEDIA_ENABLED false)"
+is_true() { case "${1,,}" in 1|true|yes|on) return 0 ;; *) return 1 ;; esac; }
+# Zaxiralar Telegram'da bo'lsa serverda ozroq nusxa yetadi (haftaliklar faqat kanalda)
+if is_true "$TG_BACKUP"; then
+    DEF_DAILY=3; DEF_WEEKLY=0; DEF_PREDEPLOY=3
+else
+    DEF_DAILY=14; DEF_WEEKLY=8; DEF_PREDEPLOY=10
+fi
+KEEP_DAILY="${PHONIX_BACKUP_KEEP_DAILY:-$(env_get PHONIX_BACKUP_KEEP_DAILY $DEF_DAILY)}"
+KEEP_WEEKLY="${PHONIX_BACKUP_KEEP_WEEKLY:-$(env_get PHONIX_BACKUP_KEEP_WEEKLY $DEF_WEEKLY)}"
+KEEP_PREDEPLOY="${PHONIX_BACKUP_KEEP_PREDEPLOY:-$(env_get PHONIX_BACKUP_KEEP_PREDEPLOY $DEF_PREDEPLOY)}"
+EXCLUDE_INDEX="${PHONIX_BACKUP_EXCLUDE_ANTIPLAG_INDEX:-$(env_get PHONIX_BACKUP_EXCLUDE_ANTIPLAG_INDEX true)}"
 RCLONE_REMOTE="${PHONIX_BACKUP_RCLONE_REMOTE:-$(env_get PHONIX_BACKUP_RCLONE_REMOTE)}"
 TG_TOKEN="${TELEGRAM_BOT_TOKEN:-$(env_get TELEGRAM_BOT_TOKEN)}"
 TG_CHAT="${PHONIX_ALERT_CHAT_ID:-$(env_get PHONIX_ALERT_CHAT_ID)}"
@@ -45,6 +60,17 @@ DB_PORT="$(env_get DB_PORT 5432)"
 PG_CONTAINER="${PHONIX_PG_CONTAINER:-phoenix-postgres}"
 
 log() { echo "[$(date '+%F %T')] $*"; }
+
+# Barmoq izlari (millionlab qator) build_antiplag_index bilan qayta quriladi — dumpga faqat jadval tuzilishi kiradi
+PG_DUMP_ARGS=(-Fc --no-owner)
+if is_true "$EXCLUDE_INDEX"; then
+    PG_DUMP_ARGS+=(--exclude-table-data=articles_antiplagfingerprint --exclude-table-data=articles_antiplagindexeddocument)
+fi
+
+manage() {
+    (cd "${ROOT}/backend" && DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings}" \
+        "${ROOT}/backend/venv/bin/python" manage.py "$@")
+}
 
 alert() {
     local text="$1"
@@ -69,9 +95,9 @@ pg_dump_to() {
     local out="$1"
     if use_container; then
         docker exec -e PGPASSWORD="$DB_PASSWORD" "$PG_CONTAINER" \
-            pg_dump -U "$DB_USER" -d "$DB_NAME" -Fc --no-owner > "$out"
+            pg_dump -U "$DB_USER" -d "$DB_NAME" "${PG_DUMP_ARGS[@]}" > "$out"
     else
-        PGPASSWORD="$DB_PASSWORD" pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -Fc --no-owner > "$out"
+        PGPASSWORD="$DB_PASSWORD" pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" "${PG_DUMP_ARGS[@]}" > "$out"
     fi
 }
 
@@ -121,13 +147,31 @@ case "$MODE" in
     daily)
         dump_db daily "$KEEP_DAILY"
         # Yakshanba — haftalik nusxa (uzoqroq saqlanadi)
+        LABEL=daily
         if [ "$(date +%u)" = "7" ]; then
-            mkdir -p "${BACKUP_ROOT}/db/weekly"
-            cp -p "$LAST_DUMP" "${BACKUP_ROOT}/db/weekly/"
-            rotate "${BACKUP_ROOT}/db/weekly" "$KEEP_WEEKLY"
+            LABEL=weekly
+            if [ "$KEEP_WEEKLY" -gt 0 ]; then
+                mkdir -p "${BACKUP_ROOT}/db/weekly"
+                cp -p "$LAST_DUMP" "${BACKUP_ROOT}/db/weekly/"
+                rotate "${BACKUP_ROOT}/db/weekly" "$KEEP_WEEKLY"
+            fi
         fi
+        # Telegram kanaliga (shifrlangan, 2 GB dan katta bo'lsa bo'laklab). Xato bo'lsa — lokal dump baribir bor
+        if is_true "$TG_BACKUP"; then
+            log "Telegram'ga yuborilmoqda (${LABEL})..."
+            if manage tgstorage backup-upload "$LAST_DUMP" --label "$LABEL"; then
+                manage tgstorage backup-prune || true
+            else
+                log "XATO: zaxira Telegram'ga yuborilmadi"
+                alert "⚠️ Phoenix: zaxira Telegram kanaliga yuborilmadi ($(hostname), $(date '+%F %T')). Lokal nusxa: ${LAST_DUMP}. journalctl -u phoenix-backup"
+            fi
+        fi
+        # Media: Telegram'da saqlansa server ko'zgusi kerak emas — faqat yuborilmaganlar yuboriladi
+        if is_true "$TG_MEDIA"; then
+            log "Media: Telegram bilan sinxronlash..."
+            manage tgstorage sync || alert "⚠️ Phoenix: media Telegram bilan sinxronlanmadi ($(hostname))"
         # Media: o'chirilgan fayllar ham 30 kun saqlanadi (--backup), tasodifiy o'chirishdan himoya
-        if [ -d "${ROOT}/backend/media" ] && command -v rsync >/dev/null 2>&1; then
+        elif [ -d "${ROOT}/backend/media" ] && command -v rsync >/dev/null 2>&1; then
             log "Media ko'zgusi yangilanmoqda..."
             mkdir -p "${BACKUP_ROOT}/media-mirror" "${BACKUP_ROOT}/media-deleted"
             rsync -a --delete --backup --backup-dir="${BACKUP_ROOT}/media-deleted/$(date +%Y%m%d)" \
@@ -143,7 +187,9 @@ case "$MODE" in
         if [ -n "$RCLONE_REMOTE" ] && command -v rclone >/dev/null 2>&1; then
             log "Bulutga nusxa: ${RCLONE_REMOTE}"
             rclone copy "${BACKUP_ROOT}/db" "${RCLONE_REMOTE}/db" --max-age 48h
-            rclone sync "${BACKUP_ROOT}/media-mirror" "${RCLONE_REMOTE}/media"
+            if ! is_true "$TG_MEDIA" && [ -d "${BACKUP_ROOT}/media-mirror" ]; then
+                rclone sync "${BACKUP_ROOT}/media-mirror" "${RCLONE_REMOTE}/media"
+            fi
         fi
         ;;
     *)
