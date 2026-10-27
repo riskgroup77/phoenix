@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 ADMIN_WELCOME = (
     "✅ Siz bosh administrator sifatida kirdingiz.\n\n"
+    "/admin — admin panel: statistika, hujjatlar, foydalanuvchilar, zaxiralar, server\n"
+    "/user <telefon | ism | ID> — foydalanuvchini topish\n"
     "/reklama — barcha bot foydalanuvchilariga reklama xabarini yuborish\n"
     "/logout — chiqish"
 )

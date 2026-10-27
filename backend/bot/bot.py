@@ -37,6 +37,7 @@ django.setup()
 from bot.constants import (  # noqa: E402
     BC_BUTTON,
     BC_CONFIRM,
+    ADM_SEARCH,
     BC_MESSAGE,
     BOOK_ABSTRACT,
     BOOK_COVER,
@@ -98,6 +99,15 @@ from bot.handlers.auth import (  # noqa: E402
     register_password,
     register_phone,
     register_start,
+)
+from bot.handlers.admin_panel import (  # noqa: E402
+    admin_callback,
+    admin_command,
+    broadcast_from_panel,
+    search_cancel,
+    search_start,
+    search_text,
+    user_command,
 )
 from bot.handlers.broadcast import (  # noqa: E402
     broadcast_button,
@@ -164,7 +174,10 @@ def build_application() -> Application:
     # Reklama (/reklama, faqat adminlar). Birinchi ro'yxatdan o'tkaziladi: admin xabar kutilayotgan holatda
     # menyu matni («📝 Maqola yuborish» va h.k.) yoki kontakt yuborsa ham boshqa suhbatlarga o'tib ketmasin.
     app.add_handler(ConversationHandler(
-        entry_points=[CommandHandler('reklama', broadcast_start)],
+        entry_points=[
+            CommandHandler('reklama', broadcast_start),
+            CallbackQueryHandler(broadcast_from_panel, pattern=r'^adm:bc$'),
+        ],
         states={
             BC_MESSAGE: [MessageHandler(filters.ALL & ~filters.COMMAND, broadcast_message)],
             BC_BUTTON: [
@@ -176,6 +189,17 @@ def build_application() -> Application:
         fallbacks=[CommandHandler('cancel', broadcast_cancel)],
         allow_reentry=True,
     ))
+
+    # Admin panel (/admin): qidiruv suhbati (admin matni boshqa menyularga o'tib ketmasin) va tugmalar
+    app.add_handler(ConversationHandler(
+        entry_points=[CallbackQueryHandler(search_start, pattern=r'^adm:us$')],
+        states={ADM_SEARCH: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_text)]},
+        fallbacks=[CommandHandler('cancel', search_cancel)],
+        allow_reentry=True,
+    ))
+    app.add_handler(CommandHandler('admin', admin_command))
+    app.add_handler(CommandHandler('user', user_command))
+    app.add_handler(CallbackQueryHandler(admin_callback, pattern=r'^adm:(?!us$|bc$)'))
 
     # Auth
     app.add_handler(ConversationHandler(

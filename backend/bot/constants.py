@@ -63,3 +63,6 @@ STATUS_LABELS = {
 
 # Reklama (ommaviy xabar, faqat adminlar)
 BC_MESSAGE, BC_BUTTON, BC_CONFIRM = range(3)
+
+# Admin panel (/admin): foydalanuvchi qidiruvi
+ADM_SEARCH = 0

@@ -93,17 +93,19 @@ def _clear(context) -> None:
 
 # ----------------------------------------------------------------------------- suhbat
 async def broadcast_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if not update.message or not update.effective_user:
+    # /reklama buyrug'i yoki admin paneldagi «📣 Yangi reklama» tugmasi (callback)
+    chat = update.effective_chat
+    if not chat or not update.effective_user:
         return ConversationHandler.END
     allowed, _ = await admin_user(update.effective_user.id)
     if not allowed:
-        await update.message.reply_text(DENIED)
+        await chat.send_message(DENIED)
         return ConversationHandler.END
     if context.application.bot_data.get(RUNNING_KEY):
-        await update.message.reply_text("⏳ Oldingi reklama hali yuborilmoqda. Tugashini kuting.")
+        await chat.send_message("⏳ Oldingi reklama hali yuborilmoqda. Tugashini kuting.")
         return ConversationHandler.END
     _clear(context)
-    await update.message.reply_text(
+    await chat.send_message(
         "📣 *Reklama yuborish*\n\n"
         "1/3. Yubormoqchi bo'lgan xabarni jo'nating: matn, rasm, video yoki hujjat (izoh va formatlash bilan).\n\n"
         "Bekor qilish: /cancel",
