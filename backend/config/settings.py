@@ -710,6 +710,9 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
+        # httpx/httpcore INFO da har so'rov URL'ini yozadi — Telegram'da bot tokeni URL ichida bo'ladi
+        'httpx': {'level': 'WARNING'},
+        'httpcore': {'level': 'WARNING'},
     },
 }
 
