@@ -5,8 +5,10 @@
 #   phoenix-backup.sh pre-deploy   # deploy_phonix.sh migratsiyadan oldin chaqiradi: faqat baza
 #
 # Sozlamalar (muhit o'zgaruvchilari yoki backend/.env):
-#   PHONIX_DIR=/phonix                       loyiha papkasi
-#   PHONIX_BACKUP_DIR=/phonix/backups        zaxiralar papkasi (boshqa diskda bo'lsa yanada yaxshi)
+#   PHONIX_DIR                               loyiha papkasi (default: skript joylashgan repo ildizi)
+#   PHONIX_BACKUP_DIR                        zaxiralar papkasi (default: <repo>/backups; Docker'da <repo>/backend/backups
+#                                            — web konteyneri ham ko'rishi uchun, u yerdan Telegram'ga yuboriladi)
+# Docker (docker-compose.prod.yml) avtomatik aniqlanadi: baza — db konteyneri, manage.py — web konteyneri.
 #   PHONIX_BACKUP_KEEP_DAILY=14              nechta kunlik dump saqlansin
 #   PHONIX_BACKUP_KEEP_WEEKLY=8              nechta haftalik dump saqlansin
 #   PHONIX_BACKUP_KEEP_PREDEPLOY=10          nechta deploy oldi dump saqlansin
@@ -22,8 +24,15 @@
 set -Eeuo pipefail
 
 MODE="${1:-daily}"
-ROOT="${PHONIX_DIR:-/phonix}"
+ROOT="${PHONIX_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 ENV_FILE="${ROOT}/backend/.env"
+COMPOSE_PROD="${ROOT}/docker-compose.prod.yml"
+
+# Docker: docker-compose.prod.yml bor va db konteyneri ishlayapti
+DOCKER_DB=""
+if [ -f "$COMPOSE_PROD" ] && command -v docker >/dev/null 2>&1; then
+    DOCKER_DB="$(docker compose -f "$COMPOSE_PROD" ps -q db 2>/dev/null || true)"
+fi
 
 # .env dan qiymat o'qish (faylni bajarmasdan — xavfsiz)
 env_get() {
@@ -34,7 +43,8 @@ env_get() {
     echo "${val:-$default}"
 }
 
-BACKUP_ROOT="${PHONIX_BACKUP_DIR:-$(env_get PHONIX_BACKUP_DIR "${ROOT}/backups")}"
+if [ -n "$DOCKER_DB" ]; then DEF_BACKUP_ROOT="${ROOT}/backend/backups"; else DEF_BACKUP_ROOT="${ROOT}/backups"; fi
+BACKUP_ROOT="${PHONIX_BACKUP_DIR:-$(env_get PHONIX_BACKUP_DIR "$DEF_BACKUP_ROOT")}"
 TG_BACKUP="$(env_get TG_STORAGE_BACKUP_ENABLED false)"
 TG_MEDIA="$(env_get TG_STORAGE_MEDIA_ENABLED false)"
 is_true() { case "${1,,}" in 1|true|yes|on) return 0 ;; *) return 1 ;; esac; }
@@ -57,7 +67,9 @@ DB_USER="$(env_get DB_USER postgres)"
 DB_PASSWORD="$(env_get DB_PASSWORD)"
 DB_HOST="$(env_get DB_HOST localhost)"
 DB_PORT="$(env_get DB_PORT 5432)"
-PG_CONTAINER="${PHONIX_PG_CONTAINER:-phoenix-postgres}"
+PG_CONTAINER="${PHONIX_PG_CONTAINER:-${DOCKER_DB:-phoenix-postgres}}"
+# Bot local Bot API serverda ishlaydi (Docker) — cloud API'ga so'rov uni u yerdan chiqarib yuboradi
+if [ -n "$DOCKER_DB" ]; then TG_API="http://127.0.0.1:8081"; else TG_API="$(env_get TELEGRAM_API_BASE_URL https://api.telegram.org)"; fi
 
 log() { echo "[$(date '+%F %T')] $*"; }
 
@@ -68,14 +80,21 @@ if is_true "$EXCLUDE_INDEX"; then
 fi
 
 manage() {
-    (cd "${ROOT}/backend" && DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings}" \
-        "${ROOT}/backend/venv/bin/python" manage.py "$@")
+    if [ -n "$DOCKER_DB" ]; then
+        # Host yo'li (<repo>/backend/...) konteynerda /app/...
+        local args=() a
+        for a in "$@"; do args+=("${a/#${ROOT}\/backend\//\/app\/}"); done
+        docker compose -f "$COMPOSE_PROD" exec -T web python manage.py "${args[@]}"
+    else
+        (cd "${ROOT}/backend" && DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings}" \
+            "${ROOT}/backend/venv/bin/python" manage.py "$@")
+    fi
 }
 
 alert() {
     local text="$1"
     if [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT" ] && command -v curl >/dev/null 2>&1; then
-        curl -fsS -m 15 "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+        curl -fsS -m 15 "${TG_API}/bot${TG_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${TG_CHAT}" --data-urlencode "text=${text}" >/dev/null || true
     fi
 }
@@ -83,11 +102,12 @@ alert() {
 on_error() {
     log "XATO: zaxira yakunlanmadi (${MODE})"
     find "${BACKUP_ROOT}/db" -name '*.dump.part' -delete 2>/dev/null || true
-    alert "⚠️ Phoenix: ${MODE} zaxira XATO bilan tugadi ($(hostname), $(date '+%F %T')). journalctl -u phoenix-backup ni tekshiring."
+    alert "⚠️ Phoenix: ${MODE} zaxira XATO bilan tugadi ($(hostname), $(date '+%F %T')). journalctl -u phoenix-backup yoki /var/log/phoenix-backup.log ni tekshiring."
 }
 trap on_error ERR
 
 use_container() {
+    [ -n "$DOCKER_DB" ] && return 0
     command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -qx "$PG_CONTAINER"
 }
 
@@ -163,7 +183,7 @@ case "$MODE" in
                 manage tgstorage backup-prune || true
             else
                 log "XATO: zaxira Telegram'ga yuborilmadi"
-                alert "⚠️ Phoenix: zaxira Telegram kanaliga yuborilmadi ($(hostname), $(date '+%F %T')). Lokal nusxa: ${LAST_DUMP}. journalctl -u phoenix-backup"
+                alert "⚠️ Phoenix: zaxira Telegram kanaliga yuborilmadi ($(hostname), $(date '+%F %T')). Lokal nusxa: ${LAST_DUMP}."
             fi
         fi
         # Media: Telegram'da saqlansa server ko'zgusi kerak emas — faqat yuborilmaganlar yuboriladi

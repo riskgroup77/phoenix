@@ -324,6 +324,30 @@ class MirrorCopiesTests(TgTestCase):
         self.assertIn(-1001, rec.copies.values_list('chat_id', flat=True))
         self.assertEqual(services.status()['copies_by_chat'], {'-1001': 1, '501': 1, '502': 1})
 
+    def test_backup_parts_mirrored_and_restored_without_channel(self):
+        dump = os.path.join(self.spool, 'phoenix_20261029_030000.dump')
+        raw = os.urandom(250_000)
+        with open(dump, 'wb') as fh:
+            fh.write(raw)
+        with override_settings(TG_STORAGE_PART_MB=0.1):
+            records = backup.upload_backup(dump, label='daily')
+        for rec in records:
+            self.assertEqual(sorted(rec.copies.values_list('chat_id', flat=True)), [501, 502])
+        self.dead_chats.add('-1001')
+        out = os.path.join(self.spool, 'restored.dump')
+        backup.download_backup(records[0].name, out)
+        self.assertEqual(open(out, 'rb').read(), raw)
+
+    def test_backup_prune_disabled_with_zero_days(self):
+        dump = os.path.join(self.spool, 'phoenix_20200101_030000.dump')
+        with open(dump, 'wb') as fh:
+            fh.write(b'x' * 100)
+        rec = backup.upload_backup(dump)[0]
+        TelegramStoredFile.objects.filter(pk=rec.pk).update(created_at=rec.created_at.replace(year=2020))
+        with override_settings(TG_BACKUP_KEEP_DAYS=0, TG_BACKUP_KEEP_WEEKLY_DAYS=0):
+            self.assertEqual(backup.prune_backups(), 0)
+        self.assertTrue(TelegramStoredFile.objects.filter(pk=rec.pk).exists())
+
     def test_purge_never_deletes_copies_when_days_zero(self):
         name = self.save('articles/pdfs/p.pdf')
         self.storage.delete(name)

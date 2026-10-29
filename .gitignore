@@ -56,3 +56,4 @@ backend/antiplag_vectors/
 
 # Serverdagi lokal compose sozlamalari
 docker-compose.override.yml
+/backend/backups/

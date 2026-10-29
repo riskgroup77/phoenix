@@ -91,6 +91,9 @@ services:
       - ./backend/.env
     environment:
       TELEGRAM_LOCAL: '1'
+    # Host skriptlari (zaxira ogohlantirishi) uchun; tashqariga ochilmaydi
+    ports:
+      - '127.0.0.1:8081:8081'
     volumes:
       - ./backend/telegram-bot-api:/var/lib/telegram-bot-api
       - ./backend/media:/app/media:ro

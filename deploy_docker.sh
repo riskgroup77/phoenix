@@ -109,6 +109,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 15 * * * * root flock -n /run/phoenix-tgstorage.lock bash -c '${run} tgstorage sync --evict' >> /var/log/phoenix-cron.log 2>&1
 # Taqrizchilarga muddat eslatmalari
 0 9 * * * root ${run} send_deadline_reminders >> /var/log/phoenix-cron.log 2>&1
+# Kunlik baza zaxirasi: serverda (backend/backups) + shifrlangan holda Telegram kanali va foydalanuvchi chatlariga
+0 3 * * * root flock -n /run/phoenix-backup.lock bash ${PHOENIX_DIR}/infrastructure/backup/phoenix-backup.sh daily >> /var/log/phoenix-backup.log 2>&1
 CRON
     if ! cmp -s "$tmp" /etc/cron.d/phoenix; then
         install -m 644 "$tmp" /etc/cron.d/phoenix
@@ -141,6 +143,9 @@ prepare_tg_bot_api
 # 3. Konteynerlar (kod o'zgarsa image qayta quriladi va konteyner almashtiriladi)
 echo "🐳 Konteynerlar qurilmoqda va ishga tushirilmoqda..."
 "${COMPOSE[@]}" up -d --build --remove-orphans
+# Migratsiyadan oldin baza zaxirasi (xato bo'lsa ham deploy davom etadi — kunlik zaxira bor)
+echo "💾 Deploy oldi zaxira..."
+bash infrastructure/backup/phoenix-backup.sh pre-deploy || echo "   ⚠️  Deploy oldi zaxira olinmadi"
 echo "🗄️  Migratsiyalar..."
 "${COMPOSE[@]}" exec -T web python manage.py migrate --noinput
 "${COMPOSE[@]}" exec -T web python manage.py collectstatic --noinput >/dev/null

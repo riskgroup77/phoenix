@@ -22,7 +22,7 @@ from pathlib import Path
 from django.conf import settings
 from django.utils import timezone
 
-from . import client
+from . import client, services
 from .models import TelegramStoredFile
 from .services import file_digest
 
@@ -140,6 +140,8 @@ def upload_backup(path: str, label: str = 'daily') -> list[TelegramStoredFile]:
     TelegramStoredFile.objects.filter(pk__in=[r.pk for r in records]).update(parts_total=len(records))
     for r in records:
         r.parts_total = len(records)
+        # Kanal bilan birga foydalanuvchi chatlariga ham (TG_STORAGE_MIRROR_CHAT_IDS) — kanal o'chsa ham tiklanadi
+        services.ensure_copies(r)
     logger.info('Zaxira Telegram\'ga yuborildi: %s (%s bo\'lak)', name, len(records))
     return records
 
@@ -166,8 +168,7 @@ def download_backup(name: str, dest: str) -> str:
         try:
             for rec in parts:
                 part_file = spool / f'restore-{rec.pk}.bin'
-                client.download_to(bot_id=rec.bot_id, chat_id_value=rec.chat_id, message_id=rec.message_id,
-                                   file_id=rec.file_id, dest=str(part_file))
+                _download_any(rec, part_file)
                 try:
                     _size, sha = file_digest(str(part_file))
                     if rec.sha256 and sha != rec.sha256:
@@ -191,6 +192,20 @@ def download_backup(name: str, dest: str) -> str:
     return str(dest_path)
 
 
+def _download_any(rec: TelegramStoredFile, dest: Path) -> None:
+    """Bo'lakni kanaldan, ishlamasa foydalanuvchi chatlaridagi nusxadan yuklab olish."""
+    last_exc = None
+    for src in [rec, *rec.copies.all()]:
+        try:
+            client.download_to(bot_id=src.bot_id, chat_id_value=src.chat_id, message_id=src.message_id,
+                               file_id=src.file_id, dest=str(dest))
+            return
+        except Exception as exc:
+            last_exc = exc
+            logger.warning('Zaxira bo\'lagi olinmadi (%s, chat %s): %s', rec.name, src.chat_id, exc)
+    raise BackupError(f'{rec.part + 1}-bo\'lak hech bir chatdan olinmadi: {last_exc}')
+
+
 def list_backups() -> list[dict]:
     groups: OrderedDict[str, dict] = OrderedDict()
     qs = TelegramStoredFile.objects.filter(kind=TelegramStoredFile.KIND_BACKUP, deleted_at__isnull=True)
@@ -204,10 +219,11 @@ def list_backups() -> list[dict]:
 
 def _delete_records(records) -> None:
     for rec in records:
-        try:
-            client.delete_message(bot_id=rec.bot_id, chat_id_value=rec.chat_id, message_id=rec.message_id)
-        except client.TelegramStorageError as exc:
-            logger.info('Kanal xabari o\'chirilmadi (%s): %s', rec, exc)
+        for src in [rec, *rec.copies.all()]:
+            try:
+                client.delete_message(bot_id=src.bot_id, chat_id_value=src.chat_id, message_id=src.message_id)
+            except client.TelegramStorageError as exc:
+                logger.info('Telegram xabari o\'chirilmadi (%s, chat %s): %s', rec, src.chat_id, exc)
         rec.delete()
 
 
