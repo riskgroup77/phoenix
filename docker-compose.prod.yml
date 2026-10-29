@@ -18,10 +18,18 @@ x-app: &app
   user: root
   volumes:
     - ./backend:/app
+    # Local Bot API fayllari (getFile shu yo'lni qaytaradi) — web/celery/bot ham aynan shu yo'l bilan o'qiydi
+    - ./backend/telegram-bot-api:/var/lib/telegram-bot-api
   env_file:
     - ./backend/.env
   environment:
     DJANGO_SETTINGS_MODULE: config.settings
+    # Bot, bildirishnomalar va fayl ombori — hammasi local Bot API server orqali (fayl 2000 MB gacha)
+    TELEGRAM_API_BASE_URL: http://telegram-bot-api:8081
+    TG_BOT_API_URL: http://telegram-bot-api:8081
+    TG_BOT_API_LOCAL: 'true'
+    TG_BOT_API_DATA_DIR: /var/lib/telegram-bot-api
+    TG_STORAGE_SPOOL_DIR: /app/tg-spool
     DB_HOST: db
     DB_PORT: '5432'
     REDIS_URL: redis://redis:6379/0
@@ -74,6 +82,25 @@ services:
       retries: 8
       start_period: 45s
 
+  # Local Telegram Bot API: backend/.env da TELEGRAM_API_ID va TELEGRAM_API_HASH (https://my.telegram.org).
+  # Django faylni `file:///app/media/...` deb beradi — media va spool shu yo'l bilan ulanadi (HTTP orqali yuklanmaydi).
+  telegram-bot-api:
+    image: aiogram/telegram-bot-api:latest
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      TELEGRAM_LOCAL: '1'
+    volumes:
+      - ./backend/telegram-bot-api:/var/lib/telegram-bot-api
+      - ./backend/media:/app/media:ro
+      - ./backend/tg-spool:/app/tg-spool:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: '3'
+
   web:
     <<: *app
     command: gunicorn config.wsgi:application -c gunicorn.conf.py
@@ -93,6 +120,8 @@ services:
         condition: service_healthy
       opensearch:
         condition: service_healthy
+      telegram-bot-api:
+        condition: service_started
 
   celery:
     <<: *app
@@ -104,12 +133,15 @@ services:
         condition: service_healthy
       opensearch:
         condition: service_healthy
+      telegram-bot-api:
+        condition: service_started
 
   bot:
     <<: *app
     command: python bot/bot.py
     depends_on:
       - web
+      - telegram-bot-api
 
 volumes:
   pgdata:

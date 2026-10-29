@@ -119,6 +119,25 @@ CRON
 
 install_cron
 
+# Local Bot API server: api_id/api_hash shart. Bot local serverga o'tishdan oldin cloud Bot API'dan bir marta
+# chiqarilishi kerak (logOut) — aks holda yangilanishlar ikki server orasida bo'linib, bot xabarlarni yo'qotadi.
+prepare_tg_bot_api() {
+    grep -qs "^TELEGRAM_API_ID=." backend/.env && grep -qs "^TELEGRAM_API_HASH=." backend/.env \
+        || error_exit "backend/.env da TELEGRAM_API_ID / TELEGRAM_API_HASH yo'q (https://my.telegram.org)"
+    mkdir -p backend/telegram-bot-api backend/tg-spool backend/media
+    local marker=backend/telegram-bot-api/.cloud-logout-done token
+    [ -f "$marker" ] && return 0
+    token=$(grep "^TELEGRAM_BOT_TOKEN=" backend/.env | cut -d= -f2-)
+    [ -n "$token" ] || return 0
+    echo "   Bot cloud Bot API'dan chiqarilmoqda (bir marta, local serverga o'tish uchun)..."
+    if curl -fsS -m 20 -o /dev/null "https://api.telegram.org/bot${token}/logOut"; then
+        touch "$marker"
+    else
+        echo "   ⚠️  logOut bajarilmadi (allaqachon chiqarilgan bo'lishi mumkin) — keyingi deployda qayta urinadi"
+    fi
+}
+prepare_tg_bot_api
+
 # 3. Konteynerlar (kod o'zgarsa image qayta quriladi va konteyner almashtiriladi)
 echo "🐳 Konteynerlar qurilmoqda va ishga tushirilmoqda..."
 "${COMPOSE[@]}" up -d --build --remove-orphans

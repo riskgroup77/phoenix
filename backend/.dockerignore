@@ -8,3 +8,5 @@ logs
 db.sqlite3
 htmlcov
 .pytest_cache
+telegram-bot-api
+tg-spool

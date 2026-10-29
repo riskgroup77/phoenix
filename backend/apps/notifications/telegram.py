@@ -75,7 +75,7 @@ def send_telegram_message(chat_id: int, text: str, url: str = '') -> bool:
     if url and url.startswith('https://'):
         payload['reply_markup'] = {'inline_keyboard': [[{'text': 'Saytda ochish', 'url': url}]]}
     req = urllib.request.Request(
-        f'https://api.telegram.org/bot{token}/sendMessage',
+        f'{settings.TELEGRAM_API_BASE_URL}/bot{token}/sendMessage',
         data=json.dumps(payload).encode('utf-8'),
         headers={'Content-Type': 'application/json'},
         method='POST',

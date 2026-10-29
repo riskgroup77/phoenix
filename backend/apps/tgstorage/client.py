@@ -52,6 +52,21 @@ def chat_id() -> str:
     return str(getattr(settings, 'TG_STORAGE_CHAT_ID', '') or '').strip()
 
 
+def mirror_chat_ids() -> list[str]:
+    """Qo'shimcha nusxalar: botga /start bosgan foydalanuvchilar chatlari (TG_STORAGE_MIRROR_CHAT_IDS)."""
+    return [str(c).strip() for c in getattr(settings, 'TG_STORAGE_MIRROR_CHAT_IDS', []) if str(c).strip()]
+
+
+def storage_chats() -> list[str]:
+    """Fayl saqlanadigan barcha chatlar: avval kanal, keyin foydalanuvchi chatlari (takrorsiz)."""
+    seen, out = set(), []
+    for c in [chat_id(), *mirror_chat_ids()]:
+        if c and c not in seen:
+            seen.add(c)
+            out.append(c)
+    return out
+
+
 def is_configured() -> bool:
     return bool(bots() and chat_id())
 
@@ -112,13 +127,13 @@ def _message_info(bot: Bot, message: dict) -> dict:
     }
 
 
-def send_document(path: str, caption: str = '', bot: Bot | None = None) -> dict:
-    """Faylni kanalga hujjat sifatida yuborish → {bot_id, chat_id, message_id, file_id, file_unique_id}."""
+def send_document(path: str, caption: str = '', bot: Bot | None = None, chat: str | int | None = None) -> dict:
+    """Faylni chatga (default — kanal) hujjat sifatida yuborish → {bot_id, chat_id, message_id, file_id, ...}."""
     bot = bot or pick_bot()
     path = os.path.abspath(path)
     size = os.path.getsize(path)
     data = {
-        'chat_id': chat_id(),
+        'chat_id': chat if chat is not None else chat_id(),
         'caption': caption[:1000],
         'disable_content_type_detection': 'true',
         'disable_notification': 'true',
@@ -138,6 +153,18 @@ def send_document(path: str, caption: str = '', bot: Bot | None = None) -> dict:
         content = fh.read()
     result = call(bot, 'sendDocument', data=data,
                   files={'document': (os.path.basename(path), content)}, timeout=600)
+    return _message_info(bot, result)
+
+
+def copy_document(file_id: str, chat: str | int, caption: str = '', bot: Bot | None = None) -> dict:
+    """Telegram'dagi faylni boshqa chatga qayta yuklamasdan (file_id orqali) yuborish."""
+    bot = bot or pick_bot()
+    result = call(bot, 'sendDocument', data={
+        'chat_id': chat,
+        'document': file_id,
+        'caption': caption[:1000],
+        'disable_notification': 'true',
+    })
     return _message_info(bot, result)
 
 

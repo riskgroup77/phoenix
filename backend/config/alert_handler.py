@@ -36,10 +36,12 @@ def send_alert(text: str, *, dedup_key: str | None = None) -> bool:
         except Exception:
             pass
 
+    base = (getattr(settings, 'TELEGRAM_API_BASE_URL', '') or 'https://api.telegram.org').rstrip('/')
+
     def _send():
         try:
             requests.post(
-                f'https://api.telegram.org/bot{token}/sendMessage',
+                f'{base}/bot{token}/sendMessage',
                 data={'chat_id': chat, 'text': text[:3900], 'disable_web_page_preview': 'true'},
                 timeout=10,
             )

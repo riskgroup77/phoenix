@@ -374,12 +374,20 @@ TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME', '').lstrip('@')
 TELEGRAM_ADMIN_IDS = [
     int(x) for x in (os.getenv('TELEGRAM_ADMIN_IDS') or '').replace(' ', '').split(',') if x.lstrip('-').isdigit()
 ]
+# Bot API manzili — bot, bildirishnomalar va fayl ombori uchun bitta. Local Bot API server ishlatilsa
+# (docker-compose.prod.yml: telegram-bot-api) — butun bot shu orqali ishlaydi (bir bot ikki serverda ishlamaydi).
+TELEGRAM_API_BASE_URL = (os.getenv('TELEGRAM_API_BASE_URL') or 'https://api.telegram.org').strip().rstrip('/')
 
 # Telegram fayl ombori (apps/tgstorage): media va baza zaxiralari yopiq kanalda, server diski — faqat kesh.
 # Local Bot API server (infrastructure/telegram-bot-api, TELEGRAM_API_ID/TELEGRAM_API_HASH) — fayl 2000 MB gacha.
 # Botlar (muallif botidan ALOHIDA, @BotFather) kanalga admin qilinadi; bir nechtasi navbat bilan ishlaydi.
 TG_STORAGE_BOT_TOKENS = [t.strip() for t in (os.getenv('TG_STORAGE_BOT_TOKENS') or '').split(',') if t.strip()]
 TG_STORAGE_CHAT_ID = (os.getenv('TG_STORAGE_CHAT_ID') or '').strip()  # yopiq kanal: -100...
+# Qo'shimcha nusxalar: har bir fayl shu foydalanuvchi chatlariga ham yuboriladi (ular botga /start bosgan bo'lsin).
+# Kanal o'chsa ham fayl shu chatlardagi nusxadan qaytariladi.
+TG_STORAGE_MIRROR_CHAT_IDS = [
+    x for x in (os.getenv('TG_STORAGE_MIRROR_CHAT_IDS') or '').replace(' ', '').split(',') if x.lstrip('-').isdigit()
+]
 TG_STORAGE_MEDIA_ENABLED = os.getenv('TG_STORAGE_MEDIA_ENABLED', 'false').lower() in ('1', 'true', 'yes', 'on')
 TG_STORAGE_BACKUP_ENABLED = os.getenv('TG_STORAGE_BACKUP_ENABLED', 'false').lower() in ('1', 'true', 'yes', 'on')
 TG_BOT_API_URL = (os.getenv('TG_BOT_API_URL') or 'http://127.0.0.1:8081').strip()

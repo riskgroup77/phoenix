@@ -80,6 +80,15 @@ class Command(BaseCommand):
             except client.TelegramStorageError as exc:
                 ok = False
                 self.stdout.write(self.style.ERROR(f'bot {bot.id}: {exc}'))
+        # Qo'shimcha nusxa chatlari: bot shu foydalanuvchiga yoza oladimi (u botga /start bosganmi)
+        for chat in client.mirror_chat_ids():
+            try:
+                client.call(client.pick_bot(), 'sendChatAction', data={'chat_id': chat, 'action': 'upload_document'},
+                            timeout=15)
+                self.stdout.write(self.style.SUCCESS(f'Nusxa chati {chat}: tayyor'))
+            except client.TelegramStorageError as exc:
+                ok = False
+                self.stdout.write(self.style.ERROR(f'Nusxa chati {chat}: yozib bo\'lmaydi ({exc}) — botga /start bosilsin'))
         self.stdout.write(f'Media: {"yoqilgan" if services.media_enabled() else "o`chiq"}; '
                           f'zaxira: {"yoqilgan" if backup.backup_enabled() else "o`chiq"}')
         if not ok:
@@ -94,6 +103,8 @@ class Command(BaseCommand):
             f"Faqat Telegram'da (diskdan o'chirilgan): {st['only_in_telegram']} ta\n"
             f"Zaxiralar: {len(backup.list_backups())} ta"
         )
+        for chat, count in st['copies_by_chat'].items():
+            self.stdout.write(f"Nusxalar, chat {chat}: {count} ta")
 
     def _sync(self, opts):
         if not services.media_enabled():
@@ -101,7 +112,7 @@ class Command(BaseCommand):
             return
         st = services.sync(limit=opts['limit'])
         self.stdout.write(f"Yuborildi: {st['uploaded']}, xato: {st['failed']}, navbatda: {st['pending']}, "
-                          f"kanaldan tozalandi: {st['purged']}")
+                          f"nusxa qo'shildi: {st['copied']}, kanaldan tozalandi: {st['purged']}")
         if opts['evict']:
             self._evict({'days': None, 'dry_run': False})
 

@@ -47,3 +47,25 @@ class TelegramStoredFile(models.Model):
     def __str__(self):
         suffix = f' [{self.part + 1}/{self.parts_total}]' if self.parts_total > 1 else ''
         return f'{self.kind}: {self.name}{suffix}'
+
+
+class TelegramFileCopy(models.Model):
+    """Faylning qo'shimcha nusxasi boshqa chatda (TG_STORAGE_MIRROR_CHAT_IDS): kanal o'chsa ham fayl qaytariladi."""
+
+    stored = models.ForeignKey(TelegramStoredFile, on_delete=models.CASCADE, related_name='copies')
+    bot_id = models.CharField(max_length=32)
+    chat_id = models.BigIntegerField()
+    message_id = models.BigIntegerField()
+    file_id = models.CharField(max_length=255)
+    file_unique_id = models.CharField(max_length=64, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Telegram fayli nusxasi'
+        verbose_name_plural = 'Telegram fayllari nusxalari'
+        constraints = [
+            models.UniqueConstraint(fields=['stored', 'chat_id'], name='tgstorage_unique_copy_chat'),
+        ]
+
+    def __str__(self):
+        return f'{self.stored.name} → {self.chat_id}'

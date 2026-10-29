@@ -169,7 +169,14 @@ def build_application() -> Application:
     if not token:
         raise RuntimeError('TELEGRAM_BOT_TOKEN .env faylida belgilanmagan')
 
-    app = Application.builder().token(token).build()
+    builder = Application.builder().token(token)
+    # Local Bot API server (fayl 2000 MB gacha) — bot butunlay shu orqali ishlaydi
+    from django.conf import settings
+
+    api_base = settings.TELEGRAM_API_BASE_URL
+    if api_base != 'https://api.telegram.org':
+        builder = builder.base_url(f'{api_base}/bot').base_file_url(f'{api_base}/file/bot').local_mode(True)
+    app = builder.build()
 
     # Reklama (/reklama, faqat adminlar). Birinchi ro'yxatdan o'tkaziladi: admin xabar kutilayotgan holatda
     # menyu matni («📝 Maqola yuborish» va h.k.) yoki kontakt yuborsa ham boshqa suhbatlarga o'tib ketmasin.

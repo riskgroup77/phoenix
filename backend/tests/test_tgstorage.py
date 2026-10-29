@@ -34,7 +34,7 @@ class FakeChannel:
         self.messages = {}
         self.next_id = 1
 
-    def send_document(self, path, caption='', bot=None):
+    def send_document(self, path, caption='', bot=None, chat=None):
         bot = bot or client.pick_bot()
         mid = self.next_id
         self.next_id += 1
@@ -255,3 +255,81 @@ class ClientTests(TestCase):
         self.assertEqual(client._host_path('/var/lib/telegram-bot-api/111:aaa/documents/file_1.pdf'),
                          '/srv/tgdata/111:aaa/documents/file_1.pdf')
         self.assertEqual(client._host_path('/other/x'), '/other/x')
+
+
+@override_settings(TG_STORAGE_MIRROR_CHAT_IDS=['501', '502'])
+class MirrorCopiesTests(TgTestCase):
+    """Har bir fayl kanal + foydalanuvchi chatlarida; bittasi ishlamasa qolganidan qaytariladi."""
+
+    def setUp(self):
+        super().setUp()
+        self.chat_of = {}  # message_id → chat
+        self.dead_chats = set()
+        channel = self.channel
+
+        def send_document(path, caption='', bot=None, chat=None):
+            chat = str(chat if chat is not None else client.chat_id())
+            if chat in self.dead_chats:
+                raise client.TelegramStorageError('chat not found')
+            info = FakeChannel.send_document(channel, path, caption, bot)
+            info['chat_id'] = int(chat)
+            self.chat_of[info['message_id']] = chat
+            return info
+
+        def copy_document(file_id, chat, caption='', bot=None):
+            chat = str(chat)
+            if chat in self.dead_chats:
+                raise client.TelegramStorageError('chat not found')
+            src = int(file_id[1:])
+            mid = channel.next_id
+            channel.next_id += 1
+            channel.messages[mid] = channel.messages[src]
+            self.chat_of[mid] = chat
+            return {'bot_id': '111', 'chat_id': int(chat), 'message_id': mid, 'file_id': f'F{mid}',
+                    'file_unique_id': f'U{mid}'}
+
+        def download_to(*, bot_id, chat_id_value, message_id, file_id, dest):
+            if str(chat_id_value) in self.dead_chats:
+                raise client.TelegramStorageError('chat not found')
+            FakeChannel.download_to(channel, bot_id=bot_id, chat_id_value=chat_id_value,
+                                    message_id=message_id, file_id=file_id, dest=dest)
+
+        for name, fn in (('send_document', send_document), ('copy_document', copy_document),
+                         ('download_to', download_to)):
+            patcher = mock.patch.object(client, name, fn)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_file_saved_to_channel_and_every_user_chat(self):
+        name = self.save('articles/pdfs/m.pdf', b'asl')
+        rec = TelegramStoredFile.objects.get(name=name)
+        self.assertEqual(rec.chat_id, -1001)
+        self.assertEqual(sorted(rec.copies.values_list('chat_id', flat=True)), [501, 502])
+
+    def test_restored_from_user_chat_when_channel_is_gone(self):
+        name = self.save('receipts/c.pdf', b'chek')
+        os.remove(os.path.join(self.media, name))
+        self.dead_chats.add('-1001')
+        with self.storage.open(name) as fh:
+            self.assertEqual(fh.read(), b'chek')
+
+    def test_channel_down_on_upload_uses_user_chat_and_sync_backfills(self):
+        self.dead_chats.add('-1001')
+        name = self.save('articles/pdfs/x.pdf', b'x')
+        rec = TelegramStoredFile.objects.get(name=name)
+        self.assertEqual(rec.chat_id, 501)
+        self.assertEqual(list(rec.copies.values_list('chat_id', flat=True)), [502])
+        self.dead_chats.clear()
+        self.assertEqual(services.sync()['copied'], 1)
+        self.assertIn(-1001, rec.copies.values_list('chat_id', flat=True))
+        self.assertEqual(services.status()['copies_by_chat'], {'-1001': 1, '501': 1, '502': 1})
+
+    def test_purge_never_deletes_copies_when_days_zero(self):
+        name = self.save('articles/pdfs/p.pdf')
+        self.storage.delete(name)
+        TelegramStoredFile.objects.filter(name=name).update(
+            deleted_at=TelegramStoredFile.objects.get(name=name).deleted_at - timedelta(days=5))
+        before = len(self.channel.messages)
+        with override_settings(TG_STORAGE_PURGE_DAYS=0):
+            services.purge_deleted()
+        self.assertEqual(len(self.channel.messages), before)
