@@ -53,3 +53,6 @@ backend/antiplag_vectors/
 /backend/telegram-bot-api/
 /tg-spool/
 /backend/tg-spool/
+
+# Serverdagi lokal compose sozlamalari
+docker-compose.override.yml

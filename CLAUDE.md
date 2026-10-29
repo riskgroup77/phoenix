@@ -11,3 +11,7 @@
 ## Tekshiruv
 - Backend testlari: `cd backend && venv/bin/python -m pytest -q` (sozlama: `config.settings_test`, SQLite).
 - Frontend: `cd frontend && npx tsc --noEmit -p .`
+
+## Server
+- Production: `76.13.79.121` (`ssh phoenix`, root), loyiha `/home/phoenix`, Docker — `docker-compose.prod.yml`.
+  Deploy: `bash /home/phoenix/deploy_docker.sh` (GitHub Actions ham shuni ishlatadi). Maxfiy sozlamalar — serverdagi `backend/.env`.

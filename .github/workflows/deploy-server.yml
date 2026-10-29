@@ -1,5 +1,5 @@
 # Secrets (GitHub → Settings → Secrets and variables → Actions):
-#   PHONIX_SSH_HOST, PHONIX_SSH_USER
+#   PHONIX_SSH_HOST (76.13.79.121), PHONIX_SSH_USER (root), PHONIX_SSH_PORT (22)
 #   va PHONIX_SSH_PRIVATE_KEY yoki PHONIX_SSH_PASSWORD
 #
 # Deploy faqat CI (testlar, TypeScript, build) MUVAFFAQIYATLI o'tgandan keyin ishga tushadi va
@@ -7,6 +7,7 @@
 # Frontend CI da build qilingan (artifact frontend-dist-<sha>) — serverga tayyor holda yuboriladi,
 # serverda npm install / npm run build qilinmaydi. Artifact bo'lmasa (qo'lda ishga tushirish) —
 # serverda eskicha build qilinadi.
+# Serverda: /home/phoenix, Docker (docker-compose.prod.yml) — deploy_docker.sh ishga tushiriladi.
 # Qo'lda: Actions → Deploy to server → Run workflow (main dagi oxirgi commit; CI ni tekshirib bosing).
 
 name: Deploy to server
@@ -86,20 +87,12 @@ jobs:
             set -euo pipefail
             REF="${{ env.REF }}"
             DIST_UPLOADED="${{ steps.upload.outcome == 'success' }}"
-            URL="https://raw.githubusercontent.com/riskgroup77/phoenix/${REF}/deploy_phonix.sh"
+            PHOENIX_DIR=/home/phoenix
             DIST_TMP="/tmp/phonix-dist-${REF}"
-            trap 'rm -rf "${DIST_TMP}"' EXIT
-            # Avval serverdagi git (repo private bo'lsa ham ishlaydi), bo'lmasa — ochiq raw URL
-            if [ -d /phonix/.git ] && git -C /phonix fetch -q origin main 2>/dev/null \
-               && git -C /phonix show "${REF}:deploy_phonix.sh" > /tmp/phonix_deploy.sh 2>/dev/null \
-               && [ -s /tmp/phonix_deploy.sh ]; then
-              echo "deploy_phonix.sh git'dan olindi (${REF})"
-            elif command -v curl >/dev/null 2>&1; then
-              curl -fsSL -o /tmp/phonix_deploy.sh "$URL"
-            else
-              wget -qO /tmp/phonix_deploy.sh "$URL"
-            fi
-            chmod +x /tmp/phonix_deploy.sh
+            trap 'rm -rf "${DIST_TMP}" /tmp/phoenix_deploy.sh' EXIT
+            # Deploy skripti aynan chiqariladigan commitdan olinadi (repo private bo'lsa ham ishlaydi)
+            git -C "${PHOENIX_DIR}" fetch -q origin main
+            git -C "${PHOENIX_DIR}" show "${REF}:deploy_docker.sh" > /tmp/phoenix_deploy.sh
             # CI da build qilingan frontend (bo'lsa) — ochib, deploy skriptiga beriladi
             PREBUILT=""
             if [ "${DIST_UPLOADED}" = "true" ]; then
@@ -116,7 +109,6 @@ jobs:
               echo "Tayyor frontend yo'q — serverda build qilinadi"
             fi
             export PHONIX_PREBUILT_DIST="${PREBUILT}"
-            export PHONIX_GIT_RESET=true
-            export PHONIX_GIT_REF="${REF}"
-            export PHONIX_FRONTEND_WEB_ROOT=/var/www/ilmiyfaoliyat
-            bash /tmp/phonix_deploy.sh
+            export PHOENIX_DIR
+            export PHOENIX_GIT_REF="${REF}"
+            bash /tmp/phoenix_deploy.sh
