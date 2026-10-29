@@ -6,6 +6,7 @@ import os
 import shutil
 import tempfile
 import time
+from datetime import timedelta
 from unittest import mock
 
 from django.core.files.base import ContentFile
@@ -102,9 +103,29 @@ class MediaStorageTests(TgTestCase):
         rec.refresh_from_db()
         self.assertIsNotNone(rec.deleted_at)
         self.assertFalse(self.storage.exists(name))
+        TelegramStoredFile.objects.filter(pk=rec.pk).update(deleted_at=rec.deleted_at - timedelta(days=2))
         with override_settings(TG_STORAGE_PURGE_DAYS=0):
+            self.assertEqual(services.purge_deleted(), 0)  # 0 — kanaldan hech qachon o'chirilmaydi
+        self.assertIn(rec.message_id, self.channel.messages)
+        with override_settings(TG_STORAGE_PURGE_DAYS=1):
             self.assertEqual(services.purge_deleted(), 1)
         self.assertNotIn(rec.message_id, self.channel.messages)
+
+    def test_cloud_api_does_not_evict_files_over_20mb(self):
+        small = self.save('articles/pdfs/small.pdf')
+        big = self.save('articles/pdfs/big.pdf')
+        big_path = os.path.join(self.media, big)
+        with open(big_path, 'r+b') as fh:
+            fh.truncate(client.CLOUD_DOWNLOAD_MAX_BYTES + 1)
+        TelegramStoredFile.objects.filter(name=big).update(size=client.CLOUD_DOWNLOAD_MAX_BYTES + 1)
+        past = time.time() - 10 * 86400
+        for name in (small, big):
+            os.utime(os.path.join(self.media, name), (past, past))
+        with override_settings(TG_BOT_API_LOCAL=False):
+            stats = services.evict(7)
+        self.assertEqual(stats['evicted'], 1)
+        self.assertFalse(os.path.exists(os.path.join(self.media, small)))
+        self.assertTrue(os.path.exists(big_path))  # Telegram'dan qaytarib bo'lmaydi — serverda qoladi
 
     def test_evict_removes_only_old_uploaded_files(self):
         old = self.save('articles/pdfs/old.pdf')

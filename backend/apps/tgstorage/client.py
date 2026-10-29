@@ -25,6 +25,8 @@ logger = logging.getLogger(__name__)
 
 # Oddiy (cloud) Bot API va local serverning multipart cheklovi uchun xavfsiz chegara
 MULTIPART_MAX_BYTES = 50 * 1024 * 1024
+# Oddiy (cloud) Bot API: getFile orqali yuklab olish chegarasi
+CLOUD_DOWNLOAD_MAX_BYTES = 20 * 1024 * 1024
 
 _counter = itertools.count()
 

@@ -89,6 +89,30 @@ install_nginx() {
 
 install_nginx
 
+# Rejali vazifalar (eski serverdagi systemd timerlar o'rniga). Natija: /var/log/phoenix-cron.log
+install_cron() {
+    [ -d /etc/cron.d ] || return 0
+    local run="cd ${PHOENIX_DIR} && docker compose -f docker-compose.prod.yml exec -T web python manage.py"
+    local tmp
+    tmp=$(mktemp)
+    cat > "$tmp" <<CRON
+# Phoenix — deploy_docker.sh yozadi, qo'lda o'zgartirmang
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# Telegram fayl ombori: yuborilmaganlarni kanalga yuborish + TG_STORAGE_EVICT_DAYS kun ochilmaganlarni diskdan o'chirish
+15 * * * * root flock -n /run/phoenix-tgstorage.lock bash -c '${run} tgstorage sync --evict' >> /var/log/phoenix-cron.log 2>&1
+# Taqrizchilarga muddat eslatmalari
+0 9 * * * root ${run} send_deadline_reminders >> /var/log/phoenix-cron.log 2>&1
+CRON
+    if ! cmp -s "$tmp" /etc/cron.d/phoenix; then
+        install -m 644 "$tmp" /etc/cron.d/phoenix
+        echo "   ⏰ /etc/cron.d/phoenix yangilandi"
+    fi
+    rm -f "$tmp"
+}
+
+install_cron
+
 # 3. Konteynerlar (kod o'zgarsa image qayta quriladi va konteyner almashtiriladi)
 echo "🐳 Konteynerlar qurilmoqda va ishga tushirilmoqda..."
 "${COMPOSE[@]}" up -d --build --remove-orphans

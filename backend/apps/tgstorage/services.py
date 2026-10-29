@@ -181,6 +181,8 @@ def sync(limit: int = 500) -> dict:
 
 def purge_deleted() -> int:
     days = int(getattr(settings, 'TG_STORAGE_PURGE_DAYS', 30))
+    if days <= 0:
+        return 0  # 0 — saytdan o'chirilgan faylning kanaldagi nusxasi hech qachon o'chirilmaydi
     cutoff = timezone.now() - timedelta(days=days)
     purged = 0
     qs = TelegramStoredFile.objects.filter(kind=TelegramStoredFile.KIND_MEDIA, deleted_at__lt=cutoff)
@@ -201,6 +203,8 @@ def evict(days: int | None = None, *, dry_run: bool = False) -> dict:
     if days <= 0:
         return stats
     cutoff = time.time() - days * 86400
+    # Oddiy (cloud) Bot API getFile 20 MB dan kattasini bermaydi — bunday fayl diskdan o'chirilsa qaytmaydi
+    max_size = None if client._local_mode() else client.CLOUD_DOWNLOAD_MAX_BYTES
     for rec in _live().filter(part=0).iterator():
         path = local_path(rec.name)
         try:
@@ -208,6 +212,8 @@ def evict(days: int | None = None, *, dry_run: bool = False) -> dict:
         except FileNotFoundError:
             continue
         if max(st.st_atime, st.st_mtime) > cutoff:
+            continue
+        if max_size is not None and st.st_size > max_size:
             continue
         if rec.size and st.st_size != rec.size:
             # Fayl yuborilgandan keyin o'zgargan — eski nusxa yaroqsiz, keyingi sync qayta yuboradi
