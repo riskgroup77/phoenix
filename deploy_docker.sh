@@ -81,6 +81,8 @@ install_nginx() {
         fi
     fi
     rm -rf "$backup"
+    # Har safar qayta yuklanadi (graceful) — sertifikat yoki konfig qo'lda o'zgargan bo'lsa ham kuchga kirsin
+    nginx -t 2>/dev/null && systemctl reload nginx
     # Snippet ulangan — himoyalangan media fayllarni nginx beradi (X-Accel-Redirect)
     grep -q "^MEDIA_ACCEL_REDIRECT=" backend/.env || echo "MEDIA_ACCEL_REDIRECT=true" >> backend/.env
 }
@@ -117,7 +119,7 @@ rm -rf frontend/dist.old
 # 5. Tekshiruv
 echo "🩺 Tekshirilmoqda..."
 for i in $(seq 1 30); do
-    if curl -fsS -o /dev/null http://127.0.0.1:8050/health/; then
+    if curl -fsS -o /dev/null -H 'X-Forwarded-Proto: https' http://127.0.0.1:8050/health/; then
         echo "✅ Deploy tugadi — backend ishlayapti"
         docker image prune -f >/dev/null 2>&1 || true
         exit 0
