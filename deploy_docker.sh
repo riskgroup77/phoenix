@@ -30,7 +30,16 @@ echo "   $(git log -1 --oneline)"
 # 2. Nginx: repodagi konfiglar (yo'llar /home/phoenix). nginx -t dan o'tmasa — eskisi qaytariladi.
 install_nginx() {
     command -v nginx >/dev/null 2>&1 || return 0
-    local avail=/etc/nginx/sites-available backup changed=0 f dst
+    local le=/etc/letsencrypt
+    if [ ! -f "$le/live/ilmiyfaoliyat.uz/fullchain.pem" ] || [ ! -f "$le/live/api.ilmiyfaoliyat.uz/fullchain.pem" ] \
+        || [ ! -f "$le/options-ssl-nginx.conf" ]; then
+        echo "   ⚠️  SSL sertifikat yo'q — nginx konfiglari o'rnatilmadi. Avval:"
+        echo "      certbot certonly --nginx -d ilmiyfaoliyat.uz -d www.ilmiyfaoliyat.uz"
+        echo "      certbot certonly --nginx -d api.ilmiyfaoliyat.uz"
+        return 0
+    fi
+    local avail=/etc/nginx/sites-available enabled=/etc/nginx/sites-enabled
+    local backup changed=0 f dst new_links=""
     backup=$(mktemp -d)
     for f in phoenix-ilmiyfaoliyat-frontend.conf phoenix-api-ilmiyfaoliyat.conf snippets/phoenix-media.conf; do
         case "$f" in
@@ -44,14 +53,22 @@ install_nginx() {
             changed=1
         fi
     done
-    ln -sf "$avail/phoenix-ilmiyfaoliyat-frontend.conf" /etc/nginx/sites-enabled/
-    ln -sf "$avail/phoenix-api-ilmiyfaoliyat.conf" /etc/nginx/sites-enabled/
+    for f in phoenix-ilmiyfaoliyat-frontend.conf phoenix-api-ilmiyfaoliyat.conf; do
+        if [ ! -e "$enabled/$f" ]; then
+            ln -s "$avail/$f" "$enabled/$f"
+            new_links="$new_links $enabled/$f"
+            changed=1
+        fi
+    done
     if [ "$changed" = "1" ]; then
         if nginx -t 2>/dev/null; then
             systemctl reload nginx
             echo "   ✅ Nginx konfiglari yangilandi"
         else
-            echo "   ❌ Yangi nginx konfigi nginx -t dan o'tmadi — eskisi qaytarildi"
+            echo "   ❌ Yangi nginx konfigi nginx -t dan o'tmadi — eskisi qaytarildi:"
+            nginx -t 2>&1 | grep emerg || true
+            # shellcheck disable=SC2086
+            [ -n "$new_links" ] && rm -f $new_links
             (cd "$backup" && find . -type f) | while read -r f; do
                 f="${f#./}"
                 case "$f" in
@@ -59,6 +76,8 @@ install_nginx() {
                     *) cp -a "$backup/$f" "$avail/$f" ;;
                 esac
             done
+            rm -rf "$backup"
+            return 0
         fi
     fi
     rm -rf "$backup"
