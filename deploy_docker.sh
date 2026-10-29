@@ -23,7 +23,13 @@ cd "${PHOENIX_DIR}"
 if [ "${PHOENIX_SKIP_GIT:-false}" != "true" ]; then
     echo "📥 Git yangilanmoqda..."
     git fetch -q origin main || error_exit "git fetch xatolik"
+    self_before=$(sha256sum deploy_docker.sh 2>/dev/null || true)
     git reset -q --hard "${PHOENIX_GIT_REF:-origin/main}" || error_exit "commit topilmadi: ${PHOENIX_GIT_REF:-}"
+    # Skriptning o'zi yangilangan bo'lsa — yangi versiyasini ishga tushiramiz (bash eski nusxani o'qib qoladi)
+    if [ "$self_before" != "$(sha256sum deploy_docker.sh)" ]; then
+        echo "   deploy_docker.sh yangilandi — yangi versiyasi bilan davom etilmoqda"
+        PHOENIX_SKIP_GIT=true exec bash "${PHOENIX_DIR}/deploy_docker.sh"
+    fi
 fi
 echo "   $(git log -1 --oneline)"
 
