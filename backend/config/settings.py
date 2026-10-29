@@ -86,7 +86,6 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
-    # 'django_cleanup',  # Uncomment after installing: pip install django-cleanup
     
     # Local apps
     'apps.users',
@@ -100,6 +99,9 @@ INSTALLED_APPS = [
     'apps.analytics',
     'apps.assistant',
     'apps.tgstorage',
+    # Yozuv o'chsa yoki fayl almashtirilsa — eski fayl diskdan o'chadi (oxirida turishi shart).
+    # Telegram omboridagi nusxa qoladi: TelegramBackedStorage.delete faqat belgilaydi (TG_STORAGE_PURGE_DAYS).
+    'django_cleanup.apps.CleanupConfig',
 ]
 
 # CorsMiddleware must be as high as possible (before WhiteNoise / CommonMiddleware) so

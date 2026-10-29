@@ -333,3 +333,29 @@ class MirrorCopiesTests(TgTestCase):
         with override_settings(TG_STORAGE_PURGE_DAYS=0):
             services.purge_deleted()
         self.assertEqual(len(self.channel.messages), before)
+
+
+class CleanupKeepsTelegramCopyTests(TgTestCase):
+    """django_cleanup: yozuv o'chsa fayl diskdan o'chadi, Telegram'dagi nusxa qoladi (PURGE_DAYS=0)."""
+
+    def test_deleting_record_removes_disk_file_but_keeps_telegram_message(self):
+        from apps.journals.models import Journal, JournalCategory
+        from apps.users.models import User
+
+        admin = User.objects.create_user(phone='998900009999', password='x', email='c@test.uz',
+                                         first_name='A', last_name='B', affiliation='T')
+        cat = JournalCategory.objects.create(name='Cleanup sinov')
+        with mock.patch.object(Journal._meta.get_field('image_url'), 'storage', self.storage), \
+                self.captureOnCommitCallbacks(execute=True):
+            journal = Journal.objects.create(name='J', journal_admin=admin, category=cat,
+                                             image_url=ContentFile(b'png', name='logo.png'))
+        name = journal.image_url.name
+        rec = TelegramStoredFile.objects.get(name=name)
+        with mock.patch.object(Journal._meta.get_field('image_url'), 'storage', self.storage), \
+                override_settings(TG_STORAGE_PURGE_DAYS=0), self.captureOnCommitCallbacks(execute=True):
+            journal.delete()
+            services.purge_deleted()
+        self.assertFalse(os.path.exists(os.path.join(self.media, name)))
+        rec.refresh_from_db()
+        self.assertIsNotNone(rec.deleted_at)
+        self.assertIn(rec.message_id, self.channel.messages)
