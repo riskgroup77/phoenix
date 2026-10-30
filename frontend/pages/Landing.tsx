@@ -28,6 +28,8 @@ type PublicJournal = {
   name: string;
   issn: string;
   category: string;
+  country: string;
+  website: string;
   description: string;
   image: string;
   published_count: number;
@@ -259,7 +261,7 @@ const Landing: React.FC = () => {
                   )}
                   <div className="min-w-0">
                     <h3 className="m-0 text-base font-bold leading-snug line-clamp-2">{j.name}</h3>
-                    <p className="m-0 mt-1 text-xs text-[var(--editorial-muted)]">ISSN {j.issn}{j.category ? ` · ${j.category}` : ''}</p>
+                    <p className="m-0 mt-1 text-xs text-[var(--editorial-muted)]">ISSN {j.issn}{j.category ? ` · ${j.category}` : ''}{j.country ? ` · ${j.country}` : ''}</p>
                   </div>
                 </div>
                 {j.description && <p className="m-0 text-sm text-[var(--editorial-body)] leading-relaxed line-clamp-3">{j.description}</p>}

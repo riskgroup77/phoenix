@@ -16,6 +16,8 @@ urlpatterns = [
     # Payme callback - JSON-RPC endpoint
     re_path(r'^payme/?$', views.payme_callback_view, name='payme_callback'),
     
+    path('book-prices/', views.book_prices_view, name='book_prices'),
+
     # Router URLs come after payment provider URLs
     path('', include(router.urls)),
 ]

@@ -5,7 +5,7 @@ import Card from '../components/ui/Card';
 import EditorialPageHeader from '../components/EditorialPageHeader';
 import PhoneVerifyCard from '../components/PhoneVerifyCard';
 import Button from '../components/ui/Button';
-import { UploadCloud, CheckCircle, Loader2, XCircle, FileText, Users, Eye, BookOpen, Filter, Layers, X, History, Check, CreditCard, Search as SearchIcon, ShieldCheck, BadgeCheck } from 'lucide-react';
+import { UploadCloud, CheckCircle, Loader2, XCircle, FileText, Users, Eye, BookOpen, Filter, Layers, X, History, Check, CreditCard, Search as SearchIcon, ShieldCheck, BadgeCheck, MapPin } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { journalMatchesSearch, journalMatchesSubject, journalMatchesType } from '../utils/journalTaxonomy';
 import { PUBLICATION_TYPES, SUBJECT_AREAS } from '../constants/authorCategories';
@@ -57,6 +57,7 @@ const SubmitArticle: React.FC = () => {
   const [journalSearch, setJournalSearch] = useState('');
   const [journalFilterType, setJournalFilterType] = useState('');
   const [journalFilterSubject, setJournalFilterSubject] = useState('');
+  const [journalFilterCountry, setJournalFilterCountry] = useState('');
   const [journalImageErrors, setJournalImageErrors] = useState<Record<string, boolean>>({});
 
   // Form data — maqola mavzusi va ism-familiya majburiy
@@ -206,6 +207,8 @@ const SubmitArticle: React.FC = () => {
           payment_model: j.payment_model || undefined,
           image_url: j.image_url || null,
           category_name: j.category_name || '',
+          country: j.country || '',
+          website: j.website || '',
           scientific_field_names: Array.isArray(j.scientific_field_names) ? j.scientific_field_names : [],
           admin_name: j.admin_name || '',
           issues: Array.isArray(j.issues) ? j.issues : [],
@@ -298,7 +301,13 @@ const SubmitArticle: React.FC = () => {
     setCurrentStep(2);
   };
 
+  const journalCountries = useMemo(
+    () => Array.from(new Set(journals.map((j) => (j.country || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [journals],
+  );
+
   const filteredJournals = journals.filter((j) => {
+    if (journalFilterCountry && (j.country || '').trim() !== journalFilterCountry) return false;
     // Rukn (nashr turi) va soha alohida; apostrof turlari (’ ‘ ') farq qilmaydi
     if (!journalMatchesType(j, journalFilterType)) return false;
     if (!journalMatchesSubject(j, journalFilterSubject)) return false;
@@ -648,10 +657,27 @@ const SubmitArticle: React.FC = () => {
                     ))}
                   </select>
                 </div>
-                {(journalFilterType || journalFilterSubject) && (
+                {journalCountries.length > 0 && (
+                  <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto">
+                    <MapPin size={16} className="text-slate-500 shrink-0" />
+                    <select
+                      value={journalFilterCountry}
+                      onChange={(e) => setJournalFilterCountry(e.target.value)}
+                      className="flex-1 min-w-0 w-full max-w-full bg-slate-100/70 border border-slate-200/90 rounded-lg pl-3 pr-8 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 cursor-pointer"
+                      style={{ minWidth: 0 }}
+                      aria-label={t('Davlat')}
+                    >
+                      <option value="">{t('Barcha davlatlar')}</option>
+                      {journalCountries.map((name) => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {(journalFilterType || journalFilterSubject || journalFilterCountry) && (
                   <button
                     type="button"
-                    onClick={() => { setJournalFilterType(''); setJournalFilterSubject(''); }}
+                    onClick={() => { setJournalFilterType(''); setJournalFilterSubject(''); setJournalFilterCountry(''); }}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-white/10 transition-colors shrink-0 self-start sm:self-center"
                     aria-label={t('Filterni tozalash')}
                   >

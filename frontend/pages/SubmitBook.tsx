@@ -13,30 +13,33 @@ import { toast } from 'react-toastify';
 import { useT } from '../i18n/LanguageContext';
 import { MAX_UPLOAD_BYTES, formatMaxUploadLabel } from '../constants/upload';
 
-// --- Pricing Data from Image ---
-const PRINTING_PER_PAGE = {
-    '1-10': { eco: 125, standart: 150 },
-    '11-100': { eco: 100, standart: 125 },
-    '101-300': { eco: 80, standart: 100 },
-    '301-1000': { eco: 75, standart: 80 },
+// --- Narxlar: serverdan (/payments/book-prices/, bosh admin «Narxlar» sahifasida o'zgartiradi).
+// Quyidagilar — yuklanguncha/yuklanmasa ishlatiladigan standart qiymatlar (backend payments/pricing.py bilan bir xil).
+type BookTier = '1-10' | '11-100' | '101-300' | '301-1000';
+type BookPriceTable = {
+    printing_per_page: Record<BookTier, { eco: number; standart: number }>;
+    cover_per_book: Record<BookTier, { soft: number; hard: number }>;
+    binding_per_book: Record<BookTier, number>;
+    isbn_fee: number;
+    design_fee: number;
 };
-
-const COVER_PER_BOOK = {
-    '1-10': { soft: 15000, hard: 20000 },
-    '11-100': { soft: 10000, hard: 15000 },
-    '101-300': { soft: 8000, hard: 10000 },
-    '301-1000': { soft: 6000, hard: 8000 },
+const DEFAULT_BOOK_PRICES: BookPriceTable = {
+    printing_per_page: {
+        '1-10': { eco: 125, standart: 150 },
+        '11-100': { eco: 100, standart: 125 },
+        '101-300': { eco: 80, standart: 100 },
+        '301-1000': { eco: 75, standart: 80 },
+    },
+    cover_per_book: {
+        '1-10': { soft: 15000, hard: 20000 },
+        '11-100': { soft: 10000, hard: 15000 },
+        '101-300': { soft: 8000, hard: 10000 },
+        '301-1000': { soft: 6000, hard: 8000 },
+    },
+    binding_per_book: { '1-10': 300, '11-100': 300, '101-300': 250, '301-1000': 200 },
+    isbn_fee: 600000,
+    design_fee: 75000,
 };
-
-const BINDING_PER_BOOK = {
-    '1-10': 300,
-    '11-100': 300,
-    '101-300': 250,
-    '301-1000': 200,
-};
-
-const ISBN_FEE = 600000;
-const DESIGN_FEE = 75000; // Average of 50k-100k
 // --- End Pricing Data ---
 
 // --- Helper Components ---
@@ -173,6 +176,17 @@ const SubmitBook: React.FC = () => {
     const [availableJournals, setAvailableJournals] = useState<{ id: string }[]>([]);
     const paymentTimerRef = useRef<number | null>(null);
 
+    const [bookPrices, setBookPrices] = useState<BookPriceTable>(DEFAULT_BOOK_PRICES);
+
+    useEffect(() => {
+        apiService.payments
+            .bookPrices()
+            .then((table: BookPriceTable) => {
+                if (table?.printing_per_page && table?.cover_per_book) setBookPrices(table);
+            })
+            .catch(() => {});
+    }, []);
+
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
     useEffect(() => {
@@ -252,7 +266,7 @@ const SubmitBook: React.FC = () => {
     }, []);
 
     const calculatedCosts = useMemo(() => {
-        const getTier = (numCopies: number) => {
+        const getTier = (numCopies: number): BookTier | null => {
             if (numCopies >= 1 && numCopies <= 10) return '1-10';
             if (numCopies >= 11 && numCopies <= 100) return '11-100';
             if (numCopies >= 101 && numCopies <= 300) return '101-300';
@@ -265,20 +279,20 @@ const SubmitBook: React.FC = () => {
             return { printing: 0, cover: 0, binding: 0, isbn: 0, design: 0, total: 0 };
         }
         
-        const pagePrice = PRINTING_PER_PAGE[tier][paperQuality];
-        const coverPrice = COVER_PER_BOOK[tier][coverType];
-        const bindingPrice = BINDING_PER_BOOK[tier];
+        const pagePrice = bookPrices.printing_per_page[tier][paperQuality];
+        const coverPrice = bookPrices.cover_per_book[tier][coverType];
+        const bindingPrice = bookPrices.binding_per_book[tier];
         
         const printingTotal = pages * copies * pagePrice;
         const coverTotal = copies * coverPrice;
         const bindingTotal = copies * bindingPrice;
-        const isbnTotal = options.isbn ? ISBN_FEE : 0;
-        const designTotal = options.design ? DESIGN_FEE : 0;
+        const isbnTotal = options.isbn ? bookPrices.isbn_fee : 0;
+        const designTotal = options.design ? bookPrices.design_fee : 0;
         
         const total = printingTotal + coverTotal + bindingTotal + isbnTotal + designTotal;
 
         return { printing: printingTotal, cover: coverTotal, binding: bindingTotal, isbn: isbnTotal, design: designTotal, total };
-    }, [pages, copies, paperQuality, coverType, options]);
+    }, [pages, copies, paperQuality, coverType, options, bookPrices]);
 
 
     const ensureBookArticle = useCallback(async (): Promise<string> => {
@@ -483,8 +497,8 @@ const SubmitBook: React.FC = () => {
 
                             <h3 className="text-lg font-semibold text-slate-900 border-b border-slate-200/90 pb-3 pt-4">{t("2. Qo'shimcha Xizmatlar")}</h3>
                             <div className="space-y-3">
-                                <CheckboxCard title={t('ISBN raqami olish')} description={t('Kitobingizga xalqaro standart raqamini oling.')} price={ISBN_FEE} checked={options.isbn} onChange={c => setOptions(p => ({ ...p, isbn: c }))} />
-                                <CheckboxCard title={t('Professional muqova dizayni')} description={t('Tajribali dizaynerlar tomonidan muqova tayyorlash.')} price={DESIGN_FEE} checked={options.design} onChange={c => setOptions(p => ({ ...p, design: c }))} />
+                                <CheckboxCard title={t('ISBN raqami olish')} description={t('Kitobingizga xalqaro standart raqamini oling.')} price={bookPrices.isbn_fee} checked={options.isbn} onChange={c => setOptions(p => ({ ...p, isbn: c }))} />
+                                <CheckboxCard title={t('Professional muqova dizayni')} description={t('Tajribali dizaynerlar tomonidan muqova tayyorlash.')} price={bookPrices.design_fee} checked={options.design} onChange={c => setOptions(p => ({ ...p, design: c }))} />
                             </div>
                         </div>
 

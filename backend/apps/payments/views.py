@@ -657,3 +657,11 @@ def payme_callback_view(request):
             },
             'id': None
         }, status=500)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def book_prices_view(request):
+    """Kitob nashri kalkulyatori jadvali (narxlar bosh admin «Narxlar» sahifasida o'zgartiriladi)."""
+    from .pricing import book_price_table
+
+    return Response(book_price_table())

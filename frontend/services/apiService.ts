@@ -1081,6 +1081,8 @@ export const apiService = {
 
   // Payments
   payments: {
+    /** Kitob nashri kalkulyatori narxlari (bosh admin «Narxlar» sahifasida o'zgartiradi) */
+    bookPrices: () => apiFetch('/payments/book-prices/'),
     listTransactions: () => fetchAllPages('/payments/transactions/'),
     /** Faqat joriy foydalanuvchining to'lovlari (To'lovlarim) — xodim rolida ham */
     listMyTransactions: () => fetchAllPages('/payments/transactions/?mine=1'),
@@ -1231,7 +1233,8 @@ export const apiService = {
     },
     /** Service prices management (bosh admin uchun) */
     servicePrices: {
-      list: () => apiFetch('/udc/service-prices/'),
+      // Narxlar 20 tadan ko'p (kitob narxlari jadvali bilan) — barcha sahifalar yuklanadi
+      list: () => fetchAllPages('/udc/service-prices/'),
       get: (id: number) => apiFetch(`/udc/service-prices/${id}/`),
       create: (data: { service_key: string; label: string; amount: number }) =>
         apiFetch('/udc/service-prices/', {

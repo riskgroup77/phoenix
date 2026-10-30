@@ -355,7 +355,7 @@ def public_overview(request):
     """Kirishsiz bosh sahifa: jurnallar katalogi, so'nggi nashrlar, ko'rsatkichlar va narxlar."""
     from django.core.cache import cache
 
-    cached = cache.get('public_overview_v1')
+    cached = cache.get('public_overview_v2')
     if cached:
         return Response(cached)
 
@@ -379,6 +379,8 @@ def public_overview(request):
             'name': j.name,
             'issn': j.issn,
             'category': getattr(j.category, 'name', '') or '',
+            'country': j.country,
+            'website': j.website,
             'description': (j.description or '')[:280],
             'image': image,
             'published_count': pub_counts.get(j.id, 0),
@@ -419,5 +421,5 @@ def public_overview(request):
         'prices': prices,
         'publication_fee_from': min(fees) if fees else None,
     }
-    cache.set('public_overview_v1', payload, 300)
+    cache.set('public_overview_v2', payload, 300)
     return Response(payload)

@@ -97,6 +97,26 @@ class JournalCreateFromAdminPanelTests(TestCase):
         self.assertTrue(journal.image_url)
         self.assertEqual(list(journal.scientific_fields.all()), [self.field])
 
+    def test_country_and_website(self):
+        payload = self.ui_payload(country="  O'zbekiston ", website='jurnal.uz')
+        journal = self.assert_created(self.api.post('/api/v1/journals/journals/', payload, format='json'))
+        self.assertEqual(journal.country, "O'zbekiston")
+        self.assertEqual(journal.website, 'https://jurnal.uz')
+
+    def test_large_cover_is_shrunk(self):
+        from io import BytesIO
+
+        from PIL import Image
+
+        buf = BytesIO()
+        Image.effect_noise((2400, 3200), 64).convert('RGB').save(buf, format='JPEG', quality=95)
+        big = SimpleUploadedFile('katta.jpg', buf.getvalue(), 'image/jpeg')
+        data = self.multipart(self.ui_payload())
+        data['image_url'] = big
+        journal = self.assert_created(self.api.post('/api/v1/journals/journals/', data, format='multipart'))
+        with Image.open(journal.image_url.path) as im:
+            self.assertLessEqual(max(im.size), 800)
+
     def test_multipart_with_new_publication_type_and_no_fields(self):
         payload = self.ui_payload(scientific_fields=[])
         payload.pop('category')

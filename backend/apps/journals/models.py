@@ -41,6 +41,9 @@ class Journal(models.Model):
     category = models.ForeignKey(JournalCategory, on_delete=models.CASCADE, related_name='journals')
     rules = models.TextField(blank=True)
     image_url = models.ImageField(upload_to='journals/', blank=True, null=True)
+    # Jurnal chiqadigan davlat (katalog kartochkasi va filtr) va rasmiy sayti (mijoz tekshirishi uchun)
+    country = models.CharField(max_length=100, blank=True, default='')
+    website = models.URLField(max_length=500, blank=True, default='')
     
     # Payment settings
     payment_model = models.CharField(max_length=20, choices=PAYMENT_MODEL_CHOICES, default='pre-payment')

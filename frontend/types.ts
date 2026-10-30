@@ -185,6 +185,9 @@ export interface Journal {
   rules?: string;
   issueIds?: string[];
   imageUrl?: string;
+  /** Jurnal chiqadigan davlat va rasmiy sayti (katalog kartochkasida ko'rinadi) */
+  country?: string;
+  website?: string;
   paymentModel: PaymentModel;
   pricingType: JournalPricingType;
   publicationFee?: number; // for fixed pricing

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, CheckCircle2 } from 'lucide-react';
+import { BookOpen, CheckCircle2, ExternalLink, MapPin } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { useT, type TFunction } from '../i18n/LanguageContext';
 
@@ -14,6 +14,8 @@ export type JournalCardData = {
   payment_model?: string;
   image_url?: string | null;
   category_name?: string;
+  country?: string;
+  website?: string;
   admin_name?: string;
   issues?: { issue_number?: string; publication_date?: string }[];
 };
@@ -68,6 +70,7 @@ const JournalA4Card: React.FC<Props> = ({
       : t("Keyin to'lov");
 
   return (
+    <div className="w-full flex flex-col">
     <button
       type="button"
       onClick={onSelect}
@@ -107,6 +110,12 @@ const JournalA4Card: React.FC<Props> = ({
           </p>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
+          {journal.country && (
+            <span className="journal-a4-badge whitespace-nowrap">
+              <MapPin className="inline w-3 h-3 mr-1 align-[-2px]" aria-hidden />
+              {journal.country}
+            </span>
+          )}
           {journal.category_name && (
             <span className="journal-a4-badge">{journal.category_name}</span>
           )}
@@ -126,6 +135,19 @@ const JournalA4Card: React.FC<Props> = ({
         </div>
       </div>
     </button>
+    {/* Sayt havolasi tugma ichida bo'lolmaydi (ichma-ich interaktiv element) — kartochka ostida */}
+    {journal.website && (
+      <a
+        href={journal.website}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-2 mx-1 inline-flex items-center gap-1.5 self-start text-xs font-medium text-[var(--editorial-primary)] hover:underline"
+      >
+        <ExternalLink className="w-3.5 h-3.5" aria-hidden />
+        {t('Jurnal sayti')}
+      </a>
+    )}
+    </div>
   );
 };
 

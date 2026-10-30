@@ -92,6 +92,18 @@ class JournalSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Bu ISSN boshqa jurnalda allaqachon ishlatilgan.")
         return value
 
+    def validate_country(self, value):
+        return ' '.join((value or '').split())[:100]
+
+    @staticmethod
+    def _normalize_website(data):
+        # "jurnal.uz" kabi sxemasiz manzil — https:// qo'shiladi (URLField sxemasiz qiymatni rad etadi)
+        site = str(data.get('website') or '').strip()
+        if site and '://' not in site:
+            data['website'] = f'https://{site}'
+        elif 'website' in data:
+            data['website'] = site
+
     # FormData (rasm bilan) yuborilganda ro'yxat/obyektlar JSON satr bo'lib keladi
     JSON_FIELDS = ('scientific_fields', 'additional_document_config')
 
@@ -111,6 +123,7 @@ class JournalSerializer(serializers.ModelSerializer):
                     data[key] = json.loads(raw)
                 except ValueError:
                     pass
+        self._normalize_website(data)
         if data.get('scientific_fields') in ('', None):
             data.pop('scientific_fields', None)
         # Rasm SerializerMethodField orqali chiqadi (absolyut URL) — fayl alohida saqlanadi (views.perform_*)

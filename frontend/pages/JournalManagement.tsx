@@ -18,6 +18,11 @@ function optionalJournalPercent(v: unknown): number | null {
     return Number.isFinite(n) ? n : null;
 }
 
+const COMMON_COUNTRIES = [
+    "O'zbekiston", "Qozog'iston", "Qirg'iziston", 'Tojikiston', 'Turkmaniston', 'Rossiya', 'Turkiya',
+    'Hindiston', 'AQSH', 'Buyuk Britaniya', 'Germaniya', 'Polsha', 'Indoneziya', 'Malayziya',
+];
+
 /** Server maydon nomi → forma yorlig'i (xato xabari foydalanuvchiga tushunarli bo'lsin) */
 const JOURNAL_FIELD_LABELS: Record<string, string> = {
     name: 'Jurnal Nomi',
@@ -26,6 +31,8 @@ const JOURNAL_FIELD_LABELS: Record<string, string> = {
     journal_admin: 'Jurnal Admini',
     category: 'Nashr turi (rukn)',
     scientific_fields: 'Soha',
+    country: 'Davlat',
+    website: 'Jurnal sayti',
     publication_fee: 'Narx',
     price_per_page: 'Narx',
     image_url: 'Rasm',
@@ -66,6 +73,8 @@ const JournalManagement: React.FC = () => {
     const initialNewJournalState: Partial<Journal> & { additionalDocumentConfig: AdditionalDocumentConfig; scientificFieldIds: string[] } = {
         name: '',
         issn: '',
+        country: '',
+        website: '',
         description: '',
         journalAdminId: '',
         categoryId: '',
@@ -179,6 +188,8 @@ const JournalManagement: React.FC = () => {
                 originality_min_percent: journalToEdit.originality_min_percent ?? j.originality_min_percent ?? undefined,
                 additionalDocumentConfig: j.additional_document_config || journalToEdit.additionalDocumentConfig || initialNewJournalState.additionalDocumentConfig,
                 scientificFieldIds: (j.scientific_fields || []).map(String),
+                country: j.country || '',
+                website: j.website || '',
                 imageUrl: '',
             };
             setFormData(formDataWithCamelCase);
@@ -202,6 +213,15 @@ const JournalManagement: React.FC = () => {
         setFormData(prev => ({ ...prev, imageUrl: '' }));
     };
 
+    /** Qidiruvga mos (ko'rinib turgan) sohalarning barchasini belgilash yoki olib tashlash */
+    const toggleAllFields = (ids: string[], select: boolean) => {
+        setFormData((prev) => {
+            const cur = new Set(prev.scientificFieldIds || []);
+            ids.forEach((id) => (select ? cur.add(id) : cur.delete(id)));
+            return { ...prev, scientificFieldIds: [...cur] };
+        });
+    };
+
     const toggleField = (id: string) => {
         setFormData((prev) => {
             const cur = new Set(prev.scientificFieldIds || []);
@@ -210,6 +230,15 @@ const JournalManagement: React.FC = () => {
             return { ...prev, scientificFieldIds: [...cur] };
         });
     };
+
+    const visibleFields = fields.filter((f) => !fieldSearch.trim() || normCategory(f.name).includes(normCategory(fieldSearch)));
+    const allVisibleFieldsSelected =
+        visibleFields.length > 0 && visibleFields.every((f) => (formData.scientificFieldIds || []).includes(String(f.id)));
+    // Davlat — erkin matn; avval kiritilganlar va keng tarqalganlari taklif sifatida
+    const countryOptions = Array.from(new Set([
+        ...COMMON_COUNTRIES,
+        ...journals.map((j) => ((j as any).country || '').trim()).filter(Boolean),
+    ])).sort((a, b) => a.localeCompare(b));
 
     /**
      * Rukn (nashr turi) tanlovi: 8 ta standart nashr turi (bazada bo'lmasa — "new:<nom>", saqlashda yaratiladi)
@@ -360,6 +389,8 @@ const JournalManagement: React.FC = () => {
                 const updatedJournalData: any = {
                     name: formData.name,
                     issn: formData.issn || '',
+                    country: (formData.country || '').trim(),
+                    website: (formData.website || '').trim(),
                     description: formData.description || '',
                     journal_admin: formData.journalAdminId,
                     ...taxonomyPayload,
@@ -392,6 +423,8 @@ const JournalManagement: React.FC = () => {
                 const newJournalData: any = {
                     name: formData.name,
                     issn: formData.issn || '',
+                    country: (formData.country || '').trim(),
+                    website: (formData.website || '').trim(),
                     description: formData.description || '',
                     journal_admin: formData.journalAdminId,
                     ...taxonomyPayload,
@@ -685,9 +718,18 @@ const JournalManagement: React.FC = () => {
                                     placeholder={t('Sohani qidirish...')}
                                     className="w-full mb-2"
                                 />
+                                {visibleFields.length > 0 && (
+                                    <label className="flex items-center gap-2 text-sm font-semibold px-2 py-1.5 mb-1 rounded bg-slate-50 border border-slate-200 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={allVisibleFieldsSelected}
+                                            onChange={() => toggleAllFields(visibleFields.map((f) => String(f.id)), !allVisibleFieldsSelected)}
+                                        />
+                                        {fieldSearch.trim() ? t('Topilganlarning barchasini tanlash') : t('Barchasini tanlash')}
+                                    </label>
+                                )}
                                 <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
-                                    {fields
-                                        .filter((f) => !fieldSearch.trim() || normCategory(f.name).includes(normCategory(fieldSearch)))
+                                    {visibleFields
                                         .map((f) => (
                                             <label key={f.id} className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-slate-100 cursor-pointer">
                                                 <input
@@ -725,6 +767,17 @@ const JournalManagement: React.FC = () => {
                                 <div className="min-w-0">
                                     <label className="block text-sm font-medium text-slate-600 mb-2">ISSN <span className="font-normal text-slate-400">{t('(ixtiyoriy)')}</span></label>
                                     <input type="text" name="issn" value={formData.issn} onChange={handleInputChange} className="w-full min-w-0 box-border" placeholder="XXXX-XXXX"/>
+                                </div>
+                                <div className="min-w-0">
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{t('Davlat')}</label>
+                                    <input type="text" name="country" value={formData.country || ''} onChange={handleInputChange} list="journal-country-options" className="w-full min-w-0 box-border" placeholder="O'zbekiston" maxLength={100}/>
+                                    <datalist id="journal-country-options">
+                                        {countryOptions.map((c) => <option key={c} value={c} />)}
+                                    </datalist>
+                                </div>
+                                <div className="min-w-0">
+                                    <label className="block text-sm font-medium text-slate-600 mb-2">{t('Jurnal sayti')} <span className="font-normal text-slate-400">{t('(ixtiyoriy)')}</span></label>
+                                    <input type="text" inputMode="url" name="website" value={formData.website || ''} onChange={handleInputChange} className="w-full min-w-0 box-border" placeholder="https://jurnal.uz" maxLength={500}/>
                                 </div>
                                 <div className="min-w-0">
                                     <label className="block text-sm font-medium text-slate-600 mb-2">{t("To'lov Turi")}</label>

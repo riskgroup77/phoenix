@@ -3,7 +3,7 @@ Tranzaksiya summasini SERVER tomonida hisoblash.
 
 Mijoz yuborgan `amount` ga ishonilmaydi: aks holda nashr to'lovini 1 so'mga "to'lash" mumkin edi.
 Formulalar frontend bilan bir xil (utils/submitArticleUtils.ts, pages/SubmitBook.tsx) —
-ulardan birini o'zgartirsangiz, ikkinchisini ham yangilang.
+ulardan birini o'zgartirsangiz, ikkinchisini ham yangilang. Kitob narxlari jadvali esa bazada (book_price_table).
 """
 from __future__ import annotations
 
@@ -24,7 +24,9 @@ CLIENT_CREATABLE_SERVICE_TYPES = frozenset({
 TOP_UP_MIN = Decimal('1000')
 TOP_UP_MAX = Decimal('10000000')
 
-# --- Kitob nashri (frontend/pages/SubmitBook.tsx bilan bir xil) ---
+# --- Kitob nashri: narxlar bosh admin «Narxlar» sahifasida (ServicePrice, book_* kalitlari) ---
+# Quyidagilar — standart qiymatlar (bazada qator bo'lmasa). Frontend jadvalni /payments/book-prices/ dan oladi.
+BOOK_TIERS = ('1-10', '11-100', '101-300', '301-1000')
 BOOK_PRINTING_PER_PAGE = {
     '1-10': {'eco': 125, 'standart': 150},
     '11-100': {'eco': 100, 'standart': 125},
@@ -40,6 +42,46 @@ BOOK_COVER_PER_BOOK = {
 BOOK_BINDING_PER_BOOK = {'1-10': 300, '11-100': 300, '101-300': 250, '301-1000': 200}
 BOOK_ISBN_FEE = 600000
 BOOK_DESIGN_FEE = 75000
+
+_PAPER_LABEL = {'eco': 'Eco', 'standart': 'Standart'}
+_COVER_LABEL = {'soft': 'yumshoq', 'hard': 'qattiq'}
+
+
+def _tier_key(tier: str) -> str:
+    return tier.replace('-', '_')
+
+
+def book_price_defaults() -> list[tuple[str, str, int]]:
+    """(service_key, label, standart narx) — migratsiya va jadval uchun yagona ro'yxat."""
+    rows = []
+    for tier in BOOK_TIERS:
+        tk = _tier_key(tier)
+        for paper, amount in BOOK_PRINTING_PER_PAGE[tier].items():
+            rows.append((f'book_print_{paper}_{tk}', f"Kitob: chop etish, {_PAPER_LABEL[paper]} qog'oz, 1 bet ({tier} nusxa)", amount))
+        for cover, amount in BOOK_COVER_PER_BOOK[tier].items():
+            rows.append((f'book_cover_{cover}_{tk}', f'Kitob: {_COVER_LABEL[cover]} muqova, 1 dona ({tier} nusxa)', amount))
+        rows.append((f'book_binding_{tk}', f'Kitob: tikish, 1 dona ({tier} nusxa)', BOOK_BINDING_PER_BOOK[tier]))
+    rows.append(('book_isbn', 'Kitob: ISBN raqami olish', BOOK_ISBN_FEE))
+    rows.append(('book_design', 'Kitob: professional muqova dizayni', BOOK_DESIGN_FEE))
+    return rows
+
+
+def book_price_table() -> dict:
+    """Kalkulyator jadvali: bazadagi narxlar, yo'q bo'lsa standart qiymat."""
+    from apps.udc.models import ServicePrice
+
+    defaults = {key: amount for key, _label, amount in book_price_defaults()}
+    stored = dict(ServicePrice.objects.filter(service_key__in=defaults).values_list('service_key', 'amount'))
+    price = lambda key: int(stored.get(key, defaults[key]))  # noqa: E731
+    return {
+        'printing_per_page': {t: {p: price(f'book_print_{p}_{_tier_key(t)}') for p in ('eco', 'standart')} for t in BOOK_TIERS},
+        'cover_per_book': {t: {c: price(f'book_cover_{c}_{_tier_key(t)}') for c in ('soft', 'hard')} for t in BOOK_TIERS},
+        'binding_per_book': {t: price(f'book_binding_{_tier_key(t)}') for t in BOOK_TIERS},
+        'isbn_fee': price('book_isbn'),
+        'design_fee': price('book_design'),
+    }
+
+
 BOOK_MAX_PAGES = 5000
 BOOK_MAX_COPIES = 100000
 
@@ -107,12 +149,13 @@ def book_publication_amount(extra: dict) -> Decimal:
         raise serializers.ValidationError({'extra_data': 'Qog\'oz sifati yoki muqova turi noto\'g\'ri.'})
     options = extra.get('options') if isinstance(extra.get('options'), dict) else {}
     tier = _book_tier(copies)
+    table = book_price_table()
     total = (
-        pages * copies * BOOK_PRINTING_PER_PAGE[tier][paper]
-        + copies * BOOK_COVER_PER_BOOK[tier][cover]
-        + copies * BOOK_BINDING_PER_BOOK[tier]
-        + (BOOK_ISBN_FEE if options.get('isbn') is True else 0)
-        + (BOOK_DESIGN_FEE if options.get('design') is True else 0)
+        pages * copies * table['printing_per_page'][tier][paper]
+        + copies * table['cover_per_book'][tier][cover]
+        + copies * table['binding_per_book'][tier]
+        + (table['isbn_fee'] if options.get('isbn') is True else 0)
+        + (table['design_fee'] if options.get('design') is True else 0)
     )
     return _money(total)
 
