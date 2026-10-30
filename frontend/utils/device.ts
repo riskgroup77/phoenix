@@ -8,3 +8,12 @@ export function shouldAutoOpenClickPayment(): boolean {
     navigator.userAgent
   );
 }
+
+/**
+ * Brauzer PDF'ni <iframe> ichida ko'rsata oladimi. Android Chrome umuman ko'rsatmaydi (bo'sh oyna),
+ * iOS Safari faqat birinchi sahifani — telefonda PDF yangi oynada ochiladi.
+ */
+export function canPreviewPdfInline(): boolean {
+  if (typeof navigator === 'undefined') return true;
+  return !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}

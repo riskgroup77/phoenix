@@ -290,7 +290,7 @@ const AuthorPublications: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
+    <div className="container mx-auto sm:p-6 max-w-6xl">
       <EditorialPageHeader
         title={t('Muallif Nashrlari')}
         subtitle={t("Platformada yuborilgan maqolalar, maqola yozish buyurtmalari va boshqa ilmiy nashrlar shu yerda. Sertifikatlar va UDK hujjatlari «Arxiv hujjatlar» bo'limida.")}
@@ -329,7 +329,7 @@ const AuthorPublications: React.FC = () => {
 
       {/* Filters */}
       <Card className="mb-6">
-        <div className="p-4">
+        <div className="sm:p-4">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label htmlFor="search" className="block text-sm font-medium mb-2">{t('Qidiruv')}</label>
@@ -443,7 +443,7 @@ const AuthorPublications: React.FC = () => {
                     className="hover:shadow-lg transition-shadow cursor-pointer"
                     onClick={() => navigate(`/articles/${article.id}`)}
                   >
-                    <div className="p-4">
+                    <div className="sm:p-4">
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-800">
                           {statusLabel}
@@ -542,7 +542,7 @@ const AuthorPublications: React.FC = () => {
         {filteredPublications.map(publication => (
           <Card 
             key={publication.id} 
-            className="hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer transform hover:scale-105"
+            className="hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer transform sm:hover:scale-105"
             onClick={() => navigate(`/author-publications/${publication.id}`)}
           >
             {/* Journal/Conference Header with Image */}
@@ -595,7 +595,7 @@ const AuthorPublications: React.FC = () => {
               </div>
             )}
             
-            <div className="p-4">
+            <div className="sm:p-4">
               {/* Publication Type Badges */}
               <div className="flex gap-2 flex-wrap mb-3">
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(publication.publication_type)}`}>
@@ -664,7 +664,7 @@ const AuthorPublications: React.FC = () => {
 
       {/* Add/Edit Form Modal */}
       {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h2 className="text-xl font-bold mb-4">
@@ -823,7 +823,7 @@ const AuthorPublications: React.FC = () => {
 
       {/* QR Scanner Modal */}
       {showQRScanner && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <div className="p-6">
               <h2 className="text-xl font-bold mb-4">{t('QR Code Scanner')}</h2>

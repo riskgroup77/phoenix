@@ -791,29 +791,29 @@ const Profile: React.FC = () => {
 
             {activeTab === 'profile' && profile.gamification_profile && (
                 <Card title={t('Gamifikatsiya')}>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="text-center p-6 bg-slate-100/70 rounded-lg">
-                            <div className="inline-flex items-center justify-center p-3 rounded-full bg-blue-500/20 mb-4">
-                                <Award className="h-8 w-8 text-blue-800" />
+                    <div className="grid grid-cols-3 gap-2 sm:gap-6">
+                        <div className="text-center p-3 sm:p-6 bg-slate-100/70 rounded-lg min-w-0">
+                            <div className="inline-flex items-center justify-center p-2 sm:p-3 rounded-full bg-blue-500/20 mb-2 sm:mb-4">
+                                <Award className="h-6 w-6 sm:h-8 sm:w-8 text-blue-800" />
                             </div>
-                            <h3 className="text-lg font-semibold text-slate-900">{profile.gamification_profile.level}</h3>
-                            <p className="text-slate-500">{t('Daraja')}</p>
+                            <h3 className="text-sm sm:text-lg font-semibold text-slate-900 break-words">{profile.gamification_profile.level}</h3>
+                            <p className="text-xs sm:text-base text-slate-500">{t('Daraja')}</p>
                         </div>
                         
-                        <div className="text-center p-6 bg-slate-100/70 rounded-lg">
-                            <div className="inline-flex items-center justify-center p-3 rounded-full bg-yellow-500/20 mb-4">
-                                <Award className="h-8 w-8 text-yellow-800" />
+                        <div className="text-center p-3 sm:p-6 bg-slate-100/70 rounded-lg min-w-0">
+                            <div className="inline-flex items-center justify-center p-2 sm:p-3 rounded-full bg-yellow-500/20 mb-2 sm:mb-4">
+                                <Award className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-800" />
                             </div>
-                            <h3 className="text-lg font-semibold text-slate-900">{profile.gamification_profile.points}</h3>
-                            <p className="text-slate-500">{t('Ballar')}</p>
+                            <h3 className="text-base sm:text-lg font-semibold text-slate-900">{profile.gamification_profile.points}</h3>
+                            <p className="text-xs sm:text-base text-slate-500">{t('Ballar')}</p>
                         </div>
                         
-                        <div className="text-center p-6 bg-slate-100/70 rounded-lg">
-                            <div className="inline-flex items-center justify-center p-3 rounded-full bg-purple-500/20 mb-4">
-                                <Award className="h-8 w-8 text-purple-400" />
+                        <div className="text-center p-3 sm:p-6 bg-slate-100/70 rounded-lg min-w-0">
+                            <div className="inline-flex items-center justify-center p-2 sm:p-3 rounded-full bg-purple-500/20 mb-2 sm:mb-4">
+                                <Award className="h-6 w-6 sm:h-8 sm:w-8 text-purple-400" />
                             </div>
-                            <h3 className="text-lg font-semibold text-slate-900">{profile.gamification_profile.badges.length}</h3>
-                            <p className="text-slate-500">{t('Mukofotlar')}</p>
+                            <h3 className="text-base sm:text-lg font-semibold text-slate-900">{profile.gamification_profile.badges.length}</h3>
+                            <p className="text-xs sm:text-base text-slate-500">{t('Mukofotlar')}</p>
                         </div>
                     </div>
                     

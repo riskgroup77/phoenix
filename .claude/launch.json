@@ -4,7 +4,7 @@
     {
       "name": "backend-local",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd backend && USE_SQLITE=True DEBUG=True JWT_USE_HTTPONLY_COOKIES=False CORS_ALLOW_ALL_ORIGINS=True ALLOWED_HOSTS=127.0.0.1,localhost venv/bin/python manage.py migrate --noinput && USE_SQLITE=True DEBUG=True JWT_USE_HTTPONLY_COOKIES=False CORS_ALLOW_ALL_ORIGINS=True ALLOWED_HOSTS=127.0.0.1,localhost venv/bin/python manage.py runserver 127.0.0.1:8050"],
+      "runtimeArgs": ["-c", "cd backend && REDIS_URL= USE_SQLITE=True DEBUG=True JWT_USE_HTTPONLY_COOKIES=False CORS_ALLOW_ALL_ORIGINS=True ALLOWED_HOSTS=127.0.0.1,localhost venv/bin/python manage.py migrate --noinput && REDIS_URL= USE_SQLITE=True DEBUG=True JWT_USE_HTTPONLY_COOKIES=False CORS_ALLOW_ALL_ORIGINS=True ALLOWED_HOSTS=127.0.0.1,localhost venv/bin/python manage.py runserver 127.0.0.1:8050"],
       "port": 8050
     },
     {

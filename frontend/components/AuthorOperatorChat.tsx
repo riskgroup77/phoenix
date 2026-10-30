@@ -42,7 +42,7 @@ const AuthorOperatorChat: React.FC<AuthorOperatorChatProps> = ({
   const [text, setText] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(
     async (opts?: { silent?: boolean }) => {
@@ -74,8 +74,14 @@ const AuthorOperatorChat: React.FC<AuthorOperatorChatProps> = ({
     return () => window.clearInterval(id);
   }, [load]);
 
+  // Faqat xabarlar ro'yxatining o'zini pastga suramiz. scrollIntoView butun sahifani (telefonda — maqola sahifasini)
+  // chat tomon sakratib yuborardi, so'rov (poll) har safar takrorlanardi.
+  const lastCountRef = useRef(0);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length === lastCountRef.current) return;
+    lastCountRef.current = messages.length;
+    const el = listRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
   const send = async () => {
@@ -106,6 +112,7 @@ const AuthorOperatorChat: React.FC<AuthorOperatorChatProps> = ({
 
   const messagesBlock = (
     <div
+      ref={listRef}
       className={
         isDock
           ? 'flex-1 min-h-0 overflow-y-auto space-y-2.5 px-2 py-2 pr-1'
@@ -142,7 +149,6 @@ const AuthorOperatorChat: React.FC<AuthorOperatorChatProps> = ({
           );
         })
       )}
-      <div ref={bottomRef} />
     </div>
   );
 

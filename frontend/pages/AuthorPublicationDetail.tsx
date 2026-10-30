@@ -103,7 +103,7 @@ const AuthorPublicationDetail: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto sm:p-6">
       {/* Back Button */}
       <div className="mb-6">
         <Button variant="secondary" onClick={() => navigate('/author-publications')}>
@@ -117,11 +117,11 @@ const AuthorPublicationDetail: React.FC = () => {
         {/* Main Content */}
         <div className="lg:col-span-2">
           <Card className="mb-6">
-            <div className="p-6">
+            <div className="sm:p-6">
               {/* Title and Actions */}
-              <div className="flex justify-between items-start mb-4">
-                <h1 className="text-2xl font-bold text-gray-900">{publication.title}</h1>
-                <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words min-w-0">{publication.title}</h1>
+                <div className="grid grid-cols-2 max-[359px]:grid-cols-1 gap-2 [&>*:last-child:nth-child(odd)]:col-[1/-1] [&>button]:!px-3 sm:flex sm:shrink-0">
                   {publication.file_url && (
                     <Button variant="secondary" onClick={() => window.open(publication.file_url)}>
                       <Download className="w-4 h-4 mr-2" />
@@ -228,7 +228,7 @@ const AuthorPublicationDetail: React.FC = () => {
         <div className="space-y-6">
           {/* Publication Info */}
           <Card>
-            <div className="p-6">
+            <div className="sm:p-6">
               <h3 className="text-lg font-semibold mb-4">{t("Nashr ma'lumotlari")}</h3>
               <div className="space-y-3">
                 <div>
@@ -268,7 +268,7 @@ const AuthorPublicationDetail: React.FC = () => {
           {/* File Download */}
           {publication.file_url && (
             <Card>
-              <div className="p-6">
+              <div className="sm:p-6">
                 <h3 className="text-lg font-semibold mb-4">{t('Fayl')}</h3>
                 <Button 
                   variant="primary" 
@@ -286,9 +286,9 @@ const AuthorPublicationDetail: React.FC = () => {
 
       {/* Edit Form Modal */}
       {showEditForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
+            <div className="sm:p-6">
               <h2 className="text-xl font-bold mb-4">{t('Nashrni tahrirlash')}</h2>
               <p className="text-gray-600 mb-4">{t('Bu funksiya hozircha rivojlanmoqda...')}</p>
               <div className="flex gap-2 justify-end">

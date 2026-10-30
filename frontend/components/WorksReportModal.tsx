@@ -6,6 +6,7 @@ import ModalPortal from './ui/ModalPortal';
 import { apiService, saveBlob } from '../services/apiService';
 import { useAuth } from '../contexts/AuthContext';
 import { useT } from '../i18n/LanguageContext';
+import { canPreviewPdfInline } from '../utils/device';
 
 const POSITION_KEY = 'phx.worksReport.position';
 const WORKPLACE_KEY = 'phx.worksReport.workplace';
@@ -35,6 +36,7 @@ interface Props {
 /** "Barcha ilmiy ishlar bo'yicha ma'lumotnoma" (Phoenix shabloni) — backendda PDF/DOCX yaratiladi */
 const WorksReportModal: React.FC<Props> = ({ articleId, articleTitle, onClose }) => {
   const { t } = useT();
+  const inlinePdf = canPreviewPdfInline();
   const { user } = useAuth();
   const [workplace, setWorkplace] = useState(() => readLocal(WORKPLACE_KEY) || user?.affiliation || '');
   const [position, setPosition] = useState(() => readLocal(POSITION_KEY));
@@ -132,15 +134,23 @@ const WorksReportModal: React.FC<Props> = ({ articleId, articleTitle, onClose })
         <div className="flex-1 min-h-0 bg-slate-100">
           {loading && !previewUrl ? (
             <div className="h-full flex items-center justify-center text-slate-500 text-sm">{t('Tayyorlanmoqda...')}</div>
-          ) : previewUrl ? (
+          ) : previewUrl && inlinePdf ? (
             <iframe title="malumotnoma" src={previewUrl} className="w-full h-full border-0" />
+          ) : previewUrl ? (
+            <div className="h-full min-h-[10rem] flex flex-col items-center justify-center gap-3 p-6 text-center">
+              <FileText className="h-10 w-10 text-slate-400" aria-hidden />
+              <p className="text-sm text-slate-500 max-w-xs">{t("Telefonda PDF shu oynada ko'rinmaydi — ko'rish uchun «Ochish» tugmasini bosing.")}</p>
+              <a href={previewUrl} target="_blank" rel="noreferrer" className="editorial-btn editorial-btn-primary px-5 py-2.5 font-semibold inline-flex items-center">
+                <ExternalLink className="mr-2 h-4 w-4" /> {t('Ochish')}
+              </a>
+            </div>
           ) : (
             <div className="h-full flex items-center justify-center text-slate-500 text-sm">{t("Ko'rib chiqish mavjud emas")}</div>
           )}
         </div>
 
-        <div className="p-4 border-t border-slate-200/90 flex flex-wrap justify-end gap-2">
-          {previewUrl && (
+        <div className="p-4 border-t border-slate-200/90 grid grid-cols-2 gap-2 [&>*:last-child:nth-child(odd)]:col-[1/-1] [&>*]:justify-center [&>*]:whitespace-nowrap [&>*]:!px-2 [&>*]:!text-[13px] sm:[&>*]:!px-4 sm:[&>*]:!text-sm sm:flex sm:flex-wrap sm:justify-end">
+          {previewUrl && inlinePdf && (
             <a href={previewUrl} target="_blank" rel="noreferrer" className="editorial-btn editorial-btn-secondary px-4 py-2.5 font-semibold inline-flex items-center">
               <ExternalLink className="mr-2 h-4 w-4" /> {t('Ochish')}
             </a>

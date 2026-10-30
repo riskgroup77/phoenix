@@ -73,7 +73,7 @@ const ServiceDocItem: React.FC<{ doc: ServiceDoc }> = ({ doc }) => {
 
   const tone = statusColor(doc);
   const StatusIcon = tone.includes('red') ? XCircle : tone.includes('green') ? CheckCircle2 : tone.includes('gray') ? CreditCard : Hourglass;
-  const actionBtn = 'gap-1.5 !px-3 !py-1.5 text-sm';
+  const actionBtn = 'justify-center gap-1.5 whitespace-nowrap !px-2 !py-2 sm:!px-3 sm:!py-1.5 !text-[13px] sm:!text-sm [&_svg]:shrink-0';
   const desc = (doc.extra as { udk_description?: string } | undefined)?.udk_description;
 
   return (
@@ -103,7 +103,7 @@ const ServiceDocItem: React.FC<{ doc: ServiceDoc }> = ({ doc }) => {
             </p>
           )}
         </div>
-        <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end" onClick={(e) => e.stopPropagation()}>
+        <div className="grid grid-cols-2 max-[359px]:grid-cols-1 gap-2 [&>*:last-child:nth-child(odd)]:col-[1/-1] [&>*]:justify-center sm:flex sm:flex-wrap sm:shrink-0 sm:justify-end" onClick={(e) => e.stopPropagation()}>
           {doc.view_url && (
             <Button type="button" variant="secondary" onClick={open} className={actionBtn}>
               <Eye className="h-4 w-4" aria-hidden /> {t("Ko'rish")}

@@ -230,7 +230,7 @@ const ArxivHujjatlar: React.FC = () => {
                                                 {typeLabel}
                                             </td>
                                             <td className="py-3 text-slate-900 max-w-[280px]">
-                                                <p className="truncate font-medium" title={it.title}>{it.title}</p>
+                                                <p className="sm:truncate break-words font-medium" title={it.title}>{it.title}</p>
                                                 {statusLabel && (
                                                     <p className="text-xs text-slate-500 mt-0.5">{statusLabel}</p>
                                                 )}
@@ -268,7 +268,7 @@ const ArxivHujjatlar: React.FC = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => handleView(it)}
-                                                        className="inline-flex items-center gap-1 text-sm text-blue-800 hover:text-blue-700 font-medium"
+                                                        className="inline-flex items-center gap-1 py-2 sm:py-0 text-sm text-blue-800 hover:text-blue-700 font-medium"
                                                     >
                                                         <ExternalLink className="h-4 w-4" /> {t("Ko'rish")}
                                                     </button>
@@ -276,7 +276,7 @@ const ArxivHujjatlar: React.FC = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => handleArchiveDownload(it)}
-                                                        className="inline-flex items-center gap-1 text-sm text-blue-800 hover:text-blue-700"
+                                                        className="inline-flex items-center gap-1 py-2 sm:py-0 text-sm text-blue-800 hover:text-blue-700"
                                                     >
                                                         <Download className="h-4 w-4" /> {t('Yuklab olish')}
                                                     </button>
@@ -284,7 +284,7 @@ const ArxivHujjatlar: React.FC = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => handleView(it)}
-                                                        className="inline-flex items-center gap-1 text-sm text-blue-800 hover:text-blue-700"
+                                                        className="inline-flex items-center gap-1 py-2 sm:py-0 text-sm text-blue-800 hover:text-blue-700"
                                                     >
                                                         <ExternalLink className="h-4 w-4" /> {t("Ko'rish")}
                                                     </button>

@@ -840,7 +840,7 @@ const PlagiarismCheck: React.FC = () => {
 
   return (
       <>
-      <div className="no-print mx-auto max-w-4xl px-4 py-6">
+      <div className="no-print mx-auto max-w-4xl sm:px-4 sm:py-6">
           {(isChecking || pendingPlagiarismPayment) ? (
             <CheckStatusCard
               stage={pendingPlagiarismPayment && !isChecking ? 'payment' : 'checking'}

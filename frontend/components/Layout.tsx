@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
@@ -22,9 +22,16 @@ const Layout: React.FC = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const location = useLocation();
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     setMobileNavOpen(false);
   }, [location.pathname, location.search]);
+
+  // Kontent alohida konteynerda aylanadi — yangi sahifa avvalgisining scroll joyidan (o'rtasidan) ochilmasin
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [location.pathname]);
 
   return (
     <MainRightInsetContext.Provider value={setMainRightInset}>
@@ -54,7 +61,7 @@ const Layout: React.FC = () => {
           </div>
         )}
 
-        <div className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto flex flex-col">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto flex flex-col">
           <InstallAppBanner />
           <main
             className="pinm-main phoenix-main editorial-main flex-1 w-full max-w-[1264px] mx-auto px-4 py-6 sm:px-8 sm:py-8 pb-28 lg:pb-10 transition-[padding] duration-200"

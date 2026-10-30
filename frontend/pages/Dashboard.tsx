@@ -300,7 +300,7 @@ const Dashboard: React.FC = () => {
                             <h1 className="m-0 text-3xl sm:text-4xl leading-tight">{t('Assalomu alaykum, {name}!', { name: user.firstName })}</h1>
                             <p className="milliy-hero-sub m-0 text-base leading-relaxed">{heroSubtitle}</p>
                         </div>
-                        <div className="flex flex-wrap gap-3">
+                        <div className="grid grid-cols-1 w-full gap-2.5 sm:flex sm:flex-wrap sm:w-auto sm:gap-3">
                             <button
                                 type="button"
                                 onClick={() => {
@@ -318,7 +318,7 @@ const Dashboard: React.FC = () => {
                             >
                                 <Shield className="w-4 h-4" aria-hidden /> {t('Antiplagiat tekshiruvi')}
                             </button>
-                            <button type="button" onClick={() => navigate('/submit')} className="milliy-btn-on-band">
+                            <button type="button" onClick={() => navigate('/submit')} className="milliy-btn-on-band order-first sm:order-none">
                                 <Upload className="w-4 h-4" aria-hidden /> {t('Maqola yuborish')}
                             </button>
                         </div>

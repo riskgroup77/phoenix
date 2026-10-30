@@ -202,7 +202,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           </div>
           <ThemeToggle variant="band" />
 
-          <div className="relative" ref={notifRef}>
+          {/* Telefonda oyna qo'ng'iroqchaga emas, butun panel kengligiga bog'lanadi — aks holda chapdan kesilib qolardi */}
+          <div className="sm:relative" ref={notifRef}>
             <button
               type="button"
               onClick={() => setIsNotifOpen((p) => !p)}
@@ -214,7 +215,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               {unreadCount > 0 && <span className="milliy-band-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
             </button>
             {isNotifOpen && (
-              <div className="editorial-dropdown absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] max-h-96 overflow-y-auto z-50">
+              <div className="editorial-dropdown absolute left-2 right-2 sm:left-auto sm:right-0 mt-2 sm:w-80 max-w-[calc(100vw-1rem)] max-h-[70vh] sm:max-h-96 overflow-y-auto z-50">
                 <div className="p-3 border-b border-[var(--editorial-border)] flex justify-between items-center">
                   <h4 className="font-bold text-[var(--editorial-text)] text-sm">{t('Bildirishnomalar')}</h4>
                   {notifications.length > 0 && (

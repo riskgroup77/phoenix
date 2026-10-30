@@ -554,7 +554,7 @@ const SubmitArticle: React.FC = () => {
   };
 
   return (
-    <div className={`mx-auto p-6 ${currentStep === 1 ? 'max-w-6xl' : 'max-w-4xl'}`}>
+    <div className={`mx-auto sm:p-6 ${currentStep === 1 ? 'max-w-6xl' : 'max-w-4xl'}`}>
       <EditorialPageHeader
         title={t('Maqola yuborish')}
         subtitle={t('Maqolangizni nashr qilish uchun yuboring')}
@@ -597,7 +597,7 @@ const SubmitArticle: React.FC = () => {
           const isActive = currentStep === step.id;
           const isCompleted = currentStep > step.id;
           return (
-            <li key={step.id} className="flex-1 min-w-[7.5rem]">
+            <li key={step.id} className="flex-1 min-w-0 sm:min-w-[7.5rem]">
               <button
                 type="button"
                 onClick={() => isCompleted && setCurrentStep(step.id)}
@@ -614,7 +614,7 @@ const SubmitArticle: React.FC = () => {
       </ol>
 
       {/* Step Content */}
-      <Card className="p-6">
+      <Card className="p-4 sm:p-6">
         {currentStep === 1 && (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold text-slate-900 mb-2">{t('Jurnal tanlang')}</h2>
@@ -697,7 +697,7 @@ const SubmitArticle: React.FC = () => {
             />
             <p className="text-sm text-slate-500 mb-4">{t("Jurnallar: {total} | Ko'rsatilmoqda: {shown}", { total: journals.length, shown: filteredJournals.length })}</p>
             {errors.journalId && <p className="text-red-500 text-sm mb-2">{errors.journalId}</p>}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8 justify-items-center">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-8 sm:justify-items-center">
               {filteredJournals.map((j) => (
                 <JournalA4Card
                   key={j.id}
@@ -889,8 +889,8 @@ const SubmitArticle: React.FC = () => {
             <h2 className="text-xl font-semibold text-slate-900 mb-4">{t('Hammualliflar')}</h2>
 
             {formData.coAuthors.map((coAuthor, index) => (
-              <div key={index} className="flex gap-4 items-end">
-                <div className="flex-1">
+              <div key={index} className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-end p-3 sm:p-0 rounded-lg border border-slate-200 sm:border-0">
+                <div className="flex-1 min-w-0">
                   <label className="block text-sm font-medium text-slate-600 mb-2">
                     {t('Hammuallif ismi')}
                   </label>
@@ -902,7 +902,7 @@ const SubmitArticle: React.FC = () => {
                     placeholder={t('Ism familiyani kiriting')}
                   />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <label className="block text-sm font-medium text-slate-600 mb-2">
                     {t('ID / email / telefon *')}
                   </label>
@@ -920,9 +920,11 @@ const SubmitArticle: React.FC = () => {
                 <Button
                   onClick={() => removeCoAuthor(index)}
                   variant="secondary"
-                  className="mb-0"
+                  className="mb-0 gap-2"
+                  aria-label={t("O'chirish")}
                 >
                   <XCircle className="w-4 h-4" />
+                  <span className="sm:hidden">{t("O'chirish")}</span>
                 </Button>
               </div>
             ))}

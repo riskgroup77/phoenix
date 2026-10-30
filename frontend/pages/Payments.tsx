@@ -124,8 +124,8 @@ const Payments: React.FC = () => {
         subtitle={t("Barcha to'lovlaringiz bir joyda. Yakunlangan har bir to'lov uchun PDF chekni yuklab olishingiz mumkin.")}
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="milliy-stat">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="milliy-stat col-span-2 sm:col-span-1">
           <span className="milliy-icon-tile"><Wallet className="w-5 h-5" aria-hidden /></span>
           <span className="flex flex-col min-w-0">
             {loading ? <Skeleton className="h-7 w-28" rounded="sm" /> : (
@@ -163,8 +163,8 @@ const Payments: React.FC = () => {
               return (
                 <li key={row.service_type} className="flex flex-col gap-1.5">
                   <span className="flex justify-between gap-3 text-sm">
-                    <span className="font-semibold">{t(row.label)}</span>
-                    <span className="tabular-nums text-[var(--editorial-muted)]">
+                    <span className="font-semibold min-w-0">{t(row.label)}</span>
+                    <span className="tabular-nums text-[var(--editorial-muted)] whitespace-nowrap">
                       {money(row.total)} {t("so'm")} · {row.count}
                     </span>
                   </span>
@@ -223,7 +223,7 @@ const Payments: React.FC = () => {
             const amount = Math.abs(txAmount(tx.amount));
             return (
               <li key={tx.id} className="editorial-card flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 !py-4">
-                <span className="milliy-icon-tile shrink-0 hidden sm:flex"><Receipt className="w-5 h-5" aria-hidden /></span>
+                <span className="milliy-icon-tile shrink-0 !hidden sm:!flex"><Receipt className="w-5 h-5" aria-hidden /></span>
                 <div className="min-w-0 flex-1">
                   <p className="m-0 font-bold text-[var(--editorial-text)]">{t(tx.service_label || tx.service_type)}</p>
                   {tx.article_title && (
@@ -243,7 +243,7 @@ const Payments: React.FC = () => {
                   )}
                 </div>
                 <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                  <span className="text-right">
+                  <span className="text-left sm:text-right">
                     <span className="block text-lg font-extrabold tabular-nums">{money(amount)} {t("so'm")}</span>
                     <span className={`${badge.cls} inline-flex items-center gap-1`}>
                       <BadgeIcon className="w-3.5 h-3.5" aria-hidden /> {t(badge.label)}
@@ -269,7 +269,7 @@ const Payments: React.FC = () => {
                       aria-label={t('Chekni yuklab olish')}
                     >
                       <Download className="w-4 h-4" aria-hidden />
-                      <span className="hidden md:inline">{downloading === tx.id ? t('Yuklanmoqda...') : t('Chek (PDF)')}</span>
+                      <span>{downloading === tx.id ? t('Yuklanmoqda...') : t('Chek (PDF)')}</span>
                     </button>
                   )}
                 </div>

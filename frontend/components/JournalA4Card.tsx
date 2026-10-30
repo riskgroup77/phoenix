@@ -74,13 +74,13 @@ const JournalA4Card: React.FC<Props> = ({
     <button
       type="button"
       onClick={onSelect}
-      className={`group w-full text-left rounded-2xl transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
+      className={`group w-full text-left rounded-2xl transition-all duration-300 flex gap-3 sm:block focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
         selected
           ? 'ring-2 ring-[var(--editorial-primary)] shadow-lg'
           : 'hover:shadow-md hover:-translate-y-0.5'
       }`}
     >
-      <div className="journal-a4-cover mx-auto w-full max-w-[280px]">
+      <div className="journal-a4-cover w-20 shrink-0 self-start sm:mx-auto sm:w-full sm:max-w-[280px]">
         {imgSrc && !imageError ? (
           <img
             src={imgSrc}
@@ -90,12 +90,12 @@ const JournalA4Card: React.FC<Props> = ({
           />
         ) : (
           <div className="journal-a4-image-fallback">
-            <BookOpen className="w-10 h-10 text-slate-400" strokeWidth={1.2} />
+            <BookOpen className="w-7 h-7 sm:w-10 sm:h-10 text-slate-400" strokeWidth={1.2} />
           </div>
         )}
       </div>
 
-      <div className="journal-a4-meta mt-4 px-1 pb-1">
+      <div className="journal-a4-meta min-w-0 flex-1 sm:mt-4 px-1 pb-1">
         <div className="flex items-start justify-between gap-2">
           <h4 className="font-serif font-semibold text-[var(--editorial-text)] text-sm leading-snug line-clamp-2 group-hover:text-[var(--editorial-primary)] transition-colors">
             {journal.name}
@@ -105,7 +105,7 @@ const JournalA4Card: React.FC<Props> = ({
           )}
         </div>
         {journal.description && (
-          <p className="text-xs text-slate-500 mt-1.5 line-clamp-3 leading-relaxed">
+          <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 sm:line-clamp-3 leading-relaxed">
             {journal.description}
           </p>
         )}
@@ -126,10 +126,10 @@ const JournalA4Card: React.FC<Props> = ({
         </div>
         <div className="mt-3 pt-3 border-t border-slate-200/80 flex items-end justify-between gap-2">
           <div>
-            <p className="text-base font-bold text-[var(--editorial-primary)]">{price.main}</p>
+            <p className="text-base font-bold text-[var(--editorial-primary)] whitespace-nowrap">{price.main}</p>
             <p className="text-xs text-slate-500">{price.sub}</p>
           </div>
-          <span className="text-xs font-medium text-[var(--editorial-teal)] opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="text-xs font-medium whitespace-nowrap text-[var(--editorial-teal)] sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
             {t('Tanlash →')}
           </span>
         </div>

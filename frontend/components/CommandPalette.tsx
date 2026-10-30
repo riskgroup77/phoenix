@@ -203,7 +203,7 @@ const CommandPalette: React.FC = () => {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onInputKey}
             placeholder={t("Maqola, jurnal yoki bo'lim nomini yozing...")}
-            className="flex-1 min-w-0 h-14 bg-transparent outline-none text-base text-[var(--editorial-text)] placeholder:text-[var(--editorial-muted)]"
+            className="input-bare flex-1 min-w-0 h-14 bg-transparent outline-none text-base text-[var(--editorial-text)] placeholder:text-[var(--editorial-muted)]"
             aria-autocomplete="list"
             aria-controls="phx-palette-list"
           />

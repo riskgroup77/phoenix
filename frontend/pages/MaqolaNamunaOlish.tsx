@@ -176,7 +176,7 @@ const MaqolaNamunaOlish: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto sm:p-6">
         <p className="text-slate-900 dark:text-slate-100">{t('Narxlar yuklanmoqda…')}</p>
       </div>
     );
@@ -190,7 +190,7 @@ const MaqolaNamunaOlish: React.FC = () => {
     ));
 
   return (
-    <div className="w-full min-h-screen px-4 sm:px-6 lg:px-8 py-6">
+    <div className="w-full sm:px-6 lg:px-8 sm:py-6">
       <div className="max-w-[1600px] mx-auto">
         <EditorialPageHeader
           title={t('Maqola namuna olish')}

@@ -145,7 +145,7 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
             : article.journal_name || '',
         !isAuthor ? article.author_name || '' : '',
     ].filter(Boolean);
-    const actionBtn = 'gap-1.5 !px-3 !py-1.5 text-sm';
+    const actionBtn = 'justify-center gap-1.5 whitespace-nowrap !px-2 !py-2 sm:!px-3 sm:!py-1.5 !text-[13px] sm:!text-sm [&_svg]:shrink-0';
 
     return (
         <div
@@ -205,7 +205,7 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                         <Clock className="h-3 w-3" aria-hidden /> {dateLabel}
                     </p>
                 </div>
-                <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end" onClick={(e) => e.stopPropagation()}>
+                <div className="grid grid-cols-2 max-[359px]:grid-cols-1 gap-2 [&>*:last-child:nth-child(odd)]:col-[1/-1] sm:flex sm:flex-wrap sm:shrink-0 sm:justify-end" onClick={(e) => e.stopPropagation()}>
                     <Button type="button" variant="secondary" onClick={() => navigate(openTarget)} className={actionBtn}>
                         <Eye className="h-4 w-4" aria-hidden /> {t("Ko'rish")}
                     </Button>
@@ -270,7 +270,7 @@ const ArticleItem: React.FC<{ article: ArticleApiResponse, isAdmin?: boolean, is
                             <div key={step.name} className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                                 <span
                                     title={t(step.name)}
-                                    className={`text-[10px] sm:text-xs px-1.5 py-0.5 rounded-md truncate max-w-[72px] sm:max-w-none ${
+                                    className={`text-[11px] sm:text-xs px-1.5 py-0.5 rounded-md whitespace-nowrap ${
                                         step.done
                                             ? 'bg-emerald-500/20 text-emerald-900'
                                             : step.current

@@ -66,7 +66,7 @@ const AiSidebar: React.FC<Props> = ({ conversations, activeId, onSelect, onNew, 
                     type="button"
                     onClick={() => onDelete(c.id)}
                     aria-label={t("Suhbatni o'chirish")}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-2 text-[#93a6d4] opacity-0 hover:text-white focus:opacity-100 group-hover:opacity-100"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-2 text-[#93a6d4] hover:text-white [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:focus:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden />
                   </button>

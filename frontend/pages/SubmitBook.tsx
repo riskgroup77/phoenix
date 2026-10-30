@@ -52,10 +52,10 @@ const SliderInput: React.FC<{ label: string, value: number, onChange: (value: nu
             </label>
             <span className="text-sm font-medium text-blue-900 bg-blue-900/30 px-2 py-1 rounded">{value}</span>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-2 sm:gap-3">
             <button 
                 onClick={() => onChange(Math.max(min, value - step))} 
-                className="p-2 rounded-lg bg-slate-100/70 hover:bg-white/10 transition-colors"
+                className="p-2 shrink-0 rounded-lg bg-slate-100/70 hover:bg-white/10 transition-colors"
                 type="button"
             >
                 <Minus className="w-4 h-4 text-slate-500" />
@@ -67,11 +67,11 @@ const SliderInput: React.FC<{ label: string, value: number, onChange: (value: nu
                 step={step}
                 value={value}
                 onChange={(e) => onChange(parseInt(e.target.value, 10) || min)}
-                className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500"
+                className="w-full min-w-0 flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500"
             />
             <button 
                 onClick={() => onChange(Math.min(max, value + step))} 
-                className="p-2 rounded-lg bg-slate-100/70 hover:bg-white/10 transition-colors"
+                className="p-2 shrink-0 rounded-lg bg-slate-100/70 hover:bg-white/10 transition-colors"
                 type="button"
             >
                 <Plus className="w-4 h-4 text-slate-500" />
@@ -82,7 +82,7 @@ const SliderInput: React.FC<{ label: string, value: number, onChange: (value: nu
                 max={max}
                 value={value}
                 onChange={(e) => onChange(parseInt(e.target.value, 10) || min)}
-                className="w-24 text-center !py-2"
+                className="w-20 sm:w-24 shrink-0 text-center !px-2 !py-2"
             />
         </div>
     </div>
@@ -656,6 +656,7 @@ const SubmitBook: React.FC = () => {
 
                     <div className="mt-10 pt-6 border-t border-slate-200/90 flex justify-end">
                         <Button
+                            className="w-full sm:w-auto"
                             type="submit"
                             disabled={
                                 !title || !manuscriptFile || pages <= 0 || copies <= 0 ||

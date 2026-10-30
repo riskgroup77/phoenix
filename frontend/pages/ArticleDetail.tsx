@@ -25,6 +25,7 @@ import { buildAntiplagiatViewFromArticle } from '../utils/antiplagiatFromArticle
 import { useT } from '../i18n/LanguageContext';
 import { REASON_MIN_LENGTH } from '../utils/statusReason';
 import { formatUzDate, formatUzDateTime } from '../utils/uzDate';
+import { canPreviewPdfInline } from '../utils/device';
 
 // Type for the API response which has different field names
 interface ArticleApiResponse {
@@ -204,6 +205,9 @@ const STAFF_ACTIONS: {
     { status: ArticleStatus.Rejected, label: 'Rad etish', icon: X, variant: 'danger' },
 ];
 
+/** Faoliyat jurnalida dastlab ko'rsatiladigan yozuvlar soni (telefonda sahifa cheksiz cho'zilmasin) */
+const ACTIVITY_PREVIEW = 4;
+
 const ArticleDetail: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const { user } = useAuth();
@@ -215,6 +219,7 @@ const ArticleDetail: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [notAccessible, setNotAccessible] = useState(false);
     const [activityLogs, setActivityLogs] = useState<ActivityLogEvent[]>([]);
+    const [showAllLogs, setShowAllLogs] = useState(false);
     const [showPdfPreview, setShowPdfPreview] = useState(false);
     const [publicationCertificateFile, setPublicationCertificateFile] = useState<File | null>(null);
     const [publicationUrl, setPublicationUrl] = useState('');
@@ -553,7 +558,7 @@ const ArticleDetail: React.FC = () => {
                             <div>
                                 <div className="flex justify-between text-sm mb-2">
                                     <span className="text-slate-600">
-                                        Joriy bosqich:{' '}
+                                        {t('Joriy bosqich:')}{' '}
                                         {article.workflow_stage ||
                                             fallbackSteps.find((s) => s.current)?.name ||
                                             statusData.text}
@@ -667,8 +672,12 @@ const ArticleDetail: React.FC = () => {
                                     <Eye size={18} /> {t('Ko\'rish')}
                                 </Button>
                                 {fileUrl && (fileUrl.toLowerCase().endsWith('.pdf') || !fileUrl.includes('.')) && (
-                                    <Button onClick={() => setShowPdfPreview(!showPdfPreview)} variant="secondary" className="flex items-center justify-center gap-2 flex-1">
-                                        <FileText size={18} /> {showPdfPreview ? 'Yopish' : 'PDF ko\'rish'}
+                                    <Button
+                                        onClick={() => (canPreviewPdfInline() ? setShowPdfPreview(!showPdfPreview) : window.open(fileUrl, '_blank', 'noopener'))}
+                                        variant="secondary"
+                                        className="flex items-center justify-center gap-2 flex-1"
+                                    >
+                                        <FileText size={18} /> {showPdfPreview ? t('Yopish') : t("PDF ko'rish")}
                                     </Button>
                                 )}
                             </div>
@@ -785,7 +794,7 @@ const ArticleDetail: React.FC = () => {
                     <Card title={t('Faoliyat jurnali')}>
                         <div className="space-y-4">
                             {activityLogs.length > 0 ? (
-                                activityLogs.map(log => (
+                                (showAllLogs ? activityLogs : activityLogs.slice(0, ACTIVITY_PREVIEW)).map(log => (
                                     <div key={log.id} className="flex gap-3 sm:gap-4 p-3 sm:p-4 bg-slate-100/70 rounded-lg">
                                         <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
                                             <GitCommit className="h-4 w-4 sm:h-5 sm:w-5 text-blue-800" />
@@ -804,6 +813,11 @@ const ArticleDetail: React.FC = () => {
                                 ))
                             ) : (
                                 <p className="text-center text-slate-500 py-4">{t('Faoliyat jurnali hali mavjud emas.')}</p>
+                            )}
+                            {activityLogs.length > ACTIVITY_PREVIEW && (
+                                <Button type="button" variant="secondary" className="w-full" onClick={() => setShowAllLogs((v) => !v)}>
+                                    {showAllLogs ? t("Kamroq ko'rsatish") : t("Barchasini ko'rish ({n})", { n: activityLogs.length })}
+                                </Button>
                             )}
                         </div>
                     </Card>

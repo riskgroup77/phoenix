@@ -632,15 +632,15 @@ const UdkOlish: React.FC = () => {
                         {formatDocDate(req.created_at)}
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
+                    <div className="grid grid-cols-2 max-[359px]:grid-cols-1 gap-2 [&>*:last-child:nth-child(odd)]:col-[1/-1] [&>*]:justify-center sm:flex sm:flex-wrap sm:shrink-0 sm:justify-end">
                       {(phase === 'payment_pending' || (phase === 'payment_failed' && req.payment_status === 'failed')) && (
-                        <Button type="button" variant="accent" onClick={() => void payOrder(req)} disabled={payBusy} className="gap-1.5 !px-3 !py-1.5 text-sm">
+                        <Button type="button" variant="accent" onClick={() => void payOrder(req)} disabled={payBusy} className="justify-center gap-1.5 whitespace-nowrap !px-2 !py-2 sm:!px-3 sm:!py-1.5 !text-[13px] sm:!text-sm [&_svg]:shrink-0">
                           <CreditCard className="h-4 w-4" aria-hidden /> {t("To'lash")}
                         </Button>
                       )}
                       {phase === 'completed' && req.certificate_id && (
                         <>
-                          <Button type="button" variant="secondary" onClick={() => handleViewOrder(req)} className="gap-1.5 !px-3 !py-1.5 text-sm">
+                          <Button type="button" variant="secondary" onClick={() => handleViewOrder(req)} className="justify-center gap-1.5 whitespace-nowrap !px-2 !py-2 sm:!px-3 sm:!py-1.5 !text-[13px] sm:!text-sm [&_svg]:shrink-0">
                             <Eye className="h-4 w-4" aria-hidden /> {t("Ko'rish")}
                           </Button>
                           <Button
@@ -648,14 +648,14 @@ const UdkOlish: React.FC = () => {
                             variant="secondary"
                             onClick={() => void handleDownloadCertificate(req.certificate_id as number)}
                             disabled={downloadingId === req.certificate_id}
-                            className="gap-1.5 !px-3 !py-1.5 text-sm"
+                            className="justify-center gap-1.5 whitespace-nowrap !px-2 !py-2 sm:!px-3 sm:!py-1.5 !text-[13px] sm:!text-sm [&_svg]:shrink-0"
                           >
                             {downloadingId === req.certificate_id ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Download className="h-4 w-4" aria-hidden />}
                             {t('Yuklab olish')}
                           </Button>
                         </>
                       )}
-                      <Button type="button" variant="secondary" onClick={() => openOrderReference(req.id)} className="gap-1.5 !px-3 !py-1.5 text-sm">
+                      <Button type="button" variant="secondary" onClick={() => openOrderReference(req.id)} className="justify-center gap-1.5 whitespace-nowrap !px-2 !py-2 sm:!px-3 sm:!py-1.5 !text-[13px] sm:!text-sm [&_svg]:shrink-0">
                         <Award className="h-4 w-4" aria-hidden /> {t("Ma'lumotnoma")}
                       </Button>
                     </div>
@@ -687,7 +687,7 @@ const UdkOlish: React.FC = () => {
                 className="p-4 rounded-xl bg-slate-100/70 border border-slate-200/90 flex flex-wrap items-center justify-between gap-3"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-slate-900 truncate">{c.title}</p>
+                  <p className="font-medium text-slate-900 break-words sm:truncate">{c.title}</p>
                   <p className="text-sm font-semibold text-[var(--editorial-primary)]">UDK: {c.udk_code}</p>
                   {c.udk_description && <p className="text-xs text-slate-500 mt-0.5">{c.udk_description}</p>}
                   {c.created_at && (
@@ -696,11 +696,11 @@ const UdkOlish: React.FC = () => {
                     </p>
                   )}
                 </div>
-                <div className="flex gap-2 shrink-0">
+                <div className="grid grid-cols-2 max-[359px]:grid-cols-1 gap-2 w-full sm:flex sm:w-auto sm:shrink-0">
                   <Button
                     variant="secondary"
                     onClick={() => handleViewCertificate(c)}
-                    className="flex items-center gap-2"
+                    className="flex items-center justify-center gap-2 !px-3 sm:!px-6"
                   >
                     <Eye className="h-4 w-4" />
                     {t("Ko'rish")}
@@ -709,7 +709,7 @@ const UdkOlish: React.FC = () => {
                     variant="secondary"
                     onClick={() => handleDownloadCertificate(c.id)}
                     disabled={downloadingId === c.id}
-                    className="flex items-center gap-2"
+                    className="flex items-center justify-center gap-2 !px-3 sm:!px-6"
                   >
                     {downloadingId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                     {t('Yuklab olish')}

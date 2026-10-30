@@ -201,7 +201,7 @@ const AntiplagiatResultView: React.FC<Props> = ({
 
   return (
     <>
-      <div className="mx-auto max-w-4xl px-4 py-6 space-y-6">
+      <div className="mx-auto max-w-4xl sm:px-4 sm:py-6 space-y-6">
         {onBack && (
           <Button type="button" variant="secondary" onClick={onBack} className="no-print">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -229,7 +229,7 @@ const AntiplagiatResultView: React.FC<Props> = ({
               <p className="text-xs font-semibold text-slate-600">{t('SI matn')}</p>
               <p className="text-xl font-bold text-violet-700">{result.aiContent.toFixed(2)}%</p>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-center col-span-2 md:col-span-1">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
               <p className="text-xs font-semibold text-slate-600">{t('Manbalar')}</p>
               <p className="text-xl font-bold text-slate-800">{t('{length} ta', { length: result.sources.length })}</p>
             </div>
@@ -242,7 +242,7 @@ const AntiplagiatResultView: React.FC<Props> = ({
           </dl>
         </div>
 
-        <div className="flex flex-wrap gap-2 no-print">
+        <div className="grid grid-cols-2 gap-2 [&>button]:!px-2 [&>button]:!text-[13px] sm:flex sm:flex-wrap sm:[&>button]:!px-6 sm:[&>button]:!text-sm no-print">
           <Button onClick={() => setViewer('short')} variant="secondary">
             <FileText className="mr-2 h-4 w-4" />
             {t('Qisqacha hisobot')}
