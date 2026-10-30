@@ -78,6 +78,16 @@ class Journal(models.Model):
     def __str__(self):
         return f"{self.name} ({self.issn})" if self.issn else self.name
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Yangi yuklangan muqova (admin panel yoki API) kartochka uchun kichraytiriladi
+        if self.image_url:
+            from .images import shrink_cover
+            try:
+                shrink_cover(self.image_url.path)
+            except (NotImplementedError, ValueError):
+                pass
+
 
 class Issue(models.Model):
     """Journal issue model"""

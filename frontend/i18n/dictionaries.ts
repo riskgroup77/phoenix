@@ -333,6 +333,8 @@ const ROWS: Row[] = [
   ["O'z yo'nalishingizdagi jurnalni toping va maqolangizni yuboring.", 'Найдите журнал по своей специальности и отправьте статью.', 'Find a journal in your field and submit your article.'],
   ['Jurnal qidirish', 'Поиск журнала', 'Search journals'],
   ['Jurnal nomi yoki ISSN', 'Название журнала или ISSN', 'Journal name or ISSN'],
+  ["Barchasini ko'rish ({n})", 'Показать все ({n})', 'Show all ({n})'],
+  ["Kamroq ko'rsatish", 'Показать меньше', 'Show less'],
   ["Yo'nalishlar", 'Направления', 'Fields'],
   ["{sum} so'm / bet", '{sum} сум / стр.', '{sum} UZS / page'],
   ['Narx kelishiladi', 'Цена по договорённости', 'Price on request'],

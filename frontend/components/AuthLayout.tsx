@@ -16,6 +16,15 @@ const FEATURES = [
 /** "Milliy zamonaviy" kirish sahifasi: chapda lojuvard panel (girih naqshi), o'ngda forma. */
 const AuthLayout: React.FC<{ children: React.ReactNode; title: string }> = ({ children }) => {
   const { t } = useT();
+  const footerLinks = (linkClass: string) => (
+    <>
+      <Link to="/" className={`underline underline-offset-2 ${linkClass}`}>{t('Jurnallar katalogi')}</Link>
+      {' · '}
+      <Link to="/oferta" className={`underline underline-offset-2 ${linkClass}`}>{t('Ommaviy oferta')}</Link>
+      {' · '}
+      <Link to="/maxfiylik" className={`underline underline-offset-2 ${linkClass}`}>{t('Maxfiylik siyosati')}</Link>
+    </>
+  );
   return (
     <div className="milliy-auth">
       <aside className="milliy-auth-aside">
@@ -27,8 +36,13 @@ const AuthLayout: React.FC<{ children: React.ReactNode; title: string }> = ({ ch
             <span className="milliy-brand-sub">{t('Ilmiy nashrlar markazi')}</span>
           </span>
         </Link>
+        {/* Telefonda panel ixcham sarlavha qatori: til va mavzu shu yerda, forma birinchi ekranda ko'rinadi */}
+        <div className="flex items-center gap-1 lg:hidden">
+          <LanguageSwitcher variant="band" />
+          <ThemeToggle variant="band" />
+        </div>
 
-        <div className="flex flex-col gap-5 max-w-md">
+        <div className="hidden lg:flex flex-col gap-5 max-w-md">
           <h1 className="m-0 text-3xl sm:text-4xl font-extrabold leading-tight text-white">
             {t('Ilmiy faoliyatingiz — bir joyda')}
           </h1>
@@ -45,22 +59,23 @@ const AuthLayout: React.FC<{ children: React.ReactNode; title: string }> = ({ ch
           </ul>
         </div>
 
-        <p className="m-0 text-xs text-[var(--milliy-band-text)]">
+        <p className="hidden lg:block m-0 text-xs text-[var(--milliy-band-text)]">
           © {new Date().getFullYear()} Phoenix — {t('Ilmiy nashrlar markazi')}{' · '}
-          <Link to="/" className="underline underline-offset-2 text-white/90 hover:text-white">{t('Jurnallar katalogi')}</Link>
-          {' · '}
-          <Link to="/oferta" className="underline underline-offset-2 text-white/90 hover:text-white">{t('Ommaviy oferta')}</Link>
-          {' · '}
-          <Link to="/maxfiylik" className="underline underline-offset-2 text-white/90 hover:text-white">{t('Maxfiylik siyosati')}</Link>
+          {footerLinks('text-white/90 hover:text-white')}
         </p>
       </aside>
 
       <main className="milliy-auth-main relative">
-        <div className="absolute top-4 right-4 flex items-center gap-1">
+        <div className="absolute top-4 right-4 hidden lg:flex items-center gap-1">
           <LanguageSwitcher />
           <ThemeToggle />
         </div>
-        <div className="w-full max-w-md motion-safe:animate-[phoenix-main-in_0.5s_ease-out_both]">{children}</div>
+        <div className="w-full max-w-md motion-safe:animate-[phoenix-main-in_0.5s_ease-out_both]">
+          {children}
+          <p className="lg:hidden m-0 mt-6 text-center text-xs leading-relaxed text-[var(--editorial-muted)]">
+            {footerLinks('text-[var(--editorial-body)] hover:text-[var(--editorial-primary)]')}
+          </p>
+        </div>
       </main>
     </div>
   );

@@ -60,6 +60,9 @@ const STEPS = [
   { icon: BadgeCheck, title: 'Nashr va sertifikat', text: 'Holatni kuzating, nashrdan so‘ng sertifikatni yuklab oling.' },
 ];
 
+// Katalogda dastlab shuncha jurnal; qolgani "Barchasini ko'rish" bilan ochiladi
+const CATALOG_PREVIEW = 6;
+
 const money = (v: number) => Math.round(v).toLocaleString('ru-RU').replace(/,/g, ' ');
 
 const Landing: React.FC = () => {
@@ -70,6 +73,7 @@ const Landing: React.FC = () => {
   const [error, setError] = useState(false);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
+  const [showAll, setShowAll] = useState(false);
   const [verifyCode, setVerifyCode] = useState('');
 
   useEffect(() => {
@@ -97,6 +101,7 @@ const Landing: React.FC = () => {
         (!q || j.name.toLowerCase().includes(q) || j.issn.includes(q) || j.category.toLowerCase().includes(q)),
     );
   }, [data, query, category]);
+  const visibleJournals = showAll ? journals : journals.slice(0, CATALOG_PREVIEW);
 
   const feeLabel = (j: PublicJournal) => {
     if (j.pricing_type === 'per_page' && j.price_per_page > 0) return t("{sum} so'm / bet", { sum: money(j.price_per_page) });
@@ -202,7 +207,7 @@ const Landing: React.FC = () => {
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--editorial-muted)]" aria-hidden />
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => { setQuery(e.target.value); setShowAll(false); }}
               placeholder={t('Jurnal nomi yoki ISSN')}
               className="editorial-select w-full !pl-9"
             />
@@ -214,7 +219,7 @@ const Landing: React.FC = () => {
               <button
                 key={c || 'all'}
                 type="button"
-                onClick={() => setCategory(c)}
+                onClick={() => { setCategory(c); setShowAll(false); }}
                 aria-pressed={category === c}
                 className={`px-3.5 min-h-[2.25rem] rounded-full text-sm font-semibold border transition-colors ${
                   category === c
@@ -242,8 +247,9 @@ const Landing: React.FC = () => {
         ) : journals.length === 0 ? (
           <EmptyState illustration="search" title={t('Jurnal topilmadi')} description={t("Boshqa nom yoki ISSN bilan qidirib ko'ring.")} />
         ) : (
+          <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {journals.map((j) => (
+            {visibleJournals.map((j) => (
               <article key={j.id} className="milliy-journal-card">
                 <div className="flex items-start gap-3">
                   {j.image ? (
@@ -269,6 +275,14 @@ const Landing: React.FC = () => {
               </article>
             ))}
           </div>
+          {journals.length > CATALOG_PREVIEW && (
+            <div className="flex justify-center mt-6">
+              <button type="button" onClick={() => setShowAll((v) => !v)} className="milliy-btn-secondary !min-h-[2.5rem] !px-5 text-sm">
+                {showAll ? t("Kamroq ko'rsatish") : t("Barchasini ko'rish ({n})", { n: journals.length })}
+              </button>
+            </div>
+          )}
+          </>
         )}
       </section>
 

@@ -367,7 +367,7 @@ def public_overview(request):
     pub_counts = {row['journal_id']: row['cnt'] for row in published.values('journal_id').annotate(cnt=Count('id'))}
 
     journals = []
-    for j in Journal.objects.filter(is_internal=False).select_related('category').order_by('name')[:60]:
+    for j in Journal.objects.filter(is_internal=False, is_archived=False).select_related('category').order_by('name')[:60]:
         image = ''
         try:
             if j.image_url:
